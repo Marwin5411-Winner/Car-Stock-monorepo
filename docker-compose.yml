@@ -28,11 +28,13 @@ services:
     container_name: car-stock-api
     restart: unless-stopped
     ports:
-      - "${API_PORT:-3001}:3001"
+      - "${API_PORT:-3040}:3040"
+    # Run Prisma Generate
+    command: ["sh", "./apps/api/docker-entrypoint.sh"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-car_stock}?schema=public
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      PORT: 3001
+      PORT: 3040
       NODE_ENV: ${NODE_ENV:-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     networks:
