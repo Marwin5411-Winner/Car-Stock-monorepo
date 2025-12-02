@@ -1,0 +1,867 @@
+import { db } from '../../lib/db';
+import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
+import { authService } from '../auth/auth.service';
+
+export class QuotationsService {
+  /**
+   * Generate receipt number for payments
+   */
+  private async generateReceiptNumber(): Promise<string> {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const prefix = NUMBER_PREFIXES.RECEIPT;
+
+    // Get or create number sequence
+    let sequence = await db.numberSequence.findFirst({
+      where: {
+        prefix: prefix,
+        year: currentYear,
+        month: currentMonth,
+      },
+    });
+
+    if (!sequence) {
+      sequence = await db.numberSequence.create({
+        data: {
+          prefix: prefix,
+          year: currentYear,
+          month: currentMonth,
+          lastNumber: 0,
+        },
+      });
+    }
+
+    // Increment and get next number
+    const nextNumber = sequence.lastNumber + 1;
+    await db.numberSequence.update({
+      where: { id: sequence.id },
+      data: { lastNumber: nextNumber },
+    });
+
+    // Format: RCPT-YYMM-XXXX
+    const yearStr = currentYear.toString().slice(-2);
+    const monthStr = currentMonth.toString().padStart(2, '0');
+    return `${prefix}-${yearStr}${monthStr}-${nextNumber.toString().padStart(4, '0')}`;
+  }
+  /**
+   * Generate quotation number
+   */
+  private async generateQuotationNumber(): Promise<string> {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const prefix = NUMBER_PREFIXES.QUOTATION;
+
+    // Get or create number sequence for this month
+    const sequenceKey = `${prefix}-${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+    
+    let sequence = await db.numberSequence.findFirst({
+      where: {
+        prefix: sequenceKey,
+        year: currentYear,
+      },
+    });
+
+    if (!sequence) {
+      sequence = await db.numberSequence.create({
+        data: {
+          prefix: sequenceKey,
+          year: currentYear,
+          lastNumber: 0,
+        },
+      });
+    }
+
+    // Increment and get next number
+    const nextNumber = sequence.lastNumber + 1;
+    await db.numberSequence.update({
+      where: { id: sequence.id },
+      data: { lastNumber: nextNumber },
+    });
+
+    // Format: QTN-YYMM-XXX
+    const yearShort = currentYear.toString().slice(-2);
+    const month = currentMonth.toString().padStart(2, '0');
+    return `${prefix}-${yearShort}${month}-${nextNumber.toString().padStart(3, '0')}`;
+  }
+
+  /**
+   * Get all quotations with pagination and filters
+   */
+  async getAllQuotations(params: any, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const page = parseInt(params.page) || 1;
+    const limit = parseInt(params.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (params.search) {
+      where.OR = [
+        { quotationNumber: { contains: params.search, mode: 'insensitive' } },
+        { customer: { name: { contains: params.search, mode: 'insensitive' } } },
+        { customer: { code: { contains: params.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (params.status) {
+      where.status = params.status;
+    }
+
+    if (params.customerId) {
+      where.customerId = params.customerId;
+    }
+
+    const [quotations, total] = await Promise.all([
+      db.quotation.findMany({
+        where,
+        select: {
+          id: true,
+          quotationNumber: true,
+          version: true,
+          quotedPrice: true,
+          discountAmount: true,
+          finalPrice: true,
+          validUntil: true,
+          status: true,
+          notes: true,
+          preferredExtColor: true,
+          preferredIntColor: true,
+          customer: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              type: true,
+              phone: true,
+              email: true,
+            },
+          },
+          vehicleModel: {
+            select: {
+              id: true,
+              brand: true,
+              model: true,
+              variant: true,
+              year: true,
+              type: true,
+              price: true,
+            },
+          },
+          sale: {
+            select: {
+              id: true,
+              saleNumber: true,
+              status: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          createdAt: true,
+          updatedAt: true,
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.quotation.count({ where }),
+    ]);
+
+    return {
+      data: quotations,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Get quotation by ID
+   */
+  async getQuotationById(id: string, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const quotation = await db.quotation.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        vehicleModel: true,
+        sale: {
+          select: {
+            id: true,
+            saleNumber: true,
+            status: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!quotation) {
+      throw new Error('Quotation not found');
+    }
+
+    return quotation;
+  }
+
+  /**
+   * Get quotation statistics
+   */
+  async getQuotationStats(currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const [
+      totalQuotations,
+      draftQuotations,
+      sentQuotations,
+      acceptedQuotations,
+      rejectedQuotations,
+      expiredQuotations,
+      convertedQuotations,
+      totalQuotedValue,
+    ] = await Promise.all([
+      db.quotation.count(),
+      db.quotation.count({ where: { status: 'DRAFT' } }),
+      db.quotation.count({ where: { status: 'SENT' } }),
+      db.quotation.count({ where: { status: 'ACCEPTED' } }),
+      db.quotation.count({ where: { status: 'REJECTED' } }),
+      db.quotation.count({ where: { status: 'EXPIRED' } }),
+      db.quotation.count({ where: { status: 'CONVERTED' } }),
+      db.quotation.aggregate({
+        where: { status: { in: ['SENT', 'ACCEPTED', 'CONVERTED'] } },
+        _sum: { quotedPrice: true },
+      }),
+    ]);
+
+    const sentAndConverted = sentQuotations + acceptedQuotations + convertedQuotations + rejectedQuotations + expiredQuotations;
+    const conversionRate = sentAndConverted > 0 ? (convertedQuotations / sentAndConverted) * 100 : 0;
+
+    return {
+      totalQuotations,
+      draftQuotations,
+      sentQuotations,
+      acceptedQuotations,
+      rejectedQuotations,
+      expiredQuotations,
+      convertedQuotations,
+      conversionRate: Math.round(conversionRate * 100) / 100,
+      totalQuotedValue: totalQuotedValue._sum.quotedPrice || 0,
+    };
+  }
+
+  /**
+   * Create new quotation
+   */
+  async createQuotation(data: any, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    // Check if customer exists
+    const customer = await db.customer.findUnique({
+      where: { id: data.customerId },
+      select: { id: true },
+    });
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // Check if vehicle model exists (if provided)
+    if (data.vehicleModelId) {
+      const vehicleModel = await db.vehicleModel.findUnique({
+        where: { id: data.vehicleModelId },
+        select: { id: true },
+      });
+
+      if (!vehicleModel) {
+        throw new Error('Vehicle model not found');
+      }
+    }
+
+    // Generate quotation number
+    const quotationNumber = await this.generateQuotationNumber();
+
+    // Calculate final price
+    const quotedPrice = Number(data.quotedPrice);
+    const discountAmount = Number(data.discountAmount || 0);
+    const finalPrice = quotedPrice - discountAmount;
+
+    // Create quotation
+    const quotation = await db.quotation.create({
+      data: {
+        quotationNumber,
+        customerId: data.customerId,
+        vehicleModelId: data.vehicleModelId || null,
+        preferredExtColor: data.preferredExtColor || null,
+        preferredIntColor: data.preferredIntColor || null,
+        quotedPrice,
+        discountAmount,
+        finalPrice,
+        validUntil: new Date(data.validUntil),
+        notes: data.notes || null,
+        version: 1,
+        status: 'DRAFT',
+        createdById: currentUser.id,
+      },
+      include: {
+        customer: true,
+        vehicleModel: true,
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'CREATE_QUOTATION',
+        entity: 'QUOTATION',
+        entityId: quotation.id,
+        details: {
+          quotationNumber: quotation.quotationNumber,
+          customerId: quotation.customerId,
+          quotedPrice: quotation.quotedPrice,
+        },
+      },
+    });
+
+    return quotation;
+  }
+
+  /**
+   * Update quotation
+   */
+  async updateQuotation(id: string, data: any, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const existing = await db.quotation.findUnique({
+      where: { id },
+      select: { id: true, status: true, version: true },
+    });
+
+    if (!existing) {
+      throw new Error('Quotation not found');
+    }
+
+    // Can only update DRAFT quotations
+    if (existing.status !== 'DRAFT') {
+      throw new Error('Can only update draft quotations');
+    }
+
+    // Check if vehicle model exists (if provided)
+    if (data.vehicleModelId) {
+      const vehicleModel = await db.vehicleModel.findUnique({
+        where: { id: data.vehicleModelId },
+        select: { id: true },
+      });
+      if (!vehicleModel) {
+        throw new Error('Vehicle model not found');
+      }
+    }
+
+    // Calculate final price if prices are updated
+    let updateData: any = {
+      vehicleModelId: data.vehicleModelId !== undefined ? data.vehicleModelId : undefined,
+      preferredExtColor: data.preferredExtColor,
+      preferredIntColor: data.preferredIntColor,
+      validUntil: data.validUntil ? new Date(data.validUntil) : undefined,
+      notes: data.notes,
+    };
+
+    if (data.quotedPrice !== undefined || data.discountAmount !== undefined) {
+      const quotedPrice = data.quotedPrice !== undefined ? Number(data.quotedPrice) : undefined;
+      const discountAmount = data.discountAmount !== undefined ? Number(data.discountAmount) : undefined;
+      
+      if (quotedPrice !== undefined) {
+        updateData.quotedPrice = quotedPrice;
+      }
+      if (discountAmount !== undefined) {
+        updateData.discountAmount = discountAmount;
+      }
+      
+      // Recalculate final price
+      const currentQuotation = await db.quotation.findUnique({ where: { id } });
+      if (currentQuotation) {
+        const newQuotedPrice = quotedPrice ?? Number(currentQuotation.quotedPrice);
+        const newDiscount = discountAmount ?? Number(currentQuotation.discountAmount);
+        updateData.finalPrice = newQuotedPrice - newDiscount;
+      }
+    }
+
+    const quotation = await db.quotation.update({
+      where: { id },
+      data: updateData,
+      include: {
+        customer: true,
+        vehicleModel: true,
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'UPDATE_QUOTATION',
+        entity: 'QUOTATION',
+        entityId: quotation.id,
+        details: {
+          quotationNumber: quotation.quotationNumber,
+        },
+      },
+    });
+
+    return quotation;
+  }
+
+  /**
+   * Update quotation status
+   */
+  async updateQuotationStatus(id: string, status: string, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const existing = await db.quotation.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+
+    if (!existing) {
+      throw new Error('Quotation not found');
+    }
+
+    // Validate status transitions
+    const validTransitions: Record<string, string[]> = {
+      DRAFT: ['SENT'],
+      SENT: ['ACCEPTED', 'REJECTED', 'EXPIRED'],
+      ACCEPTED: ['CONVERTED'],
+      REJECTED: [],
+      EXPIRED: [],
+      CONVERTED: [],
+    };
+
+    const allowed = validTransitions[existing.status] || [];
+    if (!allowed.includes(status)) {
+      throw new Error(`Cannot transition from ${existing.status} to ${status}`);
+    }
+
+    const quotation = await db.quotation.update({
+      where: { id },
+      data: { status: status as any },
+      include: {
+        customer: true,
+        vehicleModel: true,
+        sale: {
+          select: {
+            id: true,
+            saleNumber: true,
+            status: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'UPDATE_QUOTATION_STATUS',
+        entity: 'QUOTATION',
+        entityId: quotation.id,
+        details: {
+          quotationNumber: quotation.quotationNumber,
+          fromStatus: existing.status,
+          toStatus: status,
+        },
+      },
+    });
+
+    return quotation;
+  }
+
+  /**
+   * Convert quotation to sale
+   */
+  async convertToSale(id: string, data: any, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const quotation = await db.quotation.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        vehicleModel: true,
+      },
+    });
+
+    if (!quotation) {
+      throw new Error('Quotation not found');
+    }
+
+    if (quotation.status !== 'ACCEPTED') {
+      throw new Error('Can only convert accepted quotations');
+    }
+
+    // Generate sale number
+    const currentYear = new Date().getFullYear();
+    const salePrefix = NUMBER_PREFIXES.SALE;
+
+    let saleSequence = await db.numberSequence.findFirst({
+      where: {
+        prefix: salePrefix,
+        year: currentYear,
+      },
+    });
+
+    if (!saleSequence) {
+      saleSequence = await db.numberSequence.create({
+        data: {
+          prefix: salePrefix,
+          year: currentYear,
+          lastNumber: 0,
+        },
+      });
+    }
+
+    const nextSaleNumber = saleSequence.lastNumber + 1;
+    await db.numberSequence.update({
+      where: { id: saleSequence.id },
+      data: { lastNumber: nextSaleNumber },
+    });
+
+    const saleNumber = `${salePrefix}-${currentYear}-${nextSaleNumber.toString().padStart(4, '0')}`;
+
+    // Determine sale type
+    const saleType = data.saleType || 'RESERVATION_SALE';
+    const totalAmount = Number(quotation.finalPrice);
+    const depositAmount = Number(data.depositAmount || 0);
+    const remainingAmount = totalAmount - depositAmount;
+
+    // Create the sale
+    const sale = await db.sale.create({
+      data: {
+        saleNumber,
+        type: saleType,
+        status: saleType === 'DIRECT_SALE' ? 'PREPARING' : 'RESERVED',
+        customerId: quotation.customerId,
+        stockId: data.stockId || null,
+        vehicleModelId: quotation.vehicleModelId,
+        preferredExtColor: quotation.preferredExtColor,
+        preferredIntColor: quotation.preferredIntColor,
+        totalAmount,
+        depositAmount,
+        paidAmount: depositAmount, // Set paidAmount to depositAmount since deposit is recorded as payment
+        remainingAmount,
+        reservedDate: new Date(),
+        discountSnapshot: quotation.discountAmount,
+        paymentMode: data.paymentMode || 'CASH',
+        notes: quotation.notes,
+        createdById: currentUser.id,
+      },
+    });
+
+    // If deposit amount is provided, create a payment record
+    if (depositAmount > 0) {
+      const receiptNumber = await this.generateReceiptNumber();
+      
+      await db.payment.create({
+        data: {
+          receiptNumber,
+          customerId: quotation.customerId,
+          saleId: sale.id,
+          paymentDate: new Date(),
+          paymentType: 'DEPOSIT',
+          amount: depositAmount,
+          paymentMethod: data.paymentMethod || 'CASH',
+          referenceNumber: data.paymentReferenceNumber || null,
+          notes: `เงินมัดจำจากใบเสนอราคา ${quotation.quotationNumber}`,
+          description: `เงินมัดจำ - ${saleNumber}`,
+          createdById: currentUser.id,
+          issuedBy: `${currentUser.firstName} ${currentUser.lastName}`,
+        },
+      });
+
+      // Log payment activity
+      await db.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'CREATE_DEPOSIT_PAYMENT',
+          entity: 'PAYMENT',
+          entityId: sale.id,
+          details: {
+            saleNumber: sale.saleNumber,
+            quotationNumber: quotation.quotationNumber,
+            depositAmount: depositAmount,
+            paymentMethod: data.paymentMethod || 'CASH',
+          },
+        },
+      });
+    }
+
+    // Update quotation status to CONVERTED and link to sale
+    const updatedQuotation = await db.quotation.update({
+      where: { id },
+      data: {
+        status: 'CONVERTED',
+        saleId: sale.id,
+      },
+      include: {
+        customer: true,
+        vehicleModel: true,
+        sale: {
+          select: {
+            id: true,
+            saleNumber: true,
+            status: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // If stock is assigned, update its status
+    if (data.stockId) {
+      await db.stock.update({
+        where: { id: data.stockId },
+        data: {
+          status: 'RESERVED',
+        },
+      });
+    }
+
+    // Create sale history record
+    await db.saleHistory.create({
+      data: {
+        saleId: sale.id,
+        action: 'CONVERT_FROM_QUOTATION',
+        fromStatus: null,
+        toStatus: sale.status,
+        notes: `Converted from quotation ${quotation.quotationNumber}`,
+        createdById: currentUser.id,
+      },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'CONVERT_QUOTATION_TO_SALE',
+        entity: 'QUOTATION',
+        entityId: quotation.id,
+        details: {
+          quotationNumber: quotation.quotationNumber,
+          saleNumber: sale.saleNumber,
+          saleId: sale.id,
+        },
+      },
+    });
+
+    return {
+      quotation: updatedQuotation,
+      sale: {
+        id: sale.id,
+        saleNumber: sale.saleNumber,
+        status: sale.status,
+      },
+    };
+  }
+
+  /**
+   * Create new version of quotation
+   */
+  async createNewVersion(id: string, data: any, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const original = await db.quotation.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        vehicleModel: true,
+      },
+    });
+
+    if (!original) {
+      throw new Error('Quotation not found');
+    }
+
+    // Get the highest version for this customer/vehicle combination
+    const maxVersion = await db.quotation.aggregate({
+      where: {
+        customerId: original.customerId,
+        vehicleModelId: original.vehicleModelId,
+      },
+      _max: {
+        version: true,
+      },
+    });
+
+    const newVersion = (maxVersion._max.version || 0) + 1;
+    const quotationNumber = await this.generateQuotationNumber();
+
+    // Calculate prices
+    const quotedPrice = data.quotedPrice !== undefined ? Number(data.quotedPrice) : Number(original.quotedPrice);
+    const discountAmount = data.discountAmount !== undefined ? Number(data.discountAmount) : Number(original.discountAmount);
+    const finalPrice = quotedPrice - discountAmount;
+
+    // Create new version
+    const newQuotation = await db.quotation.create({
+      data: {
+        quotationNumber,
+        customerId: original.customerId,
+        vehicleModelId: data.vehicleModelId || original.vehicleModelId,
+        preferredExtColor: data.preferredExtColor || original.preferredExtColor,
+        preferredIntColor: data.preferredIntColor || original.preferredIntColor,
+        quotedPrice,
+        discountAmount,
+        finalPrice,
+        validUntil: data.validUntil ? new Date(data.validUntil) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        notes: data.notes || original.notes,
+        version: newVersion,
+        status: 'DRAFT',
+        createdById: currentUser.id,
+      },
+      include: {
+        customer: true,
+        vehicleModel: true,
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'CREATE_QUOTATION_VERSION',
+        entity: 'QUOTATION',
+        entityId: newQuotation.id,
+        details: {
+          quotationNumber: newQuotation.quotationNumber,
+          originalQuotationId: original.id,
+          version: newVersion,
+        },
+      },
+    });
+
+    return newQuotation;
+  }
+
+  /**
+   * Delete quotation (only DRAFT)
+   */
+  async deleteQuotation(id: string, currentUser: any) {
+    // Check permission
+    if (!authService.hasPermission(currentUser.role, 'SALE_DELETE' as any)) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const quotation = await db.quotation.findUnique({
+      where: { id },
+      select: { id: true, status: true, quotationNumber: true },
+    });
+
+    if (!quotation) {
+      throw new Error('Quotation not found');
+    }
+
+    if (quotation.status !== 'DRAFT') {
+      throw new Error('Can only delete draft quotations');
+    }
+
+    await db.quotation.delete({
+      where: { id },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'DELETE_QUOTATION',
+        entity: 'QUOTATION',
+        entityId: id,
+        details: {
+          quotationNumber: quotation.quotationNumber,
+        },
+      },
+    });
+
+    return { success: true };
+  }
+}
+
+export const quotationsService = new QuotationsService();

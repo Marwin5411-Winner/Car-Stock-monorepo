@@ -1,0 +1,36 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run dist/index.js",
+    "db:generate": "bunx prisma generate",
+    "db:migrate": "bunx prisma migrate dev",
+    "db:push": "bunx prisma db push",
+    "db:seed": "bunx prisma db seed",
+    "db:studio": "bunx prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1",
+    "elysia": "^1.2.12",
+    "@elysiajs/cors": "^1.1.1",
+    "@elysiajs/swagger": "^1.2.0",
+    "@elysiajs/jwt": "^1.2.0",
+    "zod": "^3.23.8",
+    "pdf-lib": "^1.17.1",
+    "@pdfme/generator": "^4.5.2",
+    "@pdfme/common": "^4.5.2",
+    "@pdfme/schemas": "^4.5.2",
+    "bcryptjs": "^2.4.3",
+    "@car-stock/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prisma": "^6.2.1"
+  },
+  "prisma": {
+    "seed": "bun run prisma/seed.ts"
+  }
+}

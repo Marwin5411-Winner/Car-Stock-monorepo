@@ -1,0 +1,267 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { vehicleService } from '../../services/vehicle.service';
+import type { VehicleModel } from '../../services/vehicle.service';
+import { MainLayout } from '../../components/layout';
+import { ArrowLeft, Edit, Car, Palette, Calendar, Tag, Package } from 'lucide-react';
+
+export default function VehicleDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [vehicle, setVehicle] = useState<VehicleModel | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      fetchVehicle(id);
+    }
+  }, [id]);
+
+  const fetchVehicle = async (vehicleId: string) => {
+    try {
+      setLoading(true);
+      const data = await vehicleService.getById(vehicleId);
+      setVehicle(data);
+    } catch (error) {
+      console.error('Error fetching vehicle:', error);
+      alert('ไม่สามารถโหลดข้อมูลรุ่นรถได้');
+      navigate('/vehicles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">กำลังโหลด...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!vehicle) {
+    return (
+      <MainLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-600">ไม่พบข้อมูลรุ่นรถ</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="mb-6">
+        <button
+          onClick={() => navigate('/vehicles')}
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <ArrowLeft className="w-5 h-5 mr-2" />
+          กลับ
+        </button>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {vehicle.brand} {vehicle.model} {vehicle.variant || ''}
+            </h1>
+            <p className="text-gray-600">ปี {vehicle.year}</p>
+          </div>
+          <Link
+            to={`/vehicles/${vehicle.id}/edit`}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Edit className="w-5 h-5 mr-2" />
+            แก้ไข
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">ข้อมูลทั่วไป</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-start">
+                <Car className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">ยี่ห้อ</p>
+                  <p className="text-gray-900">{vehicle.brand}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <Car className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">รุ่น</p>
+                  <p className="text-gray-900">{vehicle.model}</p>
+                </div>
+              </div>
+
+              {vehicle.variant && (
+                <div className="flex items-start">
+                  <Tag className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500">เวอร์ชัน</p>
+                    <p className="text-gray-900">{vehicle.variant}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start">
+                <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">ปี</p>
+                  <p className="text-gray-900">{vehicle.year}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <Tag className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">ประเภท</p>
+                  <p className="text-gray-900">{vehicle.type}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <Tag className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">ราคาขาย</p>
+                  <p className="text-gray-900">
+                    {new Intl.NumberFormat('th-TH', {
+                      style: 'currency',
+                      currency: 'THB',
+                    }).format(vehicle.price)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <Package className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">จำนวนใน Stock</p>
+                  <p className="text-gray-900">{vehicle.stockCount} คัน</p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">สถานะ</p>
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs leading-5 font-semibold rounded-full ${
+                      vehicle.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {vehicle.status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {vehicle.description && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">คำอธิบาย</h2>
+              <p className="text-gray-900">{vehicle.description}</p>
+            </div>
+          )}
+
+          {vehicle.availableColors && vehicle.availableColors.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Palette className="h-5 w-5 mr-2" />
+                สีที่มีจำหน่าย
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {vehicle.availableColors.map((color, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                  >
+                    {color}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {vehicle.specifications && Object.keys(vehicle.specifications).length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">ข้อมูลจำเพาะ</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(vehicle.specifications).map(([key, value]) => (
+                  <div key={key}>
+                    <p className="text-sm text-gray-500">{key}</p>
+                    <p className="text-gray-900">{String(value)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Stock ที่เกี่ยวข้อง</h2>
+            <p className="text-gray-500 text-center py-8">
+              ไม่มีข้อมูล Stock ที่เกี่ยวข้อง
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">สรุปข้อมูล</h2>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-4 border-b border-gray-200">
+                <span className="text-sm text-gray-600">ราคาขาย</span>
+                <span className="font-medium text-gray-900">
+                  {new Intl.NumberFormat('th-TH', {
+                    style: 'currency',
+                    currency: 'THB',
+                  }).format(vehicle.price)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-4 border-b border-gray-200">
+                <span className="text-sm text-gray-600">จำนวนใน Stock</span>
+                <span className="font-medium text-gray-900">{vehicle.stockCount} คัน</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">สถานะ</span>
+                <span
+                  className={`font-medium ${
+                    vehicle.status === 'ACTIVE' ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {vehicle.status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">การดำเนินการ</h2>
+            <div className="space-y-2">
+              <Link
+                to={`/stock/new?vehicleModelId=${vehicle.id}`}
+                className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700"
+              >
+                เพิ่ม Stock
+              </Link>
+              <Link
+                to={`/sales/new?vehicleModelId=${vehicle.id}`}
+                className="block w-full px-4 py-2 bg-green-600 text-white text-center rounded-lg hover:bg-green-700"
+              >
+                สร้างใบสั่งซื้อ
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}

@@ -1,0 +1,451 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  username     String        @unique
+  email        String        @unique
+  password     String
+  firstName    String        @map("first_name")
+  lastName     String        @map("last_name")
+  phone        String?
+  role         Role          @default(SALES_STAFF)
+  status       UserStatus    @default(ACTIVE)
+  profileImage String?       @map("profile_image")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  activities   ActivityLog[]
+  campaigns    Campaign[]
+  documents    Document[]
+  payments     Payment[]
+  quotations   Quotation[]
+  saleHistory  SaleHistory[]
+  sales        Sale[]
+
+  @@map("users")
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  type           CustomerType
+  salesType      SalesType    @default(NORMAL_SALES) @map("sales_type")
+  name           String
+  taxId          String?      @unique @map("tax_id")
+  houseNumber    String       @map("house_number")
+  street         String?
+  subdistrict    String
+  district       String
+  province       String
+  postalCode     String?      @map("postal_code")
+  phone          String
+  email          String?
+  website        String?
+  contactName    String?      @map("contact_name")
+  contactRole    String?      @map("contact_role")
+  contactMobile  String?      @map("contact_mobile")
+  contactEmail   String?      @map("contact_email")
+  creditTermDays Int?         @map("credit_term_days")
+  creditLimit    Decimal?     @map("credit_limit") @db.Decimal(15, 2)
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  payments       Payment[]
+  quotations     Quotation[]
+  sales          Sale[]
+
+  @@map("customers")
+}
+
+model VehicleModel {
+  id             String                 @id @default(cuid())
+  brand          String
+  model          String
+  variant        String?
+  year           Int
+  type           VehicleType
+  primaryColor   String?                @map("primary_color")
+  secondaryColor String?                @map("secondary_color")
+  colorNotes     String?                @map("color_notes")
+  mainOptions    String?                @map("main_options")
+  engineSpecs    String?                @map("engine_specs")
+  dimensions     String?
+  price          Decimal                @db.Decimal(15, 2)
+  standardCost   Decimal                @map("standard_cost") @db.Decimal(15, 2)
+  targetMargin   Decimal?               @map("target_margin") @db.Decimal(5, 2)
+  notes          String?
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  campaigns      CampaignVehicleModel[]
+  quotations     Quotation[]
+  sales          Sale[]
+  stocks         Stock[]
+
+  @@map("vehicle_models")
+}
+
+model Stock {
+  id                    String           @id @default(cuid())
+  vin                   String           @unique
+  engineNumber          String?          @map("engine_number")
+  motorNumber1          String?          @map("motor_number_1")
+  motorNumber2          String?          @map("motor_number_2")
+  vehicleModelId        String           @map("vehicle_model_id")
+  exteriorColor         String           @map("exterior_color")
+  interiorColor         String?          @map("interior_color")
+  arrivalDate           DateTime         @map("arrival_date")
+  orderDate             DateTime?        @map("order_date")
+  status                StockStatus      @default(AVAILABLE)
+  parkingSlot           String?          @map("parking_slot")
+  baseCost              Decimal          @map("base_cost") @db.Decimal(15, 2)
+  transportCost         Decimal          @default(0) @map("transport_cost") @db.Decimal(15, 2)
+  accessoryCost         Decimal          @default(0) @map("accessory_cost") @db.Decimal(15, 2)
+  otherCosts            Decimal          @default(0) @map("other_costs") @db.Decimal(15, 2)
+  financeProvider       String?          @map("finance_provider")
+  interestRate          Decimal          @default(0) @map("interest_rate") @db.Decimal(5, 4)
+  interestPrincipalBase InterestBase     @default(BASE_COST_ONLY) @map("interest_principal_base")
+  accumulatedInterest   Decimal          @default(0) @map("accumulated_interest") @db.Decimal(15, 2)
+  financePaymentDate    DateTime?        @map("finance_payment_date")
+  stopInterestCalc      Boolean          @default(false) @map("stop_interest_calc")
+  interestStoppedAt     DateTime?        @map("interest_stopped_at")
+  expectedSalePrice     Decimal?         @map("expected_sale_price") @db.Decimal(15, 2)
+  actualSalePrice       Decimal?         @map("actual_sale_price") @db.Decimal(15, 2)
+  soldDate              DateTime?        @map("sold_date")
+  deliveryNotes         String?          @map("delivery_notes")
+  notes                 String?
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+  sale                  Sale?
+  vehicleModel          VehicleModel     @relation(fields: [vehicleModelId], references: [id])
+  interestPeriods       InterestPeriod[]
+
+  @@map("stocks")
+}
+
+// Interest Period - เก็บประวัติการเปลี่ยนแปลงอัตราดอกเบี้ยของแต่ละ Stock
+model InterestPeriod {
+  id                 String       @id @default(cuid())
+  stockId            String       @map("stock_id")
+  stock              Stock        @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  
+  // ช่วงเวลา
+  startDate          DateTime     @map("start_date")
+  endDate            DateTime?    @map("end_date") // null = ยังใช้อยู่
+  
+  // อัตราดอกเบี้ย
+  annualRate         Decimal      @map("annual_rate") @db.Decimal(5, 2) // % ต่อปี เช่น 7.50
+  principalBase      InterestBase @default(BASE_COST_ONLY) @map("principal_base")
+  principalAmount    Decimal      @map("principal_amount") @db.Decimal(15, 2) // ยอดเงินต้นที่ใช้คำนวณ
+  
+  // ดอกเบี้ยที่คำนวณได้
+  calculatedInterest Decimal      @default(0) @map("calculated_interest") @db.Decimal(15, 2)
+  daysCount          Int          @default(0) @map("days_count") // จำนวนวันที่คำนวณ
+  
+  // Metadata
+  createdAt          DateTime     @default(now()) @map("created_at")
+  createdById        String?      @map("created_by_id")
+  notes              String?
+
+  @@index([stockId])
+  @@map("interest_periods")
+}
+
+model Sale {
+  id                 String        @id @default(cuid())
+  saleNumber         String        @unique @map("sale_number")
+  type               SaleType
+  status             SaleStatus    @default(RESERVED)
+  customerId         String        @map("customer_id")
+  stockId            String?       @unique @map("stock_id")
+  vehicleModelId     String?       @map("vehicle_model_id")
+  preferredExtColor  String?       @map("preferred_ext_color")
+  preferredIntColor  String?       @map("preferred_int_color")
+  totalAmount        Decimal       @map("total_amount") @db.Decimal(15, 2)
+  depositAmount      Decimal       @default(0) @map("deposit_amount") @db.Decimal(15, 2)
+  paidAmount         Decimal       @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  remainingAmount    Decimal       @map("remaining_amount") @db.Decimal(15, 2)
+  reservedDate       DateTime?     @map("reserved_date")
+  expirationDate     DateTime?     @map("expiration_date")
+  hasExpiration      Boolean       @default(false) @map("has_expiration")
+  deliveryDate       DateTime?     @map("delivery_date")
+  completedDate      DateTime?     @map("completed_date")
+  campaignId         String?       @map("campaign_id")
+  discountSnapshot   Decimal?      @map("discount_snapshot") @db.Decimal(15, 2)
+  freebiesSnapshot   String?       @map("freebies_snapshot")
+  paymentMode        PaymentMode   @default(CASH) @map("payment_mode")
+  downPayment        Decimal?      @map("down_payment") @db.Decimal(15, 2)
+  financeAmount      Decimal?      @map("finance_amount") @db.Decimal(15, 2)
+  financeProvider    String?       @map("finance_provider")
+  refundPolicy       RefundPolicy  @default(FULL) @map("refund_policy")
+  refundAmount       Decimal?      @map("refund_amount") @db.Decimal(15, 2)
+  notes              String?
+  cancellationReason String?       @map("cancellation_reason")
+  createdById        String        @map("created_by_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  documents          Document[]
+  payments           Payment[]
+  quotation          Quotation?
+  history            SaleHistory[]
+  campaign           Campaign?     @relation(fields: [campaignId], references: [id])
+  createdBy          User          @relation(fields: [createdById], references: [id])
+  customer           Customer      @relation(fields: [customerId], references: [id])
+  stock              Stock?        @relation(fields: [stockId], references: [id])
+  vehicleModel       VehicleModel? @relation(fields: [vehicleModelId], references: [id])
+
+  @@map("sales")
+}
+
+model Quotation {
+  id                String          @id @default(cuid())
+  quotationNumber   String          @unique @map("quotation_number")
+  saleId            String?         @unique @map("sale_id")
+  version           Int             @default(1)
+  quotedPrice       Decimal         @map("quoted_price") @db.Decimal(15, 2)
+  validUntil        DateTime        @map("valid_until")
+  status            QuotationStatus @default(DRAFT)
+  notes             String?
+  createdById       String          @map("created_by_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  customerId        String          @map("customer_id")
+  discountAmount    Decimal         @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  finalPrice        Decimal         @map("final_price") @db.Decimal(15, 2)
+  preferredExtColor String?         @map("preferred_ext_color")
+  preferredIntColor String?         @map("preferred_int_color")
+  vehicleModelId    String?         @map("vehicle_model_id")
+  createdBy         User            @relation(fields: [createdById], references: [id])
+  customer          Customer        @relation(fields: [customerId], references: [id])
+  sale              Sale?           @relation(fields: [saleId], references: [id])
+  vehicleModel      VehicleModel?   @relation(fields: [vehicleModelId], references: [id])
+
+  @@map("quotations")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  receiptNumber   String        @unique @map("receipt_number")
+  customerId      String        @map("customer_id")
+  saleId          String?       @map("sale_id")
+  paymentDate     DateTime      @default(now()) @map("payment_date")
+  paymentType     PaymentType   @map("payment_type")
+  amount          Decimal       @db.Decimal(15, 2)
+  paymentMethod   PaymentMethod @map("payment_method")
+  referenceNumber String?       @map("reference_number")
+  notes           String?
+  status          PaymentStatus @default(ACTIVE)
+  voidReason      String?       @map("void_reason")
+  voidedAt        DateTime?     @map("voided_at")
+  issuedBy        String        @map("issued_by")
+  createdById     String        @map("created_by_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  description     String?
+  createdBy       User          @relation(fields: [createdById], references: [id])
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  sale            Sale?         @relation(fields: [saleId], references: [id])
+
+  @@map("payments")
+}
+
+model Campaign {
+  id            String                 @id @default(cuid())
+  name          String
+  description   String?
+  status        CampaignStatus         @default(DRAFT)
+  startDate     DateTime               @map("start_date")
+  endDate       DateTime               @map("end_date")
+  notes         String?
+  createdById   String                 @map("created_by_id")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  vehicleModels CampaignVehicleModel[]
+  createdBy     User                   @relation(fields: [createdById], references: [id])
+  sales         Sale[]
+
+  @@map("campaigns")
+}
+
+model CampaignVehicleModel {
+  campaignId     String       @map("campaign_id")
+  vehicleModelId String       @map("vehicle_model_id")
+  campaign       Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  vehicleModel   VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, vehicleModelId])
+  @@map("campaign_vehicle_models")
+}
+
+model Document {
+  id            String       @id @default(cuid())
+  saleId        String       @map("sale_id")
+  type          DocumentType
+  fileName      String       @map("file_name")
+  filePath      String       @map("file_path")
+  generatedAt   DateTime     @default(now()) @map("generated_at")
+  generatedById String       @map("generated_by_id")
+  generatedBy   User         @relation(fields: [generatedById], references: [id])
+  sale          Sale         @relation(fields: [saleId], references: [id])
+
+  @@map("documents")
+}
+
+model SaleHistory {
+  id          String   @id @default(cuid())
+  saleId      String   @map("sale_id")
+  action      String
+  fromStatus  String?  @map("from_status")
+  toStatus    String?  @map("to_status")
+  notes       String?
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  sale        Sale     @relation(fields: [saleId], references: [id])
+
+  @@map("sale_history")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
+
+model NumberSequence {
+  id         String   @id @default(cuid())
+  prefix     String
+  year       Int
+  month      Int?
+  lastNumber Int      @default(0) @map("last_number")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([prefix, year, month])
+  @@map("number_sequences")
+}
+
+enum Role {
+  ADMIN
+  SALES_MANAGER
+  STOCK_STAFF
+  ACCOUNTANT
+  SALES_STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum SalesType {
+  NORMAL_SALES
+  FLEET_SALES
+}
+
+enum VehicleType {
+  SUV
+  SEDAN
+  PICKUP
+  HATCHBACK
+  MPV
+  EV
+}
+
+enum StockStatus {
+  AVAILABLE
+  RESERVED
+  PREPARING
+  SOLD
+}
+
+enum InterestBase {
+  BASE_COST_ONLY
+  TOTAL_COST
+}
+
+enum SaleType {
+  RESERVATION_SALE
+  DIRECT_SALE
+}
+
+enum SaleStatus {
+  RESERVED
+  PREPARING
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  FINANCE
+  MIXED
+}
+
+enum RefundPolicy {
+  FULL
+  PARTIAL
+  NO_REFUND
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum PaymentType {
+  DEPOSIT
+  DOWN_PAYMENT
+  FINANCE_PAYMENT
+  OTHER_EXPENSE
+  MISCELLANEOUS
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  CREDIT_CARD
+}
+
+enum PaymentStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
+enum DocumentType {
+  RESERVATION_CONTRACT
+  SHORT_RESERVATION_FORM
+  CAR_DETAIL_CARD
+  SALES_CONFIRMATION
+  SALES_RECORD
+  DELIVERY_RECEIPT
+  THANK_YOU_LETTER
+}

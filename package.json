@@ -1,0 +1,31 @@
+{
+  "name": "car-stock-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel dev:api dev:web",
+    "dev:api": "cd apps/api && bun run dev",
+    "dev:web": "cd apps/web && bun run dev",
+    "build": "bun run build:api && bun run build:web",
+    "build:api": "cd apps/api && bun run build",
+    "build:web": "cd apps/web && bun run build",
+    "db:generate": "cd apps/api && bunx prisma generate",
+    "db:migrate": "cd apps/api && bunx prisma migrate dev",
+    "db:push": "cd apps/api && bunx prisma db push",
+    "db:seed": "cd apps/api && bunx prisma db seed",
+    "db:studio": "cd apps/api && bunx prisma studio",
+    "lint": "biome check .",
+    "lint:fix": "biome check --apply .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.6.3"
+  }
+}
