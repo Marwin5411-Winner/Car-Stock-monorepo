@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { vehicleService } from '../../services/vehicle.service';
 import type { VehicleModel } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
@@ -13,7 +13,6 @@ export default function VehiclesListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchVehicles();

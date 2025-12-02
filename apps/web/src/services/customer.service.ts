@@ -109,17 +109,17 @@ class CustomerService {
   }
 
   async getById(id: string): Promise<Customer> {
-    const response = await api.get(`/api/customers/${id}`);
+    const response = await api.get<{ success: boolean; data: Customer }>(`/api/customers/${id}`);
     return response.data;
   }
 
   async create(data: CreateCustomerData): Promise<Customer> {
-    const response = await api.post('/api/customers', data);
+    const response = await api.post<{ success: boolean; data: Customer }>('/api/customers', data);
     return response.data;
   }
 
   async update(id: string, data: UpdateCustomerData): Promise<Customer> {
-    const response = await api.patch(`/api/customers/${id}`, data);
+    const response = await api.patch<{ success: boolean; data: Customer }>(`/api/customers/${id}`, data);
     return response.data;
   }
 

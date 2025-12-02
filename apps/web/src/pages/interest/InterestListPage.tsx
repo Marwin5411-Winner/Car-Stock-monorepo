@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { interestService } from '../../services/interest.service';
 import type { InterestSummary, InterestStats } from '../../services/interest.service';
 import { MainLayout } from '../../components/layout';
@@ -26,7 +26,6 @@ export default function InterestListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 15;
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchInterests();

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { stockService } from '../../services/stock.service';
-import type { Stock } from '../../services/stock.service';
 import { vehicleService } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft } from 'lucide-react';

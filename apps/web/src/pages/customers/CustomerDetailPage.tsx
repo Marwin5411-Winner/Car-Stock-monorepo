@@ -146,7 +146,7 @@ export default function CustomerDetailPage() {
                     {new Intl.NumberFormat('th-TH', {
                       style: 'currency',
                       currency: 'THB',
-                    }).format(customer.creditLimit)}
+                    }).format(customer.creditLimit ?? 0)}
                   </p>
                 </div>
               </div>

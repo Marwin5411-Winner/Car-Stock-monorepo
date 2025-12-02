@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { vehicleService } from '../../services/vehicle.service';
 import type { VehicleModel } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Edit, Car, Palette, Calendar, Tag, Package } from 'lucide-react';
+import { ArrowLeft, Edit, Car, Calendar, Tag } from 'lucide-react';
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
@@ -134,73 +134,64 @@ export default function VehicleDetailPage() {
                     {new Intl.NumberFormat('th-TH', {
                       style: 'currency',
                       currency: 'THB',
-                    }).format(vehicle.price)}
+                    }).format(Number(vehicle.price))}
                   </p>
-                </div>
-              </div>
-
-              <div className="flex items-start">
-                <Package className="h-5 w-5 text-gray-400 mt-1 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">จำนวนใน Stock</p>
-                  <p className="text-gray-900">{vehicle.stockCount} คัน</p>
-                </div>
-              </div>
-
-              <div className="flex items-start">
-                <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">สถานะ</p>
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs leading-5 font-semibold rounded-full ${
-                      vehicle.status === 'ACTIVE'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {vehicle.status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
-                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {vehicle.description && (
+          {vehicle.notes && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">คำอธิบาย</h2>
-              <p className="text-gray-900">{vehicle.description}</p>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">หมายเหตุ</h2>
+              <p className="text-gray-900">{vehicle.notes}</p>
             </div>
           )}
 
-          {vehicle.availableColors && vehicle.availableColors.length > 0 && (
+          {vehicle.primaryColor && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <Palette className="h-5 w-5 mr-2" />
-                สีที่มีจำหน่าย
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {vehicle.availableColors.map((color, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
-                  >
-                    {color}
-                  </span>
-                ))}
+              <h2 className="text-lg font-medium text-gray-900 mb-4">สี</h2>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-500">สีหลัก</p>
+                  <p className="text-gray-900">{vehicle.primaryColor}</p>
+                </div>
+                {vehicle.secondaryColor && (
+                  <div>
+                    <p className="text-sm text-gray-500">สีรอง</p>
+                    <p className="text-gray-900">{vehicle.secondaryColor}</p>
+                  </div>
+                )}
+                {vehicle.colorNotes && (
+                  <div>
+                    <p className="text-sm text-gray-500">หมายเหตุสี</p>
+                    <p className="text-gray-900">{vehicle.colorNotes}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {vehicle.specifications && Object.keys(vehicle.specifications).length > 0 && (
+          {vehicle.engineSpecs && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">ข้อมูลจำเพาะ</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(vehicle.specifications).map(([key, value]) => (
-                  <div key={key}>
-                    <p className="text-sm text-gray-500">{key}</p>
-                    <p className="text-gray-900">{String(value)}</p>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-500">สเปคเครื่องยนต์</p>
+                  <p className="text-gray-900">{vehicle.engineSpecs}</p>
+                </div>
+                {vehicle.dimensions && (
+                  <div>
+                    <p className="text-sm text-gray-500">ขนาด</p>
+                    <p className="text-gray-900">{vehicle.dimensions}</p>
                   </div>
-                ))}
+                )}
+                {vehicle.mainOptions && (
+                  <div>
+                    <p className="text-sm text-gray-500">ออปชั่นหลัก</p>
+                    <p className="text-gray-900">{vehicle.mainOptions}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -223,23 +214,26 @@ export default function VehicleDetailPage() {
                   {new Intl.NumberFormat('th-TH', {
                     style: 'currency',
                     currency: 'THB',
-                  }).format(vehicle.price)}
+                  }).format(Number(vehicle.price))}
                 </span>
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-gray-200">
-                <span className="text-sm text-gray-600">จำนวนใน Stock</span>
-                <span className="font-medium text-gray-900">{vehicle.stockCount} คัน</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">สถานะ</span>
-                <span
-                  className={`font-medium ${
-                    vehicle.status === 'ACTIVE' ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {vehicle.status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
+                <span className="text-sm text-gray-600">ต้นทุนมาตรฐาน</span>
+                <span className="font-medium text-gray-900">
+                  {new Intl.NumberFormat('th-TH', {
+                    style: 'currency',
+                    currency: 'THB',
+                  }).format(Number(vehicle.standardCost))}
                 </span>
               </div>
+              {vehicle.targetMargin && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Margin เป้าหมาย</span>
+                  <span className="font-medium text-gray-900">
+                    {Number(vehicle.targetMargin).toFixed(2)}%
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

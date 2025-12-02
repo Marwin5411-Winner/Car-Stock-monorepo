@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { stockService } from '../../services/stock.service';
 import type { Stock, StockStats } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
@@ -15,7 +15,6 @@ export default function StockListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStocks();

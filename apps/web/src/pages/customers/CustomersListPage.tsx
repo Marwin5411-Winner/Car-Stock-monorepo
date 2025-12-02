@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
-import { Plus, Search, Edit, Trash2, User, Phone, Mail, MapPin, CreditCard } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Phone, Mail, CreditCard } from 'lucide-react';
 
 export default function CustomersListPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -13,7 +13,6 @@ export default function CustomersListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCustomers();
@@ -161,7 +160,7 @@ export default function CustomersListPage() {
                         {new Intl.NumberFormat('th-TH', {
                           style: 'currency',
                           currency: 'THB',
-                        }).format(customer.creditLimit)}
+                        }).format(customer.creditLimit ?? 0)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

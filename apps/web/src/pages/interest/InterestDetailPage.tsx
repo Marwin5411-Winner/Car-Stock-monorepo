@@ -10,7 +10,6 @@ import {
   PauseCircle,
   Calendar,
   DollarSign,
-  Percent,
   Clock,
   AlertCircle,
   TrendingUp,
