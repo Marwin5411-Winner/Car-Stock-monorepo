@@ -9,11 +9,11 @@ A comprehensive car sales management system for VBeyond Innovation Co., Ltd.
 - [Bun](https://bun.sh/) runtime installed
 - [Docker](https://www.docker.com/products/docker-desktop/) installed and running
 
-### Setup
+### Development Setup
 
 1. **Start the database:**
    ```bash
-   docker-compose up -d
+   docker-compose up -d postgres
    ```
 
 2. **Install dependencies:**
@@ -41,12 +41,133 @@ A comprehensive car sales management system for VBeyond Innovation Co., Ltd.
    bun run dev
    ```
 
-### Access Points
+### Development Access Points
 
 - **Frontend:** http://localhost:5173
 - **API:** http://localhost:3001
 - **API Docs:** http://localhost:3001/docs
 - **Prisma Studio:** Run `bun run db:studio`
+
+---
+
+## 🐳 Docker Production Deployment
+
+### Quick Start with Docker
+
+1. **Build and start all services:**
+   ```bash
+   make up-build
+   ```
+   Or without make:
+   ```bash
+   docker compose --env-file .env.docker up -d --build
+   ```
+
+2. **Seed the database (first time only):**
+   ```bash
+   make db-seed
+   ```
+   Or without make:
+   ```bash
+   docker compose exec api bunx prisma db seed
+   ```
+
+### Production Access Points
+
+- **Frontend:** http://localhost (port 80)
+- **API:** http://localhost:3001
+- **API Docs:** http://localhost:3001/docs
+- **pgAdmin (optional):** http://localhost:5050
+
+### Docker Commands
+
+| Command | Description |
+|---------|-------------|
+| `make build` | Build all Docker images |
+| `make up` | Start all services |
+| `make up-build` | Build and start all services |
+| `make down` | Stop all services |
+| `make restart` | Restart all services |
+| `make logs` | View all service logs |
+| `make logs-api` | View API logs only |
+| `make logs-web` | View Web logs only |
+| `make logs-db` | View Database logs only |
+| `make clean` | Remove all containers, images, and volumes |
+| `make db-seed` | Seed the database |
+| `make db-migrate` | Run database migrations |
+| `make monitoring` | Start services with pgAdmin |
+| `make shell-api` | Open shell in API container |
+| `make shell-db` | Open PostgreSQL shell |
+
+### Enable Database Monitoring (pgAdmin)
+
+To start services with pgAdmin for database monitoring:
+```bash
+make monitoring
+```
+
+Access pgAdmin at http://localhost:5050 with:
+- Email: admin@admin.com
+- Password: admin
+
+To connect to PostgreSQL in pgAdmin:
+- Host: postgres
+- Port: 5432
+- Username: postgres
+- Password: postgres
+- Database: car_stock
+
+### Environment Configuration
+
+Copy `.env.docker` and modify as needed:
+
+```env
+# PostgreSQL Configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=car_stock
+
+# API Configuration
+API_PORT=3001
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+NODE_ENV=production
+CORS_ORIGIN=http://localhost
+
+# Web Configuration
+WEB_PORT=80
+
+# PgAdmin Configuration
+PGADMIN_PORT=5050
+PGADMIN_EMAIL=admin@admin.com
+PGADMIN_PASSWORD=admin
+```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Docker Network                          │
+│                   (car-stock-network)                       │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │    web      │    │    api      │    │  postgres   │     │
+│  │   (nginx)   │───▶│  (bun/node) │───▶│ (database)  │     │
+│  │   :80       │    │   :3001     │    │   :5432     │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│        │                  │                   │             │
+│        │                  │                   │             │
+│  ┌─────────────┐                        ┌─────────────┐     │
+│  │  pgAdmin    │────────────────────────│  (optional) │     │
+│  │   :5050     │                        └─────────────┘     │
+│  └─────────────┘                                            │
+└─────────────────────────────────────────────────────────────┘
+        ▲                  ▲
+        │                  │
+   Exposed Ports      Exposed Port
+     80, 5050            3001
+```
+
+**Note:** PostgreSQL port 5432 is NOT exposed to the host. Only internal containers can access it.
 
 ## 📁 Project Structure
 

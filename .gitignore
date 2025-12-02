@@ -44,3 +44,6 @@ bun.lockb
 # Misc
 *.tgz
 .cache
+
+
+.env.docker
