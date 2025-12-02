@@ -36,7 +36,7 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install production dependencies only
-RUN bun install --frozen-lockfile --production
+RUN bun install --production
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
