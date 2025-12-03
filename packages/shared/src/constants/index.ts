@@ -112,8 +112,8 @@ export const VEHICLE_TYPE_LABELS = {
 export const QUOTATION_STATUS_LABELS = {
   DRAFT: 'ร่าง',
   SENT: 'ส่งแล้ว',
-  ACCEPTED: 'ยอมรับ',
-  REJECTED: 'ปฏิเสธ',
+  ACCEPTED: 'ซื้อ',
+  REJECTED: 'ไม่ซื้อ',
   EXPIRED: 'หมดอายุ',
   CONVERTED: 'แปลงเป็นการจอง',
 } as const;

@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { stockService } from '../../services/stock.service';
 import { vehicleService } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft } from 'lucide-react';
+import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
+
+interface VehicleModel {
+  id: string;
+  brand: string;
+  model: string;
+  variant?: string;
+  year: number;
+}
 
 export default function StockFormPage() {
   const { id } = useParams();
@@ -12,10 +21,7 @@ export default function StockFormPage() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
-  const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [vehicles, setVehicles] = useState<VehicleModel[]>([]);
 
   const [formData, setFormData] = useState({
     vin: '',
@@ -46,21 +52,6 @@ export default function StockFormPage() {
       fetchStock(id);
     }
   }, [id, isEdit]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target && !target.closest('#vehicle-model-dropdown')) {
-        setShowVehicleDropdown(false);
-        setVehicleSearchTerm('');
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   const fetchVehicles = async () => {
     try {
@@ -117,63 +108,21 @@ export default function StockFormPage() {
     }));
   };
 
-  const handleVehicleSearch = (value: string) => {
-    setVehicleSearchTerm(value);
-    setShowVehicleDropdown(true);
-    setHighlightedIndex(0);
-  };
+  // Convert vehicles to SearchSelect options
+  const vehicleOptions: SearchSelectOption<VehicleModel>[] = useMemo(() => {
+    return vehicles.map((vehicle) => ({
+      value: vehicle.id,
+      label: `${vehicle.brand} ${vehicle.model} ${vehicle.variant || ''} (${vehicle.year})`.trim(),
+      data: vehicle,
+    }));
+  }, [vehicles]);
 
-  const handleSelectVehicle = (vehicleId: string) => {
+  const handleVehicleSelect = (value: string) => {
     setFormData((prev) => ({
       ...prev,
-      vehicleModelId: vehicleId,
+      vehicleModelId: value,
     }));
-    setVehicleSearchTerm('');
-    setShowVehicleDropdown(false);
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showVehicleDropdown) return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.min(prev + 1, filteredVehicles.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < filteredVehicles.length) {
-        handleSelectVehicle(filteredVehicles[highlightedIndex].id);
-      }
-    } else if (e.key === 'Escape') {
-      setShowVehicleDropdown(false);
-      setVehicleSearchTerm('');
-    }
-  };
-
-  const filteredVehicles = vehicles.filter((vehicle) =>
-    `${vehicle.brand} ${vehicle.model} ${vehicle.variant || ''} ${vehicle.year}`
-      .toLowerCase()
-      .includes(vehicleSearchTerm.toLowerCase())
-  );
-
-  const highlightText = (text: string, searchTerm: string) => {
-    if (!searchTerm) return text;
-    const regex = new RegExp(`(${searchTerm})`, 'gi');
-    const parts = text.split(regex);
-    return parts.map((part, index) =>
-      regex.test(part) ? (
-        <mark key={index} className="bg-yellow-200 px-1 rounded">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  };
-
-  const selectedVehicle = vehicles.find((v) => v.id === formData.vehicleModelId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,51 +200,15 @@ export default function StockFormPage() {
 
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="space-y-2 md:col-span-2">
-                <label htmlFor="vehicleModelId" className="block text-sm font-medium text-gray-700">
-                  รุ่นรถ <span className="text-red-500">*</span>
-                </label>
-                <div id="vehicle-model-dropdown" className="relative">
-                  <input
-                    type="text"
-                    value={
-                      vehicleSearchTerm
-                        ? vehicleSearchTerm
-                        : selectedVehicle
-                        ? `${selectedVehicle.brand} ${selectedVehicle.model} ${selectedVehicle.variant || ''} (${selectedVehicle.year})`
-                        : ''
-                    }
-                    onChange={(e) => handleVehicleSearch(e.target.value)}
-                    onFocus={() => setShowVehicleDropdown(true)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="ค้นหาหรือเลือกรุ่นรถ..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                    required
-                  />
-                  {showVehicleDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {filteredVehicles.length > 0 ? (
-                        filteredVehicles.map((vehicle, index) => (
-                          <div
-                            key={vehicle.id}
-                            onClick={() => handleSelectVehicle(vehicle.id)}
-                            className={`px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 ${
-                              index === highlightedIndex ? 'bg-blue-100 font-medium' : 'hover:bg-blue-50'
-                            }`}
-                          >
-                            <div className="text-gray-900">
-                              {highlightText(
-                                `${vehicle.brand} ${vehicle.model} ${vehicle.variant || ''} (${vehicle.year})`,
-                                vehicleSearchTerm
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-gray-500">ไม่พบข้อมูล</div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SearchSelect
+                  value={formData.vehicleModelId}
+                  onChange={handleVehicleSelect}
+                  options={vehicleOptions}
+                  label="รุ่นรถ"
+                  required
+                  placeholder="ค้นหาหรือเลือกรุ่นรถ..."
+                  emptyMessage="ไม่พบข้อมูล"
+                />
               </div>
 
               <div className="space-y-2 md:col-span-2 lg:col-span-1">

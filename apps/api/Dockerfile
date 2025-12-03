@@ -35,13 +35,18 @@ COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install production dependencies only
-RUN bun install
+# Copy node_modules and production dependencies from the builder image so
+# generated Prisma client and query engine binaries are available.
+# Copying the full node_modules from the builder ensures the correct
+# Prisma engine binary (e.g. debian-openssl-3.0.x) is present.
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy entrypoint script
 COPY apps/api/docker-entrypoint.sh /usr/local/bin/

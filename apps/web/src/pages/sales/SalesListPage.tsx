@@ -15,6 +15,19 @@ import {
   DollarSign,
   TrendingUp
 } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableContainer,
+  TableWrapper,
+  TableEmpty,
+  TableLoading,
+  TablePagination,
+} from '@/components/ui/table';
 
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_LABELS: Record<SaleStatus, string> = {
@@ -266,147 +279,120 @@ export default function SalesListPage() {
         </div>
 
         {/* Sales Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  เลขที่ขาย
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  ลูกค้า
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  รถยนต์
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  ประเภท
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  ยอดรวม
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  ค้างชำระ
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  สถานะ
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  วันที่สร้าง
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  จัดการ
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center text-gray-700">
-                    กำลังโหลด...
-                  </td>
-                </tr>
-              ) : sales.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center text-gray-700">
-                    ไม่พบข้อมูลการขาย
-                  </td>
-                </tr>
-              ) : (
-                sales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/sales/${sale.id}`)}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-blue-600">
-                        {sale.saleNumber}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {sale.customer.name}
-                      </div>
-                      <div className="text-xs text-gray-700">{sale.customer.code}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {getVehicleDisplay(sale)}
-                      </div>
-                      {sale.stock && (
-                        <div className="text-xs text-gray-700">VIN: {sale.stock.vin.slice(-8)}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-700">
-                        {TYPE_LABELS[sale.type]}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(sale.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${sale.remainingAmount > 0 ? 'text-red-600 font-medium' : 'text-green-600'}`}>
-                        {formatCurrency(sale.remainingAmount)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          STATUS_COLORS[sale.status]
-                        }`}
-                      >
-                        {STATUS_LABELS[sale.status]}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {formatDate(sale.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/sales/${sale.id}`);
-                        }}
-                        className="text-blue-600 hover:text-blue-900 p-1"
-                        title="ดูรายละเอียด"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <TableContainer>
+          <TableWrapper>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>เลขที่ขาย</TableHead>
+                  <TableHead>ลูกค้า</TableHead>
+                  <TableHead>รถยนต์</TableHead>
+                  <TableHead>ประเภท</TableHead>
+                  <TableHead>ยอดรวม</TableHead>
+                  <TableHead>ค้างชำระ</TableHead>
+                  <TableHead>สถานะ</TableHead>
+                  <TableHead>วันที่สร้าง</TableHead>
+                  <TableHead className="text-right">จัดการ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12">
+                      <TableLoading />
+                    </TableCell>
+                  </TableRow>
+                ) : sales.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9}>
+                      <TableEmpty
+                        icon={<ShoppingCart className="h-12 w-12" />}
+                        title="ไม่พบข้อมูลการขาย"
+                        description="เริ่มต้นด้วยการสร้างการขายใหม่"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sales.map((sale) => (
+                    <TableRow 
+                      key={sale.id} 
+                      className="cursor-pointer" 
+                      onClick={() => navigate(`/sales/${sale.id}`)}
+                    >
+                      <TableCell>
+                        <div className="text-sm font-medium text-blue-600">
+                          {sale.saleNumber}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium text-gray-900">
+                          {sale.customer.name}
+                        </div>
+                        <div className="text-xs text-gray-500">{sale.customer.code}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-900">
+                          {getVehicleDisplay(sale)}
+                        </div>
+                        {sale.stock && (
+                          <div className="text-xs text-gray-500">VIN: {sale.stock.vin.slice(-8)}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-700">
+                          {TYPE_LABELS[sale.type]}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium text-gray-900">
+                        {formatCurrency(sale.totalAmount)}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-sm font-medium ${sale.remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(sale.remainingAmount)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            STATUS_COLORS[sale.status]
+                          }`}
+                        >
+                          {STATUS_LABELS[sale.status]}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {formatDate(sale.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/sales/${sale.id}`);
+                          }}
+                          className="inline-flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="ดูรายละเอียด"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableWrapper>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
-              <div className="flex-1 flex justify-between items-center">
-                <p className="text-sm text-gray-700">
-                  แสดง {(page - 1) * limit + 1} ถึง {Math.min(page * limit, total)} จาก {total} รายการ
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    ก่อนหน้า
-                  </button>
-                  <span className="px-3 py-1 text-sm text-gray-700">
-                    หน้า {page} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="px-3 py-1 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    ถัดไป
-                  </button>
-                </div>
-              </div>
-            </div>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+            />
           )}
-        </div>
+        </TableContainer>
       </div>
     </MainLayout>
   );

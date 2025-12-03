@@ -526,12 +526,16 @@ export default function SalesDetailPage() {
           </h3>
           <dl className="space-y-3">
             <div className="flex justify-between">
-              <dt className="text-sm text-gray-700">ยอดรวม</dt>
-              <dd className="text-sm font-semibold">{formatCurrency(sale.totalAmount)}</dd>
+              <dt className="text-sm text-gray-700">ราคารถ</dt>
+              <dd className="text-sm font-medium">{formatCurrency(sale.totalAmount - sale.depositAmount)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-sm text-gray-700">เงินมัดจำ</dt>
               <dd className="text-sm font-medium">{formatCurrency(sale.depositAmount)}</dd>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <dt className="text-sm text-gray-700">ยอดรวม</dt>
+              <dd className="text-sm font-semibold">{formatCurrency(sale.totalAmount)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-sm text-gray-700">ชำระแล้ว</dt>

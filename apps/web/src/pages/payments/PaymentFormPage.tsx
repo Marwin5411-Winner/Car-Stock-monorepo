@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { paymentService, type CreatePaymentData, type PaymentType, type PaymentMethod } from '../../services/payment.service';
 import { salesService } from '../../services/sales.service';
@@ -14,6 +14,7 @@ import {
   User,
   Receipt
 } from 'lucide-react';
+import { AsyncSearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 
 // Payment types for sale-related payments
 const SALE_PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
@@ -90,15 +91,9 @@ export default function PaymentFormPage() {
   
   // Sale-related state
   const [saleInfo, setSaleInfo] = useState<SaleInfo | null>(null);
-  const [saleSearch, setSaleSearch] = useState('');
-  const [saleSearchResults, setSaleSearchResults] = useState<SaleInfo[]>([]);
-  const [showSaleDropdown, setShowSaleDropdown] = useState(false);
   
   // Customer-related state (for miscellaneous payments)
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [customerSearchResults, setCustomerSearchResults] = useState<CustomerInfo[]>([]);
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   
   const [formData, setFormData] = useState<FormData>({
     saleId: '',
@@ -121,23 +116,10 @@ export default function PaymentFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preSelectedSaleId]);
 
-  useEffect(() => {
-    if (paymentMode === 'sale' && saleSearch.length >= 2 && !preSelectedSaleId) {
-      searchSales(saleSearch);
-    }
-  }, [saleSearch, preSelectedSaleId, paymentMode]);
-
-  useEffect(() => {
-    if (paymentMode === 'miscellaneous' && customerSearch.length >= 2) {
-      searchCustomers(customerSearch);
-    }
-  }, [customerSearch, paymentMode]);
-
   // Reset form when switching payment mode
   useEffect(() => {
     if (paymentMode === 'miscellaneous') {
       setSaleInfo(null);
-      setSaleSearch('');
       setFormData(prev => ({
         ...prev,
         saleId: '',
@@ -147,7 +129,6 @@ export default function PaymentFormPage() {
       }));
     } else {
       setCustomerInfo(null);
-      setCustomerSearch('');
       setFormData(prev => ({
         ...prev,
         saleId: saleInfo?.id || '',
@@ -180,7 +161,6 @@ export default function PaymentFormPage() {
         customerId: sale.customer.id,
         amount: sale.remainingAmount > 0 ? sale.remainingAmount : 0,
       }));
-      setSaleSearch(sale.saleNumber);
     } catch (error) {
       console.error('Error fetching sale:', error);
       alert('ไม่สามารถโหลดข้อมูลการขายได้');
@@ -190,61 +170,86 @@ export default function PaymentFormPage() {
     }
   };
 
-  const searchSales = async (search: string) => {
+  // Async sale search for SearchSelect
+  const loadSaleOptions = useCallback(async (query: string): Promise<SearchSelectOption<SaleInfo>[]> => {
     try {
-      const response = await salesService.getAll({ search, limit: 10 });
-      const results: SaleInfo[] = response.data.map(sale => ({
-        id: sale.id,
-        saleNumber: sale.saleNumber,
-        totalAmount: sale.totalAmount,
-        paidAmount: sale.paidAmount,
-        remainingAmount: sale.remainingAmount,
-        status: sale.status,
-        customer: sale.customer,
-        stock: sale.stock,
+      const response = await salesService.getAll({ search: query, limit: 10 });
+      return response.data.map(sale => ({
+        value: sale.id,
+        label: sale.saleNumber,
+        description: `${sale.customer.name} - ค้างชำระ ${formatCurrency(sale.remainingAmount)}`,
+        data: {
+          id: sale.id,
+          saleNumber: sale.saleNumber,
+          totalAmount: sale.totalAmount,
+          paidAmount: sale.paidAmount,
+          remainingAmount: sale.remainingAmount,
+          status: sale.status,
+          customer: sale.customer,
+          stock: sale.stock,
+        },
       }));
-      setSaleSearchResults(results);
-      setShowSaleDropdown(true);
     } catch (error) {
       console.error('Error searching sales:', error);
+      return [];
     }
-  };
+  }, []);
 
-  const searchCustomers = async (search: string) => {
+  // Async customer search for SearchSelect
+  const loadCustomerOptions = useCallback(async (query: string): Promise<SearchSelectOption<CustomerInfo>[]> => {
     try {
-      const response = await customerService.getAll({ search, limit: 10 });
-      const results: CustomerInfo[] = response.data.map((customer: Customer) => ({
-        id: customer.id,
-        code: customer.code,
-        name: customer.name,
+      const response = await customerService.getAll({ search: query, limit: 10 });
+      return response.data.map((customer: Customer) => ({
+        value: customer.id,
+        label: customer.name,
+        description: customer.code,
+        data: {
+          id: customer.id,
+          code: customer.code,
+          name: customer.name,
+        },
       }));
-      setCustomerSearchResults(results);
-      setShowCustomerDropdown(true);
     } catch (error) {
       console.error('Error searching customers:', error);
+      return [];
+    }
+  }, []);
+
+  const handleSaleSelect = (_value: string, option?: SearchSelectOption<SaleInfo>) => {
+    if (option?.data) {
+      const sale = option.data;
+      setSaleInfo(sale);
+      setFormData(prev => ({
+        ...prev,
+        saleId: sale.id,
+        customerId: sale.customer.id,
+        amount: sale.remainingAmount > 0 ? sale.remainingAmount : 0,
+      }));
+    } else {
+      setSaleInfo(null);
+      setFormData(prev => ({
+        ...prev,
+        saleId: '',
+        customerId: '',
+        amount: 0,
+      }));
     }
   };
 
-  const handleSaleSelect = (sale: SaleInfo) => {
-    setSaleInfo(sale);
-    setFormData(prev => ({
-      ...prev,
-      saleId: sale.id,
-      customerId: sale.customer.id,
-      amount: sale.remainingAmount > 0 ? sale.remainingAmount : 0,
-    }));
-    setSaleSearch(sale.saleNumber);
-    setShowSaleDropdown(false);
-  };
-
-  const handleCustomerSelect = (customer: CustomerInfo) => {
-    setCustomerInfo(customer);
-    setFormData(prev => ({
-      ...prev,
-      customerId: customer.id,
-    }));
-    setCustomerSearch(customer.name);
-    setShowCustomerDropdown(false);
+  const handleCustomerSelect = (value: string, option?: SearchSelectOption<CustomerInfo>) => {
+    if (option?.data) {
+      setCustomerInfo(option.data);
+      setFormData(prev => ({
+        ...prev,
+        customerId: value,
+      }));
+    } else {
+      setCustomerInfo(null);
+      setFormData(prev => ({
+        ...prev,
+        customerId: '',
+      }));
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -415,40 +420,17 @@ export default function PaymentFormPage() {
 
               {!preSelectedSaleId && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ค้นหาการขาย <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={saleSearch}
-                      onChange={(e) => setSaleSearch(e.target.value)}
-                      placeholder="พิมพ์เลขที่ขาย หรือชื่อลูกค้า..."
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                        errors.saleId ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    />
-                    {showSaleDropdown && saleSearchResults.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                        {saleSearchResults.map((sale) => (
-                          <button
-                            key={sale.id}
-                            type="button"
-                            onClick={() => handleSaleSelect(sale)}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0"
-                          >
-                            <div className="font-medium text-gray-900">{sale.saleNumber}</div>
-                            <div className="text-sm text-gray-500">
-                              {sale.customer.name} - ค้างชำระ {formatCurrency(sale.remainingAmount)}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {errors.saleId && (
-                    <p className="text-sm text-red-500 mt-1">{errors.saleId}</p>
-                  )}
+                  <AsyncSearchSelect<SaleInfo>
+                    value={formData.saleId}
+                    onChange={handleSaleSelect}
+                    loadOptions={loadSaleOptions}
+                    label="ค้นหาการขาย"
+                    required
+                    placeholder="พิมพ์เลขที่ขาย หรือชื่อลูกค้า..."
+                    error={errors.saleId}
+                    emptyMessage="ไม่พบการขาย"
+                    minSearchLength={2}
+                  />
                 </div>
               )}
 
@@ -500,38 +482,17 @@ export default function PaymentFormPage() {
               </h2>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ค้นหาลูกค้า <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    placeholder="พิมพ์ชื่อลูกค้า หรือรหัสลูกค้า..."
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                      errors.customerId ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {showCustomerDropdown && customerSearchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {customerSearchResults.map((customer) => (
-                        <button
-                          key={customer.id}
-                          type="button"
-                          onClick={() => handleCustomerSelect(customer)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0"
-                        >
-                          <div className="font-medium text-gray-900">{customer.name}</div>
-                          <div className="text-sm text-gray-500">{customer.code}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {errors.customerId && (
-                  <p className="text-sm text-red-500 mt-1">{errors.customerId}</p>
-                )}
+                <AsyncSearchSelect<CustomerInfo>
+                  value={formData.customerId}
+                  onChange={handleCustomerSelect}
+                  loadOptions={loadCustomerOptions}
+                  label="ค้นหาลูกค้า"
+                  required
+                  placeholder="พิมพ์ชื่อลูกค้า หรือรหัสลูกค้า..."
+                  error={errors.customerId}
+                  emptyMessage="ไม่พบลูกค้า"
+                  minSearchLength={2}
+                />
               </div>
 
               {/* Customer Info Display */}

@@ -4,6 +4,19 @@ import { stockService } from '../../services/stock.service';
 import type { Stock, StockStats } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, Package, Car, Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableContainer,
+  TableWrapper,
+  TableEmpty,
+  TableLoading,
+  TablePagination,
+} from '@/components/ui/table';
 
 export default function StockListPage() {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -176,159 +189,130 @@ export default function StockListPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">กำลังโหลด...</p>
-        </div>
+        <TableContainer>
+          <TableLoading />
+        </TableContainer>
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    รถยนต์
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    สี
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    วันที่เข้า
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ดอกเบี้ยสะสม
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    สถานะ
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    จัดการ
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {(stocks || []).map((stock) => (
-                  <tr key={stock.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{stock.vin}</div>
-                      {stock.parkingSlot && (
-                        <div className="text-sm text-gray-500">Slot: {stock.parkingSlot}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {stock.vehicleModel.brand} {stock.vehicleModel.model}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        ปี {stock.vehicleModel.year}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {stock.exteriorColor}
-                      </div>
-                      {stock.interiorColor && (
-                        <div className="text-sm text-gray-500">
-                          ใน: {stock.interiorColor}
+          <TableContainer>
+            <TableWrapper>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>รถยนต์</TableHead>
+                    <TableHead>สี</TableHead>
+                    <TableHead>วันที่เข้า</TableHead>
+                    <TableHead>ดอกเบี้ยสะสม</TableHead>
+                    <TableHead>สถานะ</TableHead>
+                    <TableHead className="text-right">จัดการ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(stocks || []).map((stock) => (
+                    <TableRow key={stock.id}>
+                      <TableCell>
+                        <div className="text-sm font-medium text-gray-900">{stock.vin}</div>
+                        {stock.parkingSlot && (
+                          <div className="text-sm text-gray-500">Slot: {stock.parkingSlot}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium text-gray-900">
+                          {stock.vehicleModel.brand} {stock.vehicleModel.model}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(stock.arrivalDate).toLocaleDateString('th-TH')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Intl.NumberFormat('th-TH', {
-                        style: 'currency',
-                        currency: 'THB',
-                      }).format(stock.accumulatedInterest)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          stock.status === 'AVAILABLE'
-                            ? 'bg-green-100 text-green-800'
-                            : stock.status === 'RESERVED'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : stock.status === 'PREPARING'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {stock.status === 'AVAILABLE' && 'พร้อมขาย'}
-                        {stock.status === 'RESERVED' && 'จองแล้ว'}
-                        {stock.status === 'PREPARING' && 'เตรียมขาย'}
-                        {stock.status === 'SOLD' && 'ขายแล้ว'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link
-                        to={`/stock/${stock.id}`}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        ดู
-                      </Link>
-                      <Link
-                        to={`/stock/${stock.id}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      >
-                        <Edit className="h-4 w-4 inline" />
-                      </Link>
-                      {stock.status !== 'SOLD' && (
-                        <button
-                          onClick={() => handleDelete(stock.id, stock.vin)}
-                          className="text-red-600 hover:text-red-900"
+                        <div className="text-sm text-gray-500">
+                          ปี {stock.vehicleModel.year}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-900">
+                          {stock.exteriorColor}
+                        </div>
+                        {stock.interiorColor && (
+                          <div className="text-sm text-gray-500">
+                            ใน: {stock.interiorColor}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-gray-900">
+                        {new Date(stock.arrivalDate).toLocaleDateString('th-TH')}
+                      </TableCell>
+                      <TableCell className="text-gray-900">
+                        {new Intl.NumberFormat('th-TH', {
+                          style: 'currency',
+                          currency: 'THB',
+                        }).format(stock.accumulatedInterest)}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            stock.status === 'AVAILABLE'
+                              ? 'bg-green-100 text-green-800'
+                              : stock.status === 'RESERVED'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : stock.status === 'PREPARING'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
                         >
-                          <Trash2 className="h-4 w-4 inline" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          {stock.status === 'AVAILABLE' && 'พร้อมขาย'}
+                          {stock.status === 'RESERVED' && 'จองแล้ว'}
+                          {stock.status === 'PREPARING' && 'เตรียมขาย'}
+                          {stock.status === 'SOLD' && 'ขายแล้ว'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            to={`/stock/${stock.id}`}
+                            className="inline-flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="ดูรายละเอียด"
+                          >
+                            ดู
+                          </Link>
+                          <Link
+                            to={`/stock/${stock.id}/edit`}
+                            className="inline-flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="แก้ไข"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                          {stock.status !== 'SOLD' && (
+                            <button
+                              onClick={() => handleDelete(stock.id, stock.vin)}
+                              className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="ลบ"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableWrapper>
 
             {stocks.length === 0 && (
-              <div className="text-center py-12">
-                <Package className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  ไม่พบ Stock
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  เริ่มต้นด้วยการเพิ่ม Stock ใหม่
-                </p>
-              </div>
+              <TableEmpty
+                icon={<Package className="h-12 w-12" />}
+                title="ไม่พบ Stock"
+                description="เริ่มต้นด้วยการเพิ่ม Stock ใหม่"
+              />
             )}
-          </div>
 
-          {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                แสดง {((page - 1) * limit) + 1} ถึง {Math.min(page * limit, total)} จากทั้งหมด {total} รายการ
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  ก่อนหน้า
-                </button>
-                <span className="px-4 py-2 text-sm text-gray-700">
-                  หน้า {page} จาก {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  ถัดไป
-                </button>
-              </div>
-            </div>
-          )}
+            {totalPages > 1 && (
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+              />
+            )}
+          </TableContainer>
         </>
       )}
     </MainLayout>

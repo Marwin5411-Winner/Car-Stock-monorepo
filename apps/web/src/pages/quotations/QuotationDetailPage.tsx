@@ -25,8 +25,8 @@ import {
 const STATUS_LABELS: Record<QuotationStatus, string> = {
   DRAFT: 'แบบร่าง',
   SENT: 'ส่งแล้ว',
-  ACCEPTED: 'ยอมรับ',
-  REJECTED: 'ปฏิเสธ',
+  ACCEPTED: 'ซื้อ',
+  REJECTED: 'ไม่ซื้อ',
   EXPIRED: 'หมดอายุ',
   CONVERTED: 'แปลงเป็นการขายแล้ว',
 };

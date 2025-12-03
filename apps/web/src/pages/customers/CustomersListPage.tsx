@@ -4,6 +4,19 @@ import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, User, Phone, Mail, CreditCard } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableContainer,
+  TableWrapper,
+  TableEmpty,
+  TableLoading,
+  TablePagination,
+} from '@/components/ui/table';
 
 export default function CustomersListPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -98,135 +111,112 @@ export default function CustomersListPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-700">กำลังโหลด...</p>
-        </div>
+        <TableContainer>
+          <TableLoading />
+        </TableContainer>
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    ลูกค้า
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    ติดต่อ
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    วงเงินเครดิต
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    จัดการ
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {customers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <User className="h-5 w-5 text-blue-600" />
+          <TableContainer>
+            <TableWrapper>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ลูกค้า</TableHead>
+                    <TableHead>ติดต่อ</TableHead>
+                    <TableHead>วงเงินเครดิต</TableHead>
+                    <TableHead className="text-right">จัดการ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <div className="shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <User className="h-5 w-5 text-blue-600" />
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {customer.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {customer.code}
+                            </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {customer.name}
-                          </div>
-                          <div className="text-sm text-gray-700">
-                            {customer.code}
-                          </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-900 flex items-center">
+                          <Phone className="h-4 w-4 mr-2 text-gray-400" />
+                          {customer.phone}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 flex items-center">
-                        <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                        {customer.phone}
-                      </div>
-                      {customer.email && (
-                        <div className="text-sm text-gray-700 flex items-center mt-1">
-                          <Mail className="h-4 w-4 mr-2 text-gray-400" />
-                          {customer.email}
+                        {customer.email && (
+                          <div className="text-sm text-gray-500 flex items-center mt-1">
+                            <Mail className="h-4 w-4 mr-2 text-gray-400" />
+                            {customer.email}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-900 flex items-center">
+                          <CreditCard className="h-4 w-4 mr-2 text-gray-400" />
+                          {new Intl.NumberFormat('th-TH', {
+                            style: 'currency',
+                            currency: 'THB',
+                          }).format(customer.creditLimit ?? 0)}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 flex items-center">
-                        <CreditCard className="h-4 w-4 mr-2 text-gray-400" />
-                        {new Intl.NumberFormat('th-TH', {
-                          style: 'currency',
-                          currency: 'THB',
-                        }).format(customer.creditLimit ?? 0)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link
-                        to={`/customers/${customer.id}`}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        ดู
-                      </Link>
-                      <Link
-                        to={`/customers/${customer.id}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      >
-                        <Edit className="h-4 w-4 inline" />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(customer.id, customer.name)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4 inline" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            to={`/customers/${customer.id}`}
+                            className="inline-flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="ดูรายละเอียด"
+                          >
+                            ดู
+                          </Link>
+                          <Link
+                            to={`/customers/${customer.id}/edit`}
+                            className="inline-flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="แก้ไข"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(customer.id, customer.name)}
+                            className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="ลบ"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableWrapper>
 
             {customers.length === 0 && (
-              <div className="text-center py-12">
-                <User className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  ไม่พบลูกค้า
-                </h3>
-                <p className="mt-1 text-sm text-gray-700">
-                  เริ่มต้นด้วยการเพิ่มลูกค้าใหม่
-                </p>
-              </div>
+              <TableEmpty
+                icon={<User className="h-12 w-12" />}
+                title="ไม่พบลูกค้า"
+                description="เริ่มต้นด้วยการเพิ่มลูกค้าใหม่"
+              />
             )}
-          </div>
 
-          {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                แสดง {((page - 1) * limit) + 1} ถึง {Math.min(page * limit, total)} จากทั้งหมด {total} รายการ
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  ก่อนหน้า
-                </button>
-                <span className="px-4 py-2 text-sm text-gray-700">
-                  หน้า {page} จาก {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  ถัดไป
-                </button>
-              </div>
-            </div>
-          )}
+            {totalPages > 1 && (
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+              />
+            )}
+          </TableContainer>
         </>
       )}
     </MainLayout>

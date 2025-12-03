@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft, Save } from 'lucide-react';
 import { PROVINCES } from '../../constants/provinces';
+import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 
 export default function CustomerFormPage() {
   const { id } = useParams();
@@ -12,6 +13,7 @@ export default function CustomerFormPage() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<{ taxId?: string }>({});
 
   const [formData, setFormData] = useState({
     type: 'INDIVIDUAL' as 'INDIVIDUAL' | 'COMPANY',
@@ -33,6 +35,15 @@ export default function CustomerFormPage() {
       fetchCustomer(id);
     }
   }, [id, isEdit]);
+
+  const validateTaxId = (taxId: string): string | undefined => {
+    if (!taxId) return undefined;
+    const digitRegex = /^\d{13}$/;
+    if (!digitRegex.test(taxId)) {
+      return 'เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลักเท่านั้น';
+    }
+    return undefined;
+  };
 
   const fetchCustomer = async (customerId: string) => {
     try {
@@ -62,15 +73,37 @@ export default function CustomerFormPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    if (name === 'taxId') {
+      const sanitizedValue = value.replace(/\D/g, '').slice(0, 13);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: sanitizedValue,
+      }));
+
+      const error = validateTaxId(sanitizedValue);
+      setErrors((prev) => ({
+        ...prev,
+        taxId: error,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+
+    const taxIdError = validateTaxId(formData.taxId);
+    if (taxIdError) {
+      setErrors({ taxId: taxIdError });
+      setSaving(false);
+      return;
+    }
 
     try {
       const data = {
@@ -102,6 +135,21 @@ export default function CustomerFormPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Convert provinces to SearchSelect options
+  const provinceOptions: SearchSelectOption[] = useMemo(() => {
+    return PROVINCES.map((province) => ({
+      value: province,
+      label: province,
+    }));
+  }, []);
+
+  const handleProvinceSelect = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      province: value,
+    }));
   };
 
   if (loading) {
@@ -214,8 +262,14 @@ export default function CustomerFormPage() {
               name="taxId"
               value={formData.taxId}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              maxLength={13}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+                errors.taxId ? 'border-red-500' : 'border-gray-300'
+              }`}
             />
+            {errors.taxId && (
+              <p className="mt-1 text-sm text-red-600">{errors.taxId}</p>
+            )}
           </div>
 
         </div>
@@ -279,23 +333,15 @@ export default function CustomerFormPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                จังหวัด <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="province"
+              <SearchSelect
                 value={formData.province}
-                onChange={handleChange}
+                onChange={handleProvinceSelect}
+                options={provinceOptions}
+                label="จังหวัด"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-              >
-                <option value="">เลือกจังหวัด</option>
-                {PROVINCES.map((province) => (
-                  <option key={province} value={province}>
-                    {province}
-                  </option>
-                ))}
-              </select>
+                placeholder="เลือกจังหวัด"
+                emptyMessage="ไม่พบจังหวัด"
+              />
             </div>
 
             <div>

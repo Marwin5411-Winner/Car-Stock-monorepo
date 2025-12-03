@@ -592,9 +592,13 @@ export class QuotationsService {
 
     // Determine sale type
     const saleType = data.saleType || 'RESERVATION_SALE';
-    const totalAmount = Number(quotation.finalPrice);
+    const carPrice = Number(quotation.finalPrice);
     const depositAmount = Number(data.depositAmount || 0);
-    const remainingAmount = totalAmount - depositAmount;
+    // Deposit is added ON TOP of the car price, not included in it
+    // Total = car price + deposit (customer pays car price + deposit)
+    // Remaining = car price (what's left to pay for the car)
+    const totalAmount = carPrice + depositAmount;
+    const remainingAmount = carPrice;
 
     // Create the sale
     const sale = await db.sale.create({
@@ -609,7 +613,7 @@ export class QuotationsService {
         preferredIntColor: quotation.preferredIntColor,
         totalAmount,
         depositAmount,
-        paidAmount: depositAmount, // Set paidAmount to depositAmount since deposit is recorded as payment
+        paidAmount: depositAmount, // Deposit is recorded as paid amount
         remainingAmount,
         reservedDate: new Date(),
         discountSnapshot: quotation.discountAmount,

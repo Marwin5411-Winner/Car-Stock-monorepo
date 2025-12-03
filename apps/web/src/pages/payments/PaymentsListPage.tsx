@@ -13,6 +13,19 @@ import {
   Receipt,
   Eye
 } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableContainer,
+  TableWrapper,
+  TableEmpty,
+  TableLoading,
+  TablePagination,
+} from '@/components/ui/table';
 
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   DEPOSIT: 'เงินจอง',
@@ -258,139 +271,111 @@ export default function PaymentsListPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <TableContainer>
           {loading ? (
-            <div className="p-8 text-center text-gray-500">กำลังโหลด...</div>
+            <TableLoading />
           ) : payments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">ไม่พบข้อมูลการชำระเงิน</div>
+            <TableEmpty
+              icon={<Receipt className="h-12 w-12" />}
+              title="ไม่พบข้อมูลการชำระเงิน"
+              description="เริ่มต้นด้วยการบันทึกการชำระเงินใหม่"
+            />
           ) : (
             <>
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      เลขที่ใบเสร็จ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ลูกค้า
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      เลขที่ขาย
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ประเภท
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      วิธีชำระ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      จำนวนเงิน
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      วันที่
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      สถานะ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      การดำเนินการ
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {payments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Link
-                          to={`/payments/${payment.id}`}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          {payment.receiptNumber}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
+              <TableWrapper>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>เลขที่ใบเสร็จ</TableHead>
+                      <TableHead>ลูกค้า</TableHead>
+                      <TableHead>เลขที่ขาย</TableHead>
+                      <TableHead>ประเภท</TableHead>
+                      <TableHead>วิธีชำระ</TableHead>
+                      <TableHead>จำนวนเงิน</TableHead>
+                      <TableHead>วันที่</TableHead>
+                      <TableHead>สถานะ</TableHead>
+                      <TableHead className="text-right">การดำเนินการ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          <Link
+                            to={`/payments/${payment.id}`}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            {payment.receiptNumber}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
                           <div className="text-sm font-medium text-gray-900">
                             {payment.customer.name}
                           </div>
                           <div className="text-sm text-gray-500">
                             {payment.customer.code}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {payment.sale ? (
-                          <Link
-                            to={`/sales/${payment.sale.id}`}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            {payment.sale.saleNumber}
-                          </Link>
-                        ) : (
-                          <span className="text-gray-400 italic">
-                            {payment.description ? payment.description.substring(0, 30) + (payment.description.length > 30 ? '...' : '') : 'รายการทั่วไป'}
+                        </TableCell>
+                        <TableCell>
+                          {payment.sale ? (
+                            <Link
+                              to={`/sales/${payment.sale.id}`}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              {payment.sale.saleNumber}
+                            </Link>
+                          ) : (
+                            <span className="text-gray-400 italic">
+                              {payment.description ? payment.description.substring(0, 30) + (payment.description.length > 30 ? '...' : '') : 'รายการทั่วไป'}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-700">
+                          {PAYMENT_TYPE_LABELS[payment.paymentType]}
+                        </TableCell>
+                        <TableCell className="text-gray-700">
+                          {PAYMENT_METHOD_LABELS[payment.paymentMethod]}
+                        </TableCell>
+                        <TableCell className="font-medium text-gray-900">
+                          {formatCurrency(payment.amount)}
+                        </TableCell>
+                        <TableCell className="text-gray-500">
+                          {formatDate(payment.paymentDate)}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${STATUS_COLORS[payment.status]}`}>
+                            {STATUS_LABELS[payment.status]}
                           </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {PAYMENT_TYPE_LABELS[payment.paymentType]}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {PAYMENT_METHOD_LABELS[payment.paymentMethod]}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(payment.amount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(payment.paymentDate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_COLORS[payment.status]}`}>
-                          {STATUS_LABELS[payment.status]}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Link
-                          to={`/payments/${payment.id}`}
-                          className="text-blue-600 hover:text-blue-800 inline-flex items-center"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          ดูรายละเอียด
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Link
+                            to={`/payments/${payment.id}`}
+                            className="inline-flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="ดูรายละเอียด"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            ดู
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableWrapper>
 
               {/* Pagination */}
-              <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t">
-                <div className="text-sm text-gray-500">
-                  แสดง {(page - 1) * limit + 1} - {Math.min(page * limit, total)} จาก {total} รายการ
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ก่อนหน้า
-                  </button>
-                  <span className="px-3 py-1 text-gray-700">
-                    หน้า {page} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="px-3 py-1 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ถัดไป
-                  </button>
-                </div>
-              </div>
+              {totalPages > 1 && (
+                <TablePagination
+                  page={page}
+                  totalPages={totalPages}
+                  total={total}
+                  limit={limit}
+                  onPageChange={setPage}
+                />
+              )}
             </>
           )}
-        </div>
+        </TableContainer>
       </div>
     </MainLayout>
   );

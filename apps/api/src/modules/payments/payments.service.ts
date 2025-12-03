@@ -3,6 +3,9 @@ import { CreatePaymentSchema, VoidPaymentSchema, PaymentFilterSchema } from '@ca
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
 
+// Payment types that affect car price (should update paidAmount and remainingAmount)
+const CAR_PAYMENT_TYPES = ['DEPOSIT', 'DOWN_PAYMENT', 'FINANCE_PAYMENT'] as const;
+
 export class PaymentsService {
   /**
    * Generate receipt number
@@ -229,8 +232,12 @@ export class PaymentsService {
       },
     });
 
-    // Update sale paid amount and remaining amount (only if linked to a sale)
-    if (sale && validated.saleId) {
+    // Update sale paid amount and remaining amount
+    // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
+    // OTHER_EXPENSE and MISCELLANEOUS should NOT affect the car price remaining
+    const isCarPayment = CAR_PAYMENT_TYPES.includes(validated.paymentType as typeof CAR_PAYMENT_TYPES[number]);
+    
+    if (sale && validated.saleId && isCarPayment) {
       const newPaidAmount = Number(sale.paidAmount) + validated.amount;
       const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
 
@@ -278,7 +285,7 @@ export class PaymentsService {
     // Check if payment exists
     const existingPayment = await db.payment.findUnique({
       where: { id },
-      select: { id: true, status: true, amount: true, saleId: true },
+      select: { id: true, status: true, amount: true, saleId: true, paymentType: true },
     });
 
     if (!existingPayment) {
@@ -299,8 +306,12 @@ export class PaymentsService {
       },
     });
 
-    // Update sale paid amount and remaining amount (only if linked to a sale)
-    if (existingPayment.saleId) {
+    // Update sale paid amount and remaining amount
+    // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
+    // OTHER_EXPENSE and MISCELLANEOUS should NOT affect the car price remaining
+    const isCarPayment = CAR_PAYMENT_TYPES.includes(existingPayment.paymentType as typeof CAR_PAYMENT_TYPES[number]);
+    
+    if (existingPayment.saleId && isCarPayment) {
       const sale = await db.sale.findUnique({
         where: { id: existingPayment.saleId },
         select: { paidAmount: true, totalAmount: true },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quotationService, type CreateQuotationData, type UpdateQuotationData } from '../../services/quotation.service';
 import { customerService, type Customer } from '../../services/customer.service';
@@ -11,9 +11,9 @@ import {
   DollarSign,
   Calendar,
   Save,
-  X,
   FileText
 } from 'lucide-react';
+import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 
 interface FormData {
   customerId: string;
@@ -34,9 +34,6 @@ export default function QuotationFormPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleModel | null>(null);
   
@@ -70,12 +67,6 @@ export default function QuotationFormPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  useEffect(() => {
-    if (customerSearch.length >= 2) {
-      searchCustomers(customerSearch);
-    }
-  }, [customerSearch]);
 
   const fetchVehicleModels = async () => {
     try {
@@ -115,29 +106,48 @@ export default function QuotationFormPage() {
     }
   };
 
-  const searchCustomers = async (search: string) => {
+  // Async customer search for SearchSelect
+  const loadCustomerOptions = useCallback(async (query: string): Promise<SearchSelectOption<Customer>[]> => {
     try {
-      const response = await customerService.getAll({ search, limit: 10 });
-      setCustomers(response.data);
-      setShowCustomerDropdown(true);
+      const response = await customerService.getAll({ search: query, limit: 10 });
+      return response.data.map((customer: Customer) => ({
+        value: customer.id,
+        label: customer.name,
+        description: `${customer.code} • ${customer.phone}`,
+        data: customer,
+      }));
     } catch (error) {
       console.error('Error searching customers:', error);
+      return [];
+    }
+  }, []);
+
+  const handleCustomerSelect = (value: string, option?: SearchSelectOption<Customer>) => {
+    if (option?.data) {
+      setSelectedCustomer(option.data);
+      setFormData({ ...formData, customerId: value });
+    } else {
+      setSelectedCustomer(null);
+      setFormData({ ...formData, customerId: '' });
     }
   };
 
-  const handleCustomerSelect = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setFormData({ ...formData, customerId: customer.id });
-    setCustomerSearch(customer.name);
-    setShowCustomerDropdown(false);
-  };
+  // Convert vehicle models to SearchSelect options
+  const vehicleModelOptions: SearchSelectOption<VehicleModel>[] = useMemo(() => {
+    return vehicleModels.map((vm) => ({
+      value: vm.id,
+      label: `${vm.brand} ${vm.model} ${vm.variant || ''} (${vm.year})`.trim(),
+      description: vm.price ? `฿${vm.price.toLocaleString()}` : undefined,
+      data: vm,
+    }));
+  }, [vehicleModels]);
 
-  const handleVehicleModelSelect = (vehicleModelId: string) => {
-    const vehicle = vehicleModels.find(v => v.id === vehicleModelId);
-    setSelectedVehicle(vehicle || null);
+  const handleVehicleModelSelect = (value: string, option?: SearchSelectOption<VehicleModel>) => {
+    const vehicle = option?.data || null;
+    setSelectedVehicle(vehicle);
     setFormData({
       ...formData,
-      vehicleModelId,
+      vehicleModelId: value,
       quotedPrice: Number(vehicle?.price) || formData.quotedPrice,
     });
   };
@@ -244,43 +254,18 @@ export default function QuotationFormPage() {
               <User className="h-5 w-5 mr-2 text-blue-600" />
               ข้อมูลลูกค้า
             </h2>
-            <div className="relative">
-              <label className="block text-sm font-medium text-black mb-1">
-                ค้นหาลูกค้า <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                onFocus={() => customers.length > 0 && setShowCustomerDropdown(true)}
-                placeholder="พิมพ์ชื่อ, รหัส หรือเบอร์โทรลูกค้า..."
-                className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                  errors.customerId ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.customerId && (
-                <p className="text-red-500 text-sm mt-1">{errors.customerId}</p>
-              )}
-              
-              {/* Customer Dropdown */}
-              {showCustomerDropdown && customers.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {customers.map((customer) => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onClick={() => handleCustomerSelect(customer)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-100 flex justify-between items-center"
-                    >
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-gray-700">{customer.code} • {customer.phone}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            
+            <AsyncSearchSelect<Customer>
+              value={formData.customerId}
+              onChange={handleCustomerSelect}
+              loadOptions={loadCustomerOptions}
+              label="ค้นหาลูกค้า"
+              required
+              placeholder="พิมพ์ชื่อ, รหัส หรือเบอร์โทรลูกค้า..."
+              error={errors.customerId}
+              emptyMessage="ไม่พบลูกค้า"
+              minSearchLength={2}
+            />
 
             {/* Selected Customer Info */}
             {selectedCustomer && (
@@ -294,17 +279,6 @@ export default function QuotationFormPage() {
                       <p className="text-sm text-gray-700">{selectedCustomer.email}</p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCustomer(null);
-                      setFormData({ ...formData, customerId: '' });
-                      setCustomerSearch('');
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             )}
@@ -320,26 +294,16 @@ export default function QuotationFormPage() {
             <div className="grid grid-cols-1 gap-4">
               {/* Vehicle Model Selection */}
               <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  รุ่นรถยนต์ <span className="text-red-500">*</span>
-                </label>
-                <select
+                <SearchSelect<VehicleModel>
                   value={formData.vehicleModelId}
-                  onChange={(e) => handleVehicleModelSelect(e.target.value)}
-                  className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                    errors.vehicleModelId ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">-- เลือกรุ่นรถ --</option>
-                  {vehicleModels.map((vm) => (
-                    <option key={vm.id} value={vm.id}>
-                      {vm.brand} {vm.model} {vm.variant} ({vm.year}) - ฿{vm.price?.toLocaleString()}
-                    </option>
-                  ))}
-                </select>
-                {errors.vehicleModelId && (
-                  <p className="text-red-500 text-sm mt-1">{errors.vehicleModelId}</p>
-                )}
+                  onChange={handleVehicleModelSelect}
+                  options={vehicleModelOptions}
+                  label="รุ่นรถยนต์"
+                  required
+                  placeholder="-- เลือกรุ่นรถ --"
+                  error={errors.vehicleModelId}
+                  emptyMessage="ไม่พบรุ่นรถ"
+                />
               </div>
 
               {/* Preferred Colors */}

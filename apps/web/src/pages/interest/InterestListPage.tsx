@@ -14,6 +14,19 @@ import {
   PauseCircle,
   AlertCircle
 } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableContainer,
+  TableWrapper,
+  TableEmpty,
+  TableLoading,
+  TablePagination,
+} from '@/components/ui/table';
 
 export default function InterestListPage() {
   const [interests, setInterests] = useState<InterestSummary[]>([]);
@@ -250,78 +263,58 @@ export default function InterestListPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    รถยนต์
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    สถานะ
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    วันเริ่มคิดดอกเบี้ย
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    จำนวนวัน
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    อัตราดอกเบี้ย
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    เงินต้น
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ดอกเบี้ยสะสม
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    สถานะดอกเบี้ย
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    จัดการ
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+        <TableContainer>
+          <TableWrapper>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>รถยนต์</TableHead>
+                  <TableHead>สถานะ</TableHead>
+                  <TableHead>วันเริ่มคิดดอกเบี้ย</TableHead>
+                  <TableHead className="text-right">จำนวนวัน</TableHead>
+                  <TableHead className="text-right">อัตราดอกเบี้ย</TableHead>
+                  <TableHead className="text-right">เงินต้น</TableHead>
+                  <TableHead className="text-right">ดอกเบี้ยสะสม</TableHead>
+                  <TableHead className="text-center">สถานะดอกเบี้ย</TableHead>
+                  <TableHead className="text-center">จัดการ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center">
-                      <div className="flex justify-center items-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                        <span className="ml-2 text-gray-500">กำลังโหลด...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={9}>
+                      <TableLoading />
+                    </TableCell>
+                  </TableRow>
                 ) : interests.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                      <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                      ไม่พบข้อมูล
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={9}>
+                      <TableEmpty
+                        icon={<AlertCircle className="h-12 w-12" />}
+                        title="ไม่พบข้อมูล"
+                        description="ไม่พบข้อมูลดอกเบี้ย Stock"
+                      />
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   interests.map((item) => (
-                    <tr key={item.stockId} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {item.vehicleModel.brand} {item.vehicleModel.model}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {item.vehicleModel.variant} • {item.vehicleModel.year}
-                          </div>
-                          <div className="text-xs text-gray-400 font-mono">
-                            VIN: {item.vin}
-                          </div>
+                    <TableRow key={item.stockId}>
+                      <TableCell className="min-w-[200px]">
+                        <div className="font-medium text-gray-900">
+                          {item.vehicleModel.brand} {item.vehicleModel.model}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-500">
+                          {item.vehicleModel.variant} • {item.vehicleModel.year}
+                        </div>
+                        <div className="text-xs text-gray-400 font-mono">
+                          VIN: {item.vin}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         {getStatusBadge(item.status)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <div className="flex items-center">
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-gray-500">
                           <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(item.interestStartDate)}
                         </div>
@@ -330,31 +323,31 @@ export default function InterestListPage() {
                             (สั่งซื้อ)
                           </div>
                         )}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <span className="font-medium text-gray-900">{item.daysCount}</span>
                         <span className="text-gray-500"> วัน</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <span className="font-medium text-purple-600">
                           {item.currentRate.toFixed(2)}%
                         </span>
                         <div className="text-xs text-gray-500">
                           {item.principalBase === 'BASE_COST_ONLY' ? 'ทุนฐาน' : 'ทุนรวม'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-900">
+                      </TableCell>
+                      <TableCell className="text-right text-gray-900">
                         {formatCurrency(item.principalAmount)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <span className="font-bold text-orange-600">
                           {formatCurrency(item.totalAccumulatedInterest)}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
+                      </TableCell>
+                      <TableCell className="text-center">
                         {getCalculatingBadge(item.isCalculating)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
+                      </TableCell>
+                      <TableCell className="text-center">
                         <Link
                           to={`/interest/${item.stockId}`}
                           className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
@@ -362,44 +355,25 @@ export default function InterestListPage() {
                           <Eye className="w-4 h-4 mr-1" />
                           ดูรายละเอียด
                         </Link>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableWrapper>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  แสดง {(page - 1) * limit + 1} - {Math.min(page * limit, total)} จาก {total} รายการ
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(page - 1)}
-                    disabled={page === 1}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ก่อนหน้า
-                  </button>
-                  <span className="px-4 py-2 text-sm text-gray-700">
-                    หน้า {page} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage(page + 1)}
-                    disabled={page === totalPages}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ถัดไป
-                  </button>
-                </div>
-              </div>
-            </div>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+            />
           )}
-        </div>
+        </TableContainer>
       </div>
     </MainLayout>
   );

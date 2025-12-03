@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { salesService, type CreateSaleData, type UpdateSaleData, type PaymentMode } from '../../services/sales.service';
 import { customerService, type Customer } from '../../services/customer.service';
@@ -9,9 +9,9 @@ import {
   User, 
   Car, 
   DollarSign,
-  Save,
-  X
+  Save
 } from 'lucide-react';
+import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 
 // Note: This form is now for Direct Sales only
 // Reservation Sales should be created via Quotation conversion
@@ -42,10 +42,7 @@ export default function SalesFormPage() {
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableStocks, setAvailableStocks] = useState<Stock[]>([]);
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   
@@ -74,12 +71,6 @@ export default function SalesFormPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  useEffect(() => {
-    if (customerSearch.length >= 2) {
-      searchCustomers(customerSearch);
-    }
-  }, [customerSearch]);
 
   const fetchInitialData = async () => {
     try {
@@ -131,31 +122,50 @@ export default function SalesFormPage() {
     }
   };
 
-  const searchCustomers = async (search: string) => {
+  // Async customer search for SearchSelect
+  const loadCustomerOptions = useCallback(async (query: string): Promise<SearchSelectOption<Customer>[]> => {
     try {
-      const response = await customerService.getAll({ search, limit: 10 });
-      setCustomers(response.data);
-      setShowCustomerDropdown(true);
+      const response = await customerService.getAll({ search: query, limit: 10 });
+      return response.data.map((customer: Customer) => ({
+        value: customer.id,
+        label: customer.name,
+        description: `${customer.code} • ${customer.phone}`,
+        data: customer,
+      }));
     } catch (error) {
       console.error('Error searching customers:', error);
+      return [];
+    }
+  }, []);
+
+  const handleCustomerSelect = (value: string, option?: SearchSelectOption<Customer>) => {
+    if (option?.data) {
+      setSelectedCustomer(option.data);
+      setFormData({ ...formData, customerId: value });
+    } else {
+      setSelectedCustomer(null);
+      setFormData({ ...formData, customerId: '' });
     }
   };
 
-  const handleCustomerSelect = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setFormData({ ...formData, customerId: customer.id });
-    setCustomerSearch(customer.name);
-    setShowCustomerDropdown(false);
-  };
+  // Convert stocks to SearchSelect options
+  const stockOptions: SearchSelectOption<Stock>[] = useMemo(() => {
+    return availableStocks.map((stock) => ({
+      value: stock.id,
+      label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})`,
+      description: stock.expectedSalePrice ? `ราคา: ฿${stock.expectedSalePrice.toLocaleString()}` : undefined,
+      data: stock,
+    }));
+  }, [availableStocks]);
 
-  const handleStockSelect = (stockId: string) => {
-    const stock = availableStocks.find(s => s.id === stockId);
-    setSelectedStock(stock || null);
+  const handleStockSelect = (value: string, option?: SearchSelectOption<Stock>) => {
+    const stock = option?.data || null;
+    setSelectedStock(stock);
     
     if (stock) {
       setFormData({
         ...formData,
-        stockId,
+        stockId: value,
         totalAmount: stock.expectedSalePrice || formData.totalAmount,
       });
     } else {
@@ -286,43 +296,18 @@ export default function SalesFormPage() {
               <User className="h-5 w-5 mr-2 text-blue-600" />
               ข้อมูลลูกค้า
             </h2>
-            <div className="relative">
-              <label className="block text-sm font-medium text-black mb-1">
-                ค้นหาลูกค้า <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                onFocus={() => customers.length > 0 && setShowCustomerDropdown(true)}
-                placeholder="พิมพ์ชื่อ, รหัส หรือเบอร์โทรลูกค้า..."
-                className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                  errors.customerId ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.customerId && (
-                <p className="text-red-500 text-sm mt-1">{errors.customerId}</p>
-              )}
-              
-              {/* Customer Dropdown */}
-              {showCustomerDropdown && customers.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {customers.map((customer) => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onClick={() => handleCustomerSelect(customer)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-100 flex justify-between items-center"
-                    >
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-gray-700">{customer.code} • {customer.phone}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            
+            <AsyncSearchSelect<Customer>
+              value={formData.customerId}
+              onChange={handleCustomerSelect}
+              loadOptions={loadCustomerOptions}
+              label="ค้นหาลูกค้า"
+              required
+              placeholder="พิมพ์ชื่อ, รหัส หรือเบอร์โทรลูกค้า..."
+              error={errors.customerId}
+              emptyMessage="ไม่พบลูกค้า"
+              minSearchLength={2}
+            />
 
             {/* Selected Customer Info */}
             {selectedCustomer && (
@@ -333,17 +318,6 @@ export default function SalesFormPage() {
                     <p className="text-sm text-gray-700">{selectedCustomer.code}</p>
                     <p className="text-sm text-gray-700">{selectedCustomer.phone}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCustomer(null);
-                      setFormData({ ...formData, customerId: '' });
-                      setCustomerSearch('');
-                    }}
-                    className="text-gray-700 hover:text-gray-900"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             )}
@@ -357,29 +331,18 @@ export default function SalesFormPage() {
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Stock Selection */}
               {/* Stock Selection - Required for Direct Sale */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-black mb-1">
-                  เลือก Stock (รถที่มีในสต็อก) <span className="text-red-500">*</span>
-                </label>
-                <select
+                <SearchSelect<Stock>
                   value={formData.stockId}
-                  onChange={(e) => handleStockSelect(e.target.value)}
-                  className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                    errors.stockId ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">-- เลือก Stock --</option>
-                  {availableStocks.map((stock) => (
-                    <option key={stock.id} value={stock.id}>
-                      {stock.vehicleModel.brand} {stock.vehicleModel.model} - VIN: {stock.vin.slice(-8)} ({stock.exteriorColor})
-                    </option>
-                  ))}
-                </select>
-                {errors.stockId && (
-                  <p className="text-red-500 text-sm mt-1">{errors.stockId}</p>
-                )}
+                  onChange={handleStockSelect}
+                  options={stockOptions}
+                  label="เลือก Stock (รถที่มีในสต็อก)"
+                  required
+                  placeholder="-- เลือก Stock --"
+                  error={errors.stockId}
+                  emptyMessage="ไม่มี Stock ที่พร้อมขาย"
+                />
                 {availableStocks.length === 0 && (
                   <p className="text-yellow-600 text-sm mt-1">ไม่มี Stock ที่พร้อมขาย กรุณาเพิ่ม Stock ก่อน</p>
                 )}
