@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { interestService } from '../../services/interest.service';
-import type { InterestDetail } from '../../services/interest.service';
+import type { InterestDetail, DebtSummary, DebtPayment, PaymentMethod } from '../../services/interest.service';
 import { MainLayout } from '../../components/layout';
+import DebtPaymentModal from '../../components/interest/DebtPaymentModal';
 import {
   ArrowLeft,
   Edit,
@@ -15,20 +16,29 @@ import {
   TrendingUp,
   History,
   Car,
+  Wallet,
+  CheckCircle,
+  Plus,
+  Banknote,
 } from 'lucide-react';
 
 export default function InterestDetailPage() {
   const { stockId } = useParams<{ stockId: string }>();
   const navigate = useNavigate();
   const [detail, setDetail] = useState<InterestDetail | null>(null);
+  const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
+  const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showDebtPaymentModal, setShowDebtPaymentModal] = useState(false);
 
   useEffect(() => {
     if (stockId) {
       fetchDetail();
+      fetchDebtData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stockId]);
 
   const fetchDetail = async () => {
@@ -43,6 +53,41 @@ export default function InterestDetailPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDebtData = async () => {
+    try {
+      const [summary, payments] = await Promise.all([
+        interestService.getDebtSummary(stockId!),
+        interestService.getDebtPayments(stockId!),
+      ]);
+      setDebtSummary(summary);
+      setDebtPayments(payments);
+    } catch (err) {
+      console.error('Error fetching debt data:', err);
+    }
+  };
+
+  const handleDebtPayment = async (data: {
+    amount: number;
+    paymentMethod: PaymentMethod;
+    paymentDate?: string;
+    referenceNumber?: string;
+    notes?: string;
+  }) => {
+    const result = await interestService.recordDebtPayment(stockId!, data);
+    
+    // Show success message
+    if (result.debtPaidOff) {
+      alert('🎉 ปิดหนี้เรียบร้อยแล้ว! ระบบหยุดคิดดอกเบี้ยอัตโนมัติ');
+    } else if (result.interestAdjusted) {
+      alert('บันทึกการจ่ายเงินเรียบร้อย ดอกเบี้ยจะคิดจากยอดหนี้คงเหลือใหม่');
+    } else {
+      alert('บันทึกการจ่ายเงินเรียบร้อยแล้ว');
+    }
+    
+    // Refresh data
+    await Promise.all([fetchDetail(), fetchDebtData()]);
   };
 
   const handleStopCalculation = async () => {
@@ -305,6 +350,142 @@ export default function InterestDetailPage() {
           </div>
         </div>
 
+        {/* Debt Management Section */}
+        {debtSummary && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Wallet className="w-5 h-5 mr-2 text-purple-600" />
+                สถานะหนี้รถในสต็อก
+              </h3>
+              {/* แสดงปุ่มจ่ายหนี้ถ้ามี financeProvider และยังไม่ปิดหนี้ */}
+              {(debtSummary.debtStatus === 'ACTIVE' || (debtSummary.hasFinanceProvider && debtSummary.debtStatus !== 'PAID_OFF')) && (
+                <button
+                  onClick={() => setShowDebtPaymentModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  จ่ายหนี้
+                </button>
+              )}
+            </div>
+
+            {/* ไม่มี Finance Provider = ซื้อเงินสด */}
+            {!debtSummary.hasFinanceProvider ? (
+              <div className="text-center py-6 text-gray-500">
+                <Banknote className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p>ไม่มีหนี้ (ซื้อเงินสด)</p>
+              </div>
+            ) : debtSummary.debtStatus === 'PAID_OFF' ? (
+              <>
+                {/* Debt Status Badge - Paid Off */}
+                <div className="flex justify-center mb-4">
+                  <span className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    ปิดหนี้แล้ว {debtSummary.debtPaidOffDate && `(${formatDate(debtSummary.debtPaidOffDate)})`}
+                  </span>
+                </div>
+
+                {/* Debt Progress Bar - 100% */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">ความคืบหน้าการจ่ายหนี้</span>
+                    <span className="font-medium">100%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="bg-green-500 h-3 rounded-full w-full" />
+                  </div>
+                </div>
+
+                {/* Debt Details */}
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">หนี้เริ่มต้น</p>
+                    <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.debtAmount)}</p>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">จ่ายไปแล้ว</p>
+                    <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidDebtAmount)}</p>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">คงเหลือ</p>
+                    <p className="font-bold text-green-600">{formatCurrency(0)}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Debt Status Badge - Active */}
+                <div className="flex justify-center mb-4">
+                  <span className="inline-flex items-center px-4 py-2 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                    <Clock className="w-4 h-4 mr-2" />
+                    มีหนี้ค้างชำระ
+                  </span>
+                </div>
+
+                {/* Debt Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">ความคืบหน้าการจ่ายหนี้</span>
+                    <span className="font-medium">
+                      {((debtSummary.paidDebtAmount / debtSummary.debtAmount) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                      className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${(debtSummary.paidDebtAmount / debtSummary.debtAmount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Debt Details */}
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">หนี้เริ่มต้น</p>
+                    <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.debtAmount)}</p>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">จ่ายไปแล้ว</p>
+                    <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidDebtAmount)}</p>
+                  </div>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">คงเหลือ</p>
+                    <p className="font-bold text-orange-600">{formatCurrency(debtSummary.remainingDebt)}</p>
+                  </div>
+                </div>
+
+                {/* Payment History */}
+                {debtPayments.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">ประวัติการจ่ายหนี้</h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {debtPayments.map((payment, index) => (
+                        <div key={payment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                          <div className="flex items-center gap-3">
+                            <span className="w-6 h-6 flex items-center justify-center bg-green-100 text-green-600 rounded-full text-xs font-medium">
+                              {debtPayments.length - index}
+                            </span>
+                            <div>
+                              <p className="font-medium text-gray-900">{formatCurrency(payment.amount)}</p>
+                              <p className="text-xs text-gray-500">
+                                {formatDate(payment.paymentDate)} • {payment.paymentMethod === 'CASH' ? 'เงินสด' : payment.paymentMethod === 'BANK_TRANSFER' ? 'โอนเงิน' : payment.paymentMethod === 'CHEQUE' ? 'เช็ค' : 'บัตรเครดิต'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-gray-500">
+                            <p>คงเหลือ: {formatCurrency(payment.principalAfter)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* Period History */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6 border-b border-gray-200">
@@ -422,6 +603,20 @@ export default function InterestDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Debt Payment Modal */}
+      {debtSummary && debtSummary.debtStatus === 'ACTIVE' && (
+        <DebtPaymentModal
+          isOpen={showDebtPaymentModal}
+          onClose={() => setShowDebtPaymentModal(false)}
+          onSubmit={handleDebtPayment}
+          debtSummary={debtSummary}
+          stockInfo={{
+            vin: stock.vin,
+            vehicleModel: stock.vehicleModel,
+          }}
+        />
+      )}
     </MainLayout>
   );
 }

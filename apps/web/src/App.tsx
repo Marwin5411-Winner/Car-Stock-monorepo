@@ -21,6 +21,16 @@ import QuotationListPage from './pages/quotations/QuotationListPage';
 import QuotationFormPage from './pages/quotations/QuotationFormPage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import { PaymentsListPage, PaymentFormPage, PaymentDetailPage } from './pages/payments';
+import { UsersListPage, UserFormPage, UserDetailPage } from './pages/users';
+import { CampaignsListPage, CampaignFormPage, CampaignDetailPage, CampaignAnalyticsPage } from './pages/campaigns';
+import {
+  ReportsPage,
+  DailyPaymentReportPage,
+  StockReportPage,
+  ProfitLossReportPage,
+  SalesSummaryReportPage,
+  StockInterestReportPage,
+} from './pages/reports';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -252,6 +262,129 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PaymentDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* User Management Routes - Admin Only */}
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute>
+                  <UsersListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users/new"
+              element={
+                <ProtectedRoute>
+                  <UserFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users/:id"
+              element={
+                <ProtectedRoute>
+                  <UserDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <UserFormPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Campaign Management Routes - Admin Only */}
+            <Route
+              path="/campaigns"
+              element={
+                <ProtectedRoute>
+                  <CampaignsListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/new"
+              element={
+                <ProtectedRoute>
+                  <CampaignFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/:id"
+              element={
+                <ProtectedRoute>
+                  <CampaignDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <CampaignFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/:id/analytics"
+              element={
+                <ProtectedRoute>
+                  <CampaignAnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Report Routes */}
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/daily-payments"
+              element={
+                <ProtectedRoute>
+                  <DailyPaymentReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/stock"
+              element={
+                <ProtectedRoute>
+                  <StockReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/profit-loss"
+              element={
+                <ProtectedRoute>
+                  <ProfitLossReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/sales-summary"
+              element={
+                <ProtectedRoute>
+                  <SalesSummaryReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/stock-interest"
+              element={
+                <ProtectedRoute>
+                  <StockInterestReportPage />
                 </ProtectedRoute>
               }
             />

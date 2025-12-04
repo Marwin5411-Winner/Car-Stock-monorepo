@@ -1,6 +1,6 @@
 import { db } from '../../lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
-import { InterestBase, StockStatus } from '@prisma/client';
+import { InterestBase, StockStatus, DebtStatus, PaymentMethod } from '@prisma/client';
 
 interface InterestSummary {
   stockId: string;
@@ -677,55 +677,526 @@ export class InterestService {
     totalAccumulatedInterest: number;
     averageRate: number;
   }> {
-    const [totalStocks, activeStocks, allPeriods] = await Promise.all([
-      db.stock.count({
-        where: {
-          status: { in: ['AVAILABLE', 'RESERVED', 'PREPARING'] },
+    // Get all stocks with their interest periods
+    const allStocks = await db.stock.findMany({
+      include: {
+        interestPeriods: {
+          orderBy: { startDate: 'desc' },
         },
-      }),
-      db.stock.count({
-        where: {
-          stopInterestCalc: false,
-          status: { in: ['AVAILABLE', 'RESERVED', 'PREPARING'] },
-        },
-      }),
-      db.interestPeriod.findMany({
-        include: {
-          stock: {
-            select: { status: true, stopInterestCalc: true },
-          },
-        },
-      }),
-    ]);
+      },
+    });
 
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     let totalInterest = 0;
     let totalRate = 0;
-    let rateCount = 0;
+    let stocksWithInterest = 0;
+    let activeCalculations = 0;
+    let stoppedCalculations = 0;
 
-    for (const period of allPeriods) {
-      if (period.endDate) {
-        totalInterest += Number(period.calculatedInterest);
+    for (const stock of allStocks) {
+      // Skip stocks with no interest history
+      if (stock.interestPeriods.length === 0 && stock.status === 'SOLD') {
+        continue;
+      }
+
+      stocksWithInterest++;
+
+      // Check if actively calculating
+      const isCalculating = !stock.stopInterestCalc && stock.status !== 'SOLD';
+      if (isCalculating) {
+        activeCalculations++;
       } else {
-        // Active period
-        const days = this.calculateDays(period.startDate, today);
-        const interest = this.calculateInterestForPeriod(
-          Number(period.principalAmount),
-          Number(period.annualRate),
+        stoppedCalculations++;
+      }
+
+      // Calculate accumulated interest for this stock
+      let stockInterest = 0;
+
+      // Get active period
+      const activePeriod = stock.interestPeriods.find((p) => !p.endDate);
+
+      if (activePeriod) {
+        // Calculate interest for active period
+        const periodDays = this.calculateDays(activePeriod.startDate, today);
+        const activeInterest = this.calculateInterestForPeriod(
+          Number(activePeriod.principalAmount),
+          Number(activePeriod.annualRate),
+          periodDays
+        );
+        stockInterest += activeInterest;
+        totalRate += Number(activePeriod.annualRate);
+      } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+        // No periods yet, use stock's default rate
+        const baseCost = Number(stock.baseCost);
+        const totalCost = baseCost + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
+        const principalAmount = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
+        const interestStartDate = stock.orderDate || stock.arrivalDate;
+        const days = this.calculateDays(interestStartDate, today);
+        
+        stockInterest = this.calculateInterestForPeriod(
+          principalAmount,
+          Number(stock.interestRate) * 100,
           days
         );
-        totalInterest += interest;
-        totalRate += Number(period.annualRate);
-        rateCount++;
+        totalRate += Number(stock.interestRate) * 100;
       }
+
+      // Add closed periods' interest
+      stock.interestPeriods
+        .filter((p) => p.endDate)
+        .forEach((p) => {
+          stockInterest += Number(p.calculatedInterest);
+        });
+
+      totalInterest += stockInterest;
     }
 
     return {
-      totalStocksWithInterest: totalStocks,
-      activeCalculations: activeStocks,
-      stoppedCalculations: totalStocks - activeStocks,
+      totalStocksWithInterest: stocksWithInterest,
+      activeCalculations,
+      stoppedCalculations,
       totalAccumulatedInterest: Math.round(totalInterest * 100) / 100,
-      averageRate: rateCount > 0 ? Math.round((totalRate / rateCount) * 100) / 100 : 0,
+      averageRate: stocksWithInterest > 0 ? Math.round((totalRate / stocksWithInterest) * 100) / 100 : 0,
+    };
+  }
+
+  // ============================================
+  // Debt Payment Management
+  // ============================================
+
+  /**
+   * Initialize debt for a stock (เริ่มต้นหนี้รถเมื่อรถเข้าสต็อก)
+   */
+  async initializeDebt(
+    stockId: string,
+    debtAmount: number,
+    userId: string
+  ): Promise<void> {
+    const stock = await db.stock.findUnique({
+      where: { id: stockId },
+    });
+
+    if (!stock) {
+      throw new Error('Stock not found');
+    }
+
+    if (stock.debtStatus !== 'NO_DEBT' && Number(stock.debtAmount) > 0) {
+      throw new Error('Stock already has debt initialized');
+    }
+
+    await db.stock.update({
+      where: { id: stockId },
+      data: {
+        debtAmount: new Decimal(debtAmount),
+        paidDebtAmount: new Decimal(0),
+        remainingDebt: new Decimal(debtAmount),
+        debtStatus: 'ACTIVE',
+      },
+    });
+  }
+
+  /**
+   * Record a debt payment (บันทึกการจ่ายหนี้รถ)
+   */
+  async recordDebtPayment(
+    stockId: string,
+    input: {
+      amount: number;
+      paymentMethod: PaymentMethod;
+      paymentDate?: Date;
+      referenceNumber?: string;
+      notes?: string;
+    },
+    userId: string
+  ): Promise<{
+    payment: any;
+    stock: any;
+    interestAdjusted: boolean;
+    debtPaidOff: boolean;
+  }> {
+    const stock = await db.stock.findUnique({
+      where: { id: stockId },
+      select: {
+        id: true,
+        debtAmount: true,
+        paidDebtAmount: true,
+        remainingDebt: true,
+        debtStatus: true,
+        financeProvider: true,
+        baseCost: true,
+        transportCost: true,
+        accessoryCost: true,
+        otherCosts: true,
+        interestPrincipalBase: true,
+        stopInterestCalc: true,
+        status: true,
+        interestPeriods: {
+          where: { endDate: null },
+          orderBy: { startDate: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!stock) {
+      throw new Error('Stock not found');
+    }
+
+    if (stock.debtStatus === 'PAID_OFF') {
+      throw new Error('Stock debt is already paid off');
+    }
+
+    // Auto-initialize debt ถ้ายังไม่มี แต่มี financeProvider
+    let currentDebtAmount = Number(stock.debtAmount);
+    let currentRemainingDebt = Number(stock.remainingDebt);
+    
+    if (stock.debtStatus === 'NO_DEBT' && stock.financeProvider) {
+      // คำนวณหนี้เริ่มต้นจาก baseCost หรือ totalCost ตาม interestPrincipalBase
+      const baseCost = Number(stock.baseCost);
+      const totalCost = baseCost + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
+      currentDebtAmount = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
+      currentRemainingDebt = currentDebtAmount;
+      
+      // Auto-initialize debt in database
+      await db.stock.update({
+        where: { id: stockId },
+        data: {
+          debtAmount: new Decimal(currentDebtAmount),
+          remainingDebt: new Decimal(currentRemainingDebt),
+          debtStatus: 'ACTIVE',
+        },
+      });
+    } else if (stock.debtStatus === 'NO_DEBT' && !stock.financeProvider) {
+      throw new Error('Stock has no debt to pay (no finance provider)');
+    }
+    
+    if (input.amount > currentRemainingDebt) {
+      throw new Error(`Payment amount (${input.amount}) exceeds remaining debt (${currentRemainingDebt})`);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const paymentDate = input.paymentDate || today;
+    const principalBefore = currentRemainingDebt;
+    const principalAfter = currentRemainingDebt - input.amount;
+    const newPaidAmount = Number(stock.paidDebtAmount) + input.amount;
+    const isFullPayment = principalAfter === 0;
+
+    // Create debt payment record
+    const payment = await db.stockDebtPayment.create({
+      data: {
+        stockId,
+        paymentDate,
+        amount: new Decimal(input.amount),
+        paymentMethod: input.paymentMethod,
+        referenceNumber: input.referenceNumber,
+        principalBefore: new Decimal(principalBefore),
+        principalAfter: new Decimal(principalAfter),
+        notes: input.notes,
+        createdById: userId,
+      },
+    });
+
+    // Update stock debt tracking
+    const stockUpdateData: any = {
+      paidDebtAmount: new Decimal(newPaidAmount),
+      remainingDebt: new Decimal(principalAfter),
+    };
+
+    if (isFullPayment) {
+      stockUpdateData.debtStatus = 'PAID_OFF';
+      stockUpdateData.debtPaidOffDate = paymentDate;
+    }
+
+    await db.stock.update({
+      where: { id: stockId },
+      data: stockUpdateData,
+    });
+
+    let interestAdjusted = false;
+
+    // If partial payment, adjust principal for interest calculation
+    if (!isFullPayment && principalAfter > 0) {
+      const activePeriod = stock.interestPeriods[0];
+      
+      if (activePeriod && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+        // Close current period and calculate interest up to payment date
+        const days = this.calculateDays(activePeriod.startDate, paymentDate);
+        const calculatedInterest = this.calculateInterestForPeriod(
+          Number(activePeriod.principalAmount),
+          Number(activePeriod.annualRate),
+          days
+        );
+
+        await db.interestPeriod.update({
+          where: { id: activePeriod.id },
+          data: {
+            endDate: paymentDate,
+            calculatedInterest: new Decimal(calculatedInterest),
+            daysCount: days,
+            notes: `${activePeriod.notes || ''}\n[Debt Payment] Principal reduced from ${principalBefore.toLocaleString()} to ${principalAfter.toLocaleString()}`.trim(),
+          },
+        });
+
+        // Create new period with reduced principal
+        const nextDay = new Date(paymentDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        await db.interestPeriod.create({
+          data: {
+            stockId,
+            startDate: nextDay,
+            endDate: null,
+            annualRate: activePeriod.annualRate,
+            principalBase: activePeriod.principalBase,
+            principalAmount: new Decimal(principalAfter), // New reduced principal
+            calculatedInterest: new Decimal(0),
+            daysCount: 0,
+            createdById: userId,
+            notes: `Principal adjusted after debt payment of ${input.amount.toLocaleString()}`,
+          },
+        });
+
+        interestAdjusted = true;
+      }
+    }
+
+    // If full payment, stop interest calculation
+    if (isFullPayment) {
+      await this.stopInterestCalculation(
+        stockId,
+        userId,
+        `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]}`
+      );
+    }
+
+    // Get updated stock
+    const updatedStock = await db.stock.findUnique({
+      where: { id: stockId },
+      include: {
+        vehicleModel: {
+          select: {
+            brand: true,
+            model: true,
+            variant: true,
+            year: true,
+          },
+        },
+      },
+    });
+
+    return {
+      payment,
+      stock: updatedStock,
+      interestAdjusted,
+      debtPaidOff: isFullPayment,
+    };
+  }
+
+  /**
+   * Get debt payment history for a stock
+   */
+  async getDebtPayments(stockId: string): Promise<any[]> {
+    const payments = await db.stockDebtPayment.findMany({
+      where: { stockId },
+      orderBy: { paymentDate: 'desc' },
+    });
+
+    return payments.map((p) => ({
+      id: p.id,
+      paymentDate: p.paymentDate,
+      amount: Number(p.amount),
+      paymentMethod: p.paymentMethod,
+      referenceNumber: p.referenceNumber,
+      principalBefore: Number(p.principalBefore),
+      principalAfter: Number(p.principalAfter),
+      notes: p.notes,
+      createdById: p.createdById,
+      createdAt: p.createdAt,
+    }));
+  }
+
+  /**
+   * Get debt summary for a stock
+   * ถ้ายังไม่มี debtAmount แต่มี financeProvider จะใช้ baseCost เป็น default
+   */
+  async getDebtSummary(stockId: string): Promise<{
+    debtAmount: number;
+    paidDebtAmount: number;
+    remainingDebt: number;
+    debtStatus: DebtStatus;
+    debtPaidOffDate: Date | null;
+    paymentCount: number;
+    lastPaymentDate: Date | null;
+    hasFinanceProvider: boolean;
+    baseCost: number;
+    totalCost: number;
+  }> {
+    const stock = await db.stock.findUnique({
+      where: { id: stockId },
+      select: {
+        debtAmount: true,
+        paidDebtAmount: true,
+        remainingDebt: true,
+        debtStatus: true,
+        debtPaidOffDate: true,
+        financeProvider: true,
+        baseCost: true,
+        transportCost: true,
+        accessoryCost: true,
+        otherCosts: true,
+        interestPrincipalBase: true,
+      },
+    });
+
+    if (!stock) {
+      throw new Error('Stock not found');
+    }
+
+    const paymentStats = await db.stockDebtPayment.aggregate({
+      where: { stockId },
+      _count: true,
+      _max: { paymentDate: true },
+    });
+
+    const baseCost = Number(stock.baseCost);
+    const totalCost = baseCost + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
+    const hasFinanceProvider = !!stock.financeProvider;
+    
+    // ถ้ามี financeProvider แต่ยังไม่มี debtAmount -> ใช้ baseCost/totalCost ตาม interestPrincipalBase
+    let effectiveDebtAmount = Number(stock.debtAmount);
+    let effectiveRemainingDebt = Number(stock.remainingDebt);
+    let effectiveDebtStatus = stock.debtStatus;
+    
+    if (hasFinanceProvider && effectiveDebtAmount === 0 && effectiveDebtStatus === 'NO_DEBT') {
+      // Auto-calculate จาก baseCost
+      effectiveDebtAmount = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
+      effectiveRemainingDebt = effectiveDebtAmount - Number(stock.paidDebtAmount);
+      effectiveDebtStatus = 'ACTIVE';
+    }
+
+    return {
+      debtAmount: effectiveDebtAmount,
+      paidDebtAmount: Number(stock.paidDebtAmount),
+      remainingDebt: effectiveRemainingDebt,
+      debtStatus: effectiveDebtStatus,
+      debtPaidOffDate: stock.debtPaidOffDate,
+      paymentCount: paymentStats._count,
+      lastPaymentDate: paymentStats._max.paymentDate,
+      hasFinanceProvider,
+      baseCost,
+      totalCost,
+    };
+  }
+
+  /**
+   * Get all stocks with outstanding debt
+   */
+  async getOutstandingDebts(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{ data: any[]; meta: any }> {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      debtStatus: 'ACTIVE',
+      remainingDebt: { gt: 0 },
+    };
+
+    if (params.search) {
+      where.OR = [
+        { vin: { contains: params.search, mode: 'insensitive' } },
+        { vehicleModel: { brand: { contains: params.search, mode: 'insensitive' } } },
+        { vehicleModel: { model: { contains: params.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [stocks, total] = await Promise.all([
+      db.stock.findMany({
+        where,
+        include: {
+          vehicleModel: {
+            select: {
+              brand: true,
+              model: true,
+              variant: true,
+              year: true,
+            },
+          },
+          debtPayments: {
+            orderBy: { paymentDate: 'desc' },
+            take: 1,
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { remainingDebt: 'desc' },
+      }),
+      db.stock.count({ where }),
+    ]);
+
+    const data = stocks.map((stock) => ({
+      stockId: stock.id,
+      vin: stock.vin,
+      vehicleModel: stock.vehicleModel,
+      exteriorColor: stock.exteriorColor,
+      status: stock.status,
+      debtAmount: Number(stock.debtAmount),
+      paidDebtAmount: Number(stock.paidDebtAmount),
+      remainingDebt: Number(stock.remainingDebt),
+      debtStatus: stock.debtStatus,
+      financeProvider: stock.financeProvider,
+      lastPaymentDate: stock.debtPayments[0]?.paymentDate || null,
+    }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Get debt statistics
+   */
+  async getDebtStats(): Promise<{
+    totalStocksWithDebt: number;
+    totalDebtAmount: number;
+    totalPaidAmount: number;
+    totalRemainingDebt: number;
+    paidOffCount: number;
+  }> {
+    const [activeDebtStats, paidOffCount] = await Promise.all([
+      db.stock.aggregate({
+        where: { debtStatus: 'ACTIVE' },
+        _count: true,
+        _sum: {
+          debtAmount: true,
+          paidDebtAmount: true,
+          remainingDebt: true,
+        },
+      }),
+      db.stock.count({ where: { debtStatus: 'PAID_OFF' } }),
+    ]);
+
+    return {
+      totalStocksWithDebt: activeDebtStats._count,
+      totalDebtAmount: Number(activeDebtStats._sum.debtAmount || 0),
+      totalPaidAmount: Number(activeDebtStats._sum.paidDebtAmount || 0),
+      totalRemainingDebt: Number(activeDebtStats._sum.remainingDebt || 0),
+      paidOffCount,
     };
   }
 }

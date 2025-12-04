@@ -334,6 +334,50 @@ export class UsersService {
 
     return { success: true, message: 'Password updated successfully' };
   }
+
+  /**
+   * Admin reset password (without requiring current password)
+   */
+  async resetPassword(id: string, newPassword: string, currentUser: any) {
+    // Only admin can reset passwords
+    if (!authService.hasPermission(currentUser.role, 'USER_UPDATE')) {
+      throw new Error('Insufficient permissions');
+    }
+
+    const user = await db.user.findUnique({
+      where: { id },
+      select: { username: true },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Hash new password
+    const hashedPassword = await authService.hashPassword(newPassword);
+
+    // Update password
+    await db.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
+
+    // Log activity
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'RESET_PASSWORD',
+        entity: 'USER',
+        entityId: id,
+        details: {
+          targetUser: user.username,
+          resetBy: currentUser.username,
+        },
+      },
+    });
+
+    return { success: true, message: 'Password reset successfully' };
+  }
 }
 
 export const usersService = new UsersService();

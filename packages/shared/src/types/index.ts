@@ -7,6 +7,7 @@ import type {
   VehicleTypeSchema,
   StockStatusSchema,
   InterestBaseSchema,
+  DebtStatusSchema,
   SaleTypeSchema,
   SaleStatusSchema,
   PaymentModeSchema,
@@ -55,6 +56,7 @@ export type SalesType = z.infer<typeof SalesTypeSchema>;
 export type VehicleType = z.infer<typeof VehicleTypeSchema>;
 export type StockStatus = z.infer<typeof StockStatusSchema>;
 export type InterestBase = z.infer<typeof InterestBaseSchema>;
+export type DebtStatus = z.infer<typeof DebtStatusSchema>;
 export type SaleType = z.infer<typeof SaleTypeSchema>;
 export type SaleStatus = z.infer<typeof SaleStatusSchema>;
 export type PaymentMode = z.infer<typeof PaymentModeSchema>;
@@ -207,3 +209,9 @@ export interface StockMetrics {
     '90+': number;
   };
 }
+
+// ============================================
+// Report Types Export
+// ============================================
+
+export * from './reports';

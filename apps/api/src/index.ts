@@ -14,7 +14,8 @@ import { salesRoutes } from './modules/sales/sales.controller';
 import { paymentRoutes } from './modules/payments/payments.controller';
 import { quotationRoutes } from './modules/quotations/quotations.controller';
 import { interestRoutes } from './modules/interest/interest.controller';
-// import { campaignRoutes } from './modules/campaigns/campaigns.controller';
+import { campaignRoutes } from './modules/campaigns/campaigns.controller';
+import { reportRoutes } from './modules/reports/reports.controller';
 // import { documentRoutes } from './modules/documents/documents.controller';
 // import { analyticsRoutes } from './modules/analytics/analytics.controller';
 
@@ -46,8 +47,8 @@ const app = new Elysia()
           { name: 'Sales', description: 'Sales pipeline management' },
           { name: 'Payments', description: 'Payment management' },
           { name: 'Campaigns', description: 'Campaign management' },
+          { name: 'Reports', description: 'Reports and analytics' },
           { name: 'Documents', description: 'Document generation' },
-          { name: 'Analytics', description: 'Reports and analytics' },
         ],
       },
       path: '/docs',
@@ -100,7 +101,8 @@ const app = new Elysia()
       .use(paymentRoutes)
       .use(quotationRoutes)
       .use(interestRoutes)
-      // .use(campaignRoutes)
+      .use(campaignRoutes)
+      .use(reportRoutes)
       // .use(documentRoutes)
       // .use(analyticsRoutes)
   )

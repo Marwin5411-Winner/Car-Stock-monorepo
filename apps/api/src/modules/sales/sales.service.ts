@@ -429,6 +429,13 @@ export class SalesService {
       throw new Error('Cannot change status of cancelled sale');
     }
 
+    // Validate stock assignment when moving from PREPARING to DELIVERED
+    if (existingSale.status === 'PREPARING' && status === 'DELIVERED') {
+      if (!existingSale.stockId) {
+        throw new Error('Cannot deliver sale without assigned stock car. Please assign a stock vehicle before marking as delivered.');
+      }
+    }
+
     // Handle status transitions
     const updateData: any = {
       status,

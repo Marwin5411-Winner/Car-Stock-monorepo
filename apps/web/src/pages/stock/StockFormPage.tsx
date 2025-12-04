@@ -509,6 +509,9 @@ export default function StockFormPage() {
                   placeholder="เช่น SCB Floor Plan (สัญญา: FP2024-0015)"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 <strong>หมายเหตุ:</strong> ถ้าไม่ได้กรอกช่องนี้ จะถือว่ารถคันนี้ไม่ได้จัดไฟแนนซ์หรือไม่กู้มาซื้อ (ซื้อเงินสด)
+                </p>
               </div>
             </div>
           </section>

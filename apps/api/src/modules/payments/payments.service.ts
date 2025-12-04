@@ -374,6 +374,31 @@ export class PaymentsService {
 
     const totalAmount = Number(amountResult._sum.amount || 0);
 
+    // Calculate amounts by payment type
+    const [depositResult, downPaymentResult, financeResult, otherExpenseResult] = await Promise.all([
+      db.payment.aggregate({
+        where: { status: 'ACTIVE', paymentType: 'DEPOSIT' },
+        _sum: { amount: true },
+      }),
+      db.payment.aggregate({
+        where: { status: 'ACTIVE', paymentType: 'DOWN_PAYMENT' },
+        _sum: { amount: true },
+      }),
+      db.payment.aggregate({
+        where: { status: 'ACTIVE', paymentType: 'FINANCE_PAYMENT' },
+        _sum: { amount: true },
+      }),
+      db.payment.aggregate({
+        where: { status: 'ACTIVE', paymentType: 'OTHER_EXPENSE' },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const depositAmount = Number(depositResult._sum.amount || 0);
+    const downPaymentAmount = Number(downPaymentResult._sum.amount || 0);
+    const financePaymentAmount = Number(financeResult._sum.amount || 0);
+    const otherExpenseAmount = Number(otherExpenseResult._sum.amount || 0);
+
     // Calculate monthly revenue (current month)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -399,6 +424,10 @@ export class PaymentsService {
       activePayments,
       voidedPayments,
       totalAmount,
+      depositAmount,
+      downPaymentAmount,
+      financePaymentAmount,
+      otherExpenseAmount,
       monthlyRevenue,
     };
   }

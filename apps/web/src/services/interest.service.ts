@@ -111,6 +111,85 @@ export interface ResumeInterestData {
   notes?: string;
 }
 
+// Debt Management Types
+export type DebtStatus = 'NO_DEBT' | 'ACTIVE' | 'PAID_OFF';
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT_CARD';
+
+export interface DebtPaymentData {
+  amount: number;
+  paymentMethod: PaymentMethod;
+  paymentDate?: string;
+  referenceNumber?: string;
+  notes?: string;
+}
+
+export interface DebtPayment {
+  id: string;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  referenceNumber: string | null;
+  principalBefore: number;
+  principalAfter: number;
+  notes: string | null;
+  createdById: string;
+  createdAt: string;
+}
+
+export interface DebtPaymentResult {
+  payment: DebtPayment;
+  stock: {
+    id: string;
+    vin: string;
+    debtAmount: number;
+    paidDebtAmount: number;
+    remainingDebt: number;
+    debtStatus: DebtStatus;
+  };
+  interestAdjusted: boolean;
+  debtPaidOff: boolean;
+}
+
+export interface DebtSummary {
+  debtAmount: number;
+  paidDebtAmount: number;
+  remainingDebt: number;
+  debtStatus: DebtStatus;
+  debtPaidOffDate: string | null;
+  paymentCount: number;
+  lastPaymentDate: string | null;
+  hasFinanceProvider: boolean;
+  baseCost: number;
+  totalCost: number;
+}
+
+export interface OutstandingDebt {
+  stockId: string;
+  vin: string;
+  vehicleModel: {
+    brand: string;
+    model: string;
+    variant: string | null;
+    year: number;
+  };
+  exteriorColor: string;
+  status: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD';
+  debtAmount: number;
+  paidDebtAmount: number;
+  remainingDebt: number;
+  debtStatus: DebtStatus;
+  financeProvider: string | null;
+  lastPaymentDate: string | null;
+}
+
+export interface DebtStats {
+  totalStocksWithDebt: number;
+  totalDebtAmount: number;
+  totalPaidAmount: number;
+  totalRemainingDebt: number;
+  paidOffCount: number;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -195,6 +274,65 @@ class InterestService {
    */
   async resumeCalculation(stockId: string, data: ResumeInterestData): Promise<InterestPeriod> {
     const response = await api.post<ApiResponse<InterestPeriod>>(`/api/interest/${stockId}/resume`, data);
+    return response.data;
+  }
+
+  // ============================================
+  // Debt Management
+  // ============================================
+
+  /**
+   * Initialize debt for a stock
+   */
+  async initializeDebt(stockId: string, debtAmount: number): Promise<void> {
+    await api.post(`/api/interest/${stockId}/debt/initialize`, { debtAmount });
+  }
+
+  /**
+   * Record a debt payment
+   */
+  async recordDebtPayment(stockId: string, data: DebtPaymentData): Promise<DebtPaymentResult> {
+    const response = await api.post<ApiResponse<DebtPaymentResult>>(`/api/interest/${stockId}/debt/payment`, data);
+    return response.data;
+  }
+
+  /**
+   * Get debt payment history for a stock
+   */
+  async getDebtPayments(stockId: string): Promise<DebtPayment[]> {
+    const response = await api.get<ApiResponse<DebtPayment[]>>(`/api/interest/${stockId}/debt/payments`);
+    return response.data;
+  }
+
+  /**
+   * Get debt summary for a stock
+   */
+  async getDebtSummary(stockId: string): Promise<DebtSummary> {
+    const response = await api.get<ApiResponse<DebtSummary>>(`/api/interest/${stockId}/debt/summary`);
+    return response.data;
+  }
+
+  /**
+   * Get all stocks with outstanding debt
+   */
+  async getOutstandingDebts(filters: { page?: number; limit?: number; search?: string } = {}): Promise<PaginatedResponse<OutstandingDebt>> {
+    const params = new URLSearchParams();
+    if (filters.page) params.append('page', filters.page.toString());
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.search) params.append('search', filters.search);
+
+    const response = await api.get<ApiResponse<OutstandingDebt[]>>(`/api/interest/debts/outstanding?${params.toString()}`);
+    return {
+      data: response.data,
+      meta: response.meta!,
+    };
+  }
+
+  /**
+   * Get debt statistics
+   */
+  async getDebtStats(): Promise<DebtStats> {
+    const response = await api.get<ApiResponse<DebtStats>>('/api/interest/debts/stats');
     return response.data;
   }
 }

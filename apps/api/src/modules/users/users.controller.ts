@@ -242,4 +242,40 @@ export const userRoutes = new Elysia({ prefix: '/users' })
         description: 'Update user password',
       },
     }
+  )
+  // Admin reset password (without knowing current password)
+  .patch(
+    '/:id/reset-password',
+    async ({ params, body, set, requester }) => {
+      try {
+        await usersService.resetPassword(
+          params.id,
+          body.newPassword,
+          requester
+        );
+        set.status = 200;
+        return {
+          success: true,
+          message: 'Password reset successfully',
+        };
+      } catch (error) {
+        set.status = error instanceof Error && error.message === 'User not found' ? 404 : 400;
+        return {
+          success: false,
+          error: 'Password reset failed',
+          message: error instanceof Error ? error.message : 'Failed to reset password',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('USER_UPDATE')],
+      body: t.Object({
+        newPassword: t.String({ minLength: 6, maxLength: 100 }),
+      }),
+      detail: {
+        tags: ['Users'],
+        summary: 'Admin reset password',
+        description: 'Reset user password (admin only, without requiring current password)',
+      },
+    }
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   Users, 
   Car, 
@@ -8,13 +9,17 @@ import {
   CreditCard, 
   BarChart3,
   FileText,
-  Percent
+  Percent,
+  Shield,
+  Megaphone,
+  PieChart
 } from 'lucide-react';
 
 interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
+  adminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -26,10 +31,14 @@ const navItems: NavItem[] = [
   { to: '/quotations', label: 'ใบเสนอราคา', icon: <FileText className="w-5 h-5" /> },
   { to: '/sales', label: 'การขาย', icon: <ShoppingCart className="w-5 h-5" /> },
   { to: '/payments', label: 'การชำระเงิน', icon: <CreditCard className="w-5 h-5" /> },
+  { to: '/reports', label: 'รายงาน', icon: <PieChart className="w-5 h-5" /> },
+  { to: '/campaigns', label: 'แคมเปญ', icon: <Megaphone className="w-5 h-5" />, adminOnly: true },
+  { to: '/users', label: 'จัดการผู้ใช้', icon: <Shield className="w-5 h-5" />, adminOnly: true },
 ];
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -45,7 +54,9 @@ export const Sidebar: React.FC = () => {
           เมนูหลัก
         </h2>
         <ul className="space-y-2">
-          {navItems.map((item) => (
+          {navItems
+            .filter((item) => !item.adminOnly || user?.role === 'ADMIN')
+            .map((item) => (
             <li key={item.to}>
               <Link
                 to={item.to}

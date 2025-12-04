@@ -120,11 +120,18 @@ model Stock {
   soldDate              DateTime?        @map("sold_date")
   deliveryNotes         String?          @map("delivery_notes")
   notes                 String?
+  // Debt tracking fields - สำหรับติดตามหนี้รถในสต็อก
+  debtAmount            Decimal          @default(0) @map("debt_amount") @db.Decimal(15, 2)      // หนี้เริ่มต้น (เงินที่ต้องจ่ายให้ Finance)
+  paidDebtAmount        Decimal          @default(0) @map("paid_debt_amount") @db.Decimal(15, 2) // จ่ายไปแล้ว
+  remainingDebt         Decimal          @default(0) @map("remaining_debt") @db.Decimal(15, 2)   // หนี้คงเหลือ
+  debtStatus            DebtStatus       @default(NO_DEBT) @map("debt_status")                   // สถานะหนี้
+  debtPaidOffDate       DateTime?        @map("debt_paid_off_date")                              // วันที่ปิดหนี้
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
   sale                  Sale?
   vehicleModel          VehicleModel     @relation(fields: [vehicleModelId], references: [id])
   interestPeriods       InterestPeriod[]
+  debtPayments          StockDebtPayment[]
 
   @@map("stocks")
 }
@@ -155,6 +162,30 @@ model InterestPeriod {
 
   @@index([stockId])
   @@map("interest_periods")
+}
+
+// StockDebtPayment - เก็บประวัติการจ่ายหนี้รถในสต็อก
+model StockDebtPayment {
+  id                 String        @id @default(cuid())
+  stockId            String        @map("stock_id")
+  stock              Stock         @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  
+  // รายละเอียดการจ่าย
+  paymentDate        DateTime      @map("payment_date")
+  amount             Decimal       @db.Decimal(15, 2)              // จำนวนเงินที่จ่าย
+  paymentMethod      PaymentMethod @map("payment_method")
+  referenceNumber    String?       @map("reference_number")        // เลขที่อ้างอิง/เลขที่เช็ค
+  
+  // Balance tracking - snapshot ยอดหนี้ ณ เวลาที่จ่าย
+  principalBefore    Decimal       @map("principal_before") @db.Decimal(15, 2)  // เงินต้นก่อนจ่าย
+  principalAfter     Decimal       @map("principal_after") @db.Decimal(15, 2)   // เงินต้นหลังจ่าย
+  
+  notes              String?
+  createdById        String        @map("created_by_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  @@index([stockId])
+  @@map("stock_debt_payments")
 }
 
 model Sale {
@@ -256,19 +287,19 @@ model Payment {
 }
 
 model Campaign {
-  id            String                 @id @default(cuid())
-  name          String
-  description   String?
-  status        CampaignStatus         @default(DRAFT)
-  startDate     DateTime               @map("start_date")
-  endDate       DateTime               @map("end_date")
-  notes         String?
-  createdById   String                 @map("created_by_id")
-  createdAt     DateTime               @default(now()) @map("created_at")
-  updatedAt     DateTime               @updatedAt @map("updated_at")
-  vehicleModels CampaignVehicleModel[]
-  createdBy     User                   @relation(fields: [createdById], references: [id])
-  sales         Sale[]
+  id             String                 @id @default(cuid())
+  name           String
+  description    String?
+  status         CampaignStatus         @default(DRAFT)
+  startDate      DateTime               @map("start_date")
+  endDate        DateTime               @map("end_date")
+  notes          String?
+  createdById    String                 @map("created_by_id")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  vehicleModels  CampaignVehicleModel[]
+  createdBy      User                   @relation(fields: [createdById], references: [id])
+  sales          Sale[]
 
   @@map("campaigns")
 }
@@ -379,6 +410,12 @@ enum StockStatus {
 enum InterestBase {
   BASE_COST_ONLY
   TOTAL_COST
+}
+
+enum DebtStatus {
+  NO_DEBT     // ไม่มีหนี้ (ซื้อเงินสด)
+  ACTIVE      // ยังมีหนี้อยู่
+  PAID_OFF    // ปิดหนี้แล้ว
 }
 
 enum SaleType {

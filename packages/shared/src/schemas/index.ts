@@ -36,6 +36,8 @@ export const StockStatusSchema = z.enum([
 
 export const InterestBaseSchema = z.enum(['BASE_COST_ONLY', 'TOTAL_COST']);
 
+export const DebtStatusSchema = z.enum(['NO_DEBT', 'ACTIVE', 'PAID_OFF']);
+
 export const SaleTypeSchema = z.enum(['RESERVATION_SALE', 'DIRECT_SALE']);
 
 // Updated: Removed INQUIRY and QUOTED - these are now handled by Quotation module
