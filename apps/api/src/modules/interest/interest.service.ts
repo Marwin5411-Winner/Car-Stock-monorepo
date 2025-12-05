@@ -799,6 +799,7 @@ export class InterestService {
 
   /**
    * Record a debt payment (บันทึกการจ่ายหนี้รถ)
+   * ใช้หลัก Interest-First Allocation: จ่ายดอกเบี้ยก่อน ส่วนเหลือลดเงินต้น
    */
   async recordDebtPayment(
     stockId: string,
@@ -815,6 +816,11 @@ export class InterestService {
     stock: any;
     interestAdjusted: boolean;
     debtPaidOff: boolean;
+    allocation: {
+      interestPaid: number;
+      principalPaid: number;
+      accruedInterestAtPayment: number;
+    };
   }> {
     const stock = await db.stock.findUnique({
       where: { id: stockId },
@@ -822,6 +828,7 @@ export class InterestService {
         id: true,
         debtAmount: true,
         paidDebtAmount: true,
+        paidInterestAmount: true,
         remainingDebt: true,
         debtStatus: true,
         financeProvider: true,
@@ -830,8 +837,11 @@ export class InterestService {
         accessoryCost: true,
         otherCosts: true,
         interestPrincipalBase: true,
+        interestRate: true,
         stopInterestCalc: true,
         status: true,
+        orderDate: true,
+        arrivalDate: true,
         interestPeriods: {
           where: { endDate: null },
           orderBy: { startDate: 'desc' },
@@ -848,18 +858,20 @@ export class InterestService {
       throw new Error('Stock debt is already paid off');
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const paymentDate = input.paymentDate || today;
+
     // Auto-initialize debt ถ้ายังไม่มี แต่มี financeProvider
     let currentDebtAmount = Number(stock.debtAmount);
     let currentRemainingDebt = Number(stock.remainingDebt);
     
     if (stock.debtStatus === 'NO_DEBT' && stock.financeProvider) {
-      // คำนวณหนี้เริ่มต้นจาก baseCost หรือ totalCost ตาม interestPrincipalBase
       const baseCost = Number(stock.baseCost);
       const totalCost = baseCost + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
       currentDebtAmount = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
       currentRemainingDebt = currentDebtAmount;
       
-      // Auto-initialize debt in database
       await db.stock.update({
         where: { id: stockId },
         data: {
@@ -871,21 +883,61 @@ export class InterestService {
     } else if (stock.debtStatus === 'NO_DEBT' && !stock.financeProvider) {
       throw new Error('Stock has no debt to pay (no finance provider)');
     }
+
+    // คำนวณดอกเบี้ยสะสม ณ วันจ่าย
+    let accruedInterestAtPayment = 0;
+    const activePeriod = stock.interestPeriods[0];
+    let currentInterestRate = Number(stock.interestRate) * 100;
     
-    if (input.amount > currentRemainingDebt) {
-      throw new Error(`Payment amount (${input.amount}) exceeds remaining debt (${currentRemainingDebt})`);
+    if (!stock.stopInterestCalc && stock.status !== 'SOLD') {
+      if (activePeriod) {
+        currentInterestRate = Number(activePeriod.annualRate);
+        const periodDays = this.calculateDays(activePeriod.startDate, paymentDate);
+        accruedInterestAtPayment = this.calculateInterestForPeriod(
+          Number(activePeriod.principalAmount),
+          currentInterestRate,
+          periodDays
+        );
+      } else if (stock.interestPeriods.length === 0) {
+        const interestStartDate = stock.orderDate || stock.arrivalDate;
+        const daysCount = this.calculateDays(interestStartDate, paymentDate);
+        accruedInterestAtPayment = this.calculateInterestForPeriod(
+          currentRemainingDebt,
+          currentInterestRate,
+          daysCount
+        );
+      }
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // คำนวณ Total Payoff = เงินต้นคงเหลือ + ดอกเบี้ยสะสม
+    const totalPayoff = currentRemainingDebt + accruedInterestAtPayment;
 
-    const paymentDate = input.paymentDate || today;
+    // ตรวจสอบว่าจ่ายเกินหรือไม่
+    if (input.amount > totalPayoff) {
+      throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds total payoff (${totalPayoff.toLocaleString()})`);
+    }
+
+    // Interest-First Allocation: จ่ายดอกเบี้ยก่อน ส่วนเหลือลดเงินต้น
+    let interestPaid = 0;
+    let principalPaid = 0;
+
+    if (input.amount >= accruedInterestAtPayment) {
+      // จ่ายพอครอบคลุมดอกเบี้ยทั้งหมด
+      interestPaid = accruedInterestAtPayment;
+      principalPaid = input.amount - accruedInterestAtPayment;
+    } else {
+      // จ่ายไม่พอดอกเบี้ย = จ่ายดอกเบี้ยบางส่วน (ไม่ลดเงินต้น)
+      interestPaid = input.amount;
+      principalPaid = 0;
+    }
+
     const principalBefore = currentRemainingDebt;
-    const principalAfter = currentRemainingDebt - input.amount;
-    const newPaidAmount = Number(stock.paidDebtAmount) + input.amount;
-    const isFullPayment = principalAfter === 0;
+    const principalAfter = currentRemainingDebt - principalPaid;
+    const newPaidPrincipal = Number(stock.paidDebtAmount) + principalPaid;
+    const newPaidInterest = Number(stock.paidInterestAmount || 0) + interestPaid;
+    const isFullPayment = principalAfter <= 0.01; // Allow for small rounding errors
 
-    // Create debt payment record
+    // Create debt payment record with interest tracking
     const payment = await db.stockDebtPayment.create({
       data: {
         stockId,
@@ -894,7 +946,10 @@ export class InterestService {
         paymentMethod: input.paymentMethod,
         referenceNumber: input.referenceNumber,
         principalBefore: new Decimal(principalBefore),
-        principalAfter: new Decimal(principalAfter),
+        principalAfter: new Decimal(Math.max(0, principalAfter)),
+        accruedInterestAtPayment: new Decimal(accruedInterestAtPayment),
+        interestPaid: new Decimal(interestPaid),
+        principalPaid: new Decimal(principalPaid),
         notes: input.notes,
         createdById: userId,
       },
@@ -902,8 +957,9 @@ export class InterestService {
 
     // Update stock debt tracking
     const stockUpdateData: any = {
-      paidDebtAmount: new Decimal(newPaidAmount),
-      remainingDebt: new Decimal(principalAfter),
+      paidDebtAmount: new Decimal(newPaidPrincipal),
+      paidInterestAmount: new Decimal(newPaidInterest),
+      remainingDebt: new Decimal(Math.max(0, principalAfter)),
     };
 
     if (isFullPayment) {
@@ -918,47 +974,64 @@ export class InterestService {
 
     let interestAdjusted = false;
 
-    // If partial payment, adjust principal for interest calculation
-    if (!isFullPayment && principalAfter > 0) {
-      const activePeriod = stock.interestPeriods[0];
-      
-      if (activePeriod && !stock.stopInterestCalc && stock.status !== 'SOLD') {
-        // Close current period and calculate interest up to payment date
-        const days = this.calculateDays(activePeriod.startDate, paymentDate);
-        const calculatedInterest = this.calculateInterestForPeriod(
-          Number(activePeriod.principalAmount),
-          Number(activePeriod.annualRate),
-          days
-        );
-
-        await db.interestPeriod.update({
-          where: { id: activePeriod.id },
-          data: {
-            endDate: paymentDate,
-            calculatedInterest: new Decimal(calculatedInterest),
-            daysCount: days,
-            notes: `${activePeriod.notes || ''}\n[Debt Payment] Principal reduced from ${principalBefore.toLocaleString()} to ${principalAfter.toLocaleString()}`.trim(),
-          },
-        });
-
-        // Create new period with reduced principal
+    // ถ้าจ่ายบางส่วน (ลดเงินต้น) → ต้องปรับ InterestPeriod
+    if (!isFullPayment && principalPaid > 0 && principalAfter > 0) {
+      if (!stock.stopInterestCalc && stock.status !== 'SOLD') {
         const nextDay = new Date(paymentDate);
         nextDay.setDate(nextDay.getDate() + 1);
 
-        await db.interestPeriod.create({
-          data: {
-            stockId,
-            startDate: nextDay,
-            endDate: null,
-            annualRate: activePeriod.annualRate,
-            principalBase: activePeriod.principalBase,
-            principalAmount: new Decimal(principalAfter), // New reduced principal
-            calculatedInterest: new Decimal(0),
-            daysCount: 0,
-            createdById: userId,
-            notes: `Principal adjusted after debt payment of ${input.amount.toLocaleString()}`,
-          },
-        });
+        if (activePeriod) {
+          // Close current period and calculate interest up to payment date
+          const days = this.calculateDays(activePeriod.startDate, paymentDate);
+          const calculatedInterest = this.calculateInterestForPeriod(
+            Number(activePeriod.principalAmount),
+            Number(activePeriod.annualRate),
+            days
+          );
+
+          await db.interestPeriod.update({
+            where: { id: activePeriod.id },
+            data: {
+              endDate: paymentDate,
+              calculatedInterest: new Decimal(calculatedInterest),
+              daysCount: days,
+              notes: `${activePeriod.notes || ''}\n[Debt Payment] Interest ${interestPaid.toLocaleString()}, Principal ${principalPaid.toLocaleString()} - Remaining ${principalAfter.toLocaleString()}`.trim(),
+            },
+          });
+
+          // Create new period with reduced principal (inherit rate from previous period)
+          await db.interestPeriod.create({
+            data: {
+              stockId,
+              startDate: nextDay,
+              endDate: null,
+              annualRate: activePeriod.annualRate,
+              principalBase: activePeriod.principalBase,
+              principalAmount: new Decimal(principalAfter),
+              calculatedInterest: new Decimal(0),
+              daysCount: 0,
+              createdById: userId,
+              notes: `Principal adjusted after debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+            },
+          });
+        } else {
+          // ไม่มี activePeriod → สร้าง InterestPeriod ใหม่จาก stock defaults
+          // นี่คือ Bug Fix: ก่อนหน้านี้จะไม่สร้าง period ถ้าไม่มี activePeriod
+          await db.interestPeriod.create({
+            data: {
+              stockId,
+              startDate: nextDay,
+              endDate: null,
+              annualRate: new Decimal(currentInterestRate),
+              principalBase: stock.interestPrincipalBase,
+              principalAmount: new Decimal(principalAfter),
+              calculatedInterest: new Decimal(0),
+              daysCount: 0,
+              createdById: userId,
+              notes: `Initial period created from debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+            },
+          });
+        }
 
         interestAdjusted = true;
       }
@@ -969,7 +1042,7 @@ export class InterestService {
       await this.stopInterestCalculation(
         stockId,
         userId,
-        `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]}`
+        `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]} (Total paid: ${input.amount.toLocaleString()}, Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`
       );
     }
 
@@ -993,6 +1066,11 @@ export class InterestService {
       stock: updatedStock,
       interestAdjusted,
       debtPaidOff: isFullPayment,
+      allocation: {
+        interestPaid: Math.round(interestPaid * 100) / 100,
+        principalPaid: Math.round(principalPaid * 100) / 100,
+        accruedInterestAtPayment: Math.round(accruedInterestAtPayment * 100) / 100,
+      },
     };
   }
 
@@ -1013,6 +1091,9 @@ export class InterestService {
       referenceNumber: p.referenceNumber,
       principalBefore: Number(p.principalBefore),
       principalAfter: Number(p.principalAfter),
+      accruedInterestAtPayment: Number(p.accruedInterestAtPayment || 0),
+      interestPaid: Number(p.interestPaid || 0),
+      principalPaid: Number(p.principalPaid || 0),
       notes: p.notes,
       createdById: p.createdById,
       createdAt: p.createdAt,
@@ -1022,11 +1103,16 @@ export class InterestService {
   /**
    * Get debt summary for a stock
    * ถ้ายังไม่มี debtAmount แต่มี financeProvider จะใช้ baseCost เป็น default
+   * รวมดอกเบี้ยสะสมและยอดปิดหนี้รวม
    */
   async getDebtSummary(stockId: string): Promise<{
     debtAmount: number;
     paidDebtAmount: number;
+    paidInterestAmount: number;
     remainingDebt: number;
+    totalAccruedInterest: number;  // ดอกเบี้ยสะสมรวมทั้งหมด (จากทุก periods)
+    accruedInterest: number;       // ดอกเบี้ยค้างชำระ = totalAccruedInterest - paidInterestAmount
+    totalPayoffAmount: number;
     debtStatus: DebtStatus;
     debtPaidOffDate: Date | null;
     paymentCount: number;
@@ -1034,12 +1120,15 @@ export class InterestService {
     hasFinanceProvider: boolean;
     baseCost: number;
     totalCost: number;
+    currentInterestRate: number;
+    interestPrincipalBase: string;
   }> {
     const stock = await db.stock.findUnique({
       where: { id: stockId },
       select: {
         debtAmount: true,
         paidDebtAmount: true,
+        paidInterestAmount: true,
         remainingDebt: true,
         debtStatus: true,
         debtPaidOffDate: true,
@@ -1049,6 +1138,14 @@ export class InterestService {
         accessoryCost: true,
         otherCosts: true,
         interestPrincipalBase: true,
+        interestRate: true,
+        stopInterestCalc: true,
+        status: true,
+        orderDate: true,
+        arrivalDate: true,
+        interestPeriods: {
+          orderBy: { startDate: 'desc' },
+        },
       },
     });
 
@@ -1078,10 +1175,61 @@ export class InterestService {
       effectiveDebtStatus = 'ACTIVE';
     }
 
+    // คำนวณดอกเบี้ยค้างชำระจาก periods (ยังไม่หัก paidInterestAmount)
+    let accruedFromPeriods = 0;
+    let currentInterestRate = Number(stock.interestRate) * 100;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // 1. รวมดอกเบี้ยจาก closed periods
+    for (const period of stock.interestPeriods.filter(p => p.endDate)) {
+      accruedFromPeriods += Number(period.calculatedInterest);
+    }
+    
+    // 2. คำนวณดอกเบี้ยจาก active period
+    const activePeriod = stock.interestPeriods.find(p => !p.endDate);
+    
+    if (activePeriod) {
+      currentInterestRate = Number(activePeriod.annualRate);
+      const periodDays = this.calculateDays(activePeriod.startDate, today);
+      const activeInterest = this.calculateInterestForPeriod(
+        Number(activePeriod.principalAmount),
+        currentInterestRate,
+        periodDays
+      );
+      accruedFromPeriods += activeInterest;
+    } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+      // ไม่มี period, คำนวณจาก stock default
+      // ใช้ effectiveRemainingDebt แทน effectiveDebtAmount เพื่อให้ดอกเบี้ยถูกต้องหลังจ่ายหนี้บางส่วน
+      const interestStartDate = stock.orderDate || stock.arrivalDate;
+      const daysCount = this.calculateDays(interestStartDate, today);
+      accruedFromPeriods = this.calculateInterestForPeriod(
+        effectiveRemainingDebt,
+        currentInterestRate,
+        daysCount
+      );
+    }
+    
+    const paidInterestAmount = Number(stock.paidInterestAmount || 0);
+    
+    // ดอกเบี้ยค้างชำระ = ดอกเบี้ยจาก periods - ดอกเบี้ยที่จ่ายแล้ว (ต้องไม่ติดลบ)
+    const accruedInterest = Math.max(0, accruedFromPeriods - paidInterestAmount);
+    
+    // ดอกเบี้ยสะสมรวม = ดอกเบี้ยที่จ่ายแล้ว + ดอกเบี้ยค้างชำระ
+    // นี่คือสูตรที่ถูกต้อง: Total = Paid + Outstanding
+    const totalAccruedInterest = paidInterestAmount + accruedInterest;
+    
+    // ยอดปิดหนี้รวม = เงินต้นคงเหลือ + ดอกเบี้ยค้างชำระ
+    const totalPayoffAmount = Math.round((effectiveRemainingDebt + accruedInterest) * 100) / 100;
+
     return {
       debtAmount: effectiveDebtAmount,
       paidDebtAmount: Number(stock.paidDebtAmount),
+      paidInterestAmount,
       remainingDebt: effectiveRemainingDebt,
+      totalAccruedInterest: Math.round(totalAccruedInterest * 100) / 100,
+      accruedInterest: Math.round(accruedInterest * 100) / 100,
+      totalPayoffAmount,
       debtStatus: effectiveDebtStatus,
       debtPaidOffDate: stock.debtPaidOffDate,
       paymentCount: paymentStats._count,
@@ -1089,6 +1237,8 @@ export class InterestService {
       hasFinanceProvider,
       baseCost,
       totalCost,
+      currentInterestRate,
+      interestPrincipalBase: stock.interestPrincipalBase,
     };
   }
 

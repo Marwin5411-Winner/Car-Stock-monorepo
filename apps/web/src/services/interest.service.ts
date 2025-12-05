@@ -131,6 +131,9 @@ export interface DebtPayment {
   referenceNumber: string | null;
   principalBefore: number;
   principalAfter: number;
+  accruedInterestAtPayment: number;
+  interestPaid: number;
+  principalPaid: number;
   notes: string | null;
   createdById: string;
   createdAt: string;
@@ -143,17 +146,27 @@ export interface DebtPaymentResult {
     vin: string;
     debtAmount: number;
     paidDebtAmount: number;
+    paidInterestAmount: number;
     remainingDebt: number;
     debtStatus: DebtStatus;
   };
   interestAdjusted: boolean;
   debtPaidOff: boolean;
+  allocation: {
+    interestPaid: number;
+    principalPaid: number;
+    accruedInterestAtPayment: number;
+  };
 }
 
 export interface DebtSummary {
   debtAmount: number;
   paidDebtAmount: number;
+  paidInterestAmount: number;
   remainingDebt: number;
+  totalAccruedInterest: number;  // ดอกเบี้ยสะสมรวมทั้งหมด
+  accruedInterest: number;       // ดอกเบี้ยค้างชำระ
+  totalPayoffAmount: number;
   debtStatus: DebtStatus;
   debtPaidOffDate: string | null;
   paymentCount: number;
@@ -161,6 +174,8 @@ export interface DebtSummary {
   hasFinanceProvider: boolean;
   baseCost: number;
   totalCost: number;
+  currentInterestRate: number;
+  interestPrincipalBase: string;
 }
 
 export interface OutstandingDebt {

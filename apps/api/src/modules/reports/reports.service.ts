@@ -787,28 +787,18 @@ export async function getStockInterestReport(params: StockInterestParams) {
     const isCalculatingNow = !stock.stopInterestCalc && stock.status !== 'SOLD';
     const vehicleInfo = `${stock.vehicleModel.brand} ${stock.vehicleModel.model} ${stock.vehicleModel.variant || ''} ${stock.vehicleModel.year}`.trim();
 
-    // Determine paid/pending interest based on debt status and payments
-    // ถ้ามี finance provider และมีการจ่ายหนี้ -> ดอกเบี้ยที่จ่ายไปคือส่วนของหนี้ที่จ่ายไปแล้ว
-    let paidInterest = 0;
-    let pendingInterest = totalAccumulatedInterest;
+    // ดอกเบี้ยที่จ่ายแล้ว = ใช้ค่าจาก paidInterestAmount ที่ track ไว้ใน Stock
+    // (ถูก update ทุกครั้งที่มีการจ่ายหนี้ผ่าน recordDebtPayment)
+    let paidInterest = toNumber(stock.paidInterestAmount);
+    
+    // ดอกเบี้ยค้างชำระ = ดอกเบี้ยสะสมทั้งหมด - ดอกเบี้ยที่จ่ายแล้ว
+    let pendingInterest = Math.max(0, totalAccumulatedInterest - paidInterest);
 
-    if (stock.financeProvider && toNumber(stock.debtAmount) > 0) {
-      // มีการจัดไฟแนนซ์
-      const debtAmount = toNumber(stock.debtAmount);
-      const paidDebtAmount = toNumber(stock.paidDebtAmount);
-      const remainingDebt = toNumber(stock.remainingDebt);
-
-      if (stock.debtStatus === 'PAID_OFF') {
-        // ปิดหนี้แล้ว = ดอกเบี้ยทั้งหมดถือว่าจ่ายแล้ว
-        paidInterest = totalAccumulatedInterest;
-        pendingInterest = 0;
-      } else if (stock.debtStatus === 'ACTIVE' && debtAmount > 0) {
-        // ยังมีหนี้ค้างชำระ = คำนวณสัดส่วนที่จ่ายไปแล้ว
-        const paidRatio = paidDebtAmount / debtAmount;
-        paidInterest = totalAccumulatedInterest * paidRatio;
-        pendingInterest = totalAccumulatedInterest - paidInterest;
-      }
-    } else if (stock.status === 'SOLD') {
+    // ถ้าปิดหนี้แล้ว = ดอกเบี้ยทั้งหมดถือว่าจ่ายแล้ว
+    if (stock.debtStatus === 'PAID_OFF') {
+      paidInterest = totalAccumulatedInterest;
+      pendingInterest = 0;
+    } else if (stock.status === 'SOLD' && !stock.financeProvider) {
       // ไม่มีไฟแนนซ์ แต่ขายแล้ว = ดอกเบี้ยทั้งหมดถือว่าจ่ายแล้ว (รวมในราคาขาย)
       paidInterest = totalAccumulatedInterest;
       pendingInterest = 0;
@@ -909,9 +899,8 @@ export async function getStockInterestReport(params: StockInterestParams) {
       monthlyGroups[monthKey] = { interest: 0, paidInterest: 0 };
     }
     monthlyGroups[monthKey].interest += s.accumulatedInterest;
-    if (s.status === 'SOLD') {
-      monthlyGroups[monthKey].paidInterest += s.accumulatedInterest;
-    }
+    // ใช้ paidInterest ที่คำนวณไว้แล้ว (จาก paidInterestAmount)
+    monthlyGroups[monthKey].paidInterest += s.paidInterest;
   });
 
   const monthly = Object.entries(monthlyGroups).map(([month, data]) => ({

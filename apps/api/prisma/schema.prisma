@@ -122,8 +122,9 @@ model Stock {
   notes                 String?
   // Debt tracking fields - สำหรับติดตามหนี้รถในสต็อก
   debtAmount            Decimal          @default(0) @map("debt_amount") @db.Decimal(15, 2)      // หนี้เริ่มต้น (เงินที่ต้องจ่ายให้ Finance)
-  paidDebtAmount        Decimal          @default(0) @map("paid_debt_amount") @db.Decimal(15, 2) // จ่ายไปแล้ว
-  remainingDebt         Decimal          @default(0) @map("remaining_debt") @db.Decimal(15, 2)   // หนี้คงเหลือ
+  paidDebtAmount        Decimal          @default(0) @map("paid_debt_amount") @db.Decimal(15, 2) // เงินต้นที่จ่ายไปแล้ว
+  paidInterestAmount    Decimal          @default(0) @map("paid_interest_amount") @db.Decimal(15, 2) // ดอกเบี้ยที่จ่ายไปแล้ว
+  remainingDebt         Decimal          @default(0) @map("remaining_debt") @db.Decimal(15, 2)   // เงินต้นคงเหลือ
   debtStatus            DebtStatus       @default(NO_DEBT) @map("debt_status")                   // สถานะหนี้
   debtPaidOffDate       DateTime?        @map("debt_paid_off_date")                              // วันที่ปิดหนี้
   createdAt             DateTime         @default(now()) @map("created_at")
@@ -179,6 +180,11 @@ model StockDebtPayment {
   // Balance tracking - snapshot ยอดหนี้ ณ เวลาที่จ่าย
   principalBefore    Decimal       @map("principal_before") @db.Decimal(15, 2)  // เงินต้นก่อนจ่าย
   principalAfter     Decimal       @map("principal_after") @db.Decimal(15, 2)   // เงินต้นหลังจ่าย
+  
+  // Interest tracking - ดอกเบี้ยที่จ่าย
+  accruedInterestAtPayment Decimal @default(0) @map("accrued_interest_at_payment") @db.Decimal(15, 2) // ดอกเบี้ยสะสม ณ วันจ่าย
+  interestPaid       Decimal       @default(0) @map("interest_paid") @db.Decimal(15, 2)  // ส่วนที่จ่ายดอกเบี้ย
+  principalPaid      Decimal       @default(0) @map("principal_paid") @db.Decimal(15, 2) // ส่วนที่ลดเงินต้น
   
   notes              String?
   createdById        String        @map("created_by_id")

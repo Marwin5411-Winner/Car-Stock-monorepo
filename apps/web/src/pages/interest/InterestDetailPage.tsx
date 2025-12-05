@@ -442,16 +442,56 @@ export default function InterestDetailPage() {
                 {/* Debt Details */}
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">หนี้เริ่มต้น</p>
+                    <p className="text-xs text-gray-500 mb-1">เงินต้นเริ่มต้น</p>
                     <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.debtAmount)}</p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">จ่ายไปแล้ว</p>
+                    <p className="text-xs text-gray-500 mb-1">เงินต้นจ่ายแล้ว</p>
                     <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidDebtAmount)}</p>
                   </div>
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">คงเหลือ</p>
+                    <p className="text-xs text-gray-500 mb-1">เงินต้นคงเหลือ</p>
                     <p className="font-bold text-orange-600">{formatCurrency(debtSummary.remainingDebt)}</p>
+                  </div>
+                </div>
+
+                {/* Interest Details */}
+                {((debtSummary.totalAccruedInterest || 0) > 0 || debtSummary.paidInterestAmount > 0) && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                      <TrendingUp className="w-4 h-4 mr-1 text-orange-500" />
+                      ดอกเบี้ย (อัตรา {debtSummary.currentInterestRate?.toFixed(2) || 0}% ต่อปี)
+                    </h4>
+                    {/* Total Accrued Interest */}
+                    <div className="p-3 bg-purple-50 rounded-lg mb-3">
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-gray-500">ดอกเบี้ยสะสมรวม</p>
+                        <p className="font-bold text-purple-600">{formatCurrency(debtSummary.totalAccruedInterest || 0)}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="p-3 bg-orange-50 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">ดอกเบี้ยค้างชำระ</p>
+                        <p className="font-bold text-orange-600">{formatCurrency(debtSummary.accruedInterest || 0)}</p>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">ดอกเบี้ยจ่ายแล้ว</p>
+                        <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidInterestAmount || 0)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total Payoff */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-blue-700 font-medium">ยอดปิดหนี้ทั้งหมด</p>
+                        <p className="text-xs text-blue-600">(เงินต้น + ดอกเบี้ยค้างชำระ)</p>
+                      </div>
+                      <p className="text-xl font-bold text-blue-700">{formatCurrency(debtSummary.totalPayoffAmount || debtSummary.remainingDebt)}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -459,23 +499,38 @@ export default function InterestDetailPage() {
                 {debtPayments.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="text-sm font-medium text-gray-700 mb-3">ประวัติการจ่ายหนี้</h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {debtPayments.map((payment, index) => (
-                        <div key={payment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
-                          <div className="flex items-center gap-3">
-                            <span className="w-6 h-6 flex items-center justify-center bg-green-100 text-green-600 rounded-full text-xs font-medium">
-                              {debtPayments.length - index}
-                            </span>
-                            <div>
-                              <p className="font-medium text-gray-900">{formatCurrency(payment.amount)}</p>
-                              <p className="text-xs text-gray-500">
-                                {formatDate(payment.paymentDate)} • {payment.paymentMethod === 'CASH' ? 'เงินสด' : payment.paymentMethod === 'BANK_TRANSFER' ? 'โอนเงิน' : payment.paymentMethod === 'CHEQUE' ? 'เช็ค' : 'บัตรเครดิต'}
-                              </p>
+                        <div key={payment.id} className="p-3 bg-gray-50 rounded-lg text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <span className="w-6 h-6 flex items-center justify-center bg-green-100 text-green-600 rounded-full text-xs font-medium">
+                                {debtPayments.length - index}
+                              </span>
+                              <div>
+                                <p className="font-bold text-gray-900">{formatCurrency(payment.amount)}</p>
+                                <p className="text-xs text-gray-500">
+                                  {formatDate(payment.paymentDate)} • {payment.paymentMethod === 'CASH' ? 'เงินสด' : payment.paymentMethod === 'BANK_TRANSFER' ? 'โอนเงิน' : payment.paymentMethod === 'CHEQUE' ? 'เช็ค' : 'บัตรเครดิต'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right text-xs text-gray-500">
+                              <p>คงเหลือ: {formatCurrency(payment.principalAfter)}</p>
                             </div>
                           </div>
-                          <div className="text-right text-xs text-gray-500">
-                            <p>คงเหลือ: {formatCurrency(payment.principalAfter)}</p>
-                          </div>
+                          {/* Payment Allocation Details */}
+                          {(payment.interestPaid > 0 || payment.principalPaid > 0) && (
+                            <div className="flex gap-4 ml-9 pt-2 border-t border-gray-200">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-orange-600">ดอกเบี้ย:</span>
+                                <span className="text-xs font-medium text-orange-700">{formatCurrency(payment.interestPaid || 0)}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-blue-600">เงินต้น:</span>
+                                <span className="text-xs font-medium text-blue-700">{formatCurrency(payment.principalPaid || 0)}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -604,8 +659,8 @@ export default function InterestDetailPage() {
         </div>
       </div>
 
-      {/* Debt Payment Modal */}
-      {debtSummary && debtSummary.debtStatus === 'ACTIVE' && (
+      {/* Debt Payment Modal - แสดงเมื่อมี financeProvider และยังไม่ปิดหนี้ (รวมถึง NO_DEBT ที่มี finance) */}
+      {debtSummary && debtSummary.hasFinanceProvider && debtSummary.debtStatus !== 'PAID_OFF' && (
         <DebtPaymentModal
           isOpen={showDebtPaymentModal}
           onClose={() => setShowDebtPaymentModal(false)}

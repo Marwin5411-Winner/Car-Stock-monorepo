@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Wallet, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Wallet, AlertCircle, TrendingUp, Calculator } from 'lucide-react';
 import type { DebtSummary, PaymentMethod } from '../../services/interest.service';
 
 interface DebtPaymentModalProps {
@@ -56,6 +56,40 @@ export default function DebtPaymentModal({
     }).format(value);
   };
 
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('th-TH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  // คำนวณ payment allocation (interest-first)
+  const paymentAllocation = useMemo(() => {
+    const paymentAmount = parseFloat(amount) || 0;
+    const accruedInterest = debtSummary.accruedInterest || 0;
+    const remainingDebt = debtSummary.remainingDebt;
+    
+    let interestPaid = 0;
+    let principalPaid = 0;
+    
+    if (paymentAmount >= accruedInterest) {
+      interestPaid = accruedInterest;
+      principalPaid = paymentAmount - accruedInterest;
+    } else {
+      interestPaid = paymentAmount;
+      principalPaid = 0;
+    }
+    
+    const newRemainingDebt = remainingDebt - principalPaid;
+    
+    return {
+      interestPaid,
+      principalPaid,
+      newRemainingDebt: Math.max(0, newRemainingDebt),
+      isFullPayment: newRemainingDebt <= 0.01,
+    };
+  }, [amount, debtSummary.accruedInterest, debtSummary.remainingDebt]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -66,8 +100,9 @@ export default function DebtPaymentModal({
       return;
     }
     
-    if (paymentAmount > debtSummary.remainingDebt) {
-      setError(`จำนวนเงิน (${formatCurrency(paymentAmount)}) มากกว่าหนี้คงเหลือ (${formatCurrency(debtSummary.remainingDebt)})`);
+    // ตรวจสอบกับ totalPayoffAmount (เงินต้น + ดอกเบี้ย)
+    if (paymentAmount > debtSummary.totalPayoffAmount) {
+      setError(`จำนวนเงิน (${formatCurrency(paymentAmount)}) มากกว่ายอดปิดหนี้ (${formatCurrency(debtSummary.totalPayoffAmount)})`);
       return;
     }
 
@@ -97,14 +132,14 @@ export default function DebtPaymentModal({
   };
 
   const handlePayFull = () => {
-    setAmount(debtSummary.remainingDebt.toString());
+    // จ่ายทั้งหมด = เงินต้น + ดอกเบี้ยสะสม
+    setAmount(debtSummary.totalPayoffAmount.toString());
   };
 
   if (!isOpen) return null;
 
   const paymentAmountNum = parseFloat(amount) || 0;
-  const remainingAfterPayment = debtSummary.remainingDebt - paymentAmountNum;
-  const isFullPayment = paymentAmountNum > 0 && remainingAfterPayment === 0;
+  const hasAccruedInterest = (debtSummary.totalAccruedInterest || 0) > 0 || (debtSummary.paidInterestAmount || 0) > 0;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -135,21 +170,70 @@ export default function DebtPaymentModal({
             </button>
           </div>
 
-          {/* Debt Summary */}
-          <div className="p-4 bg-gray-50 border-b">
+          {/* Debt Summary - แสดงครบทั้ง เงินต้น + ดอกเบี้ย */}
+          <div className="p-4 bg-gray-50 border-b space-y-3">
+            {/* Principal (เงินต้น) */}
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-xs text-gray-500">หนี้ทั้งหมด</p>
+                <p className="text-xs text-gray-500">เงินต้นทั้งหมด</p>
                 <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.debtAmount)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">จ่ายไปแล้ว</p>
+                <p className="text-xs text-gray-500">เงินต้นที่จ่ายแล้ว</p>
                 <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidDebtAmount)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">คงเหลือ</p>
-                <p className="font-bold text-orange-600">{formatCurrency(debtSummary.remainingDebt)}</p>
+                <p className="text-xs text-gray-500">เงินต้นคงเหลือ</p>
+                <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.remainingDebt)}</p>
               </div>
+            </div>
+            
+            {/* Interest (ดอกเบี้ย) */}
+            {hasAccruedInterest && (
+              <div className="pt-3 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-medium text-gray-700">ดอกเบี้ย</span>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    อัตรา {debtSummary.currentInterestRate?.toFixed(2) || 0}% ต่อปี
+                  </span>
+                </div>
+                {/* Total Accrued Interest */}
+                <div className="bg-purple-50 rounded-lg p-2 mb-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-purple-600">ดอกเบี้ยสะสมรวม</p>
+                    <p className="font-bold text-purple-600">{formatCurrency(debtSummary.totalAccruedInterest || 0)}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="bg-orange-50 rounded-lg p-2">
+                    <p className="text-xs text-orange-600">ดอกเบี้ยค้างชำระ</p>
+                    <p className="font-bold text-orange-600">{formatCurrency(debtSummary.accruedInterest)}</p>
+                  </div>
+                  <div className="bg-gray-100 rounded-lg p-2">
+                    <p className="text-xs text-gray-600">ดอกเบี้ยที่จ่ายแล้ว</p>
+                    <p className="font-semibold text-gray-700">{formatCurrency(debtSummary.paidInterestAmount)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Total Payoff */}
+            <div className="pt-3 border-t border-gray-200">
+              <div className="flex items-center justify-between bg-blue-50 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium text-blue-900">ยอดปิดหนี้ทั้งหมด</span>
+                </div>
+                <span className="text-xl font-bold text-blue-600">
+                  {formatCurrency(debtSummary.totalPayoffAmount)}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 text-center">
+                = เงินต้นคงเหลือ ({formatNumber(debtSummary.remainingDebt)}) + ดอกเบี้ยค้าง ({formatNumber(debtSummary.accruedInterest || 0)})
+              </p>
             </div>
           </div>
 
@@ -157,7 +241,7 @@ export default function DebtPaymentModal({
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 shrink-0" />
                 <p className="text-sm">{error}</p>
               </div>
             )}
@@ -175,25 +259,39 @@ export default function DebtPaymentModal({
                   placeholder="0.00"
                   step="0.01"
                   min="0.01"
-                  max={debtSummary.remainingDebt}
+                  max={debtSummary.totalPayoffAmount}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
                 <button
                   type="button"
                   onClick={handlePayFull}
-                  className="px-3 py-2 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200"
+                  className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
                 >
-                  จ่ายทั้งหมด
+                  ปิดหนี้ทั้งหมด
                 </button>
               </div>
+              
+              {/* Payment Allocation Preview */}
               {paymentAmountNum > 0 && (
-                <p className="mt-1 text-xs text-gray-500">
-                  หลังจ่าย: {formatCurrency(Math.max(0, remainingAfterPayment))} คงเหลือ
-                  {isFullPayment && (
-                    <span className="ml-2 text-green-600 font-medium">🎉 ปิดหนี้!</span>
+                <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs space-y-1">
+                  <p className="font-medium text-gray-700">การจัดสรรการจ่าย (จ่ายดอกเบี้ยก่อน):</p>
+                  <div className="flex justify-between">
+                    <span className="text-orange-600">→ จ่ายดอกเบี้ย:</span>
+                    <span className="font-medium">{formatCurrency(paymentAllocation.interestPaid)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-600">→ ลดเงินต้น:</span>
+                    <span className="font-medium">{formatCurrency(paymentAllocation.principalPaid)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t border-gray-200">
+                    <span className="text-gray-600">เงินต้นคงเหลือ:</span>
+                    <span className="font-bold">{formatCurrency(paymentAllocation.newRemainingDebt)}</span>
+                  </div>
+                  {paymentAllocation.isFullPayment && (
+                    <p className="text-green-600 font-medium mt-1">🎉 ปิดหนี้!</p>
                   )}
-                </p>
+                </div>
               )}
             </div>
 
@@ -258,7 +356,7 @@ export default function DebtPaymentModal({
             </div>
 
             {/* Warning for full payment */}
-            {isFullPayment && (
+            {paymentAllocation.isFullPayment && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
                 <p className="font-medium">✨ การจ่ายครั้งนี้จะปิดหนี้ทั้งหมด</p>
                 <p className="mt-1 text-xs">ระบบจะหยุดคิดดอกเบี้ยอัตโนมัติหลังจากปิดหนี้</p>
