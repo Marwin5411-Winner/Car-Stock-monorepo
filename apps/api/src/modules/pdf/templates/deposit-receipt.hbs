@@ -1,0 +1,94 @@
+<!-- ใบรับเงินมัดจำ (Deposit Receipt) -->
+<div class="page">
+  {{> header}}
+  
+  <h1 class="document-title">ใบรับเงินมัดจำ</h1>
+  
+  <div class="text-right" style="margin-bottom: 20px;">
+    <div>เลขที่: {{receiptNumber}}</div>
+    <div>วันที่: {{formatThaiDate date}}</div>
+  </div>
+  
+  <div class="content" style="line-height: 1.8;">
+    <p>ได้รับเงินจาก: <strong>{{customer.name}}</strong></p>
+    
+    <p>ที่อยู่: 
+      {{safe customer.address "-"}} 
+      {{#if customer.street}}ถนน {{customer.street}}{{/if}}
+      ตำบล/แขวง {{safe customer.subdistrict "-"}}
+      อำเภอ/เขต {{safe customer.district "-"}}
+      จังหวัด {{safe customer.province "-"}}
+      รหัสไปรษณีย์ {{safe customer.postalCode "-"}}
+    </p>
+    
+    <p>โทรศัพท์: {{formatPhone customer.phone}}</p>
+    
+    <div style="margin: 30px 0; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
+      <h4 style="margin-bottom: 15px;">รายละเอียดรถยนต์</h4>
+      <table style="border: none;">
+        <tr style="background: transparent;">
+          <td style="border: none; width: 150px;"><strong>ยี่ห้อ:</strong></td>
+          <td style="border: none;">{{car.brand}}</td>
+        </tr>
+        {{#if car.model}}
+        <tr style="background: transparent;">
+          <td style="border: none;"><strong>รุ่น:</strong></td>
+          <td style="border: none;">{{car.model}}</td>
+        </tr>
+        {{/if}}
+        <tr style="background: transparent;">
+          <td style="border: none;"><strong>สี:</strong></td>
+          <td style="border: none;">{{safe car.color "-"}}</td>
+        </tr>
+        {{#if car.engineNo}}
+        <tr style="background: transparent;">
+          <td style="border: none;"><strong>เลขเครื่องยนต์:</strong></td>
+          <td style="border: none;">{{car.engineNo}}</td>
+        </tr>
+        {{/if}}
+        {{#if car.chassisNo}}
+        <tr style="background: transparent;">
+          <td style="border: none;"><strong>เลขตัวถัง:</strong></td>
+          <td style="border: none;">{{car.chassisNo}}</td>
+        </tr>
+        {{/if}}
+      </table>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; border: 2px solid #000; background: #fff;">
+      <table style="border: none; width: 100%;">
+        <tr style="background: transparent;">
+          <td style="border: none; font-size: 16px;"><strong>จำนวนเงินมัดจำ:</strong></td>
+          <td style="border: none; font-size: 18px; text-align: right;"><strong>{{formatCurrency depositAmount}}</strong></td>
+        </tr>
+        <tr style="background: transparent;">
+          <td style="border: none;"><strong>ตัวอักษร:</strong></td>
+          <td style="border: none; text-align: right;">({{numberToThaiText depositAmount}})</td>
+        </tr>
+        <tr style="background: transparent;">
+          <td style="border: none;"><strong>วิธีการชำระ:</strong></td>
+          <td style="border: none; text-align: right;">{{paymentMethod}}</td>
+        </tr>
+      </table>
+    </div>
+    
+    {{#if note}}
+    <div class="notes">
+      <strong>หมายเหตุ:</strong> {{note}}
+    </div>
+    {{/if}}
+  </div>
+  
+  <div class="signatures" style="margin-top: 60px;">
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div class="signature-label">ผู้มอบเงิน</div>
+      <div style="margin-top: 5px; font-size: 12px;">({{customer.name}})</div>
+    </div>
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div class="signature-label">ผู้รับเงิน</div>
+      <div style="margin-top: 5px; font-size: 12px;">(บริษัท วีบียอนด์ อินโนเวชั่น จำกัด)</div>
+    </div>
+  </div>
+</div>

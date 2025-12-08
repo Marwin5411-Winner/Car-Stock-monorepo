@@ -1,0 +1,107 @@
+<!-- หนังสือขอบคุณ (Thank You Letter) -->
+<div class="page">
+  {{> header}}
+  
+  <div class="date-display" style="margin-top: 30px;">
+    <span style="margin-right: 40px;">เรื่อง ขอขอบคุณท่านผู้มีอุปการะคุณ</span>
+    <span>วัน {{thaiDate}}</span>
+  </div>
+  
+  <div class="content" style="margin-top: 20px; line-height: 1.5;">
+    <p class="indent">
+      ตามที่ท่านไว้วางใจให้กับ บริษัท วีบียอนด์ อินโนเวชั่น จำกัด และท่านได้ซื้อรถยนต์ไฟฟ้า 
+      ยี่ห้อ <strong>{{carBrand}}</strong> ทะเบียนรถใหม่ป้ายแดง กับ บริษัท วีบียอนด์ อินโนเวชั่น จำกัด 
+      ขอขอบพระคุณท่านผู้มีอุปการะคุณมา ทางบริษัท จึงได้จัดทำแบบสอบถามรายละเอียดต่าง ๆ 
+      เพื่อเป็นข้อมูลในการบริการ หลังการขายและยืนยันส่วนลด ต่าง ๆ ที่ท่านได้รับถูกต้องตามนี้หรือไม่
+    </p>
+  </div>
+  
+  <table style="margin-top: 20px;">
+    <thead>
+      <tr>
+        <th style="width: 36%;">รายละเอียด</th>
+        <th style="width: 24%;">จำนวนเงิน</th>
+        <th style="width: 40%;">รายการของแถม</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ราคาขาย</td>
+        <td class="text-right">{{formatCurrency detailsTable.sellingPrice false}}</td>
+        <td rowspan="13">
+          {{#each detailsTable.gifts}}
+          • {{this.name}}<br>
+          {{/each}}
+        </td>
+      </tr>
+      <tr>
+        <td>ส่วนลด (รถยนต์)</td>
+        <td class="text-right">{{formatCurrency detailsTable.discount false}}</td>
+      </tr>
+      <tr>
+        <td>คงเหลือ</td>
+        <td class="text-right">{{formatCurrency detailsTable.remaining false}}</td>
+      </tr>
+      <tr>
+        <td>เงินดาวน์</td>
+        <td class="text-right">{{formatCurrency detailsTable.downPayment false}}</td>
+      </tr>
+      <tr>
+        <td>ส่วนลด (เงินดาวน์)</td>
+        <td class="text-right">{{formatCurrency detailsTable.downPaymentDiscount false}}</td>
+      </tr>
+      <tr>
+        <td>ค่าประกันภัยชั้น 1</td>
+        <td class="text-right">{{formatCurrency detailsTable.insurance false}}</td>
+      </tr>
+      <tr>
+        <td>ค่าพรบ.</td>
+        <td class="text-right">{{formatCurrency detailsTable.actInsurance false}}</td>
+      </tr>
+      <tr>
+        <td>ค่าจดทะเบียน</td>
+        <td class="text-right">{{formatCurrency detailsTable.registrationFee false}}</td>
+      </tr>
+      <tr>
+        <td>รวมเงินออกรถ</td>
+        <td class="text-right"><strong>{{formatCurrency detailsTable.totalDelivery false}}</strong></td>
+      </tr>
+      <tr>
+        <td>ยอดจัดไฟแนนซ์</td>
+        <td class="text-right">{{formatCurrency detailsTable.financeAmount false}}</td>
+      </tr>
+      <tr>
+        <td>อัตราดอกเบี้ยต่อปี</td>
+        <td class="text-right">{{formatPercentage detailsTable.interestRate}}</td>
+      </tr>
+      <tr>
+        <td>ผ่อนทั้งหมด : เดือน</td>
+        <td class="text-right">{{detailsTable.installmentMonths}} เดือน</td>
+      </tr>
+      <tr>
+        <td>งวดละ</td>
+        <td class="text-right">{{formatCurrency detailsTable.monthlyPayment false}}</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div class="text-right" style="margin-top: 30px; line-height: 1.5;">
+    <p>หากจำนวนเงินไม่ถูกต้องตรงตามรายการนี้</p>
+    <p>กรุณาติดต่อกับเจ้าหน้าที่ด้านล่าง เพื่อประโยชน์ของตัวท่านเอง</p>
+    <p>บริษัท ฯ ใคร่ขอขอบพระคุณที่ท่านให้ความร่วมมือมา ณ โอกาสนี้</p>
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; margin-top: 40px; align-items: flex-end;">
+    <div class="contact-box">
+      <strong>ฝ่ายตรวจสอบ</strong><br>
+      {{contactPerson.name}}<br>
+      {{contactPerson.phone}}
+    </div>
+    
+    <div class="signature-box" style="width: auto;">
+      <p>ขอแสดงความนับถือ</p>
+      <div class="signature-line" style="width: 200px; margin-top: 50px;"></div>
+      <p>( บริษัท วีบียอนด์ อินโนเวชั่น จำกัด )</p>
+    </div>
+  </div>
+</div>

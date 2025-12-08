@@ -110,6 +110,49 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
 
+  /**
+   * Fetch a blob (binary data) from the API - useful for PDF downloads
+   */
+  async getBlob(endpoint: string): Promise<Blob> {
+    const url = `${this.baseUrl}${endpoint}`;
+    
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (response.status === 401) {
+      this.setToken(null);
+      const error = new Error('Unauthorized') as Error & { status: number };
+      error.status = 401;
+      throw error;
+    }
+
+    if (!response.ok) {
+      // Try to parse error message
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        throw new Error(data.message || data.error || 'Request failed');
+      }
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    return response.blob();
+  }
+
+  /**
+   * Get the full URL for a blob endpoint (for opening in new tab)
+   */
+  getBlobUrl(endpoint: string): string {
+    return `${this.baseUrl}${endpoint}`;
+  }
+
   // Auth methods
   async login(username: string, password: string): Promise<any> {
     const response = await this.post<any>('/api/auth/login', {

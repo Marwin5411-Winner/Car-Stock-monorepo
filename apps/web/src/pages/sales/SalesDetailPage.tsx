@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { salesService } from '../../services/sales.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import type { Sale, SaleStatus } from '../../services/sales.service';
 import { MainLayout } from '../../components/layout';
+import { api } from '../../lib/api';
 import { 
   ArrowLeft, 
   Edit, 
@@ -24,7 +25,8 @@ import {
   Package,
   Plus,
   RefreshCw,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
@@ -73,6 +75,82 @@ const PAYMENT_STATUS_COLORS: Record<string, string> = {
 
 type TabType = 'overview' | 'documents' | 'payments' | 'history';
 
+// Document type definitions with their API endpoints
+type DocumentType = 
+  | 'contract'
+  | 'deposit-receipt'
+  | 'sales-confirmation'
+  | 'sales-record'
+  | 'vehicle-card'
+  | 'delivery-receipt'
+  | 'thank-you-letter';
+
+interface DocumentConfig {
+  id: DocumentType;
+  title: string;
+  description: string;
+  endpoint: string;
+  getAvailable: (sale: Sale) => boolean;
+  restricted?: boolean;
+  // For deposit-receipt, we need paymentId instead of saleId
+  usePaymentId?: boolean;
+}
+
+const DOCUMENT_CONFIGS: DocumentConfig[] = [
+  {
+    id: 'contract',
+    title: 'สัญญาจองรถยนต์',
+    description: 'สัญญาหลักระหว่างผู้จำหน่ายและลูกค้า',
+    endpoint: '/api/pdf/contract',
+    getAvailable: (sale) => ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
+  },
+  {
+    id: 'deposit-receipt',
+    title: 'ใบจอง (ย่อ)',
+    description: 'ใบรับเงินมัดจำ',
+    endpoint: '/api/pdf/deposit-receipt',
+    getAvailable: (sale) => sale.depositAmount > 0 && sale.payments && sale.payments.some(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
+    usePaymentId: true,
+  },
+  {
+    id: 'sales-confirmation',
+    title: 'หนังสือยืนยันการซื้อ-ขาย',
+    description: 'สำหรับกรมการขนส่งทางบก',
+    endpoint: '/api/pdf/sales-confirmation',
+    getAvailable: (sale) => ['PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
+  },
+  {
+    id: 'sales-record',
+    title: 'ใบบันทึกการขาย',
+    description: 'รายละเอียดราคาสำหรับบัญชี',
+    endpoint: '/api/pdf/sales-record',
+    getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
+    restricted: true,
+  },
+  {
+    id: 'vehicle-card',
+    title: 'การ์ดรายละเอียดรถยนต์',
+    description: 'ข้อมูลต้นทุนและกำไร',
+    endpoint: '/api/pdf/vehicle-card',
+    getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
+    restricted: true,
+  },
+  {
+    id: 'delivery-receipt',
+    title: 'ใบปล่อยรถ/ใบรับรถ',
+    description: 'หลักฐานการส่งมอบรถ',
+    endpoint: '/api/pdf/delivery-receipt',
+    getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
+  },
+  {
+    id: 'thank-you-letter',
+    title: 'หนังสือขอบคุณ',
+    description: 'หนังสือขอบคุณพร้อมยืนยันของแถม',
+    endpoint: '/api/pdf/thank-you-letter',
+    getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
+  },
+];
+
 // Updated status flow - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_FLOW: SaleStatus[] = ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'];
 
@@ -90,6 +168,9 @@ export default function SalesDetailPage() {
   const [loadingStocks, setLoadingStocks] = useState(false);
   const [assigningStock, setAssigningStock] = useState(false);
   const [selectedStockId, setSelectedStockId] = useState<string>('');
+  
+  // Document loading state
+  const [documentLoading, setDocumentLoading] = useState<DocumentType | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -185,6 +266,100 @@ export default function SalesDetailPage() {
     if (!sale) return false;
     // Can only change stock before DELIVERED
     return ['RESERVED', 'PREPARING'].includes(sale.status);
+  };
+
+  // Get the payment ID for deposit receipt (first active deposit payment)
+  const getDepositPaymentId = useCallback((): string | null => {
+    if (!sale?.payments) return null;
+    const depositPayment = sale.payments.find(
+      p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'
+    );
+    return depositPayment?.id || null;
+  }, [sale?.payments]);
+
+  // Handle document download
+  const handleDownloadDocument = async (config: DocumentConfig) => {
+    if (!sale) return;
+    
+    try {
+      setDocumentLoading(config.id);
+      
+      // Determine the ID to use (saleId or paymentId)
+      let endpoint = config.endpoint;
+      if (config.usePaymentId) {
+        const paymentId = getDepositPaymentId();
+        if (!paymentId) {
+          alert('ไม่พบข้อมูลการชำระเงินมัดจำ');
+          return;
+        }
+        endpoint = `${config.endpoint}/${paymentId}`;
+      } else {
+        endpoint = `${config.endpoint}/${sale.id}`;
+      }
+      
+      const blob = await api.getBlob(endpoint);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${config.id}-${sale.saleNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('ไม่สามารถดาวน์โหลดเอกสารได้');
+    } finally {
+      setDocumentLoading(null);
+    }
+  };
+
+  // Handle document print
+  const handlePrintDocument = async (config: DocumentConfig) => {
+    if (!sale) return;
+    
+    try {
+      setDocumentLoading(config.id);
+      
+      // Determine the ID to use (saleId or paymentId)
+      let endpoint = config.endpoint;
+      if (config.usePaymentId) {
+        const paymentId = getDepositPaymentId();
+        if (!paymentId) {
+          alert('ไม่พบข้อมูลการชำระเงินมัดจำ');
+          return;
+        }
+        endpoint = `${config.endpoint}/${paymentId}`;
+      } else {
+        endpoint = `${config.endpoint}/${sale.id}`;
+      }
+      
+      const blob = await api.getBlob(endpoint);
+      
+      // Create blob URL and open in new window for printing
+      const url = window.URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.focus();
+          // Give time for PDF to load before printing
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+      } else {
+        // Fallback: if popup blocked, just open the URL
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error printing document:', error);
+      alert('ไม่สามารถพิมพ์เอกสารได้');
+    } finally {
+      setDocumentLoading(null);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -642,43 +817,16 @@ export default function SalesDetailPage() {
       <div className="space-y-4">
         {/* Document list based on status */}
         <div className="border rounded-lg divide-y">
-          <DocumentItem
-            title="สัญญาจองรถยนต์"
-            description="สัญญาหลักระหว่างผู้จำหน่ายและลูกค้า"
-            available={['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status)}
-          />
-          <DocumentItem
-            title="ใบจอง (ย่อ)"
-            description="ใบรับเงินมัดจำ"
-            available={sale.depositAmount > 0}
-          />
-          <DocumentItem
-            title="หนังสือยืนยันการซื้อ-ขาย"
-            description="สำหรับกรมการขนส่งทางบก"
-            available={['PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status)}
-          />
-          <DocumentItem
-            title="ใบบันทึกการขาย"
-            description="รายละเอียดราคาสำหรับบัญชี"
-            available={['DELIVERED', 'COMPLETED'].includes(sale.status)}
-            restricted
-          />
-          <DocumentItem
-            title="การ์ดรายละเอียดรถยนต์"
-            description="ข้อมูลต้นทุนและกำไร"
-            available={['DELIVERED', 'COMPLETED'].includes(sale.status)}
-            restricted
-          />
-          <DocumentItem
-            title="ใบปล่อยรถ/ใบรับรถ"
-            description="หลักฐานการส่งมอบรถ"
-            available={['DELIVERED', 'COMPLETED'].includes(sale.status)}
-          />
-          <DocumentItem
-            title="หนังสือขอบคุณ"
-            description="หนังสือขอบคุณพร้อมยืนยันของแถม"
-            available={['DELIVERED', 'COMPLETED'].includes(sale.status)}
-          />
+          {DOCUMENT_CONFIGS.map((config) => (
+            <DocumentItem
+              key={config.id}
+              config={config}
+              available={config.getAvailable(sale)}
+              isLoading={documentLoading === config.id}
+              onDownload={() => handleDownloadDocument(config)}
+              onPrint={() => handlePrintDocument(config)}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -878,13 +1026,17 @@ export default function SalesDetailPage() {
 
 // Helper component for document items
 interface DocumentItemProps {
-  title: string;
-  description: string;
+  config: DocumentConfig;
   available: boolean;
-  restricted?: boolean;
+  isLoading: boolean;
+  onDownload: () => void;
+  onPrint: () => void;
 }
 
-function DocumentItem({ title, description, available, restricted }: DocumentItemProps) {
+function DocumentItem({ config, available, isLoading, onDownload, onPrint }: DocumentItemProps) {
+  const { title, description, restricted, id } = config;
+  const isVehicleCard = id === 'vehicle-card';
+  
   return (
     <div className={`flex items-center justify-between p-4 ${!available ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-3">
@@ -895,22 +1047,40 @@ function DocumentItem({ title, description, available, restricted }: DocumentIte
           {restricted && (
             <span className="text-xs text-orange-600">จำกัดสิทธิ์การเข้าถึง</span>
           )}
+          {isVehicleCard && available && (
+            <span className="text-xs text-gray-500 block">ยังไม่พร้อมใช้งาน (อยู่ระหว่างพัฒนา)</span>
+          )}
         </div>
       </div>
       {available ? (
         <div className="flex gap-2">
-          <button
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="ดาวน์โหลด"
-          >
-            <Download className="h-4 w-4" />
-          </button>
-          <button
-            className="p-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-            title="พิมพ์"
-          >
-            <Printer className="h-4 w-4" />
-          </button>
+          {isLoading ? (
+            <div className="p-2">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            </div>
+          ) : isVehicleCard ? (
+            // Vehicle card not implemented yet
+            <span className="text-xs text-gray-500 px-2 py-1">-</span>
+          ) : (
+            <>
+              <button
+                onClick={onDownload}
+                disabled={isLoading}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                title="ดาวน์โหลด"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onPrint}
+                disabled={isLoading}
+                className="p-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+                title="พิมพ์"
+              >
+                <Printer className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <span className="text-xs text-gray-700">ยังไม่พร้อมใช้งาน</span>

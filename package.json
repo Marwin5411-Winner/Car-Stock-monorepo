@@ -27,5 +27,9 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "handlebars": "^4.7.8",
+    "puppeteer": "^24.32.0"
   }
 }

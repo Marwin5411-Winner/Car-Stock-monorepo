@@ -1,0 +1,689 @@
+<!-- สัญญาจองรถยนต์ / Car Reservation Contract - Official Form -->
+<style>
+  /* Contract-specific styles - matching official form exactly */
+  .contract-page {
+    font-family: 'Kanit', sans-serif;
+    font-size: 9pt;
+    line-height: 1.25;
+    padding: 0.5mm 1mm;
+    width: 210mm;
+    min-height: 297mm;
+    background: white;
+  }
+  
+  /* Header section */
+  .contract-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2px;
+  }
+  
+  .contract-logo {
+    width: 55px;
+  }
+  
+  .contract-logo img {
+    max-width: 55px;
+    height: auto;
+  }
+  
+  .contract-header-right {
+    text-align: right;
+    font-size: 9pt;
+  }
+  
+  .original-label {
+    font-weight: bold;
+    margin-bottom: 1px;
+  }
+  
+  /* Title row */
+  .contract-title-row {
+    display: flex;
+    align-items: center;
+    margin: 3px 0;
+    border-bottom: 1px solid #000;
+    padding-bottom: 2px;
+  }
+  
+  .contract-title-thai {
+    font-size: 10pt;
+    font-weight: bold;
+    margin-right: 8px;
+  }
+  
+  .contract-numbers {
+    font-size: 9pt;
+  }
+  
+  /* Form field underline */
+  .uline {
+    display: inline-block;
+    border-bottom: 1px solid #000;
+    min-width: 40px;
+    text-align: center;
+    padding: 0 2px;
+  }
+  
+  .uline-s { min-width: 30px; }
+  .uline-m { min-width: 60px; }
+  .uline-l { min-width: 100px; }
+  .uline-xl { min-width: 150px; }
+  
+  /* Checkbox styling */
+  .chk {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: 1px solid #000;
+    margin-right: 1px;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 6px;
+    font-size: 7px;
+  }
+  
+  .chk.on::after {
+    content: '✓';
+  }
+  
+  /* Section styling */
+  .section-box {
+    border: 1px solid #000;
+    margin: 2px 0;
+    padding: 3px 5px;
+  }
+  
+  .section-title {
+    font-weight: bold;
+    font-size: 9pt;
+    margin-bottom: 2px;
+  }
+  
+  .subsection-title {
+    font-weight: bold;
+    font-size: 9pt;
+    margin-top: 3px;
+  }
+  
+  /* Layout */
+  .row {
+    margin-bottom: 2px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  
+  .row-tight {
+    margin-bottom: 1px;
+  }
+  
+  .row-nowrap {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  
+  .cols {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .col {
+    flex: 1;
+  }
+  
+  /* Value field */
+  .val {
+    flex: 1;
+    border-bottom: 1px solid #000;
+    min-height: 10px;
+    margin: 0 1px;
+    text-align: center;
+    padding: 0 1px;
+  }
+  
+  /* Expense table */
+  .exp-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    font-size: 9pt;
+  }
+  
+  .exp-label {
+    flex: 1.5;
+  }
+  
+  .exp-val {
+    flex: 1;
+    border-bottom: 1px solid #000;
+    text-align: right;
+    margin: 0 2px;
+  }
+  
+  .exp-unit {
+    width: 50px;
+    font-size: 9pt;
+  }
+  
+  /* Signature section */
+  .sig-section {
+    margin-top: 40px;
+  }
+  
+  .sig-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+  }
+  
+  .sig-box {
+    text-align: center;
+    width: 15%;
+    padding: 0 3px;
+  }
+  
+  .sig-line {
+    border-top: 1px dotted #000;
+    height: 25px;
+    margin-bottom: 2px;
+  }
+  
+  .sig-label {
+    font-size: 8pt;
+    line-height: 1.1;
+  }
+  
+  /* Footer */
+  .footer-note {
+    margin-top: 3px;
+    font-size: 8pt;
+    border-top: 1px solid #000;
+    padding-top: 2px;
+  }
+  
+  /* Small text */
+  .small {
+    font-size: 9pt;
+  }
+  
+  .tiny {
+    font-size: 8.5pt;
+  }
+</style>
+
+<div class="contract-page">
+  <!-- Header -->
+  <div class="contract-header">
+    <div class="contract-logo">
+      {{#if header.logoBase64}}
+      <img src="{{header.logoBase64}}" alt="Logo">
+      {{/if}}
+    </div>
+    <div class="contract-header-right">
+      <div class="original-label">ต้นฉบับ / ORIGINAL</div>
+      <div>ผู้จัดการฝ่ายขาย<span class="uline uline-m"></span>เบอร์<span class="uline uline-m"></span></div>
+      <div>พนักงานขาย<span class="uline uline-m"></span>เบอร์<span class="uline uline-m"></span></div>
+    </div>
+  </div>
+
+  <!-- Title Row -->
+  <div class="contract-title-row">
+    <div class="contract-title-thai">สัญญาจองรถยนต์</div>
+    <div class="contract-numbers">
+      เล่มที่<span class="uline uline-s"></span>
+      เลขที่<span class="uline uline-s"></span>
+    </div>
+  </div>
+
+  <!-- Contract Info Line -->
+  <div class="row">
+    <span>Car Reservation Contract</span>
+    <span style="margin-left:15px;">สัญญาฉบับนี้ทำขึ้น ณ</span>
+    <span class="val" style="max-width:80px;"></span>
+    <span>วันที่</span>
+    <span class="val" style="max-width:25px;">{{safe date.day}}</span>
+    <span>เดือน</span>
+    <span class="val" style="max-width:60px;">{{safe date.month}}</span>
+    <span>พ.ศ.</span>
+    <span class="val" style="max-width:40px;">{{safe date.year}}</span>
+  </div>
+
+  <!-- Between parties -->
+  <div class="row">
+    <span>ระหว่าง (Between)</span>
+    <span class="val"></span>
+    <span>จำกัด ผู้จำหน่าย(Dealer)</span>
+  </div>
+
+  <div class="row">
+    <span class="chk"></span><span>สำนักงานใหญ่/Head Office</span>
+    <span style="margin-left:10px;" class="chk"></span><span>สำนักงานสาขา/Branch Office</span>
+    <span style="margin-left:8px;">ตั้งอยู่/ Located at</span>
+    <span class="val"></span>
+  </div>
+
+  <div class="row">
+    <span>เบอร์โทรศัพท์/Tel</span>
+    <span class="val" style="max-width:100px;"></span>
+    <span style="margin-left:10px;">อีเมล/Email</span>
+    <span class="val"></span>
+  </div>
+
+  <div class="row row-nowrap" style="font-size:9pt;">
+    <span>โดย</span>
+    <span class="val" style="max-width:120px;"></span>
+    <span>ผู้มีอำนาจกระทำการแทนบริษัท ปรากฏตามหนังสือมอบอำนาจลง วันที่</span>
+    <span class="val" style="max-width:25px;"></span>
+    <span>เดือน</span>
+    <span class="val" style="max-width:40px;"></span>
+    <span>พ.ศ.</span>
+    <span class="val" style="max-width:35px;"></span>
+  </div>
+
+  <div class="row small">
+    <span>By Authorized representative of Company as per Power of Attorney Dated/Month/Year</span>
+  </div>
+
+  <div class="row">
+    <span>ซึ่งต่อไปในสัญญานี้จะเรียกว่า "บริษัท" ฝ่ายหนึ่ง กับ ชื่อลูกค้า</span>
+    <span class="val" style="max-width:180px;"></span>
+    <span>เลขบัตรประจำตัวประชาชน</span>
+    <span class="val"></span>
+  </div>
+
+  <div class="row small">
+    <span>Hereinafter referred to in this contract as the "Company" on one part And Customer Name/ID Card</span>
+  </div>
+
+  <div class="row">
+    <span>ที่อยู่ติดต่อลูกค้า/Customer Contact Address</span>
+    <span class="val"></span>
+  </div>
+
+  <div class="row">
+    <span>โทรศัพท์ที่ทำงาน</span>
+    <span class="val" style="max-width:90px;"></span>
+    <span>โทรศัพท์บ้าน</span>
+    <span class="val" style="max-width:90px;"></span>
+    <span>โทรศัพท์มือถือ</span>
+    <span class="val" style="max-width:90px;"></span>
+    <span>อีเมล</span>
+    <span class="val"></span>
+  </div>
+
+  <div class="row tiny">
+    <span>Office Phone Number &nbsp;&nbsp;&nbsp; Home Phone Number &nbsp;&nbsp;&nbsp; Mobile Phone Number &nbsp;&nbsp;&nbsp; Email</span>
+  </div>
+
+  <div class="row small">
+    <span>ซึ่งต่อไปในสัญญานี้เรียกว่า "ผู้จอง" อีกฝ่ายหนึ่ง/Hereinafter referred to in this contract as the "Reserving Party" on the other part</span>
+  </div>
+
+  <!-- Section 1: Car Reservation Agreement -->
+  <div class="section-box">
+    <div class="section-title">1. ข้อตกลงการจองรถยนต์/Car Reservation Agreement</div>
+    <div class="small">ผู้จองตกลงจอง และบริษัทให้จองรถยนต์ โดยมีรายละเอียดเกี่ยวกับรถยนต์ ดังนี้</div>
+    <div class="tiny">The Reserving Party agrees to reserve, and the Company agrees to accept the reservation of a car with the following details.</div>
+
+    <div class="cols" style="margin-top:3px;">
+      <!-- Left Column -->
+      <div class="col">
+        <div class="subsection-title">1.1 รายละเอียดการจองรถยนต์/Details</div>
+        
+        <div class="row row-tight">
+          <span>ประเภท/Type</span>
+          <span class="val" style="max-width:140px;">{{safe vehicleModel.type}}</span>
+          <span>ยี่ห้อ/Brand</span>
+          <span class="val">{{safe vehicleModel.brand}}</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>รุ่น/Model</span>
+          <span class="val" style="max-width:70px;">{{safe vehicleModel.model}}</span>
+          <span>สี/Color</span>
+          <span class="val" style="max-width:70px;">{{safe vehicleModel.primaryColor}}</span>
+          <span>ปีที่ผลิต/MFY</span>
+          <span class="val"> </span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ขนาดเครื่องยนต์หรือกำลังของมอเตอร์ไฟฟ้า/CC or kW</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ประเภทของแบตเตอรี่/Battery type</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ความจุแบตเตอรี่/Battery capacity (kWh)</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ระยะทางวิ่งสูงสุด/NEDC Mode (KM)</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>วันที่ชำระเงินจอง/Booking deposit date</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="subsection-title">1.2 ราคารถยนต์ใหม่/New Car Price</div>
+        
+        <div class="row row-tight">
+          <span>ไม่รวมภาษีมูลค่าเพิ่ม/Exclude VAT</span>
+          <span class="val" style="max-width:90px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>รวมภาษีมูลค่าเพิ่ม/Include VAT</span>
+          <span class="val" style="max-width:90px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+
+        <div class="subsection-title">1.3 รายการของแถม/หรือสิทธิประโยชน์ต่างๆ (ถ้ามี)/FOC</div>
+        <div class="tiny">Accessory Items or privileges (if any)</div>
+        <div style="border-bottom:1px solid #000;min-height:20px;padding:2px 0;"></div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="col">
+        <div class="subsection-title">1.4 เงินจอง/Reservation Fee</div>
+        
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>เงินสด/cash</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>เป็นเงิน/amount</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>บาท/Baht(</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>)</span>
+        </div>
+
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>โอนเข้าบัญชีชื่อผู้ประกอบธุรกิจ/Bank Transfer</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>เลขที่บัญชี/Account no.</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>ธนาคาร/Bank</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>บัตรเครดิตธนาคาร/Credit card</span>
+          <span style="margin-left:8px;" class="chk"></span>
+          <span>บัตรเดบิตธนาคาร/Debit card</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ธนาคาร/Bank</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>เป็นเงิน/amount</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>บาท/Baht(</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>)</span>
+        </div>
+
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>เช็คธนาคาร/Bank Cheque</span>
+          <span class="val" style="max-width:70px;"></span>
+          <span>สาขา/Branch</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>เลขที่เช็ค/Cheque No</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>ลงวันที่/Date</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="subsection-title">1.5 รายการรถแลกเปลี่ยนเพิ่มเติม/Additional Accessory Purchasing</div>
+        <div class="val" style="min-height:25px;display:block;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2 & 3 & 4 Row -->
+  <div class="cols" style="margin-top:3px;">
+    <!-- Section 2: Primary Expenses -->
+    <div class="col" style="border:1px solid #000;padding:4px;">
+      <div class="section-title">2. รายละเอียดค่าใช้จ่ายเบื้องต้น/Primary Expenses</div>
+      
+      <div class="exp-row">
+        <span class="exp-label">ราคารถยนต์/Car price</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">เงินดาวน์/Down payment</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">ค่าจดทะเบียน/Registration Fee</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">ค่ามัดจำป้ายแดง/Deposit red plate</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">ค่าเบี้ยประกันภัย/Insurance Premium</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">ค่าอุปกรณ์ตกแต่ง/Accessory</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">อื่นๆ/Other</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row" style="font-weight:bold;">
+        <span class="exp-label">รวมค่าใช้จ่าย/Total Expense</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">หัก เงินจอง/Reservation Fee</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">หัก เงินค่ารถเก่า/Used car trade-in</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row">
+        <span class="exp-label">อื่นๆ/Other (ส่วนลดเงินสด)</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+
+      <div class="exp-row" style="font-weight:bold;">
+        <span class="exp-label">รวมค่าใช้จ่ายทั้งสิ้น/Net total expense</span>
+        <span class="exp-val"></span>
+        <span class="exp-unit">บาท/Baht</span>
+      </div>
+    </div>
+
+    <!-- Section 3 & 4 -->
+    <div class="col">
+      <!-- Section 3: Purchase Conditions -->
+      <div style="border:1px solid #000;padding:4px;margin-bottom:3px;">
+        <div class="section-title">3. เงื่อนไขการซื้อรถ/Conditions</div>
+        
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>เงินสด / Cash</span>
+          <span style="margin-left:10px;" class="chk"></span>
+          <span>ทรัพย์สินเช่าซื้อ / Hire Purchase</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>บริษัท/Finance company</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>เงินดาวน์/Down payment</span>
+          <span class="val" style="max-width:35px;"></span>
+          <span>(%)</span>
+          <span class="val" style="max-width:70px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ดอกเบี้ย/Interest</span>
+          <span class="val" style="max-width:35px;"></span>
+          <span>%</span>
+          <span style="margin-left:5px;" class="chk"></span>
+          <span>ต้นงวด/Beginning</span>
+          <span style="margin-left:3px;" class="chk"></span>
+          <span>ปลายงวด/Ending</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ยอดจัด/Finance Amount</span>
+          <span class="val" style="max-width:90px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ผ่อนชำระ/Installment</span>
+          <span class="val" style="max-width:40px;"></span>
+          <span>เดือน/Month</span>
+        </div>
+
+        <div class="row row-tight">
+          <span>เดือนละ/Monthly</span>
+          <span class="val" style="max-width:90px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+      </div>
+
+      <!-- Section 4: Insurance -->
+      <div style="border:1px solid #000;padding:4px;">
+        <div class="section-title">4. ประกันภัย/Insurance</div>
+        
+        <div class="row row-tight">
+          <span>บริษัท/Company Name</span>
+          <span class="val"></span>
+        </div>
+
+        <div class="row row-tight">
+          <span>ประเภท/Part</span>
+          <span class="val" style="max-width:50px;"></span>
+          <span>ทุนประกัน/Sum Insure</span>
+          <span class="val" style="max-width:80px;"></span>
+          <span>บาท</span>
+        </div>
+
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>ระบุค่าเบี้ยประกันภัย/Premium</span>
+          <span class="val" style="max-width:70px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+
+        <div class="row row-tight">
+          <span class="chk"></span>
+          <span>ไม่ระบุค่าเบี้ยประกันภัย/Premium</span>
+          <span class="val" style="max-width:70px;"></span>
+          <span>บาท/Baht</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5: Delivery -->
+  <div style="margin-top:3px;">
+    <div class="section-title">5. กำหนดวันส่งมอบ และสถานที่ส่งมอบรถยนต์/Delivery Date and Location of Car Delivery</div>
+    <div class="val" style="min-height:15px;display:block;"></div>
+  </div>
+
+  <!-- Contract Terms Note -->
+  <div style="font-size:7pt;margin-top:3px;border:1px solid #000;padding:3px;">
+    <p style="margin:0;">สัญญาจองรถยนต์นี้ได้จัดทำขึ้นเป็น 3 ฉบับ มีข้อความถูกต้องตรงกัน ผู้สัญญาได้อ่านและเข้าใจข้อความโดยละเอียดแล้ว จึงได้ลงลายมือชื่อ พร้อมทั้ง</p>
+    <p style="margin:0;">ประทับตรา(ถ้ามี) ไว้เป็นสำคัญต่อหน้าพยานและคู่สัญญาและเก็บไว้ฝ่ายละหนึ่งฉบับ/This car reservation contract has been made in duplicate</p>
+    <p style="margin:0;">with identical content. identical content. The contracting parties have read and thoroughly understood the content, and have</p>
+    <p style="margin:0;">therefore signed their names and affixed their seals (if any) in the presence of witnesses and the contracting parties. Each party shall</p>
+    <p style="margin:0;">retain one signed copy.</p>
+  </div>
+
+  <!-- Signatures -->
+  <div class="sig-section">
+    <div class="sig-row">
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้จอง/Customer</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">บริษัท/Company</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้จัดการฝ่ายขาย/<br>Sales Manager</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">พนักงานขาย-พนักงานผู้รับจอง/<br>Sales Staff-Reservation Staff</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้รับเงิน-ฝ่ายบัญชี/<br>Accounting</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">พยาน / Witness</div>
+      </div>
+    </div>
+    <div style="text-align:right;margin-top:3px;">
+      <div class="sig-box" style="display:inline-block;">
+        <div class="sig-line"></div>
+        <div class="sig-label">พยาน / Witness</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Note -->
+  <div class="footer-note">
+    <p style="margin:0;">หมายเหตุ : โปรดอ่านรายละเอียดเงื่อนไขและข้อตกลงที่หลังในสัญญาจองรถยนต์ด้านหลังเอกสารฉบับนี้ก่อนลงนาม</p>
+    <p style="margin:0;">(Please refer terms and conditions of this car reservation form on the following page, prior to signing)</p>
+  </div>
+</div>

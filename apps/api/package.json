@@ -13,18 +13,20 @@
     "db:studio": "bunx prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.1",
-    "elysia": "^1.2.12",
+    "@car-stock/shared": "workspace:*",
     "@elysiajs/cors": "^1.1.1",
-    "@elysiajs/swagger": "^1.2.0",
     "@elysiajs/jwt": "^1.2.0",
-    "zod": "^3.23.8",
-    "pdf-lib": "^1.17.1",
-    "@pdfme/generator": "^4.5.2",
+    "@elysiajs/swagger": "^1.2.0",
     "@pdfme/common": "^4.5.2",
+    "@pdfme/generator": "^4.5.2",
     "@pdfme/schemas": "^4.5.2",
+    "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
-    "@car-stock/shared": "workspace:*"
+    "elysia": "^1.2.12",
+    "handlebars": "^4.7.8",
+    "pdf-lib": "^1.17.1",
+    "puppeteer": "^24.32.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bun": "latest",

@@ -1,0 +1,39 @@
+<!-- ใบปล่อยรถ/ใบรับรถ (Delivery Receipt) -->
+<div class="page">
+  {{> header}}
+  
+  <h1 class="document-title">ใบปล่อยรถ/ใบรับรถ</h1>
+  
+  <div class="content" style="margin-top: 40px; line-height: 1.6;">
+    <p class="indent">
+      ข้าพเจ้า <strong>{{customer.name}}</strong> 
+      บ้านเลขที่ {{safe customer.address "-"}} 
+      ถนน {{safe customer.street "-"}} 
+      ตำบล/แขวง {{safe customer.subdistrict "-"}} 
+      อำเภอ/เขต {{safe customer.district "-"}} 
+      จังหวัด {{safe customer.province "-"}} 
+      รหัสไปรษณีย์ {{safe customer.postalCode "-"}} 
+      โทรติดต่อ {{formatPhone customer.phone}} 
+      ได้รับรถยนต์ไฟฟ้า ยี่ห้อ <strong>{{car.brand}}</strong> 
+      เลขเครื่องยนต์ {{safe car.engineNo "-"}} 
+      เลขตัวแชชซีส {{safe car.chassisNo "-"}} 
+      สี {{safe car.color "-"}}
+    </p>
+    
+    <p class="indent" style="margin-top: 15px;">
+      จากทางบริษัท วีบียอนด์ อินโนเวชั่น จำกัด โดยข้าพเจ้าได้ตรวจดูรถยนต์คันดังกล่าวแล้ว 
+      เป็นรถใหม่ ไม่มีการใช้งานมาก่อน สภาพสมบูรณ์ พร้อมด้วยของแถมที่ได้ตกลงในเงื่อนไขการซื้อขาย
+    </p>
+  </div>
+  
+  <div class="signatures" style="margin-top: 80px;">
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div class="signature-label">ลูกค้า/ผู้รับรถ</div>
+    </div>
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div class="signature-label">ที่ปรึกษาการขาย</div>
+    </div>
+  </div>
+</div>

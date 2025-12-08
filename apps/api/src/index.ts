@@ -16,6 +16,7 @@ import { quotationRoutes } from './modules/quotations/quotations.controller';
 import { interestRoutes } from './modules/interest/interest.controller';
 import { campaignRoutes } from './modules/campaigns/campaigns.controller';
 import { reportRoutes } from './modules/reports/reports.controller';
+import { pdfRoutes } from './modules/pdf/pdf.controller';
 // import { documentRoutes } from './modules/documents/documents.controller';
 // import { analyticsRoutes } from './modules/analytics/analytics.controller';
 
@@ -103,6 +104,7 @@ const app = new Elysia()
       .use(interestRoutes)
       .use(campaignRoutes)
       .use(reportRoutes)
+      .use(pdfRoutes)
       // .use(documentRoutes)
       // .use(analyticsRoutes)
   )

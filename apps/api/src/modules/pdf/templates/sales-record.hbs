@@ -1,0 +1,115 @@
+<!-- ใบบันทึกการขาย (Sales Record) -->
+<div class="page">
+  {{> header}}
+  
+  <h1 class="document-title">ใบบันทึกการขาย</h1>
+  
+  <div class="content" style="line-height: 1.5;">
+    <p class="indent">
+      ชื่อลูกค้า <strong>{{customer.name}}</strong> 
+      บ้านเลขที่ {{safe customer.address "-"}} 
+      ถนน {{safe customer.street "-"}} 
+      แขวง/ตำบล {{safe customer.subdistrict "-"}} 
+      จังหวัด {{safe customer.province "-"}} 
+      รหัสไปรษณีย์ {{safe customer.postalCode "-"}} 
+      โทรติดต่อ {{formatPhone customer.phone}} 
+      รถยนต์ยี่ห้อ <strong>{{car.brand}}</strong> 
+      เลขเครื่องยนต์/เลขมอเตอร์ {{safe car.engineNo "-"}} 
+      เลขตัวรถ {{safe car.chassisNo "-"}} 
+      สี {{safe car.color "-"}}
+    </p>
+  </div>
+  
+  <table style="margin-top: 20px;">
+    <thead>
+      <tr>
+        <th style="width: 23%;">รายละเอียด</th>
+        <th style="width: 17%;">ราคา</th>
+        <th style="width: 23%;">หมายเหตุรายละเอียดเพิ่มเติม</th>
+        <th style="width: 16%;">ราคา</th>
+        <th style="width: 21%;">รายการของแถม</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ราคาขาย</td>
+        <td class="text-right">{{formatCurrency pricing.sellingPrice false}}</td>
+        <td>หักเงินจอง</td>
+        <td class="text-right">{{formatCurrency pricing.deductDeposit false}}</td>
+        <td rowspan="9">
+          {{#each gifts}}
+          • {{this.name}}<br>
+          {{/each}}
+        </td>
+      </tr>
+      <tr>
+        <td>คงเหลือ</td>
+        <td class="text-right">{{formatCurrency pricing.remaining false}}</td>
+        <td>ยอดเงินวันออกรถ</td>
+        <td class="text-right">{{formatCurrency pricing.deliveryAmount false}}</td>
+      </tr>
+      <tr>
+        <td>เงินดาวน์</td>
+        <td class="text-right">{{formatCurrency pricing.downPayment false}}</td>
+        <td>ค้างชำระ</td>
+        <td class="text-right">{{formatCurrency pricing.outstandingBalance false}}</td>
+      </tr>
+      <tr>
+        <td>ส่วนลด (เงินดาวน์)</td>
+        <td class="text-right">{{formatCurrency pricing.downPaymentDiscount false}}</td>
+        <td>นัดชำระในวันที่</td>
+        <td class="text-right">{{safe pricing.paymentDueDate "-"}}</td>
+      </tr>
+      <tr>
+        <td>ค่าประกันภัยชั้น 1</td>
+        <td class="text-right">{{formatCurrency pricing.insurance false}}</td>
+        <td>บริษัทเงินทุน</td>
+        <td>{{safe pricing.financeCompany "-"}}</td>
+      </tr>
+      <tr>
+        <td>ค่าพรบ.</td>
+        <td class="text-right">{{formatCurrency pricing.actInsurance false}}</td>
+        <td>อัตราดอกเบี้ย</td>
+        <td class="text-right">{{formatPercentage pricing.interestRate}}</td>
+      </tr>
+      <tr>
+        <td>ค่าจดทะเบียน</td>
+        <td class="text-right">{{formatCurrency pricing.registrationFee false}}</td>
+        <td>จำนวนงวดที่ผ่อน</td>
+        <td class="text-right">{{safe pricing.installmentMonths "-"}} เดือน</td>
+      </tr>
+      <tr>
+        <td>รวมเงินออกรถ</td>
+        <td class="text-right"><strong>{{formatCurrency pricing.totalDelivery false}}</strong></td>
+        <td>ผ่อนชำระงวดละ</td>
+        <td class="text-right">{{formatCurrency pricing.monthlyPayment false}}</td>
+      </tr>
+      <tr>
+        <td>ยอดจัดไฟแนนซ์</td>
+        <td class="text-right">{{formatCurrency pricing.financeAmount false}}</td>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+    <div class="notes" style="width: 55%;">
+      <ul style="padding-left: 20px;">
+        <li>เมื่อชำระเงินทุกครั้ง จะต้องเรียกเอกสารหรือใบสำคัญรับ จากทางเจ้าหน้าที่การเงินบริษัทฯ ทุกครั้ง มิฉะนั้นบริษัทฯจะไม่รับผิดชอบทุกกรณี</li>
+        <li>ข้าพเจ้าได้ตรวจสอบราคา/เงินดาวน์ และเงื่อนไขการซื้อขายถูกต้องแล้ว</li>
+      </ul>
+    </div>
+    
+    <div class="staff-signatures">
+      <p>{{safe staff.salesConsultant "................................"}} ที่ปรึกษาการขาย</p>
+      <p>{{safe staff.salesManager "................................"}} ผู้จัดการขาย</p>
+      <p>{{safe staff.auditor "................................"}} ผู้ตรวจสอบ/อนุมัติ</p>
+    </div>
+  </div>
+  
+  <div class="signature-box" style="margin-top: 40px; width: 50%;">
+    <div class="signature-line"></div>
+    <p>ลูกค้า/ผู้รับรถ</p>
+  </div>
+</div>

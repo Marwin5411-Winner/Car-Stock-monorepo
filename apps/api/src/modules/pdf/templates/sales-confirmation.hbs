@@ -1,0 +1,52 @@
+<!-- หนังสือยืนยันการซื้อ-ขาย (Sales Confirmation) -->
+<div class="page">
+  {{> header}}
+  
+  <h1 class="document-title">หนังสือยืนยันการซื้อ-ขายรถยนต์</h1>
+  
+  <div class="date-display">
+    วันที่ {{formatThaiDate createdDate}}
+  </div>
+  
+  <div class="content" style="margin-top: 30px; line-height: 1.6;">
+    <p class="indent">
+      ทางบริษัท วีบียอนด์ อินโนเวชั่น จำกัด เป็นผู้แทนจำหน่ายรถยนต์ไฟฟ้า 
+      ขอยืนยันว่าได้ทำการขาย {{safe car.type "รถยนต์ไฟฟ้า"}} ยี่ห้อ <strong>{{car.brand}}</strong> 
+      เลขเครื่องยนต์ {{safe car.engineNo "-"}} 
+      เลขตัวรถ {{safe car.chassisNo "-"}} 
+      สี {{safe car.color "-"}}
+    </p>
+    
+    <p style="margin-top: 15px;">
+      ให้แก่ คุณ<strong>{{customer.name}}</strong> 
+      {{#if customer.address}}บ้านเลขที่ {{customer.address}}{{/if}} 
+      {{#if customer.street}}ถนน {{customer.street}}{{/if}} 
+      ตำบล/แขวง {{safe customer.subdistrict "-"}} 
+      อำเภอ/เขต {{safe customer.district "-"}} 
+      จังหวัด {{safe customer.province "-"}} 
+      รหัสไปรษณีย์ {{safe customer.postalCode "-"}}
+    </p>
+    
+    <p style="margin-top: 15px;">
+      โดยเงื่อนไข (เงินสด / บริษัทไฟแนนซ์ / ประกันภัย) <strong>{{paymentMethod}}</strong>
+    </p>
+    
+    <p class="indent" style="margin-top: 15px;">
+      อนึ่ง ทางบริษัท ฯ ขอความอนุโลมกับทางพนักงานเจ้าหน้าที่หน่วยงานราชการเรื่อง 
+      การจดทะเบียนรถใหม่ โดยรถคันดังกล่าวได้อยู่ในระหว่างการจดทะเบียนกับทางสำนักงานขนส่งจังหวัดนครราชสีมา
+    </p>
+    
+    <p class="text-center" style="margin-top: 30px;">
+      จึงขอรับรองว่า ข้อความข้างต้นเป็นความจริงทุกประการ
+    </p>
+  </div>
+  
+  <div class="signature-box" style="margin-top: 80px; margin-left: auto; width: 50%;">
+    {{#if signature}}
+    <img src="{{signature}}" alt="Signature" style="max-width: 150px; height: auto;">
+    {{else}}
+    <div class="signature-line" style="margin-top: 60px;"></div>
+    {{/if}}
+    <p>( บริษัท วีบียอนด์ อินโนเวชั่น จำกัด )</p>
+  </div>
+</div>

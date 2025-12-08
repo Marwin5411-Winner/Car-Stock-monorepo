@@ -102,28 +102,39 @@ async function seed() {
   ];
 
   for (const model of vehicleModels) {
-    const created = await db.vehicleModel.upsert({
+    // Use brand+model+variant+year as unique identifier for upsert
+    const existing = await db.vehicleModel.findFirst({
       where: {
-        id: `${model.brand}-${model.model}-${model.variant}`.toLowerCase().replace(/\s+/g, '-'),
-      },
-      update: {},
-      create: {
-        id: `${model.brand}-${model.model}-${model.variant}`.toLowerCase().replace(/\s+/g, '-'),
         brand: model.brand,
         model: model.model,
         variant: model.variant,
         year: model.year,
-        type: model.type,
-        primaryColor: model.primaryColor,
-        secondaryColor: model.secondaryColor,
-        mainOptions: model.mainOptions,
-        engineSpecs: model.engineSpecs,
-        dimensions: model.dimensions,
-        price: model.price,
-        standardCost: model.standardCost,
-        targetMargin: model.targetMargin,
       },
     });
+
+    let created;
+    if (existing) {
+      created = existing;
+    } else {
+      // Let Prisma auto-generate cuid for new records
+      created = await db.vehicleModel.create({
+        data: {
+          brand: model.brand,
+          model: model.model,
+          variant: model.variant,
+          year: model.year,
+          type: model.type,
+          primaryColor: model.primaryColor,
+          secondaryColor: model.secondaryColor,
+          mainOptions: model.mainOptions,
+          engineSpecs: model.engineSpecs,
+          dimensions: model.dimensions,
+          price: model.price,
+          standardCost: model.standardCost,
+          targetMargin: model.targetMargin,
+        },
+      });
+    }
     console.log(`✅ Vehicle model created: ${created.brand} ${created.model} ${created.variant}`);
   }
 
