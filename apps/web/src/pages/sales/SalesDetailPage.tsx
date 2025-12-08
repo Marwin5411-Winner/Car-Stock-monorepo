@@ -109,7 +109,7 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     title: 'ใบจอง (ย่อ)',
     description: 'ใบรับเงินมัดจำ',
     endpoint: '/api/pdf/deposit-receipt',
-    getAvailable: (sale) => sale.depositAmount > 0 && sale.payments && sale.payments.some(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
+    getAvailable: (sale) => sale.depositAmount > 0 && !!sale.payments?.some(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
     usePaymentId: true,
   },
   {
