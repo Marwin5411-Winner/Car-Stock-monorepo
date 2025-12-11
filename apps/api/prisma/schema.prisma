@@ -92,45 +92,45 @@ model VehicleModel {
 }
 
 model Stock {
-  id                    String           @id @default(cuid())
-  vin                   String           @unique
-  engineNumber          String?          @map("engine_number")
-  motorNumber1          String?          @map("motor_number_1")
-  motorNumber2          String?          @map("motor_number_2")
-  vehicleModelId        String           @map("vehicle_model_id")
-  exteriorColor         String           @map("exterior_color")
-  interiorColor         String?          @map("interior_color")
-  arrivalDate           DateTime         @map("arrival_date")
-  orderDate             DateTime?        @map("order_date")
-  status                StockStatus      @default(AVAILABLE)
-  parkingSlot           String?          @map("parking_slot")
-  baseCost              Decimal          @map("base_cost") @db.Decimal(15, 2)
-  transportCost         Decimal          @default(0) @map("transport_cost") @db.Decimal(15, 2)
-  accessoryCost         Decimal          @default(0) @map("accessory_cost") @db.Decimal(15, 2)
-  otherCosts            Decimal          @default(0) @map("other_costs") @db.Decimal(15, 2)
-  financeProvider       String?          @map("finance_provider")
-  interestRate          Decimal          @default(0) @map("interest_rate") @db.Decimal(5, 4)
-  interestPrincipalBase InterestBase     @default(BASE_COST_ONLY) @map("interest_principal_base")
-  accumulatedInterest   Decimal          @default(0) @map("accumulated_interest") @db.Decimal(15, 2)
-  financePaymentDate    DateTime?        @map("finance_payment_date")
-  stopInterestCalc      Boolean          @default(false) @map("stop_interest_calc")
-  interestStoppedAt     DateTime?        @map("interest_stopped_at")
-  expectedSalePrice     Decimal?         @map("expected_sale_price") @db.Decimal(15, 2)
-  actualSalePrice       Decimal?         @map("actual_sale_price") @db.Decimal(15, 2)
-  soldDate              DateTime?        @map("sold_date")
-  deliveryNotes         String?          @map("delivery_notes")
+  id                    String             @id @default(cuid())
+  vin                   String             @unique
+  engineNumber          String?            @unique @map("engine_number")
+  motorNumber1          String?            @map("motor_number_1")
+  motorNumber2          String?            @map("motor_number_2")
+  vehicleModelId        String             @map("vehicle_model_id")
+  exteriorColor         String             @map("exterior_color")
+  interiorColor         String?            @map("interior_color")
+  arrivalDate           DateTime           @map("arrival_date")
+  orderDate             DateTime?          @map("order_date")
+  status                StockStatus        @default(AVAILABLE)
+  parkingSlot           String?            @map("parking_slot")
+  baseCost              Decimal            @map("base_cost") @db.Decimal(15, 2)
+  transportCost         Decimal            @default(0) @map("transport_cost") @db.Decimal(15, 2)
+  accessoryCost         Decimal            @default(0) @map("accessory_cost") @db.Decimal(15, 2)
+  otherCosts            Decimal            @default(0) @map("other_costs") @db.Decimal(15, 2)
+  financeProvider       String?            @map("finance_provider")
+  interestRate          Decimal            @default(0) @map("interest_rate") @db.Decimal(5, 4)
+  interestPrincipalBase InterestBase       @default(BASE_COST_ONLY) @map("interest_principal_base")
+  accumulatedInterest   Decimal            @default(0) @map("accumulated_interest") @db.Decimal(15, 2)
+  financePaymentDate    DateTime?          @map("finance_payment_date")
+  stopInterestCalc      Boolean            @default(false) @map("stop_interest_calc")
+  interestStoppedAt     DateTime?          @map("interest_stopped_at")
+  expectedSalePrice     Decimal?           @map("expected_sale_price") @db.Decimal(15, 2)
+  actualSalePrice       Decimal?           @map("actual_sale_price") @db.Decimal(15, 2)
+  soldDate              DateTime?          @map("sold_date")
+  deliveryNotes         String?            @map("delivery_notes")
   notes                 String?
   // Debt tracking fields - สำหรับติดตามหนี้รถในสต็อก
-  debtAmount            Decimal          @default(0) @map("debt_amount") @db.Decimal(15, 2)      // หนี้เริ่มต้น (เงินที่ต้องจ่ายให้ Finance)
-  paidDebtAmount        Decimal          @default(0) @map("paid_debt_amount") @db.Decimal(15, 2) // เงินต้นที่จ่ายไปแล้ว
-  paidInterestAmount    Decimal          @default(0) @map("paid_interest_amount") @db.Decimal(15, 2) // ดอกเบี้ยที่จ่ายไปแล้ว
-  remainingDebt         Decimal          @default(0) @map("remaining_debt") @db.Decimal(15, 2)   // เงินต้นคงเหลือ
-  debtStatus            DebtStatus       @default(NO_DEBT) @map("debt_status")                   // สถานะหนี้
-  debtPaidOffDate       DateTime?        @map("debt_paid_off_date")                              // วันที่ปิดหนี้
-  createdAt             DateTime         @default(now()) @map("created_at")
-  updatedAt             DateTime         @updatedAt @map("updated_at")
+  debtAmount            Decimal            @default(0) @map("debt_amount") @db.Decimal(15, 2) // หนี้เริ่มต้น (เงินที่ต้องจ่ายให้ Finance)
+  paidDebtAmount        Decimal            @default(0) @map("paid_debt_amount") @db.Decimal(15, 2) // เงินต้นที่จ่ายไปแล้ว
+  paidInterestAmount    Decimal            @default(0) @map("paid_interest_amount") @db.Decimal(15, 2) // ดอกเบี้ยที่จ่ายไปแล้ว
+  remainingDebt         Decimal            @default(0) @map("remaining_debt") @db.Decimal(15, 2) // เงินต้นคงเหลือ
+  debtStatus            DebtStatus         @default(NO_DEBT) @map("debt_status") // สถานะหนี้
+  debtPaidOffDate       DateTime?          @map("debt_paid_off_date") // วันที่ปิดหนี้
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
   sale                  Sale?
-  vehicleModel          VehicleModel     @relation(fields: [vehicleModelId], references: [id])
+  vehicleModel          VehicleModel       @relation(fields: [vehicleModelId], references: [id])
   interestPeriods       InterestPeriod[]
   debtPayments          StockDebtPayment[]
 
@@ -139,27 +139,27 @@ model Stock {
 
 // Interest Period - เก็บประวัติการเปลี่ยนแปลงอัตราดอกเบี้ยของแต่ละ Stock
 model InterestPeriod {
-  id                 String       @id @default(cuid())
-  stockId            String       @map("stock_id")
-  stock              Stock        @relation(fields: [stockId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(cuid())
+  stockId String @map("stock_id")
+  stock   Stock  @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
   // ช่วงเวลา
-  startDate          DateTime     @map("start_date")
-  endDate            DateTime?    @map("end_date") // null = ยังใช้อยู่
-  
+  startDate DateTime  @map("start_date")
+  endDate   DateTime? @map("end_date") // null = ยังใช้อยู่
+
   // อัตราดอกเบี้ย
-  annualRate         Decimal      @map("annual_rate") @db.Decimal(5, 2) // % ต่อปี เช่น 7.50
-  principalBase      InterestBase @default(BASE_COST_ONLY) @map("principal_base")
-  principalAmount    Decimal      @map("principal_amount") @db.Decimal(15, 2) // ยอดเงินต้นที่ใช้คำนวณ
-  
+  annualRate      Decimal      @map("annual_rate") @db.Decimal(5, 2) // % ต่อปี เช่น 7.50
+  principalBase   InterestBase @default(BASE_COST_ONLY) @map("principal_base")
+  principalAmount Decimal      @map("principal_amount") @db.Decimal(15, 2) // ยอดเงินต้นที่ใช้คำนวณ
+
   // ดอกเบี้ยที่คำนวณได้
-  calculatedInterest Decimal      @default(0) @map("calculated_interest") @db.Decimal(15, 2)
-  daysCount          Int          @default(0) @map("days_count") // จำนวนวันที่คำนวณ
-  
+  calculatedInterest Decimal @default(0) @map("calculated_interest") @db.Decimal(15, 2)
+  daysCount          Int     @default(0) @map("days_count") // จำนวนวันที่คำนวณ
+
   // Metadata
-  createdAt          DateTime     @default(now()) @map("created_at")
-  createdById        String?      @map("created_by_id")
-  notes              String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by_id")
+  notes       String?
 
   @@index([stockId])
   @@map("interest_periods")
@@ -167,28 +167,28 @@ model InterestPeriod {
 
 // StockDebtPayment - เก็บประวัติการจ่ายหนี้รถในสต็อก
 model StockDebtPayment {
-  id                 String        @id @default(cuid())
-  stockId            String        @map("stock_id")
-  stock              Stock         @relation(fields: [stockId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(cuid())
+  stockId String @map("stock_id")
+  stock   Stock  @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
   // รายละเอียดการจ่าย
-  paymentDate        DateTime      @map("payment_date")
-  amount             Decimal       @db.Decimal(15, 2)              // จำนวนเงินที่จ่าย
-  paymentMethod      PaymentMethod @map("payment_method")
-  referenceNumber    String?       @map("reference_number")        // เลขที่อ้างอิง/เลขที่เช็ค
-  
+  paymentDate     DateTime      @map("payment_date")
+  amount          Decimal       @db.Decimal(15, 2) // จำนวนเงินที่จ่าย
+  paymentMethod   PaymentMethod @map("payment_method")
+  referenceNumber String?       @map("reference_number") // เลขที่อ้างอิง/เลขที่เช็ค
+
   // Balance tracking - snapshot ยอดหนี้ ณ เวลาที่จ่าย
-  principalBefore    Decimal       @map("principal_before") @db.Decimal(15, 2)  // เงินต้นก่อนจ่าย
-  principalAfter     Decimal       @map("principal_after") @db.Decimal(15, 2)   // เงินต้นหลังจ่าย
-  
+  principalBefore Decimal @map("principal_before") @db.Decimal(15, 2) // เงินต้นก่อนจ่าย
+  principalAfter  Decimal @map("principal_after") @db.Decimal(15, 2) // เงินต้นหลังจ่าย
+
   // Interest tracking - ดอกเบี้ยที่จ่าย
   accruedInterestAtPayment Decimal @default(0) @map("accrued_interest_at_payment") @db.Decimal(15, 2) // ดอกเบี้ยสะสม ณ วันจ่าย
-  interestPaid       Decimal       @default(0) @map("interest_paid") @db.Decimal(15, 2)  // ส่วนที่จ่ายดอกเบี้ย
-  principalPaid      Decimal       @default(0) @map("principal_paid") @db.Decimal(15, 2) // ส่วนที่ลดเงินต้น
-  
-  notes              String?
-  createdById        String        @map("created_by_id")
-  createdAt          DateTime      @default(now()) @map("created_at")
+  interestPaid             Decimal @default(0) @map("interest_paid") @db.Decimal(15, 2) // ส่วนที่จ่ายดอกเบี้ย
+  principalPaid            Decimal @default(0) @map("principal_paid") @db.Decimal(15, 2) // ส่วนที่ลดเงินต้น
+
+  notes       String?
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@index([stockId])
   @@map("stock_debt_payments")
@@ -267,45 +267,48 @@ model Quotation {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  receiptNumber   String        @unique @map("receipt_number")
-  customerId      String        @map("customer_id")
-  saleId          String?       @map("sale_id")
-  paymentDate     DateTime      @default(now()) @map("payment_date")
-  paymentType     PaymentType   @map("payment_type")
-  amount          Decimal       @db.Decimal(15, 2)
-  paymentMethod   PaymentMethod @map("payment_method")
-  referenceNumber String?       @map("reference_number")
-  notes           String?
-  status          PaymentStatus @default(ACTIVE)
-  voidReason      String?       @map("void_reason")
-  voidedAt        DateTime?     @map("voided_at")
-  issuedBy        String        @map("issued_by")
-  createdById     String        @map("created_by_id")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  description     String?
-  createdBy       User          @relation(fields: [createdById], references: [id])
-  customer        Customer      @relation(fields: [customerId], references: [id])
-  sale            Sale?         @relation(fields: [saleId], references: [id])
+  id                 String        @id @default(cuid())
+  receiptNumber      String        @unique @map("receipt_number")
+  customerId         String        @map("customer_id")
+  saleId             String?       @map("sale_id")
+  paymentDate        DateTime      @default(now()) @map("payment_date")
+  paymentType        PaymentType   @map("payment_type")
+  amount             Decimal       @db.Decimal(15, 2)
+  paymentMethod      PaymentMethod @map("payment_method")
+  referenceNumber    String?       @map("reference_number")
+  notes              String?
+  receivingBank      String?       @map("receiving_bank")
+  actualReceivedDate DateTime?     @map("actual_received_date")
+  netReceivedAmount  Decimal?      @map("net_received_amount") @db.Decimal(15, 2)
+  status             PaymentStatus @default(ACTIVE)
+  voidReason         String?       @map("void_reason")
+  voidedAt           DateTime?     @map("voided_at")
+  issuedBy           String        @map("issued_by")
+  createdById        String        @map("created_by_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  description        String?
+  createdBy          User          @relation(fields: [createdById], references: [id])
+  customer           Customer      @relation(fields: [customerId], references: [id])
+  sale               Sale?         @relation(fields: [saleId], references: [id])
 
   @@map("payments")
 }
 
 model Campaign {
-  id             String                 @id @default(cuid())
-  name           String
-  description    String?
-  status         CampaignStatus         @default(DRAFT)
-  startDate      DateTime               @map("start_date")
-  endDate        DateTime               @map("end_date")
-  notes          String?
-  createdById    String                 @map("created_by_id")
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
-  vehicleModels  CampaignVehicleModel[]
-  createdBy      User                   @relation(fields: [createdById], references: [id])
-  sales          Sale[]
+  id            String                 @id @default(cuid())
+  name          String
+  description   String?
+  status        CampaignStatus         @default(DRAFT)
+  startDate     DateTime               @map("start_date")
+  endDate       DateTime               @map("end_date")
+  notes         String?
+  createdById   String                 @map("created_by_id")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  vehicleModels CampaignVehicleModel[]
+  createdBy     User                   @relation(fields: [createdById], references: [id])
+  sales         Sale[]
 
   @@map("campaigns")
 }
@@ -419,9 +422,9 @@ enum InterestBase {
 }
 
 enum DebtStatus {
-  NO_DEBT     // ไม่มีหนี้ (ซื้อเงินสด)
-  ACTIVE      // ยังมีหนี้อยู่
-  PAID_OFF    // ปิดหนี้แล้ว
+  NO_DEBT // ไม่มีหนี้ (ซื้อเงินสด)
+  ACTIVE // ยังมีหนี้อยู่
+  PAID_OFF // ปิดหนี้แล้ว
 }
 
 enum SaleType {

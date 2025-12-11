@@ -255,7 +255,7 @@ export default function CustomerFormPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              เลขประจำตัวผู้เสียภาษี
+              เลขบัตรประชาชน / เลขผู้เสียภาษี
             </label>
             <input
               type="text"
@@ -263,9 +263,8 @@ export default function CustomerFormPage() {
               value={formData.taxId}
               onChange={handleChange}
               maxLength={13}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
-                errors.taxId ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${errors.taxId ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
             {errors.taxId && (
               <p className="mt-1 text-sm text-red-600">{errors.taxId}</p>

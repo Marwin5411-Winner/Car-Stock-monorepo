@@ -1,0 +1,366 @@
+<div class="page">
+  <style>
+    .page {
+      font-family: 'Sarabun', 'Kanit', sans-serif;
+      font-size: 10px;
+      padding: 0;
+      color: #000;
+    }
+    .page * {
+      color: #000 !important;
+      background: transparent !important;
+      box-sizing: border-box;
+    }
+    .page table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      border: 1px solid #000;
+    }
+    .page th, .page td {
+      border: 1px solid #000;
+      padding: 3px;
+      vertical-align: middle;
+    }
+    .page .title {
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 5px;
+      margin-top: 0;
+    }
+    .page .checkbox {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border: 1px solid #000;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+    .page .inner-table {
+      border: none !important;
+    }
+    .page .inner-table td {
+      border: none !important;
+      padding: 2px;
+    }
+    .page .inner-table .dotted-line {
+      border-bottom: 1px dotted #000 !important;
+    }
+    .page .mt-neg {
+      margin-top: -1px;
+    }
+    @media print {
+      .page {
+        padding: 10px !important;
+        margin: 0 !important;
+        page-break-after: always !important;
+      }
+    }
+  </style>
+
+  <h1 class="title">การ์ดรายละเอียดรถยนต์</h1>
+
+  <!-- Header Table: Vehicle Info -->
+  <table>
+    <tr>
+      <th style="width: 14%;">ใบสั่งซื้อเลขที่</th>
+      <th style="width: 16%;">แบบรุ่นรถยนต์</th>
+      <th style="width: 16%;">เลขเครื่องยนต์</th>
+      <th style="width: 16%;">เลขแชสซีร์</th>
+      <th style="width: 10%;">รหัสสี</th>
+      <th style="width: 14%;">ใบสั่งขายเลขที่</th>
+      <th style="width: 14%;">STOCK NO.</th>
+    </tr>
+    <tr>
+      <td style="height: 18px;"></td>
+      <td style="text-align: center;">{{car.model}}</td>
+      <td style="text-align: center;">{{car.engineNo}}</td>
+      <td style="text-align: center;">{{car.chassisNo}}</td>
+      <td style="text-align: center;">{{car.color}}</td>
+      <td></td>
+      <td style="text-align: center; font-weight: bold;">{{stockNumber}}</td>
+    </tr>
+  </table>
+
+  <!-- Date Row -->
+  <table class="mt-neg">
+    <tr>
+      <td style="width: 25%; font-weight: bold;">วันที่สั่งซื้อ</td>
+      <td style="width: 25%; font-weight: bold;">วันที่รับรถ</td>
+      <td style="width: 25%; font-weight: bold;">วันที่ขาย</td>
+      <td style="width: 25%; font-weight: bold;">พนักงานขาย</td>
+    </tr>
+    <tr>
+      <td style="height: 18px;"></td>
+      <td></td>
+      <td>{{date}}</td>
+      <td></td>
+    </tr>
+  </table>
+
+  <!-- Main Content Table -->
+  <table class="mt-neg">
+    <colgroup>
+      <col style="width: 5%;">
+      <col style="width: 19%;">
+      <col style="width: 12%;">
+      <col style="width: 3%;">
+      <col style="width: 8%;">
+      <col style="width: 19%;">
+      <col style="width: 12%;">
+      <col style="width: 11%;">
+      <col style="width: 11%;">
+    </colgroup>
+    <!-- Headers -->
+    <tr style="text-align: center;">
+      <th></th>
+      <th style="text-align: center;">รายละเอียดต้นทุน</th>
+      <th colspan="2" style="text-align: center;">จำนวนเงิน+VAT</th>
+      <th style="text-align: center;">ผู้อนุมัติ</th>
+      <th style="text-align: center;">รายละเอียดการขาย</th>
+      <th style="text-align: center;">จำนวนเงิน</th>
+      <th style="text-align: center;">เลขที่ใบรับ</th>
+      <th>ผู้ตรวจสอบ</th>
+    </tr>
+
+    <!-- Row 1 -->
+    <tr>
+      <td style="text-align: center;">1</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="padding-left: 20px;">ราคาขาย</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 2 -->
+    <tr>
+      <td style="text-align: center;">2</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>หัก&nbsp;&nbsp;ส่วนลดเงินสด</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 3 -->
+    <tr>
+      <td style="text-align: center;">3</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="padding-left: 20px;">คงเหลือ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 4 -->
+    <tr>
+      <td style="text-align: center;">4</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>เงินดาวน์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 5 -->
+    <tr>
+      <td style="text-align: center;">5</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>หัก&nbsp;&nbsp;ส่วนลดเงินดาวน์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 6: รวม / คงเหลือเงินดาวน์ -->
+    <tr>
+      <td colspan="2" style="text-align: center; font-weight: bold;">รวม</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="padding-left: 20px;">คงเหลือเงินดาวน์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Payment Conditions Header -->
+    <tr>
+      <td colspan="5" style="text-align: center; font-weight: bold;">เงื่อนไขการชำระเงิน</td>
+      <td>บวก&nbsp;&nbsp;ค่าจดทะเบียน</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Payment Options Row -->
+    <tr>
+      <td colspan="5" style="text-align: center;">
+        <span class="checkbox"></span> เงินสด
+        <span style="display: inline-block; width: 30px;"></span>
+        <span class="checkbox"></span> เครดิต................วัน
+      </td>
+      <td style="padding-left: 20px;">ค่าเบี้ยประกัน</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Voucher Header -->
+    <tr>
+      <td colspan="2" style="text-align: center;">เลขที่ใบสำคัญจ่าย/กำหนดชำระ</td>
+      <td colspan="2" style="text-align: center;">จำนวนเงิน +VAT</td>
+      <td style="text-align: center;">ผู้อนุมัติ</td>
+      <td style="padding-left: 20px;">ค่า พรบ.</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Voucher Rows -->
+    <tr>
+      <td style="text-align: center;">1</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>ค่าทะเบียน</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">2</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>ค่าขนส่ง</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">3</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>อื่นๆ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Extra Expenses Header -->
+    <tr>
+      <td colspan="5" style="font-weight: bold;">ค่าใช้จ่ายอื่นๆ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Extra Expenses Rows -->
+    <tr>
+      <td style="text-align: center;">1</td>
+      <td>ค่าขนส่ง</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="text-align: center;">รวมรับ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">2</td>
+      <td>ค่าคอมขาย</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="text-align: center;">ยอดจัดไฟแนนซ์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">3</td>
+      <td>ค่านำพา</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td colspan="4" rowspan="2" style="vertical-align: middle;">
+        <span style="font-weight: bold;">รวมรายรับทั้งสิ้น(เงินดาวน์+ยอดจัด)</span>..................................บาท
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">4</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Summary Row -->
+    <tr>
+      <td colspan="2" style="text-align: center; font-weight: bold;">รวม</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td colspan="4" rowspan="2" style="vertical-align: top; padding: 5px;">
+        <table class="inner-table">
+          <tr>
+            <td style="font-weight: bold; width: 15%;">สรุป</td>
+            <td style="width: 30%;">ผลการดำเนินงาน</td>
+            <td class="dotted-line" style="width: 35%;"></td>
+            <td style="width: 20%;">บาท</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>รายได้รวม</td>
+            <td class="dotted-line"></td>
+            <td>บาท</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">หัก</td>
+            <td>ต้นทุนรวม</td>
+            <td class="dotted-line"></td>
+            <td>บาท</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>กำไรขั้นต้น</td>
+            <td class="dotted-line"></td>
+            <td>บาท</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Footer Row -->
+    <tr>
+      <td colspan="5" style="padding: 5px; vertical-align: top;">
+        <div style="font-weight: bold; margin-bottom: 3px;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
+        <div style="font-weight: bold;">หมายเหตุ</div>
+      </td>
+    </tr>
+  </table>
+</div>

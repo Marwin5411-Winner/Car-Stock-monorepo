@@ -70,6 +70,9 @@ export interface CreatePaymentData {
   referenceNumber?: string;
   description?: string;
   notes?: string;
+  receivingBank?: string;
+  actualReceivedDate?: string;
+  netReceivedAmount?: number;
 }
 
 export interface VoidPaymentData {
@@ -204,6 +207,26 @@ class PaymentService {
   async void(id: string, data: VoidPaymentData): Promise<Payment> {
     const response = await api.patch<ApiResponse<Payment>>(`${this.baseUrl}/${id}/void`, data);
     return response.data;
+  }
+
+  /**
+   * Download payment receipt PDF
+   */
+  async downloadReceipt(id: string): Promise<void> {
+    try {
+      const blob = await api.getBlob(`/api/pdf/payment-receipt/${id}`);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      throw error;
+    }
   }
 }
 

@@ -5,13 +5,13 @@ import { stockService, type Stock } from '../../services/stock.service';
 import type { Sale, SaleStatus } from '../../services/sales.service';
 import { MainLayout } from '../../components/layout';
 import { api } from '../../lib/api';
-import { 
-  ArrowLeft, 
-  Edit, 
-  User, 
-  Car, 
-  Calendar, 
-  DollarSign, 
+import {
+  ArrowLeft,
+  Edit,
+  User,
+  Car,
+  Calendar,
+  DollarSign,
   FileText,
   Clock,
   CreditCard,
@@ -76,7 +76,7 @@ const PAYMENT_STATUS_COLORS: Record<string, string> = {
 type TabType = 'overview' | 'documents' | 'payments' | 'history';
 
 // Document type definitions with their API endpoints
-type DocumentType = 
+type DocumentType =
   | 'contract'
   | 'deposit-receipt'
   | 'sales-confirmation'
@@ -106,7 +106,7 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
   },
   {
     id: 'deposit-receipt',
-    title: 'ใบจอง (ย่อ)',
+    title: 'ใบรับเงินมัดจำ',
     description: 'ใบรับเงินมัดจำ',
     endpoint: '/api/pdf/deposit-receipt',
     getAvailable: (sale) => sale.depositAmount > 0 && !!sale.payments?.some(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
@@ -161,14 +161,14 @@ export default function SalesDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  
+
   // Stock assignment modal state
   const [showStockModal, setShowStockModal] = useState(false);
   const [availableStocks, setAvailableStocks] = useState<Stock[]>([]);
   const [loadingStocks, setLoadingStocks] = useState(false);
   const [assigningStock, setAssigningStock] = useState(false);
   const [selectedStockId, setSelectedStockId] = useState<string>('');
-  
+
   // Document loading state
   const [documentLoading, setDocumentLoading] = useState<DocumentType | null>(null);
 
@@ -195,7 +195,7 @@ export default function SalesDetailPage() {
 
   const handleStatusChange = async (newStatus: SaleStatus) => {
     if (!sale) return;
-    
+
     const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -217,13 +217,13 @@ export default function SalesDetailPage() {
   // Stock assignment functions
   const openStockModal = async () => {
     if (!sale) return;
-    
+
     try {
       setLoadingStocks(true);
       setShowStockModal(true);
       // Fetch available stocks for the same vehicle model
       const vehicleModelId = sale.vehicleModel?.id;
-      const stocks = await stockService.getAll({ 
+      const stocks = await stockService.getAll({
         vehicleModelId,
         status: 'AVAILABLE',
         limit: 50
@@ -280,10 +280,10 @@ export default function SalesDetailPage() {
   // Handle document download
   const handleDownloadDocument = async (config: DocumentConfig) => {
     if (!sale) return;
-    
+
     try {
       setDocumentLoading(config.id);
-      
+
       // Determine the ID to use (saleId or paymentId)
       let endpoint = config.endpoint;
       if (config.usePaymentId) {
@@ -296,9 +296,9 @@ export default function SalesDetailPage() {
       } else {
         endpoint = `${config.endpoint}/${sale.id}`;
       }
-      
+
       const blob = await api.getBlob(endpoint);
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -319,10 +319,10 @@ export default function SalesDetailPage() {
   // Handle document print
   const handlePrintDocument = async (config: DocumentConfig) => {
     if (!sale) return;
-    
+
     try {
       setDocumentLoading(config.id);
-      
+
       // Determine the ID to use (saleId or paymentId)
       let endpoint = config.endpoint;
       if (config.usePaymentId) {
@@ -335,13 +335,13 @@ export default function SalesDetailPage() {
       } else {
         endpoint = `${config.endpoint}/${sale.id}`;
       }
-      
+
       const blob = await api.getBlob(endpoint);
-      
+
       // Create blob URL and open in new window for printing
       const url = window.URL.createObjectURL(blob);
       const printWindow = window.open(url, '_blank');
-      
+
       if (printWindow) {
         printWindow.onload = () => {
           printWindow.focus();
@@ -457,9 +457,8 @@ export default function SalesDetailPage() {
                   {availableStocks.map((stock) => (
                     <label
                       key={stock.id}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        selectedStockId === stock.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                      }`}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${selectedStockId === stock.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                        }`}
                     >
                       <input
                         type="radio"
@@ -510,18 +509,17 @@ export default function SalesDetailPage() {
             const currentIndex = getStatusIndex(sale.status);
             const isCompleted = sale.status === 'CANCELLED' ? false : index < currentIndex;
             const isCurrent = status === sale.status;
-            
+
             return (
               <div key={status} className="flex-1 flex items-center">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
-                      isCurrent
-                        ? STATUS_COLORS[status]
-                        : isCompleted
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${isCurrent
+                      ? STATUS_COLORS[status]
+                      : isCompleted
                         ? 'bg-green-100 text-green-600 border-green-300'
                         : 'bg-gray-100 text-gray-700 border-gray-300'
-                    }`}
+                      }`}
                   >
                     {isCompleted ? <CheckCircle className="h-5 w-5" /> : STATUS_ICONS[status]}
                   </div>
@@ -536,7 +534,7 @@ export default function SalesDetailPage() {
             );
           })}
         </div>
-        
+
         {/* Status Actions */}
         {sale.status !== 'COMPLETED' && sale.status !== 'CANCELLED' && (
           <div className="flex gap-2 mt-4 pt-4 border-t">
@@ -545,11 +543,10 @@ export default function SalesDetailPage() {
                 key={nextStatus}
                 onClick={() => handleStatusChange(nextStatus)}
                 disabled={updatingStatus}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  nextStatus === 'CANCELLED'
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                    : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                } disabled:opacity-50`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${nextStatus === 'CANCELLED'
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                  : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
+                  } disabled:opacity-50`}
               >
                 {nextStatus === 'CANCELLED' ? 'ยกเลิก' : `เปลี่ยนเป็น ${STATUS_LABELS[nextStatus]}`}
               </button>
@@ -723,7 +720,7 @@ export default function SalesDetailPage() {
               </dd>
             </div>
           </dl>
-          
+
           {/* Payment Mode */}
           <div className="mt-4 pt-4 border-t">
             <p className="text-sm text-gray-700 mb-2">รูปแบบการชำระ</p>
@@ -913,14 +910,14 @@ export default function SalesDetailPage() {
           <div className="relative">
             {/* Timeline line */}
             <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
-            
+
             {/* Timeline items */}
             <div className="space-y-6">
               {sale.history.map((item) => (
                 <div key={item.id} className="relative flex items-start ml-8">
                   {/* Timeline dot */}
                   <div className="absolute -left-10 mt-1.5 w-3 h-3 bg-blue-600 rounded-full border-2 border-white" />
-                  
+
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-gray-900">{item.action}</span>
@@ -1001,11 +998,10 @@ export default function SalesDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600 font-medium'
-                    : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600 font-medium'
+                  : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {tab.icon}
                 {tab.label}
@@ -1036,7 +1032,7 @@ interface DocumentItemProps {
 function DocumentItem({ config, available, isLoading, onDownload, onPrint }: DocumentItemProps) {
   const { title, description, restricted, id } = config;
   const isVehicleCard = id === 'vehicle-card';
-  
+
   return (
     <div className={`flex items-center justify-between p-4 ${!available ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-3">

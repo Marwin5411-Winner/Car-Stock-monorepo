@@ -17,6 +17,8 @@ import {
   ContractData,
   CarReservationContractData,
   DepositReceiptData,
+  PaymentReceiptData,
+  VehicleCardData,
   CompanyHeader,
 } from './types';
 import {
@@ -228,8 +230,10 @@ export class PdfService {
   /**
    * Generate base HTML structure with styles
    */
-  private getBaseHtml(content: string): string {
+  private getBaseHtml(content: string, isLandscape: boolean = false): string {
     const fontCss = this.getFontCss();
+    const width = isLandscape ? '297mm' : '210mm';
+    const height = isLandscape ? '210mm' : '297mm';
 
     return `
 <!DOCTYPE html>
@@ -255,8 +259,8 @@ export class PdfService {
     }
     
     .page {
-      width: 210mm;
-      min-height: 297mm;
+      width: ${width};
+      min-height: ${height};
       padding: 10mm;
       margin: 0 auto;
       background: white;
@@ -481,7 +485,7 @@ export class PdfService {
 
       // Render template with data
       const content = template(dataWithHeader);
-      const html = this.getBaseHtml(content);
+      const html = this.getBaseHtml(content, options.landscape);
 
       // Set content and wait for rendering
       await page.setContent(html, {
@@ -549,6 +553,20 @@ export class PdfService {
    */
   public async generateDepositReceipt(data: DepositReceiptData): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.DEPOSIT_RECEIPT, data);
+  }
+
+  /**
+   * Generate Payment Receipt PDF (ใบเสร็จรับเงิน)
+   */
+  public async generatePaymentReceipt(data: PaymentReceiptData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.PAYMENT_RECEIPT, data);
+  }
+
+  /**
+   * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
+   */
+  public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, { landscape: true });
   }
 
   /**

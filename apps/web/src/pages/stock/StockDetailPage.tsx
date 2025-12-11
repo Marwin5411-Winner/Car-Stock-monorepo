@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { api } from '../../lib/api';
 import { stockService } from '../../services/stock.service';
 import type { Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  ArrowLeft, 
-  Edit, 
-  Car, 
-  Calendar, 
-  Package, 
-  DollarSign, 
+import {
+  ArrowLeft,
+  Edit,
+  Car,
+  Calendar,
+  Package,
+  DollarSign,
   TrendingUp,
   Hash,
   MapPin,
   Palette,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -61,7 +63,7 @@ export default function StockDetailPage() {
 
   const handleRecalculateInterest = async () => {
     if (!stock) return;
-    
+
     try {
       setRecalculating(true);
       const updated = await stockService.recalculateInterest(stock.id);
@@ -77,7 +79,7 @@ export default function StockDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!stock) return;
-    
+
     const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -88,6 +90,23 @@ export default function StockDetailPage() {
     } catch (error) {
       console.error('Error updating status:', error);
       alert('ไม่สามารถเปลี่ยนสถานะได้');
+    }
+  };
+
+  const handlePrintVehicleCard = async () => {
+    if (!stock) return;
+    try {
+      const blob = await api.getBlob(`/api/pdf/vehicle-card/${stock.id}`);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vehicle-card-${stock.vin}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading vehicle card:', error);
+      alert('ไม่สามารถดาวน์โหลดเอกสารได้');
     }
   };
 
@@ -123,8 +142,8 @@ export default function StockDetailPage() {
         <div className="text-center py-12">
           <Package className="mx-auto h-12 w-12 text-gray-400" />
           <p className="mt-2 text-gray-600">ไม่พบข้อมูล Stock</p>
-          <Link 
-            to="/stock" 
+          <Link
+            to="/stock"
             className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
@@ -433,6 +452,13 @@ export default function StockDetailPage() {
               >
                 แก้ไขข้อมูล
               </Link>
+              <button
+                onClick={handlePrintVehicleCard}
+                className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                พิมพ์การ์ดรถยนต์
+              </button>
             </div>
           </div>
 

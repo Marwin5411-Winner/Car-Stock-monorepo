@@ -3,8 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { paymentService } from '../../services/payment.service';
 import type { Payment, PaymentType, PaymentMethod, PaymentStatus } from '../../services/payment.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   CreditCard,
   User,
   FileText,
@@ -50,6 +50,7 @@ export default function PaymentDetailPage() {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [voiding, setVoiding] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidReason, setVoidReason] = useState('');
 
@@ -103,7 +104,7 @@ export default function PaymentDetailPage() {
 
   const handleVoid = async () => {
     if (!payment) return;
-    
+
     if (!voidReason.trim()) {
       alert('กรุณาระบุเหตุผลในการยกเลิก');
       return;
@@ -122,6 +123,19 @@ export default function PaymentDetailPage() {
       alert('ไม่สามารถยกเลิกการชำระเงินได้');
     } finally {
       setVoiding(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!payment) return;
+    try {
+      setDownloading(true);
+      await paymentService.downloadReceipt(payment.id);
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('ไม่สามารถดาวน์โหลดใบเสร็จได้');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -160,7 +174,7 @@ export default function PaymentDetailPage() {
             <ArrowLeft className="h-5 w-5 mr-1" />
             กลับไปรายการ
           </button>
-          
+
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{payment.receiptNumber}</h1>
@@ -168,21 +182,22 @@ export default function PaymentDetailPage() {
                 บันทึกเมื่อ {formatDateTime(payment.createdAt)}
               </p>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${STATUS_COLORS[payment.status]}`}>
                 {STATUS_ICONS[payment.status]}
                 {STATUS_LABELS[payment.status]}
               </span>
-              
+
               {payment.status === 'ACTIVE' && (
                 <>
                   <button
-                    onClick={() => window.print()}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    onClick={handlePrint}
+                    disabled={downloading}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
                     <Printer className="h-4 w-4 mr-2" />
-                    พิมพ์
+                    {downloading ? 'กำลังโหลด...' : 'พิมพ์ใบเสร็จ'}
                   </button>
                   <button
                     onClick={() => setShowVoidModal(true)}
@@ -355,7 +370,7 @@ export default function PaymentDetailPage() {
               คุณต้องการยกเลิกใบเสร็จเลขที่ <strong>{payment.receiptNumber}</strong> หรือไม่?
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              {payment.sale 
+              {payment.sale
                 ? `การยกเลิกจะทำให้ยอดชำระแล้วของการขายลดลง ${formatCurrency(payment.amount)}`
                 : 'การยกเลิกจะทำให้รายการนี้ถูกยกเลิก'
               }

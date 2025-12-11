@@ -31,8 +31,8 @@ export class StockService {
     const endDate = stopInterestCalc && interestStoppedAt ? interestStoppedAt : today;
     const days = Math.abs(endDate.getTime() - arrivalDate.getTime()) / (1000 * 60 * 60 * 24);
 
-    // Annual rate to daily rate
-    const dailyRate = (interestRate / 100) / 365;
+    // Annual rate to daily rate (interestRate is decimal, e.g., 0.05 for 5%)
+    const dailyRate = interestRate / 365;
     return totalCost * dailyRate * days;
   }
 

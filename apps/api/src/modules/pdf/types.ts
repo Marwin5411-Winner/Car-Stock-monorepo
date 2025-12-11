@@ -330,4 +330,49 @@ export enum PdfTemplateType {
   SALES_RECORD = 'sales-record',
   CONTRACT = 'contract',
   DEPOSIT_RECEIPT = 'deposit-receipt',
+  PAYMENT_RECEIPT = 'payment-receipt',
+  VEHICLE_CARD = 'vehicle-card',
+}
+
+/**
+ * ใบเสร็จรับเงิน (Payment Receipt)
+ */
+export interface PaymentReceiptData {
+  header: CompanyHeader;
+  receiptNumber: string;
+  date: string;
+  customer: CustomerInfo;
+  car: CarInfo;
+  amount: string;
+  amountText: string;
+  paymentMethod: string;
+  note?: string;
+}
+
+/**
+ * การ์ดรายละเอียดรถยนต์ (Vehicle Card)
+ */
+export interface VehicleCardData {
+  header: CompanyHeader;
+  stockNumber: string; // VIN or Stock No
+  date: string;
+  car: {
+    brand: string;
+    model: string;
+    variant?: string;
+    year: string;
+    color: string; // exterior
+    interiorColor?: string;
+    engineNo: string;
+    chassisNo: string;
+    ccOrKw?: string;
+  };
+  costs: {
+    baseCost: string;
+    transportCost: string;
+    accessoryCost: string;
+    otherCosts: string;
+    totalCost: string;
+  };
+  location?: string; // Parking slot
 }

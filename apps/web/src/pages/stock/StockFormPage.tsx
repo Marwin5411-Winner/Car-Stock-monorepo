@@ -83,7 +83,7 @@ export default function StockFormPage() {
         accessoryCost: Number(stock.accessoryCost),
         otherCosts: Number(stock.otherCosts),
         financeProvider: stock.financeProvider || '',
-        interestRate: Number(stock.interestRate),
+        interestRate: Number(stock.interestRate) * 100,
         interestPrincipalBase: stock.interestPrincipalBase,
         expectedSalePrice: stock.expectedSalePrice ? Number(stock.expectedSalePrice) : undefined,
         notes: stock.notes || '',
@@ -103,8 +103,8 @@ export default function StockFormPage() {
       [name]: name === 'expectedSalePrice'
         ? (value === '' ? undefined : Number(value))
         : ['baseCost', 'transportCost', 'accessoryCost', 'otherCosts', 'interestRate'].includes(name)
-        ? Number(value)
-        : value,
+          ? Number(value)
+          : value,
     }));
   };
 
@@ -131,6 +131,7 @@ export default function StockFormPage() {
     try {
       const data = {
         ...formData,
+        interestRate: formData.interestRate / 100,
         orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
         arrivalDate: new Date(formData.arrivalDate),
       };

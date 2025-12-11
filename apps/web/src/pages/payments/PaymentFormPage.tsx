@@ -4,8 +4,8 @@ import { paymentService, type CreatePaymentData, type PaymentType, type PaymentM
 import { salesService } from '../../services/sales.service';
 import { customerService, type Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   CreditCard,
   DollarSign,
   Save,
@@ -74,6 +74,9 @@ interface FormData {
   paymentMethod: PaymentMethod;
   referenceNumber: string;
   description: string;
+  receivingBank?: string;
+  actualReceivedDate?: string;
+  netReceivedAmount?: number;
 }
 
 type PaymentMode = 'sale' | 'miscellaneous';
@@ -82,19 +85,19 @@ export default function PaymentFormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preSelectedSaleId = searchParams.get('saleId');
-  
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   // Payment mode: linked to sale or standalone miscellaneous
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(preSelectedSaleId ? 'sale' : 'sale');
-  
+
   // Sale-related state
   const [saleInfo, setSaleInfo] = useState<SaleInfo | null>(null);
-  
+
   // Customer-related state (for miscellaneous payments)
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  
+
   const [formData, setFormData] = useState<FormData>({
     saleId: '',
     customerId: '',
@@ -104,6 +107,9 @@ export default function PaymentFormPage() {
     paymentMethod: 'CASH',
     referenceNumber: '',
     description: '',
+    receivingBank: '',
+    actualReceivedDate: '',
+    netReceivedAmount: 0,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -126,6 +132,9 @@ export default function PaymentFormPage() {
         customerId: customerInfo?.id || '',
         paymentType: 'MISCELLANEOUS',
         amount: 0,
+        receivingBank: '',
+        actualReceivedDate: '',
+        netReceivedAmount: 0,
       }));
     } else {
       setCustomerInfo(null);
@@ -137,7 +146,7 @@ export default function PaymentFormPage() {
         amount: saleInfo?.remainingAmount || 0,
       }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentMode]);
 
   const fetchSaleById = async (saleId: string) => {
@@ -311,6 +320,9 @@ export default function PaymentFormPage() {
         paymentMethod: formData.paymentMethod,
         referenceNumber: formData.referenceNumber || undefined,
         description: formData.description || undefined,
+        receivingBank: formData.receivingBank || undefined,
+        actualReceivedDate: formData.actualReceivedDate || undefined,
+        netReceivedAmount: formData.netReceivedAmount || undefined,
       };
 
       // Only include saleId for sale-linked payments
@@ -320,7 +332,7 @@ export default function PaymentFormPage() {
 
       const payment = await paymentService.create(createData);
       alert('บันทึกการชำระเงินสำเร็จ');
-      
+
       // Navigate to payment detail or back to sale
       if (preSelectedSaleId) {
         navigate(`/sales/${preSelectedSaleId}`);
@@ -383,11 +395,10 @@ export default function PaymentFormPage() {
                 <button
                   type="button"
                   onClick={() => setPaymentMode('sale')}
-                  className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                    paymentMode === 'sale'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${paymentMode === 'sale'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
                 >
                   <FileText className="h-6 w-6 mx-auto mb-2" />
                   <div className="font-medium">เชื่อมกับการขาย</div>
@@ -396,11 +407,10 @@ export default function PaymentFormPage() {
                 <button
                   type="button"
                   onClick={() => setPaymentMode('miscellaneous')}
-                  className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                    paymentMode === 'miscellaneous'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${paymentMode === 'miscellaneous'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
                 >
                   <DollarSign className="h-6 w-6 mx-auto mb-2" />
                   <div className="font-medium">รายการทั่วไป</div>
@@ -521,9 +531,8 @@ export default function PaymentFormPage() {
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={3}
                   placeholder="ระบุรายละเอียดของรายการ เช่น ค่าบริการ, ค่าอุปกรณ์เสริม..."
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                    errors.description ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {errors.description && (
                   <p className="text-sm text-red-500 mt-1">{errors.description}</p>
@@ -551,9 +560,8 @@ export default function PaymentFormPage() {
                     type="number"
                     value={formData.amount || ''}
                     onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                      errors.amount ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.amount ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     min="0"
                     step="0.01"
                   />
@@ -574,9 +582,8 @@ export default function PaymentFormPage() {
                     type="date"
                     value={formData.paymentDate}
                     onChange={(e) => handleInputChange('paymentDate', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                      errors.paymentDate ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.paymentDate ? 'border-red-500' : 'border-gray-300'
+                      }`}
                   />
                 </div>
                 {errors.paymentDate && (
@@ -634,17 +641,76 @@ export default function PaymentFormPage() {
                   onChange={(e) => handleInputChange('referenceNumber', e.target.value)}
                   placeholder={
                     formData.paymentMethod === 'BANK_TRANSFER' ? 'เลขที่รายการโอน' :
-                    formData.paymentMethod === 'CHEQUE' ? 'เลขที่เช็ค' :
-                    'เลขที่อ้างอิง (ถ้ามี)'
+                      formData.paymentMethod === 'CHEQUE' ? 'เลขที่เช็ค' :
+                        'เลขที่อ้างอิง (ถ้ามี)'
                   }
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                    errors.referenceNumber ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.referenceNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {errors.referenceNumber && (
                   <p className="text-sm text-red-500 mt-1">{errors.referenceNumber}</p>
                 )}
               </div>
+
+              {/* Receiving Bank (Only for Bank Transfer) */}
+              {formData.paymentMethod === 'BANK_TRANSFER' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ธนาคารที่รับเงิน
+                  </label>
+                  <select
+                    value={formData.receivingBank || ''}
+                    onChange={(e) => handleInputChange('receivingBank', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">เลือกธนาคาร...</option>
+                    <option value="KBANK">กสิกรไทย (KBANK)</option>
+                    <option value="SCB">ไทยพาณิชย์ (SCB)</option>
+                    <option value="BBL">กรุงเทพ (BBL)</option>
+                    <option value="KTB">กรุงไทย (KTB)</option>
+                    <option value="TTB">ทหารไทยธนชาต (TTB)</option>
+                    <option value="BAY">กรุงศรี (BAY)</option>
+                    <option value="CIMB">ซีไอเอ็มบี (CIMB)</option>
+                    <option value="LHB">แลนด์ แอนด์ เฮาส์ (LH Bank)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Finance Details (Only for Finance Payment) */}
+              {formData.paymentType === 'FINANCE_PAYMENT' && (
+                <div className="md:col-span-2 bg-blue-50 p-4 rounded-lg space-y-4 border border-blue-100">
+                  <h3 className="text-sm font-semibold text-blue-800 mb-2">ข้อมูลการรับเงินจากไฟแนนซ์</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        วันที่ได้รับเงินจริง
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.actualReceivedDate || ''}
+                        onChange={(e) => handleInputChange('actualReceivedDate', e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ยอดเงินสุทธิที่ได้รับ
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                        <input
+                          type="number"
+                          value={formData.netReceivedAmount || ''}
+                          onChange={(e) => handleInputChange('netReceivedAmount', parseFloat(e.target.value) || 0)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          step="0.01"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">ยอดเงินหลังจากหักค่าธรรมเนียมหรือส่วนต่าง</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Notes (for sale mode, description is already captured for misc mode) */}
               {paymentMode === 'sale' && (

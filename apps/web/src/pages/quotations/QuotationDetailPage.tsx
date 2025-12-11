@@ -3,13 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { quotationService } from '../../services/quotation.service';
 import type { Quotation, QuotationStatus } from '../../services/quotation.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  ArrowLeft, 
-  Edit, 
-  User, 
-  Car, 
-  Calendar, 
-  DollarSign, 
+import {
+  ArrowLeft,
+  Edit,
+  User,
+  Car,
+  Calendar,
+  DollarSign,
   FileText,
   Clock,
   CheckCircle,
@@ -86,7 +86,7 @@ export default function QuotationDetailPage() {
 
   const handleStatusChange = async (newStatus: QuotationStatus) => {
     if (!quotation) return;
-    
+
     const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -144,7 +144,7 @@ export default function QuotationDetailPage() {
 
   const handleDelete = async () => {
     if (!quotation) return;
-    
+
     if (quotation.status !== 'DRAFT') {
       alert('สามารถลบได้เฉพาะใบเสนอราคาที่เป็นแบบร่างเท่านั้น');
       return;
@@ -261,7 +261,7 @@ export default function QuotationDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {quotation.status === 'DRAFT' && (
+            {['DRAFT', 'SENT'].includes(quotation.status) && (
               <>
                 <Link
                   to={`/quotations/${quotation.id}/edit`}
@@ -313,13 +313,12 @@ export default function QuotationDetailPage() {
                   key={nextStatus}
                   onClick={() => handleStatusChange(nextStatus)}
                   disabled={updating}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-                    nextStatus === 'REJECTED' || nextStatus === 'EXPIRED'
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${nextStatus === 'REJECTED' || nextStatus === 'EXPIRED'
                       ? 'bg-red-100 text-red-700 hover:bg-red-200'
                       : nextStatus === 'ACCEPTED'
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                 >
                   {STATUS_ICONS[nextStatus]}
                   <span className="ml-1">{STATUS_LABELS[nextStatus]}</span>
@@ -472,9 +471,8 @@ export default function QuotationDetailPage() {
               </div>
               <div>
                 <dt className="text-sm text-gray-600">วันหมดอายุ</dt>
-                <dd className={`text-sm font-medium ${
-                  isExpired(quotation.validUntil, quotation.status) ? 'text-red-600' : 'text-gray-900'
-                }`}>
+                <dd className={`text-sm font-medium ${isExpired(quotation.validUntil, quotation.status) ? 'text-red-600' : 'text-gray-900'
+                  }`}>
                   {formatDate(quotation.validUntil)}
                   {isExpired(quotation.validUntil, quotation.status) && ' (หมดอายุแล้ว)'}
                 </dd>
@@ -504,7 +502,7 @@ export default function QuotationDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
             <h3 className="text-lg font-semibold mb-4 text-black">แปลงเป็นการขายผ่านการจอง</h3>
-            
+
             <div className="space-y-4">
               {/* Info about conversion type */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

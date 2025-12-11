@@ -468,7 +468,8 @@ export class InterestService {
   async stopInterestCalculation(
     stockId: string,
     userId: string,
-    notes?: string
+    notes?: string,
+    stopDate?: Date
   ): Promise<void> {
     const stock = await db.stock.findUnique({
       where: { id: stockId },
@@ -487,11 +488,12 @@ export class InterestService {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const effectiveStopDate = stopDate || today;
 
     // Close active period if exists
     const activePeriod = stock.interestPeriods[0];
     if (activePeriod) {
-      const days = this.calculateDays(activePeriod.startDate, today);
+      const days = this.calculateDays(activePeriod.startDate, effectiveStopDate);
       const calculatedInterest = this.calculateInterestForPeriod(
         Number(activePeriod.principalAmount),
         Number(activePeriod.annualRate),
@@ -501,7 +503,7 @@ export class InterestService {
       await db.interestPeriod.update({
         where: { id: activePeriod.id },
         data: {
-          endDate: today,
+          endDate: effectiveStopDate,
           calculatedInterest: new Decimal(calculatedInterest),
           daysCount: days,
           notes: notes ? `${activePeriod.notes || ''}\n[Stopped] ${notes}`.trim() : activePeriod.notes,
@@ -514,7 +516,7 @@ export class InterestService {
       where: { id: stockId },
       data: {
         stopInterestCalc: true,
-        interestStoppedAt: today,
+        interestStoppedAt: effectiveStopDate,
       },
     });
   }
@@ -1042,7 +1044,8 @@ export class InterestService {
       await this.stopInterestCalculation(
         stockId,
         userId,
-        `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]} (Total paid: ${input.amount.toLocaleString()}, Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`
+        `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]} (Total paid: ${input.amount.toLocaleString()}, Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+        paymentDate
       );
     }
 

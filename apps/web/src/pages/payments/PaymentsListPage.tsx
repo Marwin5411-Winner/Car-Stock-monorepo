@@ -3,15 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { paymentService } from '../../services/payment.service';
 import type { PaymentListItem, PaymentStats, PaymentStatus, PaymentType, PaymentFilters } from '../../services/payment.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  Plus, 
-  Search, 
-  CreditCard, 
-  DollarSign, 
+import {
+  Plus,
+  Search,
+  CreditCard,
+  DollarSign,
   TrendingUp,
   Ban,
   Receipt,
-  Eye
+  Eye,
+  Printer
 } from 'lucide-react';
 import {
   Table,
@@ -128,6 +129,16 @@ export default function PaymentsListPage() {
       month: 'short',
       day: 'numeric',
     }).format(new Date(dateString));
+  };
+  const handlePrint = async (e: React.MouseEvent, paymentId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await paymentService.downloadReceipt(paymentId);
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('ไม่สามารถดาวน์โหลดใบเสร็จได้');
+    }
   };
 
   return (
@@ -356,6 +367,15 @@ export default function PaymentsListPage() {
                             <Eye className="h-4 w-4 mr-1" />
                             ดู
                           </Link>
+                          {payment.status === 'ACTIVE' && (
+                            <button
+                              onClick={(e) => handlePrint(e, payment.id)}
+                              className="inline-flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors ml-1"
+                              title="พิมพ์ใบเสร็จ"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
