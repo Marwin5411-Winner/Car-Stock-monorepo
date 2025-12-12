@@ -230,6 +230,15 @@ export class StockService {
       where: { vin: validated.vin },
     });
 
+    // Check if Engine Number exists
+    const existingEngineNumber = await db.stock.findUnique({
+      where: { engineNumber: validated.engineNumber },
+    });
+
+    if (existingEngineNumber) {
+      throw new Error('Engine Number already exists');
+    }
+
     if (existingStock) {
       throw new Error('VIN already exists');
     }
@@ -244,11 +253,17 @@ export class StockService {
       throw new Error('Vehicle model not found');
     }
 
-    // Create stock
+    // Create stock - sanitize empty strings to null for unique optional fields
+    const stockData = {
+      ...validated,
+      // Convert empty strings to null for unique fields to avoid constraint violations
+      engineNumber: validated.engineNumber?.trim() || null,
+      motorNumber1: validated.motorNumber1?.trim() || null,
+      motorNumber2: validated.motorNumber2?.trim() || null,
+    };
+
     const stock = await db.stock.create({
-      data: {
-        ...validated,
-      },
+      data: stockData,
     });
 
     // Log activity
@@ -294,10 +309,19 @@ export class StockService {
       throw new Error('Cannot update sold stock');
     }
 
+    // Sanitize empty strings to null for unique optional fields
+    const updateData = {
+      ...validated,
+      // Only sanitize if the field is being updated
+      ...(validated.engineNumber !== undefined && { engineNumber: validated.engineNumber?.trim() || null }),
+      ...(validated.motorNumber1 !== undefined && { motorNumber1: validated.motorNumber1?.trim() || null }),
+      ...(validated.motorNumber2 !== undefined && { motorNumber2: validated.motorNumber2?.trim() || null }),
+    };
+
     // Update stock
     const stock = await db.stock.update({
       where: { id },
-      data: validated,
+      data: updateData,
     });
 
     // Log activity
