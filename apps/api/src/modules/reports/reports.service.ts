@@ -715,11 +715,11 @@ export async function getStockInterestReport(params: StockInterestParams) {
 
   if (isCalculating === true) {
     where.stopInterestCalc = false;
-    where.status = { in: ['AVAILABLE', 'RESERVED', 'PREPARING'] };
+    where.debtStatus = { not: 'PAID_OFF' };
   } else if (isCalculating === false) {
     where.OR = [
       { stopInterestCalc: true },
-      { status: 'SOLD' },
+      { debtStatus: 'PAID_OFF' },
     ];
   }
 
@@ -772,7 +772,7 @@ export async function getStockInterestReport(params: StockInterestParams) {
       const periodDays = calculateDays(activePeriod.startDate, today);
       const activeInterest = calculateInterest(principalAmount, currentRate, periodDays);
       totalAccumulatedInterest += activeInterest;
-    } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+    } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF') {
       // No periods yet, use stock's default rate
       totalAccumulatedInterest = calculateInterest(principalAmount, currentRate, daysCount);
     }
@@ -784,7 +784,7 @@ export async function getStockInterestReport(params: StockInterestParams) {
         totalAccumulatedInterest += toNumber(p.calculatedInterest);
       });
 
-    const isCalculatingNow = !stock.stopInterestCalc && stock.status !== 'SOLD';
+    const isCalculatingNow = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
     const vehicleInfo = `${stock.vehicleModel.brand} ${stock.vehicleModel.model} ${stock.vehicleModel.variant || ''} ${stock.vehicleModel.year}`.trim();
 
     // ดอกเบี้ยที่จ่ายแล้ว = ใช้ค่าจาก paidInterestAmount ที่ track ไว้ใน Stock

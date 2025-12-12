@@ -116,11 +116,11 @@ export class InterestService {
     // Filter by isCalculating
     if (params.isCalculating === true) {
       where.stopInterestCalc = false;
-      where.status = { in: ['AVAILABLE', 'RESERVED', 'PREPARING'] };
+      where.debtStatus = { not: 'PAID_OFF' };
     } else if (params.isCalculating === false) {
       where.OR = [
         { stopInterestCalc: true },
-        { status: 'SOLD' },
+        { debtStatus: 'PAID_OFF' },
       ];
     }
 
@@ -177,7 +177,7 @@ export class InterestService {
           periodDays
         );
         totalAccumulatedInterest += activeInterest;
-      } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+      } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF') {
         // No periods yet, use stock's default rate
         currentRate = Number(stock.interestRate) * 100; // Convert from decimal to percentage
         principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
@@ -197,7 +197,7 @@ export class InterestService {
           totalAccumulatedInterest += Number(p.calculatedInterest);
         });
 
-      const isCalculating = !stock.stopInterestCalc && stock.status !== 'SOLD';
+      const isCalculating = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
 
       return {
         stockId: stock.id,
@@ -309,7 +309,7 @@ export class InterestService {
     });
 
     // If no periods, calculate from orderDate (or arrivalDate if orderDate is null)
-    if (periods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+    if (periods.length === 0 && !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF') {
       const interestStartDate = stock.orderDate || stock.arrivalDate;
       const daysCount = this.calculateDays(interestStartDate, today);
       const principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
@@ -322,7 +322,7 @@ export class InterestService {
       totalDays = daysCount;
     }
 
-    const isCalculating = !stock.stopInterestCalc && stock.status !== 'SOLD';
+    const isCalculating = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
 
     // วันที่เริ่มคิดดอกเบี้ย
     const interestStartDate = stock.orderDate || stock.arrivalDate;
@@ -386,8 +386,8 @@ export class InterestService {
       throw new Error('Interest calculation has been stopped for this stock');
     }
 
-    if (stock.status === 'SOLD') {
-      throw new Error('Cannot update interest for sold stock');
+    if (stock.debtStatus === 'PAID_OFF') {
+      throw new Error('Cannot update interest for stock with paid off debt');
     }
 
     const today = new Date();
@@ -545,8 +545,8 @@ export class InterestService {
       throw new Error('Interest calculation is not stopped');
     }
 
-    if (stock.status === 'SOLD') {
-      throw new Error('Cannot resume interest for sold stock');
+    if (stock.debtStatus === 'PAID_OFF') {
+      throw new Error('Cannot resume interest for stock with paid off debt');
     }
 
     const today = new Date();
@@ -699,14 +699,14 @@ export class InterestService {
 
     for (const stock of allStocks) {
       // Skip stocks with no interest history
-      if (stock.interestPeriods.length === 0 && stock.status === 'SOLD') {
+      if (stock.interestPeriods.length === 0 && stock.debtStatus === 'PAID_OFF') {
         continue;
       }
 
       stocksWithInterest++;
 
       // Check if actively calculating
-      const isCalculating = !stock.stopInterestCalc && stock.status !== 'SOLD';
+      const isCalculating = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
       if (isCalculating) {
         activeCalculations++;
       } else {
@@ -729,7 +729,7 @@ export class InterestService {
         );
         stockInterest += activeInterest;
         totalRate += Number(activePeriod.annualRate);
-      } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+      } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF') {
         // No periods yet, use stock's default rate
         const baseCost = Number(stock.baseCost);
         const totalCost = baseCost + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
@@ -891,7 +891,8 @@ export class InterestService {
     const activePeriod = stock.interestPeriods[0];
     let currentInterestRate = Number(stock.interestRate) * 100;
     
-    if (!stock.stopInterestCalc && stock.status !== 'SOLD') {
+    // Since we've already checked that debtStatus is not PAID_OFF, we only need to check stopInterestCalc
+    if (!stock.stopInterestCalc) {
       if (activePeriod) {
         currentInterestRate = Number(activePeriod.annualRate);
         const periodDays = this.calculateDays(activePeriod.startDate, paymentDate);
@@ -978,7 +979,8 @@ export class InterestService {
 
     // ถ้าจ่ายบางส่วน (ลดเงินต้น) → ต้องปรับ InterestPeriod
     if (!isFullPayment && principalPaid > 0 && principalAfter > 0) {
-      if (!stock.stopInterestCalc && stock.status !== 'SOLD') {
+      // Since we've already checked that debtStatus is not PAID_OFF, we only need to check stopInterestCalc
+      if (!stock.stopInterestCalc) {
         const nextDay = new Date(paymentDate);
         nextDay.setDate(nextDay.getDate() + 1);
 
@@ -1201,7 +1203,7 @@ export class InterestService {
         periodDays
       );
       accruedFromPeriods += activeInterest;
-    } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.status !== 'SOLD') {
+    } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF') {
       // ไม่มี period, คำนวณจาก stock default
       // ใช้ effectiveRemainingDebt แทน effectiveDebtAmount เพื่อให้ดอกเบี้ยถูกต้องหลังจ่ายหนี้บางส่วน
       const interestStartDate = stock.orderDate || stock.arrivalDate;
