@@ -104,7 +104,7 @@ export default function VehicleDetailPage() {
                 <div className="flex items-start">
                   <Tag className="h-5 w-5 text-gray-400 mt-1 mr-3" />
                   <div>
-                    <p className="text-sm text-gray-500">เวอร์ชัน</p>
+                    <p className="text-sm text-gray-500">แบบรถ</p>
                     <p className="text-gray-900">{vehicle.variant}</p>
                   </div>
                 </div>
