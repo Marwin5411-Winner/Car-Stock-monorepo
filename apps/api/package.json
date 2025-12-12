@@ -10,7 +10,8 @@
     "db:migrate": "bunx prisma migrate dev",
     "db:push": "bunx prisma db push",
     "db:seed": "bunx prisma db seed",
-    "db:studio": "bunx prisma studio"
+    "db:studio": "bunx prisma studio",
+    "test": "bun test"
   },
   "dependencies": {
     "@car-stock/shared": "workspace:*",
