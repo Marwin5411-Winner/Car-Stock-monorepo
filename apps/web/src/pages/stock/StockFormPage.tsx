@@ -12,6 +12,9 @@ interface VehicleModel {
   model: string;
   variant?: string;
   year: number;
+  price: string | number;
+  standardCost: string | number;
+  primaryColor?: string;
 }
 
 export default function StockFormPage() {
@@ -118,10 +121,33 @@ export default function StockFormPage() {
   }, [vehicles]);
 
   const handleVehicleSelect = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicleModelId: value,
-    }));
+    const selectedVehicle = vehicles.find((v) => v.id === value);
+
+    setFormData((prev) => {
+      const updates: Partial<typeof prev> = {
+        vehicleModelId: value,
+      };
+
+      // Auto-fill fields from vehicle model (only if creating new or current value is empty/zero)
+      if (selectedVehicle) {
+        // Set baseCost from standardCost if current value is 0 or empty
+        if (!prev.baseCost || prev.baseCost === 0) {
+          updates.baseCost = Number(selectedVehicle.standardCost) || 0;
+        }
+
+        // Set expectedSalePrice from price if current value is undefined or empty
+        if (prev.expectedSalePrice === undefined || prev.expectedSalePrice === 0) {
+          updates.expectedSalePrice = Number(selectedVehicle.price) || undefined;
+        }
+
+        // Set exteriorColor from primaryColor if current value is empty
+        if (!prev.exteriorColor && selectedVehicle.primaryColor) {
+          updates.exteriorColor = selectedVehicle.primaryColor;
+        }
+      }
+
+      return { ...prev, ...updates };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
