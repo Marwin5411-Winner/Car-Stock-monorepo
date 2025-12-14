@@ -38,14 +38,14 @@ export default function StockFormPage() {
     orderDate: '',
     parkingSlot: '',
     status: 'AVAILABLE' as 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD',
-    baseCost: 0,
-    transportCost: 0,
-    accessoryCost: 0,
-    otherCosts: 0,
+    baseCost: '' as number | '',
+    transportCost: '' as number | '',
+    accessoryCost: '' as number | '',
+    otherCosts: '' as number | '',
     financeProvider: '',
-    interestRate: 0,
+    interestRate: '' as number | '',
     interestPrincipalBase: 'TOTAL_COST' as 'BASE_COST_ONLY' | 'TOTAL_COST',
-    expectedSalePrice: undefined as number | undefined,
+    expectedSalePrice: '' as number | '',
     notes: '',
   });
 
@@ -88,7 +88,7 @@ export default function StockFormPage() {
         financeProvider: stock.financeProvider || '',
         interestRate: Number(stock.interestRate) * 100,
         interestPrincipalBase: stock.interestPrincipalBase,
-        expectedSalePrice: stock.expectedSalePrice ? Number(stock.expectedSalePrice) : undefined,
+        expectedSalePrice: stock.expectedSalePrice ? Number(stock.expectedSalePrice) : '',
         notes: stock.notes || '',
       });
     } catch (error) {
@@ -103,11 +103,9 @@ export default function StockFormPage() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'expectedSalePrice'
-        ? (value === '' ? undefined : Number(value))
-        : ['baseCost', 'transportCost', 'accessoryCost', 'otherCosts', 'interestRate'].includes(name)
-          ? Number(value)
-          : value,
+      [name]: ['baseCost', 'transportCost', 'accessoryCost', 'otherCosts', 'interestRate', 'expectedSalePrice'].includes(name)
+        ? (value === '' ? '' : Number(value))
+        : value,
     }));
   };
 
@@ -157,7 +155,12 @@ export default function StockFormPage() {
     try {
       const data = {
         ...formData,
-        interestRate: formData.interestRate / 100,
+        baseCost: formData.baseCost === '' ? 0 : Number(formData.baseCost),
+        transportCost: formData.transportCost === '' ? 0 : Number(formData.transportCost),
+        accessoryCost: formData.accessoryCost === '' ? 0 : Number(formData.accessoryCost),
+        otherCosts: formData.otherCosts === '' ? 0 : Number(formData.otherCosts),
+        interestRate: formData.interestRate === '' ? 0 : Number(formData.interestRate) / 100,
+        expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
         orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
         arrivalDate: new Date(formData.arrivalDate),
       };

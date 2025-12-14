@@ -93,7 +93,7 @@ export default function StockListPage() {
 
   return (
     <MainLayout>
-    <div className="mb-6">
+      <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900">จัดการ Stock</h1>
           <Link
@@ -219,7 +219,7 @@ export default function StockListPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm font-medium text-gray-900">
-                          {stock.vehicleModel.brand} {stock.vehicleModel.model}
+                          {stock.vehicleModel.brand} {stock.vehicleModel.model} {stock.vehicleModel.variant || ''}
                         </div>
                         <div className="text-sm text-gray-500">
                           ปี {stock.vehicleModel.year}
@@ -246,15 +246,14 @@ export default function StockListPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            stock.status === 'AVAILABLE'
+                          className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.status === 'AVAILABLE'
                               ? 'bg-green-100 text-green-800'
                               : stock.status === 'RESERVED'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : stock.status === 'PREPARING'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : stock.status === 'PREPARING'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-800'
+                            }`}
                         >
                           {stock.status === 'AVAILABLE' && 'พร้อมขาย'}
                           {stock.status === 'RESERVED' && 'จองแล้ว'}

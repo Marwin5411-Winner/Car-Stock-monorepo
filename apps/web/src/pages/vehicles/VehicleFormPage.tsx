@@ -24,9 +24,9 @@ export default function VehicleFormPage() {
     mainOptions: '',
     engineSpecs: '',
     dimensions: '',
-    price: 0,
-    standardCost: 0,
-    targetMargin: 0,
+    price: '' as number | '',
+    standardCost: '' as number | '',
+    targetMargin: '' as number | '',
     notes: '',
   });
 
@@ -69,9 +69,11 @@ export default function VehicleFormPage() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'year' || name === 'price' || name === 'standardCost' || name === 'targetMargin'
+      [name]: name === 'year'
         ? Number(value)
-        : value,
+        : ['price', 'standardCost', 'targetMargin'].includes(name)
+          ? (value === '' ? '' : Number(value))
+          : value,
     }));
   };
 
@@ -92,9 +94,9 @@ export default function VehicleFormPage() {
         mainOptions: formData.mainOptions || undefined,
         engineSpecs: formData.engineSpecs || undefined,
         dimensions: formData.dimensions || undefined,
-        price: formData.price,
-        standardCost: formData.standardCost,
-        targetMargin: formData.targetMargin || undefined,
+        price: formData.price === '' ? 0 : Number(formData.price),
+        standardCost: formData.standardCost === '' ? 0 : Number(formData.standardCost),
+        targetMargin: formData.targetMargin === '' ? undefined : Number(formData.targetMargin),
         notes: formData.notes || undefined,
       };
 
