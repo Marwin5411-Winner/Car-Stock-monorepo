@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { interestService } from '../../services/interest.service';
-import type { InterestDetail, DebtSummary, DebtPayment, PaymentMethod } from '../../services/interest.service';
+import type { InterestDetail, DebtSummary, DebtPayment, PaymentMethod, PaymentType } from '../../services/interest.service';
 import { MainLayout } from '../../components/layout';
 import DebtPaymentModal from '../../components/interest/DebtPaymentModal';
 import {
@@ -71,12 +71,13 @@ export default function InterestDetailPage() {
   const handleDebtPayment = async (data: {
     amount: number;
     paymentMethod: PaymentMethod;
+    paymentType?: PaymentType;
     paymentDate?: string;
     referenceNumber?: string;
     notes?: string;
   }) => {
     const result = await interestService.recordDebtPayment(stockId!, data);
-    
+
     // Show success message
     if (result.debtPaidOff) {
       alert('🎉 ปิดหนี้เรียบร้อยแล้ว! ระบบหยุดคิดดอกเบี้ยอัตโนมัติ');
@@ -85,7 +86,7 @@ export default function InterestDetailPage() {
     } else {
       alert('บันทึกการจ่ายเงินเรียบร้อยแล้ว');
     }
-    
+
     // Refresh data
     await Promise.all([fetchDetail(), fetchDebtData()]);
   };

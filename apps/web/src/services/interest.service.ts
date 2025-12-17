@@ -114,10 +114,12 @@ export interface ResumeInterestData {
 // Debt Management Types
 export type DebtStatus = 'NO_DEBT' | 'ACTIVE' | 'PAID_OFF';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT_CARD';
+export type PaymentType = 'AUTO' | 'PRINCIPAL_ONLY' | 'INTEREST_ONLY';
 
 export interface DebtPaymentData {
   amount: number;
   paymentMethod: PaymentMethod;
+  paymentType?: PaymentType;
   paymentDate?: string;
   referenceNumber?: string;
   notes?: string;

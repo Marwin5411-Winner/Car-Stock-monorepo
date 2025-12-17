@@ -459,6 +459,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           {
             amount: body.amount,
             paymentMethod: body.paymentMethod as any,
+            paymentType: body.paymentType as any,
             paymentDate: body.paymentDate ? new Date(body.paymentDate) : undefined,
             referenceNumber: body.referenceNumber,
             notes: body.notes,
@@ -497,6 +498,11 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           t.Literal('CHEQUE'),
           t.Literal('CREDIT_CARD'),
         ]),
+        paymentType: t.Optional(t.Union([
+          t.Literal('AUTO'),
+          t.Literal('PRINCIPAL_ONLY'),
+          t.Literal('INTEREST_ONLY'),
+        ])),
         paymentDate: t.Optional(t.String()),
         referenceNumber: t.Optional(t.String()),
         notes: t.Optional(t.String()),
@@ -504,7 +510,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
       detail: {
         tags: ['Interest', 'Debt'],
         summary: 'Record a debt payment',
-        description: 'Record a payment towards the stock debt. Partial payments will adjust the interest principal.',
+        description: 'Record a payment towards the stock debt. paymentType: AUTO (pay interest first), PRINCIPAL_ONLY (pay principal only), INTEREST_ONLY (pay interest only).',
       },
     }
   )

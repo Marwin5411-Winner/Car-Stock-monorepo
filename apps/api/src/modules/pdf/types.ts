@@ -63,6 +63,7 @@ export interface DeliveryReceiptData {
 export interface ThankYouLetterData {
   header: CompanyHeader;
   thaiDate: string;
+  customerName: string; // ชื่อลูกค้า
   carBrand: string;
   detailsTable: {
     sellingPrice: string;
@@ -310,6 +311,8 @@ export interface DepositReceiptData {
  */
 export interface PdfOptions {
   format?: 'A4' | 'Letter';
+  width?: string; // Custom width (e.g., '9in', '228.6mm')
+  height?: string; // Custom height (e.g., '5.5in', '139.7mm')
   margin?: {
     top: string;
     right: string;
@@ -332,6 +335,7 @@ export enum PdfTemplateType {
   DEPOSIT_RECEIPT = 'deposit-receipt',
   PAYMENT_RECEIPT = 'payment-receipt',
   VEHICLE_CARD = 'vehicle-card',
+  TEMPORARY_RECEIPT = 'temporary-receipt',
 }
 
 /**
@@ -375,4 +379,48 @@ export interface VehicleCardData {
     totalCost: string;
   };
   location?: string; // Parking slot
+}
+
+/**
+ * Item in temporary receipt
+ */
+export interface TemporaryReceiptItem {
+  no?: number;
+  description: string;
+  amount: string;
+}
+
+/**
+ * ใบรับเงินชั่วคราว (Temporary Receipt) - Small Format 9x5.5 inch
+ */
+export interface TemporaryReceiptData {
+  header: CompanyHeader & {
+    fax?: string;
+  };
+  customerCode?: string;
+  receiptNumber: string;
+  date: string;
+  contractNumber?: string; // เลขที่สัญญา
+  customer: CustomerInfo;
+  items: TemporaryReceiptItem[];
+  // Totals section
+  paymentAmount?: string; // ยอดชำระ
+  lateFee?: string; // เบี้ยปรับล่าช้า/ภาษน.
+  discount?: string; // หัก ส่วนลด
+  totalAmount: string; // จำนวนเงินที่ต้องชำระ
+  totalAmountText?: string; // Thai text representation
+  paymentMethod?: {
+    isCash?: boolean;
+    isCheque?: boolean;
+    isTransfer?: boolean;
+    bankName?: string;
+    branchName?: string;
+    accountNumber?: string;
+    chequeNumber?: string;
+    chequeDate?: string;
+    chequeAmount?: string;
+    transferDate?: string;
+    transferAmount?: string;
+  };
+  note?: string;
 }

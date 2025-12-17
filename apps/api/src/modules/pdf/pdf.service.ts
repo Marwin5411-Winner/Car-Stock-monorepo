@@ -19,6 +19,7 @@ import {
   DepositReceiptData,
   PaymentReceiptData,
   VehicleCardData,
+  TemporaryReceiptData,
   CompanyHeader,
 } from './types';
 import {
@@ -494,8 +495,7 @@ export class PdfService {
       });
 
       // Generate PDF
-      const pdfBuffer = await page.pdf({
-        format: options.format || 'A4',
+      const pdfOptions: any = {
         margin: options.margin || {
           top: '10mm',
           right: '10mm',
@@ -505,7 +505,17 @@ export class PdfService {
         landscape: options.landscape || false,
         printBackground: options.printBackground !== false,
         preferCSSPageSize: true,
-      });
+      };
+
+      // Use custom width/height if provided, otherwise use format
+      if (options.width && options.height) {
+        pdfOptions.width = options.width;
+        pdfOptions.height = options.height;
+      } else {
+        pdfOptions.format = options.format || 'A4';
+      }
+
+      const pdfBuffer = await page.pdf(pdfOptions);
 
       return Buffer.from(pdfBuffer);
     } finally {
@@ -567,6 +577,23 @@ export class PdfService {
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, { landscape: true });
+  }
+
+  /**
+   * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว) - Small Format 9x5.5 inch
+   */
+  public async generateTemporaryReceipt(data: TemporaryReceiptData): Promise<Buffer> {
+    // Use custom small page size (9x5.5 inches)
+    return this.generatePdf(PdfTemplateType.TEMPORARY_RECEIPT, data, {
+      width: '9in',
+      height: '5.5in',
+      margin: {
+        top: '5mm',
+        right: '5mm',
+        bottom: '5mm',
+        left: '5mm',
+      },
+    });
   }
 
   /**

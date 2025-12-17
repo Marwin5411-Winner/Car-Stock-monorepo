@@ -214,11 +214,11 @@ class PaymentService {
    */
   async downloadReceipt(id: string): Promise<void> {
     try {
-      const blob = await api.getBlob(`/api/pdf/payment-receipt/${id}`);
+      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `receipt-${id}.pdf`;
+      a.download = `temporary-receipt-${id}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

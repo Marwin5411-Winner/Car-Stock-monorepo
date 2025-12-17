@@ -16,6 +16,7 @@ import {
   DepositReceiptData,
   PaymentReceiptData,
   VehicleCardData,
+  TemporaryReceiptData,
   CustomerInfo,
   CarInfo,
 } from './types';
@@ -153,6 +154,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
           },
           thaiDate: formatThaiDate(new Date(), 'full'),
+          customerName: sale.customer?.name || '-',
           carBrand: car.brand,
           detailsTable: {
             sellingPrice: sale.totalAmount?.toString() || '0',
@@ -722,6 +724,110 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   )
 
   /**
+   * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว)
+   */
+  .get(
+    '/temporary-receipt/:paymentId',
+    async ({ params, set }) => {
+      try {
+        const payment = await db.payment.findUnique({
+          where: { id: params.paymentId },
+          include: {
+            sale: {
+              include: {
+                customer: true,
+                stock: {
+                  include: {
+                    vehicleModel: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!payment) {
+          set.status = 404;
+          return { success: false, error: 'Payment not found' };
+        }
+
+        const sale = payment.sale;
+        const customer = sale?.customer;
+
+        // Build items array from payment description or default
+        const items = [
+          {
+            description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
+            amount: payment.amount.toString(),
+          },
+        ];
+
+        // Determine payment method
+        const paymentMethodData = {
+          isCash: payment.paymentMethod === 'CASH',
+          isCheque: payment.paymentMethod === 'CHEQUE',
+          isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+          bankName: payment.receivingBank || '',
+          branchName: '',
+          accountNumber: '',
+          transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+        };
+
+        const data: TemporaryReceiptData = {
+          header: {
+            logoBase64: '',
+            companyName: 'บริษัท สยามเค มาสเตอร์เซลส์ จำกัด',
+            address1: '438 หนองคาย 288 Thanon Mittraphap, ในเมือง เมือง Nakhon Ratchasima 30000',
+            address2: '',
+            phone: '044-272888, 271178, 271169. 271851',
+            fax: '044-271224',
+          },
+          customerCode: customer?.code || '',
+          receiptNumber: payment.receiptNumber,
+          date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+          contractNumber: sale?.saleNumber || '',
+          customer: transformCustomer(customer),
+          items,
+          // Totals section
+          paymentAmount: payment.amount.toString(),
+          lateFee: '0',
+          discount: '0',
+          totalAmount: payment.amount.toString(),
+          totalAmountText: '', // Will be calculated by helper
+          paymentMethod: paymentMethodData,
+          note: payment.notes || undefined,
+        };
+
+        const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-${payment.receiptNumber}.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Failed to generate PDF',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      params: t.Object({
+        paymentId: t.String(),
+      }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Generate Temporary Receipt PDF',
+        description: 'Generate ใบรับเงินชั่วคราว PDF for a payment',
+      },
+    }
+  )
+
+  /**
    * Preview PDF without authentication (for testing only - remove in production)
    */
   .get(
@@ -771,9 +877,30 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           case 'thank-you-letter':
             pdfBuffer = await pdfService.generateThankYouLetter({
               header: sampleHeader,
-              letterDate: new Date().toISOString(),
-              customer: sampleCustomer,
-              car: sampleCar,
+              thaiDate: formatThaiDate(new Date(), 'full'),
+              customerName: sampleCustomer.name,
+              carBrand: sampleCar.brand,
+              detailsTable: {
+                sellingPrice: '890000',
+                discount: '50000',
+                remaining: '840000',
+                downPayment: '100000',
+                downPaymentDiscount: '0',
+                insurance: '15000',
+                actInsurance: '2500',
+                registrationFee: '3000',
+                totalDelivery: '120500',
+                financeAmount: '740000',
+                interestRate: '3.5',
+                installmentMonths: '60',
+                monthlyPayment: '14500',
+                gifts: [{ name: 'ฟิล์มกรองแสง' }, { name: 'กล้องหน้าหลัง' }],
+              },
+              contactPerson: {
+                name: 'นายณัฐนันท์ คมฤทัย',
+                phone: 'โทร.(044) 272888, 094-978-9926',
+                position: 'ฝ่ายตรวจสอบ',
+              },
             });
             break;
 

@@ -1,0 +1,370 @@
+<div class="receipt-container">
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="logo-box">
+            <img src="{{header.logoBase64}}" alt="VB Innovation Logo" class="logo-img" />
+        </div>
+        <div class="company-details">
+            <h1 class="company-name">บริษัท สยามเค มาสเตอร์เซลล์ จำกัด</h1>
+            <p>438 หนองคาย 288 Thanon Mittraphap, ในเมือง เมือง Nakhon Ratchasima 30000</p>
+            <p>โทร. 044-272888, 271178, 271169. 271851 FAX. 044-271224</p>
+        </div>
+        <div class="original-label">ต้นฉบับ</div>
+    </div>
+
+    <!-- Main Table Wrapper for Rounded Border -->
+    <div class="table-wrapper">
+        <table class="main-receipt-table">
+            <!-- Row 1: Customer Code, Title, Doc No -->
+            <tr>
+                <td class="label-cell" style="width: 15%;">รหัสลูกค้า</td>
+                <td class="data-cell" style="width: 20%;">{{customerCode}}</td>
+                <td class="title-cell" style="width: 30%;">ใบรับเงินชั่วคราว</td>
+                <td class="label-cell label-no-left-border right-align" style="width: 15%;">เลขที่เอกสาร</td>
+                <td class="data-cell" style="width: 20%;">{{receiptNumber}}</td>
+            </tr>
+            <!-- Row 2: Name, Date -->
+            <tr>
+                <td class="label-cell">ชื่อ - นามสกุล</td>
+                <td class="data-cell" colspan="2" style="border-right: none;">{{customer.name}}</td>
+                <td class="label-cell label-no-left-border right-align">วันที่</td>
+                <td class="data-cell">{{formatThaiDate date 'short'}}</td>
+            </tr>
+            <!-- Row 3: Address, Phone, Contract No -->
+            <tr>
+                <td class="label-cell">ที่อยู่</td>
+                <td class="data-cell" style="border-right: none;">{{customer.address}} {{customer.subdistrict}} {{customer.district}} {{customer.province}} {{customer.postalCode}}</td>
+                <td class="data-cell label-no-left-border" style="border-right: none;"><strong>เบอร์โทร.</strong> {{customer.phone}}</td>
+                <td class="label-cell label-no-left-border right-align">เลขที่สัญญา</td>
+                <td class="data-cell">{{contractNumber}}</td>
+            </tr>
+            <!-- Items Header Row -->
+            <tr class="items-header-row">
+                <td class="items-header" colspan="3">รายการ</td>
+                <td class="items-header amount-header" colspan="2">จำนวนเงิน</td>
+            </tr>
+            <!-- Items Body -->
+            {{#each items}}
+            <tr class="item-row">
+                <td class="item-desc" colspan="3">{{this.description}}</td>
+                <td class="item-amount" colspan="2">{{formatCurrency this.amount}}</td>
+            </tr>
+            {{/each}}
+            <!-- Empty space for more items -->
+            <tr class="item-row spacer-row">
+                <td colspan="3">&nbsp;</td>
+                <td colspan="2">&nbsp;</td>
+            </tr>
+            <!-- Totals Section -->
+            <tr class="total-row">
+                <td colspan="3" class="total-label-cell">ยอดชำระ</td>
+                <td colspan="2" class="total-value-cell">{{formatCurrency paymentAmount}}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="3" class="total-label-cell">เบี้ยปรับล่าช้า/ค่าธน.</td>
+                <td colspan="2" class="total-value-cell">{{formatCurrency lateFee}}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="3" class="total-label-cell">หักส่วนลด</td>
+                <td colspan="2" class="total-value-cell">{{formatCurrency discount}}</td>
+            </tr>
+            <!-- Grand Total Row -->
+            <tr class="grand-total-row">
+                <td colspan="3" class="grand-total-label">จำนวนเงินที่ต้องชำระ</td>
+                <td colspan="2" class="grand-total-value">{{formatCurrency totalAmount}}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Signatures Section -->
+    <div class="signatures-section">
+        <div class="sig-row">
+            <!-- Left Column: Signer -->
+            <div class="sig-col-left">
+                <div class="sig-item">
+                    <span class="sig-label">ผู้รับเงิน</span>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+            <!-- Right Column: Date -->
+            <div class="sig-col-right">
+                <div class="sig-item">
+                    <span class="sig-label">วันที่</span>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+             <!-- Suffix for first row -->
+             <div class="sig-suffix-box">
+                <span class="sig-suffix">ชําระโดย</span>
+            </div>
+        </div>
+
+        <div class="sig-row">
+             <div class="sig-col-left">
+                <div class="sig-item">
+                    <span class="sig-label">ผู้ตรวจสอบ</span>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+             <div class="sig-col-right">
+                <div class="sig-item">
+                    <span class="sig-label">วันที่</span>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sig-row">
+             <div class="sig-col-left">
+                <div class="sig-item">
+                    <span class="sig-label">ผู้จัดทํา</span>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+             <div class="sig-col-right">
+                <!-- Empty for last row -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ============================================
+       Temporary Receipt - Recreated & Refined
+       ============================================ */
+    
+    .receipt-container {
+        font-family: 'Kanit', sans-serif;
+        color: #000;
+        padding: 0;
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.3;
+        position: relative;
+    }
+
+    /* Header Section */
+    .header-section {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 5px;
+        position: relative;
+    }
+
+    .logo-box {
+        width: 80px;
+        margin-right: 15px;
+    }
+
+    .logo-img {
+        width: 70px;
+        height: auto;
+    }
+
+    .company-details {
+        flex: 1;
+        padding-top: 2px;
+    }
+
+    .company-name {
+        font-size: 15px;
+        font-weight: bold;
+        margin: 0 0 2px 0;
+    }
+
+    .company-details p {
+        font-size: 10px;
+        margin: 0;
+        line-height: 1.35;
+    }
+
+    .original-label {
+        position: absolute;
+        top: 0;
+        right: 0;
+        color: red; 
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    /* Table Wrapper for Rounded Corners and Thick Border */
+    .table-wrapper {
+        border: 2px solid #000; /* Outer thick border */
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+
+    .main-receipt-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        border-style: hidden; 
+    }
+
+    .main-receipt-table td {
+        border: 1px solid #000;
+        padding: 4px 6px;
+        vertical-align: middle;
+    }
+
+    /* Helper Classes */
+    .label-cell {
+        background-color: #fff;
+        text-align: left;
+    }
+
+    .data-cell {
+        background-color: #fff;
+        text-align: left;
+    }
+
+    .right-align {
+        text-align: right;
+    }
+
+    /* Remove left border for specific cells to merge visually with valid previous cell */
+    .label-no-left-border {
+        border-left: none !important;
+    }
+
+    .title-cell {
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        color: red; 
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+    }
+
+    /* Items Header */
+    .items-header-row td {
+        background-color: #fff; 
+        font-weight: normal; 
+        padding-top: 15px; /* Separation from header info */
+        padding-bottom: 5px;
+        border-bottom: none; 
+    }
+    
+    .items-header {
+        text-align: left;
+        padding-left: 15px;
+    }
+    
+    .amount-header {
+        text-align: center;
+        border-left: 1px solid #000;
+    }
+
+    /* Item Rows */
+    .item-row td {
+        border-top: none;
+        border-bottom: none;
+        padding: 4px 15px;
+    }
+
+    .item-desc {
+        text-align: left;
+    }
+
+    .item-amount {
+        text-align: right;
+        border-left: 1px solid #000;
+    }
+
+    .spacer-row td {
+        height: 80px; /* Adjust height for filler */
+    }
+
+    /* Totals Section */
+    .total-row td {
+        border-top: none;
+        border-bottom: none;
+        padding: 2px 15px;
+    }
+
+    .total-label-cell {
+        text-align: right;
+        padding-right: 10px;
+        border-right: none !important;
+        border-left: 2px solid #000 !important; /* Re-establish left border for totals area if needed, but wrapper handles it mainly. 
+            Actually, the table td border handles it. Let's ensure the vertical line is continuous. */
+    }
+
+    .total-value-cell {
+        text-align: right;
+        border-left: 1px solid #000 !important;
+        border-right: none !important; 
+    }
+
+    /* Grand Total Row */
+    .grand-total-row td {
+        border-top: 1px solid #000;
+        padding: 6px 15px;
+    }
+
+    .grand-total-label {
+        text-align: right;
+        padding-right: 10px;
+        font-weight: bold;
+        border-right: none !important;
+    }
+
+    .grand-total-value {
+        text-align: right;
+        font-weight: bold;
+        border-left: 1px solid #000 !important;
+    }
+    
+    /* Signatures Section */
+    .signatures-section {
+        margin-top: 5px;
+        font-size: 11px;
+    }
+
+    .sig-row {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        margin-bottom: 8px;
+        position: relative;
+    }
+
+    .sig-col-left {
+        width: 45%;
+    }
+    
+    .sig-col-right {
+        width: 40%;
+        margin-left: 5%;
+    }
+
+    .sig-item {
+        display: flex;
+        align-items: flex-end;
+    }
+
+    .sig-label {
+        font-weight: bold;
+        margin-right: 10px;
+        min-width: 60px;
+    }
+
+    .sig-line {
+        flex: 1;
+        border-bottom: 1px dotted #000;
+        height: 1px;
+        margin-bottom: 4px;
+    }
+    
+    .sig-suffix-box {
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+    
+    .sig-suffix {
+        font-weight: bold;
+    }
+
+</style>

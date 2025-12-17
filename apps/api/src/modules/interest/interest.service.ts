@@ -801,13 +801,17 @@ export class InterestService {
 
   /**
    * Record a debt payment (บันทึกการจ่ายหนี้รถ)
-   * ใช้หลัก Interest-First Allocation: จ่ายดอกเบี้ยก่อน ส่วนเหลือลดเงินต้น
+   * paymentType:
+   * - AUTO: ใช้หลัก Interest-First Allocation: จ่ายดอกเบี้ยก่อน ส่วนเหลือลดเงินต้น
+   * - PRINCIPAL_ONLY: จ่ายเฉพาะเงินต้น (ไม่ลดดอกเบี้ยค้าง)
+   * - INTEREST_ONLY: จ่ายเฉพาะดอกเบี้ย (ไม่ลดเงินต้น)
    */
   async recordDebtPayment(
     stockId: string,
     input: {
       amount: number;
       paymentMethod: PaymentMethod;
+      paymentType?: 'AUTO' | 'PRINCIPAL_ONLY' | 'INTEREST_ONLY';
       paymentDate?: Date;
       referenceNumber?: string;
       notes?: string;
@@ -863,6 +867,7 @@ export class InterestService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const paymentDate = input.paymentDate || today;
+    const paymentType = input.paymentType || 'AUTO';
 
     // Auto-initialize debt ถ้ายังไม่มี แต่มี financeProvider
     let currentDebtAmount = Number(stock.debtAmount);
@@ -912,26 +917,40 @@ export class InterestService {
       }
     }
 
-    // คำนวณ Total Payoff = เงินต้นคงเหลือ + ดอกเบี้ยสะสม
-    const totalPayoff = currentRemainingDebt + accruedInterestAtPayment;
-
-    // ตรวจสอบว่าจ่ายเกินหรือไม่
-    if (input.amount > totalPayoff) {
-      throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds total payoff (${totalPayoff.toLocaleString()})`);
-    }
-
-    // Interest-First Allocation: จ่ายดอกเบี้ยก่อน ส่วนเหลือลดเงินต้น
+    // Validate and calculate allocation based on paymentType
     let interestPaid = 0;
     let principalPaid = 0;
 
-    if (input.amount >= accruedInterestAtPayment) {
-      // จ่ายพอครอบคลุมดอกเบี้ยทั้งหมด
-      interestPaid = accruedInterestAtPayment;
-      principalPaid = input.amount - accruedInterestAtPayment;
-    } else {
-      // จ่ายไม่พอดอกเบี้ย = จ่ายดอกเบี้ยบางส่วน (ไม่ลดเงินต้น)
+    if (paymentType === 'PRINCIPAL_ONLY') {
+      // จ่ายเฉพาะเงินต้น
+      if (input.amount > currentRemainingDebt) {
+        throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds remaining principal (${currentRemainingDebt.toLocaleString()})`);
+      }
+      interestPaid = 0;
+      principalPaid = input.amount;
+    } else if (paymentType === 'INTEREST_ONLY') {
+      // จ่ายเฉพาะดอกเบี้ย
+      if (input.amount > accruedInterestAtPayment) {
+        throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds accrued interest (${accruedInterestAtPayment.toLocaleString()})`);
+      }
       interestPaid = input.amount;
       principalPaid = 0;
+    } else {
+      // AUTO: Interest-First Allocation
+      const totalPayoff = currentRemainingDebt + accruedInterestAtPayment;
+      if (input.amount > totalPayoff) {
+        throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds total payoff (${totalPayoff.toLocaleString()})`);
+      }
+
+      if (input.amount >= accruedInterestAtPayment) {
+        // จ่ายพอครอบคลุมดอกเบี้ยทั้งหมด
+        interestPaid = accruedInterestAtPayment;
+        principalPaid = input.amount - accruedInterestAtPayment;
+      } else {
+        // จ่ายไม่พอดอกเบี้ย = จ่ายดอกเบี้ยบางส่วน (ไม่ลดเงินต้น)
+        interestPaid = input.amount;
+        principalPaid = 0;
+      }
     }
 
     const principalBefore = currentRemainingDebt;

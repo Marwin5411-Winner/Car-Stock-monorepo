@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { X, Wallet, AlertCircle, TrendingUp, Calculator } from 'lucide-react';
-import type { DebtSummary, PaymentMethod } from '../../services/interest.service';
+import type { DebtSummary, PaymentMethod, PaymentType } from '../../services/interest.service';
 
 interface DebtPaymentModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface DebtPaymentModalProps {
   onSubmit: (data: {
     amount: number;
     paymentMethod: PaymentMethod;
+    paymentType?: PaymentType;
     paymentDate?: string;
     referenceNumber?: string;
     notes?: string;
@@ -31,6 +32,12 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'CREDIT_CARD', label: 'บัตรเครดิต' },
 ];
 
+const PAYMENT_TYPES: { value: PaymentType; label: string; description: string }[] = [
+  { value: 'AUTO', label: 'อัตโนมัติ', description: 'จ่ายดอกเบี้ยก่อน ส่วนเหลือลดเงินต้น' },
+  { value: 'PRINCIPAL_ONLY', label: 'จ่ายเงินต้น', description: 'จ่ายเฉพาะเงินต้น ไม่ลดดอกเบี้ย' },
+  { value: 'INTEREST_ONLY', label: 'จ่ายดอกเบี้ย', description: 'จ่ายเฉพาะดอกเบี้ย ไม่ลดเงินต้น' },
+];
+
 export default function DebtPaymentModal({
   isOpen,
   onClose,
@@ -40,6 +47,7 @@ export default function DebtPaymentModal({
 }: DebtPaymentModalProps) {
   const [amount, setAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('BANK_TRANSFER');
+  const [paymentType, setPaymentType] = useState<PaymentType>('AUTO');
   const [paymentDate, setPaymentDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -63,61 +71,84 @@ export default function DebtPaymentModal({
     }).format(value);
   };
 
-  // คำนวณ payment allocation (interest-first)
+  // คำนวณ payment allocation ตาม paymentType
   const paymentAllocation = useMemo(() => {
     const paymentAmount = parseFloat(amount) || 0;
     const accruedInterest = debtSummary.accruedInterest || 0;
     const remainingDebt = debtSummary.remainingDebt;
-    
+
     let interestPaid = 0;
     let principalPaid = 0;
-    
-    if (paymentAmount >= accruedInterest) {
-      interestPaid = accruedInterest;
-      principalPaid = paymentAmount - accruedInterest;
-    } else {
+
+    if (paymentType === 'PRINCIPAL_ONLY') {
+      interestPaid = 0;
+      principalPaid = paymentAmount;
+    } else if (paymentType === 'INTEREST_ONLY') {
       interestPaid = paymentAmount;
       principalPaid = 0;
+    } else {
+      // AUTO: interest-first
+      if (paymentAmount >= accruedInterest) {
+        interestPaid = accruedInterest;
+        principalPaid = paymentAmount - accruedInterest;
+      } else {
+        interestPaid = paymentAmount;
+        principalPaid = 0;
+      }
     }
-    
+
     const newRemainingDebt = remainingDebt - principalPaid;
-    
+
     return {
       interestPaid,
       principalPaid,
       newRemainingDebt: Math.max(0, newRemainingDebt),
-      isFullPayment: newRemainingDebt <= 0.01,
+      isFullPayment: newRemainingDebt <= 0.01 && interestPaid >= accruedInterest,
     };
-  }, [amount, debtSummary.accruedInterest, debtSummary.remainingDebt]);
+  }, [amount, debtSummary.accruedInterest, debtSummary.remainingDebt, paymentType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const paymentAmount = parseFloat(amount);
-    
+
     if (!paymentAmount || paymentAmount <= 0) {
       setError('กรุณาระบุจำนวนเงินที่ถูกต้อง');
       return;
     }
-    
-    // ตรวจสอบกับ totalPayoffAmount (เงินต้น + ดอกเบี้ย)
-    if (paymentAmount > debtSummary.totalPayoffAmount) {
-      setError(`จำนวนเงิน (${formatCurrency(paymentAmount)}) มากกว่ายอดปิดหนี้ (${formatCurrency(debtSummary.totalPayoffAmount)})`);
-      return;
+
+    // Validate based on paymentType
+    if (paymentType === 'PRINCIPAL_ONLY') {
+      if (paymentAmount > debtSummary.remainingDebt) {
+        setError(`จำนวนเงิน (${formatCurrency(paymentAmount)}) มากกว่าเงินต้นคงเหลือ (${formatCurrency(debtSummary.remainingDebt)})`);
+        return;
+      }
+    } else if (paymentType === 'INTEREST_ONLY') {
+      if (paymentAmount > (debtSummary.accruedInterest || 0)) {
+        setError(`จำนวนเงิน (${formatCurrency(paymentAmount)}) มากกว่าดอกเบี้ยค้างชำระ (${formatCurrency(debtSummary.accruedInterest || 0)})`);
+        return;
+      }
+    } else {
+      // AUTO: check against totalPayoffAmount
+      if (paymentAmount > debtSummary.totalPayoffAmount) {
+        setError(`จำนวนเงิน (${formatCurrency(paymentAmount)}) มากกว่ายอดปิดหนี้ (${formatCurrency(debtSummary.totalPayoffAmount)})`);
+        return;
+      }
     }
 
     try {
       setLoading(true);
       setError(null);
-      
+
       await onSubmit({
         amount: paymentAmount,
         paymentMethod,
+        paymentType,
         paymentDate: paymentDate || undefined,
         referenceNumber: referenceNumber || undefined,
         notes: notes || undefined,
       });
-      
+
       // Reset form
       setAmount('');
       setReferenceNumber('');
@@ -146,7 +177,7 @@ export default function DebtPaymentModal({
       <div className="flex min-h-full items-center justify-center p-4">
         {/* Backdrop */}
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-        
+
         {/* Modal */}
         <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg">
           {/* Header */}
@@ -187,7 +218,7 @@ export default function DebtPaymentModal({
                 <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.remainingDebt)}</p>
               </div>
             </div>
-            
+
             {/* Interest (ดอกเบี้ย) */}
             {hasAccruedInterest && (
               <div className="pt-3 border-t border-gray-200">
@@ -246,6 +277,29 @@ export default function DebtPaymentModal({
               </div>
             )}
 
+            {/* Payment Type Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ประเภทการจ่าย <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {PAYMENT_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setPaymentType(type.value)}
+                    className={`p-2 rounded-lg border-2 text-center transition-all ${paymentType === type.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                  >
+                    <p className="font-medium text-sm">{type.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{type.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Amount */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -259,23 +313,51 @@ export default function DebtPaymentModal({
                   placeholder="0.00"
                   step="0.01"
                   min="0.01"
-                  max={debtSummary.totalPayoffAmount}
+                  max={
+                    paymentType === 'PRINCIPAL_ONLY'
+                      ? debtSummary.remainingDebt
+                      : paymentType === 'INTEREST_ONLY'
+                        ? debtSummary.accruedInterest || 0
+                        : debtSummary.totalPayoffAmount
+                  }
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={handlePayFull}
-                  className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
-                >
-                  ปิดหนี้ทั้งหมด
-                </button>
+                {paymentType === 'AUTO' && (
+                  <button
+                    type="button"
+                    onClick={handlePayFull}
+                    className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
+                  >
+                    ปิดหนี้ทั้งหมด
+                  </button>
+                )}
+                {paymentType === 'PRINCIPAL_ONLY' && (
+                  <button
+                    type="button"
+                    onClick={() => setAmount(debtSummary.remainingDebt.toString())}
+                    className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
+                  >
+                    จ่ายเงินต้นทั้งหมด
+                  </button>
+                )}
+                {paymentType === 'INTEREST_ONLY' && (debtSummary.accruedInterest || 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAmount((debtSummary.accruedInterest || 0).toString())}
+                    className="px-3 py-2 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-medium"
+                  >
+                    จ่ายดอกเบี้ยทั้งหมด
+                  </button>
+                )}
               </div>
-              
+
               {/* Payment Allocation Preview */}
               {paymentAmountNum > 0 && (
                 <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs space-y-1">
-                  <p className="font-medium text-gray-700">การจัดสรรการจ่าย (จ่ายดอกเบี้ยก่อน):</p>
+                  <p className="font-medium text-gray-700">
+                    การจัดสรรการจ่าย ({PAYMENT_TYPES.find(t => t.value === paymentType)?.label}):
+                  </p>
                   <div className="flex justify-between">
                     <span className="text-orange-600">→ จ่ายดอกเบี้ย:</span>
                     <span className="font-medium">{formatCurrency(paymentAllocation.interestPaid)}</span>
