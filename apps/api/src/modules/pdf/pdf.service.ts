@@ -271,18 +271,30 @@ export class PdfService {
     .header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 20px;
+      align-items: center;
+      margin-bottom: 15px;
       padding-bottom: 10px;
     }
     
+    .header-logo {
+      flex-shrink: 0;
+    }
+    
     .header-logo img {
-      max-width: 150px;
+      max-width: 80px;
+      max-height: 80px;
       height: auto;
     }
     
     .header-info {
       text-align: right;
+      flex: 1;
+      margin-left: 15px;
+    }
+    
+    .company-name-wrapper {
+      display: inline-block;
+      text-align: left;
     }
     
     .company-name {

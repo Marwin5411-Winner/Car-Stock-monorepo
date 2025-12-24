@@ -81,7 +81,6 @@ type DocumentType =
   | 'deposit-receipt'
   | 'sales-confirmation'
   | 'sales-record'
-  | 'vehicle-card'
   | 'delivery-receipt'
   | 'thank-you-letter';
 
@@ -127,14 +126,7 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
     restricted: true,
   },
-  {
-    id: 'vehicle-card',
-    title: 'การ์ดรายละเอียดรถยนต์',
-    description: 'ข้อมูลต้นทุนและกำไร',
-    endpoint: '/api/pdf/vehicle-card',
-    getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
-    restricted: true,
-  },
+
   {
     id: 'delivery-receipt',
     title: 'ใบปล่อยรถ/ใบรับรถ',
@@ -1030,8 +1022,7 @@ interface DocumentItemProps {
 }
 
 function DocumentItem({ config, available, isLoading, onDownload, onPrint }: DocumentItemProps) {
-  const { title, description, restricted, id } = config;
-  const isVehicleCard = id === 'vehicle-card';
+  const { title, description, restricted } = config;
 
   return (
     <div className={`flex items-center justify-between p-4 ${!available ? 'opacity-50' : ''}`}>
@@ -1043,9 +1034,6 @@ function DocumentItem({ config, available, isLoading, onDownload, onPrint }: Doc
           {restricted && (
             <span className="text-xs text-orange-600">จำกัดสิทธิ์การเข้าถึง</span>
           )}
-          {isVehicleCard && available && (
-            <span className="text-xs text-gray-500 block">ยังไม่พร้อมใช้งาน (อยู่ระหว่างพัฒนา)</span>
-          )}
         </div>
       </div>
       {available ? (
@@ -1054,9 +1042,6 @@ function DocumentItem({ config, available, isLoading, onDownload, onPrint }: Doc
             <div className="p-2">
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
             </div>
-          ) : isVehicleCard ? (
-            // Vehicle card not implemented yet
-            <span className="text-xs text-gray-500 px-2 py-1">-</span>
           ) : (
             <>
               <button

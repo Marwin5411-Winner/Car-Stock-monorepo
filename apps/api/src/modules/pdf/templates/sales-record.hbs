@@ -1,4 +1,8 @@
 <!-- ใบบันทึกการขาย (Sales Record) -->
+<style>
+  .sales-record-table td { padding: 3px 6px !important; }
+  .sales-record-table th { padding: 4px 6px !important; }
+</style>
 <div class="page">
   {{> header}}
   
@@ -20,14 +24,14 @@
     </p>
   </div>
   
-  <table style="margin-top: 20px;">
+  <table class="sales-record-table" style="margin-top: 15px; font-size: 12px;">
     <thead>
       <tr>
-        <th style="width: 23%;">รายละเอียด</th>
-        <th style="width: 17%;">ราคา</th>
-        <th style="width: 23%;">หมายเหตุรายละเอียดเพิ่มเติม</th>
-        <th style="width: 16%;">ราคา</th>
-        <th style="width: 21%;">รายการของแถม</th>
+        <th style="width: 23%; padding: 4px 6px;">รายละเอียด</th>
+        <th style="width: 17%; padding: 4px 6px;">ราคา</th>
+        <th style="width: 23%; padding: 4px 6px;">หมายเหตุรายละเอียดเพิ่มเติม</th>
+        <th style="width: 16%; padding: 4px 6px;">ราคา</th>
+        <th style="width: 21%; padding: 4px 6px;">รายการของแถม</th>
       </tr>
     </thead>
     <tbody>
