@@ -141,6 +141,12 @@ export interface SalesRecordData {
 export interface CarReservationContractData {
   header: CompanyHeader;
   
+  // Copy type labels for 3-page contract
+  copyTypes?: Array<{
+    thai: string;    // ต้นฉบับ, คู่ฉบับ, สำเนาคู่ฉบับ
+    english: string; // ORIGINAL, DUPLICATE, COPY
+  }>;
+  
   // Document identification
   documentInfo: {
     volumeNumber?: string;        // เล่มที่

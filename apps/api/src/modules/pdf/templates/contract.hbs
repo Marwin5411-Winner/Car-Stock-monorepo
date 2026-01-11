@@ -1,14 +1,18 @@
 <!-- สัญญาจองรถยนต์ / Car Reservation Contract - Official Form -->
 <style>
-  /* Contract-specific styles - matching official form exactly */
+  /* Contract-specific styles - optimized for larger text on one page */
   .contract-page {
     font-family: 'Kanit', sans-serif;
-    font-size: 9pt;
-    line-height: 1.25;
-    padding: 0.5mm 1mm;
+    font-size: 10pt;
+    line-height: 1.2;
+    padding: 2mm 3mm;
     width: 210mm;
     min-height: 297mm;
     background: white;
+  }
+
+  .contract-page.page-break {
+    page-break-after: always;
   }
   
   /* Header section */
@@ -16,45 +20,45 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
   
   .contract-logo {
-    width: 55px;
+    width: 50px;
   }
   
   .contract-logo img {
-    max-width: 55px;
+    max-width: 50px;
     height: auto;
   }
   
   .contract-header-right {
     text-align: right;
-    font-size: 9pt;
+    font-size: 10pt;
   }
   
   .original-label {
     font-weight: bold;
-    margin-bottom: 1px;
+    margin-bottom: 0;
   }
   
   /* Title row */
   .contract-title-row {
     display: flex;
     align-items: center;
-    margin: 3px 0;
+    margin: 2px 0;
     border-bottom: 1px solid #000;
-    padding-bottom: 2px;
+    padding-bottom: 1px;
   }
   
   .contract-title-thai {
-    font-size: 10pt;
+    font-size: 11pt;
     font-weight: bold;
     margin-right: 8px;
   }
   
   .contract-numbers {
-    font-size: 9pt;
+    font-size: 10pt;
   }
   
   /* Form field underline */
@@ -66,22 +70,22 @@
     padding: 0 2px;
   }
   
-  .uline-s { min-width: 30px; }
-  .uline-m { min-width: 60px; }
-  .uline-l { min-width: 100px; }
-  .uline-xl { min-width: 150px; }
+  .uline-s { min-width: 25px; }
+  .uline-m { min-width: 50px; }
+  .uline-l { min-width: 90px; }
+  .uline-xl { min-width: 130px; }
   
   /* Checkbox styling */
   .chk {
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border: 1px solid #000;
-    margin-right: 1px;
+    margin-right: 4px;
     vertical-align: middle;
     text-align: center;
-    line-height: 6px;
-    font-size: 8px;
+    line-height: 7px;
+    font-size: 9px;
   }
   
   .chk.on::after {
@@ -91,32 +95,32 @@
   /* Section styling */
   .section-box {
     border: 1px solid #000;
-    margin: 2px 0;
-    padding: 3px 5px;
+    margin: 1px 0;
+    padding: 2px 4px;
   }
   
   .section-title {
     font-weight: bold;
-    font-size: 9pt;
-    margin-bottom: 2px;
+    font-size: 10pt;
+    margin-bottom: 1px;
   }
   
   .subsection-title {
     font-weight: bold;
-    font-size: 9pt;
-    margin-top: 3px;
+    font-size: 10pt;
+    margin-top: 2px;
   }
   
   /* Layout */
   .row {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
   }
   
   .row-tight {
-    margin-bottom: 1px;
+    margin-bottom: 0;
   }
   
   .row-nowrap {
@@ -126,7 +130,7 @@
   
   .cols {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
   
   .col {
@@ -143,33 +147,40 @@
     padding: 0 1px;
   }
   
-  /* Expense table */
+  /* Expense table - compact layout */
   .exp-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 2px;
-    font-size: 9pt;
+    align-items: baseline;
+    margin-bottom: 1px;
+    font-size: 10pt;
+    flex-wrap: nowrap;
   }
   
   .exp-label {
-    flex: 1.5;
+    flex: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .exp-val {
-    flex: 1;
+    flex: 0.5;
+    min-width: 50px;
     border-bottom: 1px solid #000;
     text-align: right;
     margin: 0 2px;
   }
   
   .exp-unit {
-    width: 50px;
-    font-size: 9pt;
+    flex-shrink: 0;
+    width: 35px;
+    font-size: 10pt;
   }
   
-  /* Signature section */
+  /* Signature section - practical signing space */
   .sig-section {
-    margin-top: 40px;
+    margin-top: 25px;
   }
   
   .sig-row {
@@ -181,12 +192,12 @@
   .sig-box {
     text-align: center;
     width: 15%;
-    padding: 0 3px;
+    padding: 0 2px;
   }
   
   .sig-line {
     border-top: 1px dotted #000;
-    height: 25px;
+    height: 30px;
     margin-bottom: 2px;
   }
   
@@ -197,10 +208,10 @@
   
   /* Footer */
   .footer-note {
-    margin-top: 3px;
-    font-size: 8pt;
+    margin-top: 2px;
+    font-size: 9pt;
     border-top: 1px solid #000;
-    padding-top: 2px;
+    padding-top: 1px;
   }
   
   /* Small text */
@@ -209,22 +220,23 @@
   }
   
   .tiny {
-    font-size: 8.5pt;
+    font-size: 9pt;
   }
 </style>
 
-<div class="contract-page">
+{{#each copyTypes}}
+<div class="contract-page{{#unless @last}} page-break{{/unless}}">
   <!-- Header -->
   <div class="contract-header">
     <div class="contract-logo">
-      {{#if header.logoBase64}}
-      <img src="{{header.logoBase64}}" alt="Logo">
+      {{#if ../header.logoBase64}}
+      <img src="{{../header.logoBase64}}" alt="Logo">
       {{/if}}
     </div>
     <div class="contract-header-right">
-      <div class="original-label">ต้นฉบับ / ORIGINAL</div>
-      <div>ผู้จัดการฝ่ายขาย<span class="uline uline-m">{{documentInfo.salesManagerName}}</span>เบอร์<span class="uline uline-m">{{documentInfo.salesManagerPhone}}</span></div>
-      <div>พนักงานขาย<span class="uline uline-m">{{documentInfo.salesStaffName}}</span>เบอร์<span class="uline uline-m">{{documentInfo.salesStaffPhone}}</span></div>
+      <div class="original-label">{{this.thai}} / {{this.english}}</div>
+      <div>ผู้จัดการฝ่ายขาย<span class="uline uline-m">{{../documentInfo.salesManagerName}}</span>เบอร์<span class="uline uline-m">{{../documentInfo.salesManagerPhone}}</span></div>
+      <div>พนักงานขาย<span class="uline uline-m">{{../documentInfo.salesStaffName}}</span>เบอร์<span class="uline uline-m">{{../documentInfo.salesStaffPhone}}</span></div>
     </div>
   </div>
 
@@ -232,8 +244,8 @@
   <div class="contract-title-row">
     <div class="contract-title-thai">สัญญาจองรถยนต์</div>
     <div class="contract-numbers">
-      เล่มที่<span class="uline uline-s">{{documentInfo.volumeNumber}}</span>
-      เลขที่<span class="uline uline-s">{{documentInfo.documentNumber}}</span>
+      เล่มที่<span class="uline uline-s">{{../documentInfo.volumeNumber}}</span>
+      เลขที่<span class="uline uline-s">{{../documentInfo.documentNumber}}</span>
     </div>
   </div>
 
@@ -241,13 +253,13 @@
   <div class="row">
     <span>Car Reservation Contract</span>
     <span style="margin-left:15px;">สัญญาฉบับนี้ทำขึ้น ณ</span>
-    <span class="val" style="max-width:200px;">{{documentInfo.contractLocation}}</span>
+    <span class="val" style="max-width:200px;">{{../documentInfo.contractLocation}}</span>
     <span>วันที่</span>
-    <span class="val" style="max-width:25px;">{{safe date.day}}</span>
+    <span class="val" style="max-width:25px;">{{safe ../date.day}}</span>
     <span>เดือน</span>
-    <span class="val" style="max-width:60px;">{{safe date.month}}</span>
+    <span class="val" style="max-width:60px;">{{safe ../date.month}}</span>
     <span>พ.ศ.</span>
-    <span class="val" style="max-width:40px;">{{safe date.year}}</span>
+    <span class="val" style="max-width:40px;">{{safe ../date.year}}</span>
   </div>
 
   <!-- Between parties -->
@@ -334,18 +346,18 @@
         
         <div class="row row-tight">
           <span>ประเภท/Type</span>
-          <span class="val" style="max-width:140px;">{{safe vehicleModel.type}}</span>
+          <span class="val" style="max-width:140px;">{{safe ../vehicleModel.type}}</span>
           <span>ยี่ห้อ/Brand</span>
-          <span class="val">{{safe vehicleModel.brand}}</span>
+          <span class="val">{{safe ../vehicleModel.brand}}</span>
         </div>
 
         <div class="row row-tight">
           <span>รุ่น/Model</span>
-          <span class="val" style="max-width:70px;">{{safe vehicleModel.model}}</span>
-          <span>สี/Color</span>
-          <span class="val" style="max-width:70px;">{{safe vehicleModel.primaryColor}}</span>
+          <span class="val" style="max-width:80px;">{{safe ../vehicleModel.model}}</span>
           <span>ปีที่ผลิต/MFY</span>
-          <span class="val">{{safe vehicleModel.year}}</span>
+          <span class="val" style="max-width:50px;">{{safe ../vehicleModel.year}}</span>
+          <span>สี/Color</span>
+          <span class="val">{{safe ../vehicleModel.primaryColor}}</span>
         </div>
 
         <div class="row row-tight">
@@ -397,32 +409,32 @@
         <div class="subsection-title">1.4 เงินจอง/Reservation Fee</div>
         
         <div class="row row-tight">
-          <span class="chk {{#if reservationFee.isCash}}on{{/if}}"></span>
+          <span class="chk {{#if ../reservationFee.isCash}}on{{/if}}"></span>
           <span>เงินสด/cash</span>
         </div>
 
         <div class="row row-tight">
           <span>เป็นเงิน/amount</span>
-          <span class="val" style="max-width:80px;">{{formatCurrency reservationFee.amount false}}</span>
+          <span class="val" style="max-width:80px;">{{formatCurrency ../reservationFee.amount false}}</span>
           <span>บาท/Baht(</span>
-          <span class="val" style="max-width:80px;">{{numberToThaiText reservationFee.amount}}</span>
+          <span class="val" style="max-width:80px;">{{numberToThaiText ../reservationFee.amount}}</span>
           <span>)</span>
         </div>
 
         <div class="row row-tight">
-          <span class="chk {{#if reservationFee.isBankTransfer}}on{{/if}}"></span>
+          <span class="chk {{#if ../reservationFee.isBankTransfer}}on{{/if}}"></span>
           <span>โอนเข้าบัญชีชื่อผู้ประกอบธุรกิจ/Bank Transfer</span>
         </div>
 
         <div class="row row-tight">
           <span>เลขที่บัญชี/Account no.</span>
-          <span class="val" style="max-width:80px;">{{#if reservationFee.isBankTransfer}}{{reservationFee.accountNo}}{{/if}}</span>
+          <span class="val" style="max-width:80px;">{{#if ../reservationFee.isBankTransfer}}{{../reservationFee.accountNo}}{{/if}}</span>
           <span>ธนาคาร/Bank</span>
-          <span class="val">{{#if reservationFee.isBankTransfer}}{{reservationFee.bank}}{{/if}}</span>
+          <span class="val">{{#if ../reservationFee.isBankTransfer}}{{../reservationFee.bank}}{{/if}}</span>
         </div>
 
         <div class="row row-tight">
-          <span class="chk {{#if reservationFee.isCreditCard}}on{{/if}}"></span>
+          <span class="chk {{#if ../reservationFee.isCreditCard}}on{{/if}}"></span>
           <span>บัตรเครดิตธนาคาร/Credit card</span>
           <span style="margin-left:8px;" class="chk"></span>
           <span>บัตรเดบิตธนาคาร/Debit card</span>
@@ -435,14 +447,14 @@
 
         <div class="row row-tight">
           <span>เป็นเงิน/amount</span>
-          <span class="val" style="max-width:80px;">{{#if reservationFee.isCreditCard}}{{formatCurrency reservationFee.amount false}}{{/if}}</span>
+          <span class="val" style="max-width:80px;">{{#if ../reservationFee.isCreditCard}}{{formatCurrency ../reservationFee.amount false}}{{/if}}</span>
           <span>บาท/Baht(</span>
-          <span class="val" style="max-width:80px;">{{#if reservationFee.isCreditCard}}{{numberToThaiText reservationFee.amount}}{{/if}}</span>
+          <span class="val" style="max-width:80px;">{{#if ../reservationFee.isCreditCard}}{{numberToThaiText ../reservationFee.amount}}{{/if}}</span>
           <span>)</span>
         </div>
 
         <div class="row row-tight">
-          <span class="chk {{#if reservationFee.isCheque}}on{{/if}}"></span>
+          <span class="chk {{#if ../reservationFee.isCheque}}on{{/if}}"></span>
           <span>เช็คธนาคาร/Bank Cheque</span>
           <span class="val" style="max-width:70px;"></span>
           <span>สาขา/Branch</span>
@@ -451,9 +463,9 @@
 
         <div class="row row-tight">
           <span>เลขที่เช็ค/Cheque No</span>
-          <span class="val" style="max-width:80px;">{{#if reservationFee.isCheque}}{{reservationFee.chequeNo}}{{/if}}</span>
+          <span class="val" style="max-width:80px;">{{#if ../reservationFee.isCheque}}{{../reservationFee.chequeNo}}{{/if}}</span>
           <span>ลงวันที่/Date</span>
-          <span class="val">{{#if reservationFee.isCheque}}{{reservationFee.chequeDate}}{{/if}}</span>
+          <span class="val">{{#if ../reservationFee.isCheque}}{{../reservationFee.chequeDate}}{{/if}}</span>
         </div>
 
         <div class="subsection-title">1.5 รายการรถแลกเปลี่ยนเพิ่มเติม/Additional Accessory Purchasing</div>
@@ -471,73 +483,73 @@
       <div class="exp-row">
         <span class="exp-label">ราคารถยนต์/Car price</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">เงินดาวน์/Down payment</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">ค่าจดทะเบียน/Registration Fee</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">ค่ามัดจำป้ายแดง/Deposit red plate</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">ค่าเบี้ยประกันภัย/Insurance Premium</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">ค่าอุปกรณ์ตกแต่ง/Accessory</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">อื่นๆ/Other</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row" style="font-weight:bold;">
         <span class="exp-label">รวมค่าใช้จ่าย/Total Expense</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">หัก เงินจอง/Reservation Fee</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">หัก เงินค่ารถเก่า/Used car trade-in</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row">
         <span class="exp-label">อื่นๆ/Other (ส่วนลดเงินสด)</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
 
       <div class="exp-row" style="font-weight:bold;">
         <span class="exp-label">รวมค่าใช้จ่ายทั้งสิ้น/Net total expense</span>
         <span class="exp-val"></span>
-        <span class="exp-unit">บาท/Baht</span>
+        <span class="exp-unit">บาท</span>
       </div>
     </div>
 
@@ -631,16 +643,16 @@
   </div>
 
   <!-- Section 5: Delivery -->
-  <div style="margin-top:3px;">
+  <div style="margin-top:2px;">
     <div class="section-title">5. กำหนดวันส่งมอบ และสถานที่ส่งมอบรถยนต์/Delivery Date and Location of Car Delivery</div>
-    <div class="val" style="min-height:15px;display:block;"></div>
+
   </div>
 
   <!-- Contract Terms Note -->
-  <div style="font-size:7pt;margin-top:3px;border:1px solid #000;padding:3px;">
+  <div style="font-size:9pt;margin-top:3px;border:1px solid #000;padding:3px;line-height:1.3;">
     <p style="margin:0;">สัญญาจองรถยนต์นี้ได้จัดทำขึ้นเป็น 3 ฉบับ มีข้อความถูกต้องตรงกัน ผู้สัญญาได้อ่านและเข้าใจข้อความโดยละเอียดแล้ว จึงได้ลงลายมือชื่อ พร้อมทั้ง</p>
-    <p style="margin:0;">ประทับตรา(ถ้ามี) ไว้เป็นสำคัญต่อหน้าพยานและคู่สัญญาและเก็บไว้ฝ่ายละหนึ่งฉบับ/This car reservation contract has been made in duplicate</p>
-    <p style="margin:0;">with identical content. identical content. The contracting parties have read and thoroughly understood the content, and have</p>
+    <p style="margin:0;">ประทับตรา(ถ้ามี) ไว้เป็นสำคัญต่อหน้าพยานและคู่สัญญาและเก็บไว้ฝ่ายละหนึ่งฉบับ/This car reservation contract has been made in triplicate</p>
+    <p style="margin:0;">with identical content. The contracting parties have read and thoroughly understood the content, and have</p>
     <p style="margin:0;">therefore signed their names and affixed their seals (if any) in the presence of witnesses and the contracting parties. Each party shall</p>
     <p style="margin:0;">retain one signed copy.</p>
   </div>
@@ -684,6 +696,7 @@
   <!-- Footer Note -->
   <div class="footer-note">
     <p style="margin:0;">หมายเหตุ : โปรดอ่านรายละเอียดเงื่อนไขและข้อตกลงที่หลังในสัญญาจองรถยนต์ด้านหลังเอกสารฉบับนี้ก่อนลงนาม</p>
-    <p style="margin:0;">(Please refer terms and conditions of this car reservation form on the following page, prior to signing)</p>
+    {{!-- <p style="margin:0;">(Please refer terms and conditions of this car reservation form on the following page, prior to signing)</p> --}}
   </div>
 </div>
+{{/each}}

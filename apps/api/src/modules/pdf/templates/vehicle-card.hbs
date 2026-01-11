@@ -2,7 +2,7 @@
   <style>
     .page {
       font-family: 'Sarabun', 'Kanit', sans-serif;
-      font-size: 10px;
+      font-size: 9px;
       padding: 0;
       color: #000;
     }
@@ -19,22 +19,23 @@
     }
     .page th, .page td {
       border: 1px solid #000;
-      padding: 3px;
+      padding: 2px;
       vertical-align: middle;
+      line-height: 1.2;
     }
     .page .title {
       text-align: center;
       font-weight: bold;
-      font-size: 18px;
-      margin-bottom: 5px;
+      font-size: 14px;
+      margin-bottom: 3px;
       margin-top: 0;
     }
     .page .checkbox {
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border: 1px solid #000;
-      margin-right: 3px;
+      margin-right: 2px;
       vertical-align: middle;
     }
     .page .inner-table {
@@ -42,7 +43,7 @@
     }
     .page .inner-table td {
       border: none !important;
-      padding: 2px;
+      padding: 1px;
     }
     .page .inner-table .dotted-line {
       border-bottom: 1px dotted #000 !important;
@@ -52,9 +53,10 @@
     }
     @media print {
       .page {
-        padding: 10px !important;
+        padding: 5px !important;
         margin: 0 !important;
         page-break-after: always !important;
+        page-break-inside: avoid !important;
       }
     }
   </style>
@@ -73,7 +75,7 @@
       <th style="width: 14%;">STOCK NO.</th>
     </tr>
     <tr>
-      <td style="height: 18px;"></td>
+      <td style="height: 14px;"></td>
       <td style="text-align: center;">{{car.model}}</td>
       <td style="text-align: center;">{{car.engineNo}}</td>
       <td style="text-align: center;">{{car.chassisNo}}</td>
@@ -92,7 +94,7 @@
       <td style="width: 25%; font-weight: bold;">พนักงานขาย</td>
     </tr>
     <tr>
-      <td style="height: 18px;"></td>
+      <td style="height: 14px;"></td>
       <td></td>
       <td>{{date}}</td>
       <td></td>
@@ -325,7 +327,7 @@
       <td></td>
       <td></td>
       <td></td>
-      <td colspan="4" rowspan="2" style="vertical-align: top; padding: 5px;">
+    <td colspan="4" rowspan="2" style="vertical-align: top; padding: 3px;">
         <table class="inner-table">
           <tr>
             <td style="font-weight: bold; width: 15%;">สรุป</td>
@@ -357,8 +359,8 @@
 
     <!-- Footer Row -->
     <tr>
-      <td colspan="5" style="padding: 5px; vertical-align: top;">
-        <div style="font-weight: bold; margin-bottom: 3px;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
+      <td colspan="5" style="padding: 3px; vertical-align: top;">
+        <div style="font-weight: bold; margin-bottom: 2px;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
         <div style="font-weight: bold;">หมายเหตุ</div>
       </td>
     </tr>

@@ -21,6 +21,7 @@ import {
   CarInfo,
 } from './types';
 import { formatThaiDate } from './helpers';
+import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
 
 // Helper function to transform customer data
 function transformCustomer(customer: any): CustomerInfo {
@@ -331,7 +332,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           },
           gifts: [], // TODO: Parse from freebiesSnapshot if available
           staff: {
-            salesConsultant: sale.createdBy?.displayName || sale.createdBy?.username || '-',
+            salesConsultant: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
             salesManager: '-',
             auditor: '-',
           },
@@ -405,7 +406,34 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         // Get reservation payment (first payment)
         const reservationPayment = sale.payments && sale.payments.length > 0 ? sale.payments[0] : null;
 
+        // Get or generate contract number (เล่มที่ and เลขที่)
+        // If the Sale already has a contract number, use it; otherwise generate a new one and save it
+        let contractNumber: { volumeNumber: string; documentNumber: string };
+        
+        if (sale.contractVolumeNumber && sale.contractDocumentNumber) {
+          // Use existing contract number
+          contractNumber = {
+            volumeNumber: sale.contractVolumeNumber,
+            documentNumber: sale.contractDocumentNumber,
+          };
+        } else {
+          // Generate new contract number and save to Sale
+          contractNumber = await generateContractNumber();
+          await db.sale.update({
+            where: { id: sale.id },
+            data: {
+              contractVolumeNumber: contractNumber.volumeNumber,
+              contractDocumentNumber: contractNumber.documentNumber,
+            },
+          });
+        }
+
         const data: any = { // Using any to bypass strict type check for now to support the template
+          copyTypes: [
+            { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
+            { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
+            { thai: 'สำเนาคู่ฉบับ', english: 'COPY' },
+          ],
           header: {
             logoBase64: '',
             companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
@@ -414,13 +442,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
           },
           documentInfo: {
-            volumeNumber: '1',
-            documentNumber: sale.saleNumber,
+            volumeNumber: contractNumber.volumeNumber, // เล่มที่ e.g., "01/2568"
+            documentNumber: contractNumber.documentNumber, // เลขที่ e.g., "68010001"
             contractLocation: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
             salesManagerName: '', // Placeholder, no data available on sale object
             salesManagerPhone: '',
-            salesStaffName: sale.createdBy?.displayName || sale.createdBy?.username || '-',
-            salesStaffPhone: sale.createdBy?.phoneNumber || '-',
+            salesStaffName: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
+            salesStaffPhone: sale.createdBy?.phone || '-',
           },
           reservationNumber: sale.saleNumber,
           date: {
@@ -514,26 +542,53 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         }
 
         const sale = payment.sale;
+        const customer = sale?.customer;
 
-        const data: DepositReceiptData = {
+        // Build items array from payment description or default
+        const items = [
+          {
+            description: payment.notes || `ค่ามัดจำ ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
+            amount: payment.amount.toString(),
+          },
+        ];
+
+        // Determine payment method
+        const paymentMethodData = {
+          isCash: payment.paymentMethod === 'CASH',
+          isCheque: payment.paymentMethod === 'CHEQUE',
+          isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+          bankName: payment.receivingBank || '',
+          branchName: '',
+          accountNumber: '',
+          transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+        };
+
+        const data: TemporaryReceiptData = {
           header: {
             logoBase64: '',
             companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
             address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
             address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+            phone: '044-272888, 271178, 271169, 271851',
+            fax: '044-271224',
           },
+          customerCode: customer?.code || '',
           receiptNumber: payment.receiptNumber,
           date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
-          customer: transformCustomer(sale?.customer),
-          car: transformCar(sale?.stock),
-          depositAmount: payment.amount.toString(),
-          depositAmountText: '', // Will be calculated by the template helper
-          paymentMethod: payment.paymentMethod || 'CASH',
+          contractNumber: sale?.saleNumber || '',
+          customer: transformCustomer(customer),
+          items,
+          // Totals section
+          paymentAmount: payment.amount.toString(),
+          lateFee: '0',
+          discount: '0',
+          totalAmount: payment.amount.toString(),
+          totalAmountText: '', // Will be calculated by helper
+          paymentMethod: paymentMethodData,
           note: payment.notes || undefined,
         };
 
-        const pdfBuffer = await pdfService.generateDepositReceipt(data);
+        const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
 
         set.headers['Content-Type'] = 'application/pdf';
         set.headers['Content-Disposition'] = `attachment; filename="deposit-receipt-${payment.receiptNumber}.pdf"`;
@@ -966,10 +1021,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
           case 'contract':
             pdfBuffer = await pdfService.generateContract({
+              copyTypes: [
+                { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
+                { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
+                { thai: 'สำเนาคู่ฉบับ', english: 'COPY' },
+              ],
               header: sampleHeader,
               documentInfo: {
-                volumeNumber: '1',
-                documentNumber: '0001',
+                volumeNumber: '12/2568', // เล่มที่ (MM/YYYY)
+                documentNumber: '68120001', // เลขที่ (YYMMXXXX)
                 contractLocation: 'นครราชสีมา',
                 contractDay: '7',
                 contractMonth: 'ธันวาคม',

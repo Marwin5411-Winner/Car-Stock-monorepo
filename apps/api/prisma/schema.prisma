@@ -195,47 +195,50 @@ model StockDebtPayment {
 }
 
 model Sale {
-  id                 String        @id @default(cuid())
-  saleNumber         String        @unique @map("sale_number")
-  type               SaleType
-  status             SaleStatus    @default(RESERVED)
-  customerId         String        @map("customer_id")
-  stockId            String?       @unique @map("stock_id")
-  vehicleModelId     String?       @map("vehicle_model_id")
-  preferredExtColor  String?       @map("preferred_ext_color")
-  preferredIntColor  String?       @map("preferred_int_color")
-  totalAmount        Decimal       @map("total_amount") @db.Decimal(15, 2)
-  depositAmount      Decimal       @default(0) @map("deposit_amount") @db.Decimal(15, 2)
-  paidAmount         Decimal       @default(0) @map("paid_amount") @db.Decimal(15, 2)
-  remainingAmount    Decimal       @map("remaining_amount") @db.Decimal(15, 2)
-  reservedDate       DateTime?     @map("reserved_date")
-  expirationDate     DateTime?     @map("expiration_date")
-  hasExpiration      Boolean       @default(false) @map("has_expiration")
-  deliveryDate       DateTime?     @map("delivery_date")
-  completedDate      DateTime?     @map("completed_date")
-  campaignId         String?       @map("campaign_id")
-  discountSnapshot   Decimal?      @map("discount_snapshot") @db.Decimal(15, 2)
-  freebiesSnapshot   String?       @map("freebies_snapshot")
-  paymentMode        PaymentMode   @default(CASH) @map("payment_mode")
-  downPayment        Decimal?      @map("down_payment") @db.Decimal(15, 2)
-  financeAmount      Decimal?      @map("finance_amount") @db.Decimal(15, 2)
-  financeProvider    String?       @map("finance_provider")
-  refundPolicy       RefundPolicy  @default(FULL) @map("refund_policy")
-  refundAmount       Decimal?      @map("refund_amount") @db.Decimal(15, 2)
-  notes              String?
-  cancellationReason String?       @map("cancellation_reason")
-  createdById        String        @map("created_by_id")
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
-  documents          Document[]
-  payments           Payment[]
-  quotation          Quotation?
-  history            SaleHistory[]
-  campaign           Campaign?     @relation(fields: [campaignId], references: [id])
-  createdBy          User          @relation(fields: [createdById], references: [id])
-  customer           Customer      @relation(fields: [customerId], references: [id])
-  stock              Stock?        @relation(fields: [stockId], references: [id])
-  vehicleModel       VehicleModel? @relation(fields: [vehicleModelId], references: [id])
+  id                     String        @id @default(cuid())
+  saleNumber             String        @unique @map("sale_number")
+  type                   SaleType
+  status                 SaleStatus    @default(RESERVED)
+  customerId             String        @map("customer_id")
+  stockId                String?       @unique @map("stock_id")
+  vehicleModelId         String?       @map("vehicle_model_id")
+  preferredExtColor      String?       @map("preferred_ext_color")
+  preferredIntColor      String?       @map("preferred_int_color")
+  totalAmount            Decimal       @map("total_amount") @db.Decimal(15, 2)
+  depositAmount          Decimal       @default(0) @map("deposit_amount") @db.Decimal(15, 2)
+  paidAmount             Decimal       @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  remainingAmount        Decimal       @map("remaining_amount") @db.Decimal(15, 2)
+  reservedDate           DateTime?     @map("reserved_date")
+  expirationDate         DateTime?     @map("expiration_date")
+  hasExpiration          Boolean       @default(false) @map("has_expiration")
+  deliveryDate           DateTime?     @map("delivery_date")
+  completedDate          DateTime?     @map("completed_date")
+  campaignId             String?       @map("campaign_id")
+  discountSnapshot       Decimal?      @map("discount_snapshot") @db.Decimal(15, 2)
+  freebiesSnapshot       String?       @map("freebies_snapshot")
+  paymentMode            PaymentMode   @default(CASH) @map("payment_mode")
+  downPayment            Decimal?      @map("down_payment") @db.Decimal(15, 2)
+  financeAmount          Decimal?      @map("finance_amount") @db.Decimal(15, 2)
+  financeProvider        String?       @map("finance_provider")
+  refundPolicy           RefundPolicy  @default(FULL) @map("refund_policy")
+  refundAmount           Decimal?      @map("refund_amount") @db.Decimal(15, 2)
+  notes                  String?
+  cancellationReason     String?       @map("cancellation_reason")
+  // Contract number fields - stored when contract is first generated
+  contractVolumeNumber   String?       @map("contract_volume_number") // เล่มที่ e.g., "01/2568"
+  contractDocumentNumber String?       @map("contract_document_number") // เลขที่ e.g., "68010001"
+  createdById            String        @map("created_by_id")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+  documents              Document[]
+  payments               Payment[]
+  quotation              Quotation?
+  history                SaleHistory[]
+  campaign               Campaign?     @relation(fields: [campaignId], references: [id])
+  createdBy              User          @relation(fields: [createdById], references: [id])
+  customer               Customer      @relation(fields: [customerId], references: [id])
+  stock                  Stock?        @relation(fields: [stockId], references: [id])
+  vehicleModel           VehicleModel? @relation(fields: [vehicleModelId], references: [id])
 
   @@map("sales")
 }
