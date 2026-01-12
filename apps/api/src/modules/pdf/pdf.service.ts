@@ -1,9 +1,8 @@
 /**
  * PDF Generation Service
- * Uses Puppeteer for HTML-to-PDF conversion with Handlebars templates
+ * Uses Gotenberg for HTML-to-PDF conversion with Handlebars templates
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer';
 import Handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -67,11 +66,13 @@ const DEFAULT_COMPANY_HEADER: CompanyHeader = {
 
 export class PdfService {
   private static instance: PdfService;
-  private browser: Browser | null = null;
   private templateCache: Map<string, Handlebars.TemplateDelegate> = new Map();
   private templatesDir: string;
   private fontsDir: string;
   private logoBase64: string = '';
+  
+  // Use environment variable or default to the provided user URL
+  private readonly gotenbergUrl: string = process.env.GOTENBERG_URL || 'http://45.136.237.71:7090';
 
   private constructor() {
     this.templatesDir = path.join(__dirname, 'templates');
@@ -139,25 +140,6 @@ export class PdfService {
         }
       }
     }
-  }
-
-  /**
-   * Get or launch browser instance
-   */
-  private async getBrowser(): Promise<Browser> {
-    if (!this.browser || !this.browser.connected) {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--font-render-hinting=none',
-        ],
-      });
-    }
-    return this.browser;
   }
 
   /**
@@ -261,7 +243,7 @@ export class PdfService {
     
     .page {
       width: ${width};
-      min-height: ${height};
+      /* min-height removed to prevent extra blank pages */
       padding: 10mm;
       margin: 0 auto;
       background: white;
@@ -469,22 +451,18 @@ export class PdfService {
   }
 
   /**
-   * Generate PDF from template and data
+   * Generate PDF from template and data using Gotenberg
    */
   public async generatePdf<T>(
     templateType: PdfTemplateType,
     data: T,
     options: PdfOptions = {}
   ): Promise<Buffer> {
-    const browser = await this.getBrowser();
-    const page = await browser.newPage();
-
     try {
       // Get and compile template
       const template = this.getTemplate(templateType);
       
       // Add company header to data if not present
-      // Use service's logoBase64 unless explicitly provided in data
       const providedHeader = (data as any).header || {};
       const dataWithHeader = {
         ...data,
@@ -500,38 +478,65 @@ export class PdfService {
       const content = template(dataWithHeader);
       const html = this.getBaseHtml(content, options.landscape);
 
-      // Set content and wait for rendering
-      await page.setContent(html, {
-        waitUntil: 'networkidle0',
-        timeout: 30000,
-      });
-
-      // Generate PDF
-      const pdfOptions: any = {
-        margin: options.margin || {
-          top: '10mm',
-          right: '10mm',
-          bottom: '10mm',
-          left: '10mm',
-        },
-        landscape: options.landscape || false,
-        printBackground: options.printBackground !== false,
-        preferCSSPageSize: true,
-      };
-
-      // Use custom width/height if provided, otherwise use format
-      if (options.width && options.height) {
-        pdfOptions.width = options.width;
-        pdfOptions.height = options.height;
-      } else {
-        pdfOptions.format = options.format || 'A4';
+      // Create FormData for Gotenberg
+      // Bun provides native FormData and Blob support
+      const formData = new FormData();
+      formData.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
+      
+      // Configure options
+      if (options.landscape) {
+        formData.append('landscape', 'true');
       }
 
-      const pdfBuffer = await page.pdf(pdfOptions);
+      // Margins
+      const margins = options.margin || {
+        top: '5mm',
+        right: '5mm',
+        bottom: '5mm',
+        left: '5mm',
+      };
+      
+      formData.append('marginTop', margins.top);
+      formData.append('marginBottom', margins.bottom);
+      formData.append('marginLeft', margins.left);
+      formData.append('marginRight', margins.right);
 
-      return Buffer.from(pdfBuffer);
-    } finally {
-      await page.close();
+      // Page size
+      if (options.width && options.height) {
+        formData.append('paperWidth', options.width);
+        formData.append('paperHeight', options.height);
+      }
+      
+      // Prefer CSS page size
+      formData.append('preferCssPageSize', 'true');
+      
+      
+      // Print background
+      if (options.printBackground !== false) {
+        formData.append('printBackground', 'true');
+      }
+
+      // Scale
+      if (options.scale) {
+        formData.append('scale', options.scale.toString());
+      }
+
+      console.log(`🚀 Sending PDF request to Gotenberg: ${this.gotenbergUrl}`);
+      
+      const response = await fetch(`${this.gotenbergUrl}/forms/chromium/convert/html`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gotenberg API failed: ${response.status} ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      console.error('❌ PDF Generation failed:', error);
+      throw error;
     }
   }
 
@@ -567,7 +572,16 @@ export class PdfService {
    * Generate Contract PDF (สัญญาจองรถยนต์) - supports both legacy and new format
    */
   public async generateContract(data: ContractData | CarReservationContractData): Promise<Buffer> {
-    return this.generatePdf(PdfTemplateType.CONTRACT, data);
+    return this.generatePdf(PdfTemplateType.CONTRACT, data, {
+      width: '8.27in', // A4 Width
+      height: '11.69in', // A4 Height
+      margin: {
+        top: '0mm',
+        right: '0mm',
+        bottom: '0mm',
+        left: '0mm',
+      },
+    });
   }
 
   /**
@@ -606,16 +620,6 @@ export class PdfService {
         left: '5mm',
       },
     });
-  }
-
-  /**
-   * Close browser instance
-   */
-  public async close(): Promise<void> {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
   }
 
   /**

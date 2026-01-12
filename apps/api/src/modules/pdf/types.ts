@@ -327,7 +327,9 @@ export interface PdfOptions {
   };
   landscape?: boolean;
   printBackground?: boolean;
+  scale?: number; // Scale of the page rendering (0.1 - 2.0, default 1.0)
 }
+
 
 /**
  * Template types enum
