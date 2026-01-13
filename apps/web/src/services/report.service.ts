@@ -34,6 +34,15 @@ class ReportService {
     return response.data;
   }
 
+  async getDailyPaymentReportPdf(params?: ReportQueryParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+    const url = `/api/reports/daily-payments/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
+  }
+
   // ============================================
   // Stock Report
   // ============================================
@@ -51,6 +60,16 @@ class ReportService {
     }
 
     return response.data;
+  }
+
+  async getStockReportPdf(params?: ReportQueryParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.status) queryParams.append('status', params.status);
+
+    const url = `/api/reports/stock/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
   }
 
   // ============================================
@@ -71,6 +90,15 @@ class ReportService {
     return response.data;
   }
 
+  async getProfitLossReportPdf(params?: ReportQueryParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+    const url = `/api/reports/profit-loss/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
+  }
+
   // ============================================
   // Sales Summary Report
   // ============================================
@@ -89,6 +117,17 @@ class ReportService {
     }
 
     return response.data;
+  }
+
+  async getSalesSummaryReportPdf(params?: ReportQueryParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.salespersonId) queryParams.append('salespersonId', params.salespersonId);
+
+    const url = `/api/reports/sales-summary/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
   }
 
   // ============================================
@@ -112,6 +151,20 @@ class ReportService {
     }
 
     return response.data;
+  }
+
+  async getStockInterestReportPdf(params?: ReportQueryParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.brand) queryParams.append('brand', params.brand);
+    if (params?.isCalculating !== undefined) {
+      queryParams.append('isCalculating', String(params.isCalculating));
+    }
+
+    const url = `/api/reports/stock-interest/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
   }
 }
 

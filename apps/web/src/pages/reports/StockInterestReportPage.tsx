@@ -9,6 +9,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Car,
+  FileText,
 } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
@@ -151,6 +152,29 @@ export default function StockInterestReportPage() {
     { key: 'totalCostWithInterest', label: 'ต้นทุนรวมดอกเบี้ย' },
   ];
 
+  const handleExportPdf = async () => {
+    try {
+      setLoading(true);
+      const blob = await reportService.getStockInterestReportPdf({
+        startDate,
+        endDate,
+        status: statusFilter || undefined,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `stock-interest-report-${startDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้าง PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="mb-6">
@@ -212,6 +236,14 @@ export default function StockInterestReportPage() {
           headers={exportHeaders}
           loading={loading}
         />
+        <button
+          onClick={handleExportPdf}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          ส่งออก PDF
+        </button>
         <PrintButton title="รายงานดอกเบี้ยสต็อก" contentId="report-content" />
       </div>
 
@@ -266,7 +298,7 @@ export default function StockInterestReportPage() {
                 <div>
                   <h4 className="font-semibold text-orange-800">รถค้างนาน</h4>
                   <p className="text-sm text-orange-700">
-                    มีรถ <span className="font-bold">{data.summary.overdueVehicles}</span> คัน 
+                    มีรถ <span className="font-bold">{data.summary.overdueVehicles}</span> คัน
                     ที่อยู่ในสต็อกเกิน 90 วัน สะสมดอกเบี้ยรวม{' '}
                     <span className="font-bold">{formatCurrency(data.summary.overdueInterest)}</span>
                   </p>

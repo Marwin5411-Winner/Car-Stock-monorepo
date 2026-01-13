@@ -1,0 +1,117 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">สรุปยอดขาย (Sales Summary)</div>
+
+<div class="text-center" style="margin-bottom: 20px;">
+  <strong>ช่วงเวลา:</strong> {{dateRange}}
+</div>
+
+<div class="section">
+  <div class="section-title">สรุปภาพรวม</div>
+  <table style="width: 100%; margin-bottom: 20px;">
+    <thead>
+      <tr>
+        <th class="text-center">จำนวนขายทั้งหมด</th>
+        <th class="text-center">เสร็จสิ้น (คัน)</th>
+        <th class="text-center">ยอดขายรวม</th>
+        <th class="text-center">ยอดรับชำระแล้ว</th>
+        <th class="text-center">ยอดค้างชำระ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+         <td class="text-center">{{summary.totalSales}}</td>
+         <td class="text-center">{{summary.completedCount}}</td>
+         <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+         <td class="text-right">{{formatCurrency summary.totalPaid}}</td>
+         <td class="text-right">{{formatCurrency summary.totalRemaining}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">สรุปตามพนักงานขาย</div>
+  <table style="margin-bottom: 20px;">
+    <thead>
+      <tr>
+        <th>พนักงานขาย</th>
+        <th class="text-center">จำนวนขาย (คัน)</th>
+        <th class="text-center">รอปิดการขาย</th>
+        <th class="text-center">สำเร็จ</th>
+        <th class="text-center">ยกเลิก</th>
+        <th class="text-right">ยอดขายรวม</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each bySalesperson}}
+      <tr>
+        <td>{{salesperson}}</td>
+        <td class="text-center">{{totalSales}}</td>
+        <td class="text-center">{{pendingCount}}</td>
+        <td class="text-center">{{completedCount}}</td>
+        <td class="text-center">{{canceledCount}}</td>
+        <td class="text-right">{{formatCurrency totalAmount}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">รายการขาย</div>
+  <table style="font-size: 10px;">
+    <thead>
+      <tr>
+        <th style="width: 5%">No.</th>
+        <th style="width: 10%">วันที่</th>
+        <th style="width: 10%">เลขที่ขาย</th>
+        <th style="width: 15%">ลูกค้า</th>
+        <th style="width: 20%">รถยนต์</th>
+        <th style="width: 10%">สถานะ</th>
+        <th style="width: 10%">พนักงาน</th>
+        <th style="width: 10%" class="text-right">ยอดขาย</th>
+        <th style="width: 10%" class="text-right">รับชำระแล้ว</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each sales}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>{{formatThaiDate saleDate 'numeric'}}</td>
+        <td>{{saleNumber}}</td>
+        <td>{{customerName}}</td>
+        <td>{{vehicleInfo}}</td>
+        <td>{{statusLabel}}</td>
+        <td>{{salesperson}}</td>
+        <td class="text-right">{{formatCurrency totalAmount}}</td>
+        <td class="text-right">{{formatCurrency paidAmount}}</td>
+      </tr>
+      {{/each}}
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td colspan="7" class="text-right">รวมทั้งสิ้น</td>
+        <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+        <td class="text-right">{{formatCurrency summary.totalPaid}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+  พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
+</div>

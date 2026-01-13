@@ -31,6 +31,7 @@ import {
   SalesSummaryReportPage,
   StockInterestReportPage,
 } from './pages/reports';
+import SettingsPage from './pages/settings/SettingsPage';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -266,6 +267,14 @@ function App() {
               }
             />
             {/* User Management Routes - Admin Only */}
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/users"
               element={

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Banknote, Receipt, CreditCard, Wallet } from 'lucide-react';
+import { ArrowLeft, Banknote, Receipt, CreditCard, Wallet, FileText } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
   DateRangeFilter,
@@ -86,7 +86,27 @@ export default function DailyPaymentReportPage() {
     { key: 'amount', label: 'จำนวนเงิน' },
     { key: 'saleNumber', label: 'เลขที่การขาย' },
     { key: 'notes', label: 'หมายเหตุ' },
+    { key: 'notes', label: 'หมายเหตุ' },
   ];
+
+  const handleExportPdf = async () => {
+    try {
+      setLoading(true);
+      const blob = await reportService.getDailyPaymentReportPdf({ startDate, endDate });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `daily-payment-report-${startDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้าง PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <MainLayout>
@@ -123,6 +143,14 @@ export default function DailyPaymentReportPage() {
           headers={exportHeaders}
           loading={loading}
         />
+        <button
+          onClick={handleExportPdf}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          ส่งออก PDF
+        </button>
         <PrintButton title="รายการรับเงินประจำวัน" contentId="report-content" />
       </div>
 

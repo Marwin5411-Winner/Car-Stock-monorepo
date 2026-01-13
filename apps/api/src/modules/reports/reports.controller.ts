@@ -2,7 +2,18 @@ import { Elysia, t } from 'elysia';
 import { reportsService } from './reports.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { authService } from '../auth/auth.service';
+import { pdfService } from '../pdf/pdf.service';
+import { formatThaiDate } from '../pdf/helpers';
 import '../../types/context.d';
+
+const ADDRESS_HEADER = {
+  logoBase64: '',
+  companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+  address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
+  address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
+  phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+};
+
 
 export const reportRoutes = new Elysia({ prefix: '/reports' })
   // ============================================
@@ -55,6 +66,49 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         summary: 'Get daily payment report',
         description: 'Get payment transactions grouped by day with summary',
       },
+    }
+  )
+  .get(
+    '/daily-payments/pdf',
+    async ({ query, set, requester }) => {
+      try {
+        if (!authService.hasPermission(requester!.role, 'REPORT_FINANCE')) {
+          set.status = 403;
+          return 'Forbidden';
+        }
+
+        const startDate = query.startDate ? new Date(query.startDate) : undefined;
+        const endDate = query.endDate ? new Date(query.endDate + 'T23:59:59.999Z') : undefined;
+
+        const result = await reportsService.getDailyPaymentReport({ startDate, endDate });
+        
+        const dateRange = startDate && endDate 
+          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}` 
+          : `ทั้งหมด`;
+
+        const pdfBuffer = await pdfService.generateDailyPaymentReport({
+          header: ADDRESS_HEADER,
+          dateRange,
+          payments: result.payments,
+          summary: result.summary,
+        });
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="daily-payment-report.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return 'Failed to generate PDF';
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.Optional(t.String()),
+        endDate: t.Optional(t.String()),
+      }),
     }
   )
   // ============================================
@@ -113,6 +167,45 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       },
     }
   )
+  .get(
+    '/stock/pdf',
+    async ({ query, set, requester }) => {
+      try {
+        if (!authService.hasPermission(requester!.role, 'REPORT_STOCK')) {
+          set.status = 403;
+          return 'Forbidden';
+        }
+
+        const result = await reportsService.getStockReport({ status: query.status as any });
+        
+        const dateRange = `ข้อมูล ณ วันที่ ${formatThaiDate(new Date(), 'full')}`;
+
+        const pdfBuffer = await pdfService.generateStockReport({
+          header: ADDRESS_HEADER,
+          dateRange,
+          stocks: result.stocks,
+          summary: result.summary,
+        });
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="stock-report.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return 'Failed to generate PDF';
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.Optional(t.String()),
+        endDate: t.Optional(t.String()),
+        status: t.Optional(t.String()), // simplifying for pdf endpoint
+      }),
+    }
+  )
   // ============================================
   // Profit & Loss Report
   // ============================================
@@ -166,6 +259,49 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         summary: 'Get profit and loss report',
         description: 'Get sales profit/loss report including interest costs',
       },
+    }
+  )
+  .get(
+    '/profit-loss/pdf',
+    async ({ query, set, requester }) => {
+      try {
+        if (!authService.hasPermission(requester!.role, 'REPORT_SALES')) {
+          set.status = 403;
+          return 'Forbidden';
+        }
+
+        const startDate = query.startDate ? new Date(query.startDate) : undefined;
+        const endDate = query.endDate ? new Date(query.endDate + 'T23:59:59.999Z') : undefined;
+
+        const result = await reportsService.getProfitLossReport({ startDate, endDate });
+        
+        const dateRange = startDate && endDate 
+          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}` 
+          : `ทั้งหมด`;
+
+        const pdfBuffer = await pdfService.generateProfitLossReport({
+          header: ADDRESS_HEADER,
+          dateRange,
+          items: result.items,
+          summary: result.summary,
+        });
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="profit-loss-report.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return 'Failed to generate PDF';
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.Optional(t.String()),
+        endDate: t.Optional(t.String()),
+      }),
     }
   )
   // ============================================
@@ -232,6 +368,57 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       },
     }
   )
+  .get(
+    '/sales-summary/pdf',
+    async ({ query, set, requester }) => {
+      try {
+        if (!authService.hasPermission(requester!.role, 'REPORT_SALES')) {
+          set.status = 403;
+          return 'Forbidden';
+        }
+
+        const startDate = query.startDate ? new Date(query.startDate) : undefined;
+        const endDate = query.endDate ? new Date(query.endDate + 'T23:59:59.999Z') : undefined;
+
+        const result = await reportsService.getSalesSummaryReport({
+          startDate,
+          endDate,
+          status: query.status as any,
+          salespersonId: query.salespersonId,
+        });
+        
+        const dateRange = startDate && endDate 
+          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}` 
+          : `ทั้งหมด`;
+
+        const pdfBuffer = await pdfService.generateSalesSummaryReport({
+          header: ADDRESS_HEADER,
+          dateRange,
+          sales: result.sales,
+          summary: result.summary,
+          bySalesperson: result.bySalesperson,
+        });
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="sales-summary-report.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return 'Failed to generate PDF';
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.Optional(t.String()),
+        endDate: t.Optional(t.String()),
+        status: t.Optional(t.String()),
+        salespersonId: t.Optional(t.String()),
+      }),
+    }
+  )
   // ============================================
   // Stock Interest Report
   // ============================================
@@ -293,5 +480,53 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         summary: 'Get stock interest report',
         description: 'Get stock interest report with accumulated interest calculations',
       },
+    }
+  )
+  .get(
+    '/stock-interest/pdf',
+    async ({ query, set, requester }) => {
+      try {
+        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+          set.status = 403;
+          return 'Forbidden';
+        }
+
+        const isCalculating = query.isCalculating === 'true' ? true : 
+                              query.isCalculating === 'false' ? false : undefined;
+
+        const result = await reportsService.getStockInterestReport({
+          status: query.status as any,
+          isCalculating,
+          brand: query.brand,
+        });
+        
+        const dateRange = `ข้อมูล ณ วันที่ ${formatThaiDate(new Date(), 'full')}`;
+
+        const pdfBuffer = await pdfService.generateStockInterestReport({
+          header: ADDRESS_HEADER,
+          dateRange,
+          stocks: result.stocks,
+          summary: result.summary,
+        });
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="stock-interest-report.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return 'Failed to generate PDF';
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.Optional(t.String()),
+        endDate: t.Optional(t.String()),
+        status: t.Optional(t.String()),
+        isCalculating: t.Optional(t.String()),
+        brand: t.Optional(t.String()),
+      }),
     }
   );

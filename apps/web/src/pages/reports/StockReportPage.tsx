@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Package, Car, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Package, Car, CheckCircle, Clock, FileText } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
   DateRangeFilter,
@@ -102,7 +102,31 @@ export default function StockReportPage() {
     { key: 'daysInStock', label: 'วันในสต็อก' },
     { key: 'baseCost', label: 'ราคาต้นทุน' },
     { key: 'totalCost', label: 'ต้นทุนรวม' },
+    { key: 'totalCost', label: 'ต้นทุนรวม' },
   ];
+
+  const handleExportPdf = async () => {
+    try {
+      setLoading(true);
+      const blob = await reportService.getStockReportPdf({
+        startDate,
+        endDate,
+        status: statusFilter || undefined,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `stock-report-${startDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้าง PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <MainLayout>
@@ -165,6 +189,14 @@ export default function StockReportPage() {
           headers={exportHeaders}
           loading={loading}
         />
+        <button
+          onClick={handleExportPdf}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          ส่งออก PDF
+        </button>
         <PrintButton title="รายงานสต็อก" contentId="report-content" />
       </div>
 

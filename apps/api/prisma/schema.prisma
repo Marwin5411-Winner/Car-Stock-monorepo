@@ -499,3 +499,22 @@ enum DocumentType {
   DELIVERY_RECEIPT
   THANK_YOU_LETTER
 }
+
+model CompanySettings {
+  id            String   @id @default(cuid())
+  companyNameTh String   @map("company_name_th")
+  companyNameEn String   @map("company_name_en")
+  taxId         String   @map("tax_id")
+  addressTh     String   @map("address_th")
+  addressEn     String   @map("address_en")
+  phone         String
+  mobile        String
+  fax           String?
+  email         String?
+  website       String?
+  logo          String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("company_settings")
+}

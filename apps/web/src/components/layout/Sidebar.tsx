@@ -1,18 +1,19 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Users, 
-  Car, 
-  Package, 
-  ShoppingCart, 
-  CreditCard, 
+import {
+  Users,
+  Car,
+  Package,
+  ShoppingCart,
+  CreditCard,
   BarChart3,
   FileText,
   Percent,
   Shield,
   Megaphone,
-  PieChart
+  PieChart,
+  Settings
 } from 'lucide-react';
 
 interface NavItem {
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { to: '/reports', label: 'รายงาน', icon: <PieChart className="w-5 h-5" /> },
   { to: '/campaigns', label: 'แคมเปญ', icon: <Megaphone className="w-5 h-5" />, adminOnly: true },
   { to: '/users', label: 'จัดการผู้ใช้', icon: <Shield className="w-5 h-5" />, adminOnly: true },
+  { to: '/settings', label: 'ตั้งค่าบริษัท', icon: <Settings className="w-5 h-5" />, adminOnly: true },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -57,20 +59,19 @@ export const Sidebar: React.FC = () => {
           {navItems
             .filter((item) => !item.adminOnly || user?.role === 'ADMIN')
             .map((item) => (
-            <li key={item.to}>
-              <Link
-                to={item.to}
-                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                  isActive(item.to)
+              <li key={item.to}>
+                <Link
+                  to={item.to}
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${isActive(item.to)
                     ? 'bg-blue-50 text-blue-600 font-medium'
                     : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-              >
-                <span className="mr-3">{item.icon}</span>
-                {item.label}
-              </Link>
-            </li>
-          ))}
+                    }`}
+                >
+                  <span className="mr-3">{item.icon}</span>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
         </ul>
       </nav>
     </aside>

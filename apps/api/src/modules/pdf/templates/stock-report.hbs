@@ -1,0 +1,90 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">รายงานสต็อกสินค้า</div>
+
+<div class="text-center" style="margin-bottom: 20px;">
+  <strong>ข้อมูลวันที่:</strong> {{formatThaiDateWithDay (currentThaiDate)}}
+</div>
+
+<div class="section">
+  <div class="section-title">สรุปภาพรวม</div>
+  <table style="width: 100%; margin-bottom: 20px;">
+    <thead>
+      <tr>
+        <th class="text-center">ทั้งหมด</th>
+        <th class="text-center">พร้อมขาย</th>
+        <th class="text-center">จองแล้ว</th>
+        <th class="text-center">เตรียมส่งมอบ</th>
+        <th class="text-center">ขายแล้ว</th>
+        <th class="text-center">มูลค่ารวม (ต้นทุน)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+         <td class="text-center">{{summary.totalCount}}</td>
+         <td class="text-center">{{summary.availableCount}}</td>
+         <td class="text-center">{{summary.reservedCount}}</td>
+         <td class="text-center">{{summary.preparingCount}}</td>
+         <td class="text-center">{{summary.soldCount}}</td>
+         <td class="text-right">{{formatCurrency summary.totalValue}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">รายการสินค้า</div>
+  <table style="font-size: 11px;">
+    <thead>
+      <tr>
+        <th style="width: 5%">No.</th>
+        <th style="width: 15%">VIN</th>
+        <th style="width: 10%">ยี่ห้อ</th>
+        <th style="width: 20%">รุ่น</th>
+        <th style="width: 10%">สี</th>
+        <th style="width: 10%">สถานะ</th>
+        <th style="width: 10%">วันที่รับเข้า</th>
+        <th style="width: 8%" class="text-center">อายุ (วัน)</th>
+        <th style="width: 12%" class="text-right">ต้นทุนรวม</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each stocks}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>{{vin}}</td>
+        <td>{{brand}}</td>
+        <td>{{model}} {{variant}}</td>
+        <td>{{exteriorColor}}</td>
+        <td>{{statusLabel}}</td>
+        <td>{{formatThaiDate arrivalDate 'numeric'}}</td>
+        <td class="text-center">{{daysInStock}}</td>
+        <td class="text-right">{{formatCurrency totalCost}}</td>
+      </tr>
+      {{/each}}
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td colspan="8" class="text-right">มูลค่ารวม</td>
+        <td class="text-right">{{formatCurrency summary.totalValue}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+  พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
+</div>

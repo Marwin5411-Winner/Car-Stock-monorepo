@@ -1,0 +1,106 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">รายงานการรับเงินประจำวัน</div>
+
+<div class="text-center" style="margin-bottom: 20px;">
+  <strong>ช่วงเวลา:</strong> {{dateRange}}
+</div>
+
+<div class="section">
+  <div class="section-title">รายการรับเงิน</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 5%">#</th>
+        <th style="width: 15%">วันที่</th>
+        <th style="width: 15%">เลขที่ใบเสร็จ</th>
+        <th style="width: 20%">ลูกค้า</th>
+        <th style="width: 15%">ประเภท</th>
+        <th style="width: 15%">ช่องทาง</th>
+        <th style="width: 15%" class="text-right">จำนวนเงิน</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each payments}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>{{formatThaiDate paymentDate 'numeric'}}</td>
+        <td>{{receiptNumber}}</td>
+        <td>{{customerName}}</td>
+        <td>{{paymentTypeLabel}}</td>
+        <td>{{paymentMethodLabel}}</td>
+        <td class="text-right">{{formatCurrency amount}}</td>
+      </tr>
+      {{/each}}
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td colspan="6" class="text-right">รวมรับสุทธิ</td>
+        <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="two-columns" style="gap: 40px; margin-top: 30px;">
+  <div class="column">
+    <div class="section-title">สรุปตามช่องทางชำระเงิน</div>
+    <table>
+      <thead>
+        <tr>
+          <th>ช่องทาง</th>
+          <th class="text-right">จำนวนรายการ</th>
+          <th class="text-right">ยอดรวม</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each summary.byMethod}}
+        <tr>
+          <td>{{label}}</td>
+          <td class="text-right">{{count}}</td>
+          <td class="text-right">{{formatCurrency amount}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="column">
+    <div class="section-title">สรุปตามประเภทการชำระ</div>
+    <table>
+      <thead>
+        <tr>
+          <th>ประเภท</th>
+          <th class="text-right">จำนวนรายการ</th>
+          <th class="text-right">ยอดรวม</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each summary.byType}}
+        <tr>
+          <td>{{label}}</td>
+          <td class="text-right">{{count}}</td>
+          <td class="text-right">{{formatCurrency amount}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+  พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
+</div>

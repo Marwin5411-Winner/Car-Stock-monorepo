@@ -18,6 +18,7 @@ import { campaignRoutes } from './modules/campaigns/campaigns.controller';
 import { reportRoutes } from './modules/reports/reports.controller';
 import { pdfRoutes } from './modules/pdf/pdf.controller';
 import { analyticsRoutes } from './modules/analytics/analytics.controller';
+import { settingsRoutes } from './modules/settings/settings.controller';
 // import { documentRoutes } from './modules/documents/documents.controller';
 
 const app = new Elysia()
@@ -106,6 +107,7 @@ const app = new Elysia()
       .use(reportRoutes)
       .use(pdfRoutes)
       .use(analyticsRoutes)
+      .use(settingsRoutes)
       // .use(documentRoutes)
   )
   // Error handling

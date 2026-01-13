@@ -8,6 +8,7 @@ import {
   TrendingDown,
   ShoppingCart,
   Percent,
+  FileText,
 } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
@@ -133,6 +134,25 @@ export default function ProfitLossReportPage() {
     { key: 'profitMargin', label: 'อัตรากำไร (%)' },
   ];
 
+  const handleExportPdf = async () => {
+    try {
+      setLoading(true);
+      const blob = await reportService.getProfitLossReportPdf({ startDate, endDate });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `profit-loss-report-${startDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้าง PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="mb-6">
@@ -168,6 +188,14 @@ export default function ProfitLossReportPage() {
           headers={exportHeaders}
           loading={loading}
         />
+        <button
+          onClick={handleExportPdf}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          ส่งออก PDF
+        </button>
         <PrintButton title="รายงานกำไร-ขาดทุน" contentId="report-content" />
       </div>
 

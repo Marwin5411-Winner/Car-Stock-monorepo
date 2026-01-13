@@ -1,0 +1,64 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">รายงานดอกเบี้ยสต็อก (Stock Interest)</div>
+
+<div class="text-center" style="margin-bottom: 20px;">
+  <strong>วันที่พิมพ์:</strong> {{formatThaiDateWithDay (currentThaiDate)}}
+</div>
+
+<div class="section">
+  <div class="section-title">รายการดอกเบี้ย</div>
+  <table style="font-size: 10px;">
+    <thead>
+      <tr>
+        <th style="width: 5%">No.</th>
+        <th style="width: 12%">VIN</th>
+        <th style="width: 20%">รุ่น</th>
+        <th style="width: 10%">วันที่เริ่มคิด</th>
+        <th style="width: 10%" class="text-right">ต้นทุน/ฐาน</th>
+        <th style="width: 8%" class="text-center">ดอกเบี้ย %</th>
+        <th style="width: 8%" class="text-center">จำนวนวัน</th>
+        <th style="width: 9%" class="text-right">ดบ. สะสม</th>
+        <th style="width: 9%" class="text-right">จ่ายแล้ว</th>
+        <th style="width: 9%" class="text-right">ค้างชำระ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each stocks}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>{{vin}}</td>
+        <td>{{vehicleInfo}}</td>
+        <td>{{formatThaiDate interestStartDate 'numeric'}}</td>
+        <td class="text-right">{{formatCurrency principalAmount}}</td>
+        <td class="text-center">{{interestRate}}%</td>
+        <td class="text-center">{{daysCount}}</td>
+        <td class="text-right">{{formatCurrency totalAccumulatedInterest}}</td>
+        <td class="text-right">{{formatCurrency paidInterest}}</td>
+        <td class="text-right" style="color: {{#if (gt pendingInterest 0)}}red{{else}}black{{/if}}">{{formatCurrency pendingInterest}}</td>
+      </tr>
+      {{/each}}
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td colspan="7" class="text-right">รวมทั้งสิ้น</td>
+        <td class="text-right">{{formatCurrency summary.totalAccumulatedInterest}}</td>
+        <td class="text-right">{{formatCurrency summary.totalPaidInterest}}</td>
+        <td class="text-right">{{formatCurrency summary.totalPendingInterest}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

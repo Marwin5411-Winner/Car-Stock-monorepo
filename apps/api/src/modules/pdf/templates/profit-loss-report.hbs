@@ -1,0 +1,93 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">รายงานกำไร/ขาดทุน</div>
+
+<div class="text-center" style="margin-bottom: 20px;">
+  <strong>ช่วงเวลา:</strong> {{dateRange}}
+</div>
+
+<div class="section">
+  <div class="section-title">สรุปภาพรวม</div>
+  <table style="width: 100%; margin-bottom: 20px;">
+    <thead>
+      <tr>
+        <th class="text-center">จำนวนขาย</th>
+        <th class="text-center">ยอดขายรวม</th>
+        <th class="text-center">ต้นทุนรวม</th>
+        <th class="text-center">ดอกเบี้ยรวม</th>
+        <th class="text-center">กำไรสุทธิ</th>
+        <th class="text-center">% กำไร</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+         <td class="text-center">{{summary.totalSales}}</td>
+         <td class="text-right">{{formatCurrency summary.totalRevenue}}</td>
+         <td class="text-right">{{formatCurrency summary.totalCost}}</td>
+         <td class="text-right">{{formatCurrency summary.totalInterest}}</td>
+         <td class="text-right" style="font-weight: bold;">{{formatCurrency summary.netProfit}}</td>
+         <td class="text-center">{{formatPercentage summary.profitMargin}}%</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">รายการขาย</div>
+  <table style="font-size: 10px;">
+    <thead>
+      <tr>
+        <th style="width: 5%">No.</th>
+        <th style="width: 10%">วันที่</th>
+        <th style="width: 10%">เลขที่ขาย</th>
+        <th style="width: 15%">ลูกค้า</th>
+        <th style="width: 20%">รถยนต์</th>
+        <th style="width: 10%" class="text-right">ราคาขาย</th>
+        <th style="width: 10%" class="text-right">ต้นทุนรถ</th>
+        <th style="width: 8%" class="text-right">ดอกเบี้ย</th>
+        <th style="width: 12%" class="text-right">กำไรสุทธิ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>{{formatThaiDate completedDate 'numeric'}}</td>
+        <td>{{saleNumber}}</td>
+        <td>{{customerName}}</td>
+        <td>{{vehicleInfo}}</td>
+        <td class="text-right">{{formatCurrency sellingPrice}}</td>
+        <td class="text-right">{{formatCurrency totalCost}}</td>
+        <td class="text-right">{{formatCurrency accumulatedInterest}}</td>
+        <td class="text-right">{{formatCurrency netProfit}}</td>
+      </tr>
+      {{/each}}
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td colspan="5" class="text-right">รวมทั้งสิ้น</td>
+        <td class="text-right">{{formatCurrency summary.totalRevenue}}</td>
+        <td class="text-right">{{formatCurrency summary.totalCost}}</td>
+        <td class="text-right">{{formatCurrency summary.totalInterest}}</td>
+        <td class="text-right">{{formatCurrency summary.netProfit}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+  พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
+</div>

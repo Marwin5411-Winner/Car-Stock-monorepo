@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Target,
   Award,
+  FileText,
 } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
@@ -67,12 +68,11 @@ export default function SalesSummaryReportPage() {
       render: (_: number, row: SalesBySalesperson) => {
         const index = data?.bySalesperson.findIndex(s => s.id === row.id) ?? 0;
         return (
-          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-            index === 0 ? 'bg-yellow-400 text-yellow-900' :
-            index === 1 ? 'bg-gray-300 text-gray-800' :
-            index === 2 ? 'bg-orange-400 text-orange-900' :
-            'bg-gray-100 text-gray-600'
-          }`}>
+          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
+              index === 1 ? 'bg-gray-300 text-gray-800' :
+                index === 2 ? 'bg-orange-400 text-orange-900' :
+                  'bg-gray-100 text-gray-600'
+            }`}>
             {index + 1}
           </span>
         );
@@ -132,6 +132,29 @@ export default function SalesSummaryReportPage() {
     { key: 'totalAmount', label: 'ยอดขาย' },
     { key: 'commission', label: 'ค่าคอมมิชชั่น' },
   ];
+
+  const handleExportPdf = async () => {
+    try {
+      setLoading(true);
+      const blob = await reportService.getSalesSummaryReportPdf({
+        startDate,
+        endDate,
+        status: statusFilter || undefined,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `sales-summary-report-${startDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้าง PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <MainLayout>
@@ -199,6 +222,14 @@ export default function SalesSummaryReportPage() {
           headers={exportSalespersonHeaders}
           loading={loading}
         />
+        <button
+          onClick={handleExportPdf}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          ส่งออก PDF
+        </button>
         <PrintButton title="รายงานสรุปยอดขาย" contentId="report-content" />
       </div>
 

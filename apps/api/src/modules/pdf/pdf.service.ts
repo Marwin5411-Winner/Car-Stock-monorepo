@@ -19,7 +19,13 @@ import {
   PaymentReceiptData,
   VehicleCardData,
   TemporaryReceiptData,
+
   CompanyHeader,
+  DailyPaymentReportData,
+  StockReportData,
+  ProfitLossReportData,
+  SalesSummaryReportData,
+  StockInterestReportData,
 } from './types';
 import {
   formatThaiDate,
@@ -54,6 +60,8 @@ Handlebars.registerHelper('ifEquals', function (this: any, arg1: any, arg2: any,
 });
 Handlebars.registerHelper('add', (a: number, b: number) => a + b);
 Handlebars.registerHelper('subtract', (a: number, b: number) => a - b);
+Handlebars.registerHelper('gt', (a: number, b: number) => a > b);
+Handlebars.registerHelper('lt', (a: number, b: number) => a < b);
 
 // Default company header
 const DEFAULT_COMPANY_HEADER: CompanyHeader = {
@@ -462,15 +470,33 @@ export class PdfService {
       // Get and compile template
       const template = this.getTemplate(templateType);
       
+      // Fetch company settings from DB
+      const dbSettings = await import('../settings/settings.service').then(m => m.settingsService.getSettings());
+      
       // Add company header to data if not present
       const providedHeader = (data as any).header || {};
+      
+      // Construct header from DB settings or fallback
+      const dbHeader = dbSettings ? {
+        companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
+        address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
+        address2: '', // Address logic might need adjustment if DB splits address differently
+        phone: `โทร. ${dbSettings.phone} ${dbSettings.fax ? 'โทรสาร. ' + dbSettings.fax : ''}`.trim(),
+        logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
+      } : DEFAULT_COMPANY_HEADER;
+
+      // If DB has addressEn, maybe we want to use it? 
+      // For now, sticking to Thai as per default template usage.
+      // If address in DB is single string, we might need to split it if template expects address1/address2.
+      // But looking at template styles, it just dumps address.
+      
       const dataWithHeader = {
         ...data,
         header: {
-          ...DEFAULT_COMPANY_HEADER,
-          ...providedHeader,
-          // Always use service's logo if no logo is provided or if it's empty
-          logoBase64: providedHeader.logoBase64 || this.logoBase64,
+          ...dbHeader,
+          ...providedHeader, // Runtime overrides take precedence
+          // Ensure logo is available
+          logoBase64: providedHeader.logoBase64 || dbHeader.logoBase64 || this.logoBase64,
         },
       };
 
@@ -620,6 +646,41 @@ export class PdfService {
         left: '5mm',
       },
     });
+  }
+
+  /**
+   * Generate Daily Payment Report PDF
+   */
+  public async generateDailyPaymentReport(data: DailyPaymentReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.DAILY_PAYMENT_REPORT, data);
+  }
+
+  /**
+   * Generate Stock Report PDF
+   */
+  public async generateStockReport(data: StockReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.STOCK_REPORT, data, { landscape: true });
+  }
+
+  /**
+   * Generate Profit & Loss Report PDF
+   */
+  public async generateProfitLossReport(data: ProfitLossReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.PROFIT_LOSS_REPORT, data, { landscape: true });
+  }
+
+  /**
+   * Generate Sales Summary Report PDF
+   */
+  public async generateSalesSummaryReport(data: SalesSummaryReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.SALES_SUMMARY_REPORT, data, { landscape: true });
+  }
+
+  /**
+   * Generate Stock Interest Report PDF
+   */
+  public async generateStockInterestReport(data: StockInterestReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.STOCK_INTEREST_REPORT, data, { landscape: true });
   }
 
   /**

@@ -344,6 +344,11 @@ export enum PdfTemplateType {
   PAYMENT_RECEIPT = 'payment-receipt',
   VEHICLE_CARD = 'vehicle-card',
   TEMPORARY_RECEIPT = 'temporary-receipt',
+  DAILY_PAYMENT_REPORT = 'daily-payment-report',
+  STOCK_REPORT = 'stock-report',
+  PROFIT_LOSS_REPORT = 'profit-loss-report',
+  SALES_SUMMARY_REPORT = 'sales-summary-report',
+  STOCK_INTEREST_REPORT = 'stock-interest-report',
 }
 
 /**
@@ -431,4 +436,55 @@ export interface TemporaryReceiptData {
     transferAmount?: string;
   };
   note?: string;
+}
+
+/**
+ * Daily Payment Report Data
+ */
+export interface DailyPaymentReportData {
+  header: CompanyHeader;
+  dateRange: string;
+  payments: any[];
+  summary: any;
+}
+
+/**
+ * Stock Report Data
+ */
+export interface StockReportData {
+  header: CompanyHeader;
+  dateRange: string;
+  stocks: any[];
+  summary: any;
+}
+
+/**
+ * Profit & Loss Report Data
+ */
+export interface ProfitLossReportData {
+  header: CompanyHeader;
+  dateRange: string;
+  items: any[];
+  summary: any;
+}
+
+/**
+ * Sales Summary Report Data
+ */
+export interface SalesSummaryReportData {
+  header: CompanyHeader;
+  dateRange: string;
+  sales: any[];
+  summary: any;
+  bySalesperson: any[];
+}
+
+/**
+ * Stock Interest Report Data
+ */
+export interface StockInterestReportData {
+  header: CompanyHeader;
+  dateRange: string;
+  stocks: any[];
+  summary: any;
 }
