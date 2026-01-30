@@ -343,6 +343,7 @@ export enum PdfTemplateType {
   DEPOSIT_RECEIPT = 'deposit-receipt',
   PAYMENT_RECEIPT = 'payment-receipt',
   VEHICLE_CARD = 'vehicle-card',
+  VEHICLE_CARD_TEMPLATE = 'vehicle-card-template',
   TEMPORARY_RECEIPT = 'temporary-receipt',
   DAILY_PAYMENT_REPORT = 'daily-payment-report',
   STOCK_REPORT = 'stock-report',

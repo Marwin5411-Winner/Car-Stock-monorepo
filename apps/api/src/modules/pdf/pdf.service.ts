@@ -632,6 +632,13 @@ export class PdfService {
   }
 
   /**
+   * Generate Vehicle Card Template PDF (การ์ดรายละเอียดรถยนต์ - แบบไม่มีกรอบ)
+   */
+  public async generateVehicleCardTemplate(data: VehicleCardData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, { landscape: true });
+  }
+
+  /**
    * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว) - Small Format 9x5.5 inch
    */
   public async generateTemporaryReceipt(data: TemporaryReceiptData): Promise<Buffer> {

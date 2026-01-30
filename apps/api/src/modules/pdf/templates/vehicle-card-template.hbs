@@ -1,0 +1,362 @@
+<div class="page">
+  <style>
+    .page {
+      font-family: 'Sarabun', 'Kanit', sans-serif;
+      font-size: 9px;
+      padding: 0;
+      color: #000;
+      position: relative;
+    }
+    .page * {
+      color: #000 !important;
+      background: transparent !important;
+      box-sizing: border-box;
+    }
+    /* Hide all borders and headers for pre-printed form */
+    .page table, .page th, .page td {
+      border: none !important;
+      padding: 2px;
+      vertical-align: middle;
+      line-height: 1.2;
+    }
+    .page .title {
+      display: none;
+    }
+    .page .checkbox {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border: 1px solid #000;
+      margin-right: 2px;
+      vertical-align: middle;
+      visibility: hidden; /* Hide checkbox box, maybe keep it if user wants to see where it is */
+    }
+    /* Specific positioning might be needed, but since we're using the same structure, 
+       we'll just make text transparent where it should be hidden and keep it where it should be shown.
+       Actually, the user said "no tables and headers", which means they just want the values.
+    */
+    th {
+      visibility: hidden;
+    }
+    .page .mt-neg {
+      margin-top: -1px;
+    }
+    
+    /* Ensure height matches original for correct alignment */
+    td {
+      height: 14px;
+    }
+
+    @media print {
+      .page {
+        padding: 5px !important;
+        margin: 0 !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+      }
+    }
+  </style>
+
+  <!-- Header Table: Vehicle Info -->
+  <table style="width: 100%; table-layout: fixed;">
+    <tr style="visibility: hidden;">
+      <th style="width: 14%;">ใบสั่งซื้อเลขที่</th>
+      <th style="width: 16%;">แบบรุ่นรถยนต์</th>
+      <th style="width: 16%;">เลขเครื่องยนต์</th>
+      <th style="width: 16%;">เลขแชสซีร์</th>
+      <th style="width: 10%;">รหัสสี</th>
+      <th style="width: 14%;">ใบสั่งขายเลขที่</th>
+      <th style="width: 14%;">STOCK NO.</th>
+    </tr>
+    <tr>
+      <td style="height: 14px;"></td>
+      <td style="text-align: center;">{{car.model}}</td>
+      <td style="text-align: center;">{{car.engineNo}}</td>
+      <td style="text-align: center;">{{car.chassisNo}}</td>
+      <td style="text-align: center;">{{car.color}}</td>
+      <td></td>
+      <td style="text-align: center; font-weight: bold;">{{stockNumber}}</td>
+    </tr>
+  </table>
+
+  <!-- Date Row -->
+  <table class="mt-neg" style="width: 100%; table-layout: fixed;">
+    <tr style="visibility: hidden;">
+      <td style="width: 25%; font-weight: bold;">วันที่สั่งซื้อ</td>
+      <td style="width: 25%; font-weight: bold;">วันที่รับรถ</td>
+      <td style="width: 25%; font-weight: bold;">วันที่ขาย</td>
+      <td style="width: 25%; font-weight: bold;">พนักงานขาย</td>
+    </tr>
+    <tr>
+      <td style="height: 14px;"></td>
+      <td></td>
+      <td style="text-align: center;">{{date}}</td>
+      <td></td>
+    </tr>
+  </table>
+
+  <!-- Main Content Table -->
+  <table class="mt-neg" style="width: 100%; table-layout: fixed;">
+    <colgroup>
+      <col style="width: 5%;">
+      <col style="width: 19%;">
+      <col style="width: 12%;">
+      <col style="width: 3%;">
+      <col style="width: 8%;">
+      <col style="width: 19%;">
+      <col style="width: 12%;">
+      <col style="width: 11%;">
+      <col style="width: 11%;">
+    </colgroup>
+    <!-- Headers (Hidden) -->
+    <tr style="visibility: hidden;">
+      <th></th>
+      <th>รายละเอียดต้นทุน</th>
+      <th colspan="2">จำนวนเงิน+VAT</th>
+      <th>ผู้อนุมัติ</th>
+      <th>รายละเอียดการขาย</th>
+      <th>จำนวนเงิน</th>
+      <th>เลขที่ใบรับ</th>
+      <th>ผู้ตรวจสอบ</th>
+    </tr>
+
+    <!-- Row 1 -->
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">ราคาขาย</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 2 -->
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">หัก&nbsp;&nbsp;ส่วนลดเงินสด</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 3 -->
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">คงเหลือ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 4 -->
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">เงินดาวน์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 5 -->
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">หัก&nbsp;&nbsp;ส่วนลดเงินดาวน์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Row 6: รวม / คงเหลือเงินดาวน์ -->
+    <tr>
+      <td colspan="2"></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">คงเหลือเงินดาวน์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Payment Conditions Header (Hidden) -->
+    <tr style="visibility: hidden;">
+      <td colspan="5">เงื่อนไขการชำระเงิน</td>
+      <td>บวก&nbsp;&nbsp;ค่าจดทะเบียน</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Payment Options Row -->
+    <tr>
+      <td colspan="5">
+        <!-- Keep layout but hide text/boxes -->
+        <span style="visibility: hidden;"><span class="checkbox"></span> เงินสด</span>
+        <span style="display: inline-block; width: 30px;"></span>
+        <span style="visibility: hidden;"><span class="checkbox"></span> เครดิต................วัน</span>
+      </td>
+      <td style="visibility: hidden;">ค่าเบี้ยประกัน</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Voucher Header (Hidden) -->
+    <tr style="visibility: hidden;">
+      <td colspan="2">เลขที่ใบสำคัญจ่าย/กำหนดชำระ</td>
+      <td colspan="2">จำนวนเงิน +VAT</td>
+      <td>ผู้อนุมัติ</td>
+      <td>ค่า พรบ.</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Voucher Rows -->
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">ค่าทะเบียน</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">ค่าขนส่ง</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">อื่นๆ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Extra Expenses Header (Hidden) -->
+    <tr style="visibility: hidden;">
+      <td colspan="5">ค่าใช้จ่ายอื่นๆ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Extra Expenses Rows -->
+    <tr>
+      <td></td>
+      <td style="visibility: hidden;">ค่าขนส่ง</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">รวมรับ</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td style="visibility: hidden;">ค่าคอมขาย</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td style="visibility: hidden;">ยอดจัดไฟแนนซ์</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td style="visibility: hidden;">ค่านำพา</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td colspan="4" rowspan="2">
+        <!-- Hidden static text -->
+      </td>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+
+    <!-- Summary Row -->
+    <tr>
+      <td colspan="2"></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td colspan="4" rowspan="2" style="vertical-align: top; padding: 3px;">
+        <table style="width: 100%; border: none !important;">
+          <tr style="visibility: hidden;">
+            <td style="width: 15%;">สรุป</td>
+            <td style="width: 30%;">ผลการดำเนินงาน</td>
+            <td style="width: 35%;"></td>
+            <td style="width: 20%;">บาท</td>
+          </tr>
+          <tr style="visibility: hidden;">
+            <td></td>
+            <td>รายได้รวม</td>
+            <td></td>
+            <td>บาท</td>
+          </tr>
+          <tr style="visibility: hidden;">
+            <td>หัก</td>
+            <td>ต้นทุนรวม</td>
+            <td></td>
+            <td>บาท</td>
+          </tr>
+          <tr style="visibility: hidden;">
+            <td></td>
+            <td>กำไรขั้นต้น</td>
+            <td></td>
+            <td>บาท</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Footer Row -->
+    <tr>
+      <td colspan="5" style="padding: 3px; vertical-align: top;">
+        <!-- Hidden footer -->
+      </td>
+    </tr>
+  </table>
+</div>

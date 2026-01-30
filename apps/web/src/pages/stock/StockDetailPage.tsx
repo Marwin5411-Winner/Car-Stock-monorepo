@@ -110,6 +110,23 @@ export default function StockDetailPage() {
     }
   };
 
+  const handlePrintVehicleCardTemplate = async () => {
+    if (!stock) return;
+    try {
+      const blob = await api.getBlob(`/api/pdf/vehicle-card-template/${stock.id}`);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vehicle-card-template-${stock.vin}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading vehicle card template:', error);
+      alert('ไม่สามารถดาวน์โหลดเอกสารได้');
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('th-TH', {
       style: 'currency',
@@ -457,7 +474,21 @@ export default function StockDetailPage() {
                 className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                พิมพ์การ์ดรถยนต์
+                พิมพ์การ์ดรถยนต์ (ปกติ)
+              </button>
+              <button
+                onClick={handlePrintVehicleCardTemplate}
+                className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                พิมพ์การ์ดรถยนต์ (ลงฟอร์ม)
+              </button>
+              <button
+                onClick={handlePrintVehicleCardTemplate}
+                className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                พิมพ์การ์ดรถยนต์แบบพิมพ์ล่วงหน้า
               </button>
             </div>
           </div>
