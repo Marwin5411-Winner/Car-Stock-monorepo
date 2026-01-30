@@ -779,6 +779,90 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   )
 
   /**
+   * Generate Vehicle Card Template PDF (การ์ดรายละเอียดรถยนต์ - แบบไม่มีกรอบ)
+   */
+  .get(
+    '/vehicle-card-template/:stockId',
+    async ({ params, set }) => {
+      try {
+        const stock = await db.stock.findUnique({
+          where: { id: params.stockId },
+          include: {
+            vehicleModel: true,
+          },
+        });
+
+        if (!stock) {
+          set.status = 404;
+          return { success: false, error: 'Stock not found' };
+        }
+
+        const data: VehicleCardData = {
+          header: {
+            logoBase64: '',
+            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
+            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
+            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+          },
+          stockNumber: stock.vin || '-',
+          date: formatThaiDate(new Date()),
+          car: {
+            brand: stock.vehicleModel?.brand || '-',
+            model: stock.vehicleModel?.model || '-',
+            variant: stock.vehicleModel?.variant || '',
+            year: stock.vehicleModel?.year?.toString() || '-',
+            color: stock.exteriorColor || '-',
+            interiorColor: stock.interiorColor || '-',
+            engineNo: stock.engineNumber || '-',
+            chassisNo: stock.vin || '-',
+            ccOrKw: '-', // Not in stock model
+          },
+          costs: {
+            baseCost: stock.baseCost.toString(),
+            transportCost: stock.transportCost.toString(),
+            accessoryCost: stock.accessoryCost.toString(),
+            otherCosts: stock.otherCosts.toString(),
+            totalCost: stock.baseCost
+              .plus(stock.transportCost)
+              .plus(stock.accessoryCost)
+              .plus(stock.otherCosts)
+              .plus(stock.accumulatedInterest)
+              .toString(),
+          },
+          location: stock.parkingSlot || '-',
+        };
+
+        const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="vehicle-card-template-${stock.vin}.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Failed to generate PDF',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      params: t.Object({
+        stockId: t.String(),
+      }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Generate Vehicle Card Template PDF',
+        description: 'Generate การ์ดรายละเอียดรถยนต์ PDF (แบบไม่มีกรอบ) for a stock',
+      },
+    }
+  )
+
+  /**
    * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว)
    */
   .get(
