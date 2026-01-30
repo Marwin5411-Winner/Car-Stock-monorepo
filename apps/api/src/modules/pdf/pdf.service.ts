@@ -628,14 +628,34 @@ export class PdfService {
    * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
-    return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, { landscape: true });
+    // Custom size: 26.85 x 20.71 cm (10.57 x 8.15 in)
+    return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
+      width: '26.85cm',
+      height: '20.71cm',
+      margin: {
+        top: '5mm',
+        right: '5mm',
+        bottom: '5mm',
+        left: '5mm',
+      },
+    });
   }
 
   /**
    * Generate Vehicle Card Template PDF (การ์ดรายละเอียดรถยนต์ - แบบไม่มีกรอบ)
    */
   public async generateVehicleCardTemplate(data: VehicleCardData): Promise<Buffer> {
-    return this.generatePdf(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, { landscape: true });
+    // Custom size: 26.85 x 20.71 cm (10.57 x 8.15 in)
+    return this.generatePdf(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
+      width: '26.85cm',
+      height: '20.71cm',
+      margin: {
+        top: '5mm',
+        right: '5mm',
+        bottom: '5mm',
+        left: '5mm',
+      },
+    });
   }
 
   /**
