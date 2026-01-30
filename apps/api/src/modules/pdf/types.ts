@@ -319,6 +319,7 @@ export interface PdfOptions {
   format?: 'A4' | 'Letter';
   width?: string; // Custom width (e.g., '9in', '228.6mm')
   height?: string; // Custom height (e.g., '5.5in', '139.7mm')
+  padding?: string; // Custom padding for content container
   margin?: {
     top: string;
     right: string;

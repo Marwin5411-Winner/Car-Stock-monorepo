@@ -221,10 +221,17 @@ export class PdfService {
   /**
    * Generate base HTML structure with styles
    */
-  private getBaseHtml(content: string, isLandscape: boolean = false): string {
+  private getBaseHtml(content: string, options: PdfOptions = {}): string {
     const fontCss = this.getFontCss();
-    const width = isLandscape ? '297mm' : '210mm';
-    const height = isLandscape ? '210mm' : '297mm';
+    
+    // Default to A4 if no custom dimensions provided
+    let width = options.width;
+    if (!width) {
+      width = options.landscape ? '297mm' : '210mm';
+    }
+    
+    // Padding (default 10mm)
+    const padding = options.padding || '10mm';
 
     return `
 <!DOCTYPE html>
@@ -252,7 +259,7 @@ export class PdfService {
     .page {
       width: ${width};
       /* min-height removed to prevent extra blank pages */
-      padding: 10mm;
+      padding: ${padding};
       margin: 0 auto;
       background: white;
     }
@@ -502,7 +509,7 @@ export class PdfService {
 
       // Render template with data
       const content = template(dataWithHeader);
-      const html = this.getBaseHtml(content, options.landscape);
+      const html = this.getBaseHtml(content, options);
 
       // Create FormData for Gotenberg
       // Bun provides native FormData and Blob support
@@ -632,6 +639,7 @@ export class PdfService {
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
       width: '26.85cm',
       height: '20.71cm',
+      padding: '0mm',
       margin: {
         top: '5mm',
         right: '5mm',
@@ -649,6 +657,7 @@ export class PdfService {
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
       width: '26.85cm',
       height: '20.71cm',
+      padding: '0mm',
       margin: {
         top: '5mm',
         right: '5mm',
