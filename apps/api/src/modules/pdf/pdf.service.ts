@@ -62,6 +62,10 @@ Handlebars.registerHelper('add', (a: number, b: number) => a + b);
 Handlebars.registerHelper('subtract', (a: number, b: number) => a - b);
 Handlebars.registerHelper('gt', (a: number, b: number) => a > b);
 Handlebars.registerHelper('lt', (a: number, b: number) => a < b);
+Handlebars.registerHelper('toLowerCase', (str: string) => {
+  if (!str) return '';
+  return str.toString().toLowerCase();
+});
 
 // Default company header
 const DEFAULT_COMPANY_HEADER: CompanyHeader = {
