@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { settingsService, CompanySettings } from '../services/settings.service';
+import { settingsService } from '../services/settings.service';
+import type { CompanySettings } from '../services/settings.service';
 
 interface CompanyContextType {
   companyName: string;
