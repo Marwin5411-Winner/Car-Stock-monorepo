@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Temporary Receipt</title>
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .receipt-paper {
+                box-shadow: none;
+                width: 29.71cm !important;
+                height: 21cm !important;
+            }
+            header, footer, .admin-bar, .sidebar {
+                display: none !important;
+            }
+        }
+        .receipt-paper {
+            position: relative;
+            width: 29.71cm;
+            height: 21cm;
+            background-image: url('/public/receipt-bg.jpg'); /* เปลี่ยน path ตามที่อัปโหลดจริง */
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            font-family: 'Sarabun', sans-serif;
+            font-size: 14pt;
+            color: #000;
+            overflow: hidden;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+<div class="receipt-paper">
+    <div style="position: absolute; top: 2.5cm; right: 2cm; text-align: right; line-height: 1.5;">
+        <div style="margin-bottom: 0.2cm;"><strong>เลขที่:</strong> {{ doc_no }}</div>
+        <div style="margin-bottom: 0.2cm;"><strong>วันที่:</strong> {{ date }}</div>
+        <div><strong>สัญญา:</strong> {{ contract_id }}</div>
+    </div>
+
+    <div style="position: absolute; top: 3.8cm; left: 2.5cm; width: 15cm; line-height: 1.6;">
+        <div style="display: flex;">
+            <span style="width: 3cm;">รหัสลูกค้า:</span>
+            <span>{{ customer_code }}</span>
+        </div>
+        <div style="display: flex;">
+            <span style="width: 3cm;">ชื่อ-สกุล:</span>
+            <span>{{ customer_name }}</span>
+        </div>
+        <div style="display: flex;">
+            <span style="width: 3cm;">ที่อยู่:</span>
+            <span>{{ address }}</span>
+        </div>
+        <div style="display: flex; margin-top: 0.2cm;">
+            <span style="width: 3cm;">โทร:</span>
+            <span>{{ phone }}</span>
+        </div>
+    </div>
+
+    <div style="position: absolute; top: 8.5cm; right: 2.5cm; width: 5cm; text-align: right; line-height: 2;">
+        <div style="height: 1cm;">{{ pay_amount }}</div>
+        <div style="height: 1cm;">{{ late_fee }}</div>
+        <div style="height: 1cm;">{{ discount }}</div>
+        <div style="height: 1cm; font-weight: bold; font-size: 16pt; margin-top: 0.5cm;">
+            {{ net_total }}
+        </div>
+    </div>
+
+    <div style="position: absolute; bottom: 3cm; left: 2cm; width: 100%; display: flex; justify-content: space-around;">
+         <div style="width: 4cm; text-align: center;">{{ signer_1 }}</div>
+         <div style="width: 4cm; text-align: center;">{{ signer_2 }}</div>
+         <div style="width: 4cm; text-align: center;">{{ signer_3 }}</div>
+    </div>
+</div>
+</body>
+</html>

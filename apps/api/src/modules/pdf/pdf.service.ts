@@ -78,6 +78,7 @@ export class PdfService {
   private templatesDir: string;
   private fontsDir: string;
   private logoBase64: string = '';
+  private receiptBgBase64: string = '';
   
   // Use environment variable or default to the provided user URL
   private readonly gotenbergUrl: string = process.env.GOTENBERG_URL || 'http://45.136.237.71:7090';
@@ -86,6 +87,7 @@ export class PdfService {
     this.templatesDir = path.join(__dirname, 'templates');
     this.fontsDir = path.join(__dirname, 'fonts');
     this.loadLogo();
+    this.loadReceiptBg();
     this.registerPartials();
   }
 
@@ -121,6 +123,30 @@ export class PdfService {
       console.warn('⚠️ Logo not found in any location');
     } catch (error) {
       console.warn('⚠️ Error loading logo:', error);
+    }
+  }
+
+  /**
+   * Load receipt background image as base64
+   */
+  private loadReceiptBg(): void {
+    try {
+      const possiblePaths = [
+        path.join(__dirname, '..', '..', '..', 'public', 'receipt-bg.jpg'),
+        path.join(__dirname, '..', '..', 'public', 'receipt-bg.jpg'),
+      ];
+
+      for (const bgPath of possiblePaths) {
+        if (fs.existsSync(bgPath)) {
+          const bgData = fs.readFileSync(bgPath);
+          this.receiptBgBase64 = `data:image/jpeg;base64,${bgData.toString('base64')}`;
+          console.log(`✅ Receipt BG loaded from: ${bgPath}`);
+          return;
+        }
+      }
+      console.warn('⚠️ Receipt BG not found in any location');
+    } catch (error) {
+      console.warn('⚠️ Error loading receipt BG:', error);
     }
   }
 
@@ -505,6 +531,8 @@ export class PdfService {
           // Ensure logo is available
           logoBase64: providedHeader.logoBase64 || dbHeader.logoBase64 || this.logoBase64,
         },
+        // Inject receipt background if needed
+        receiptBgBase64: this.receiptBgBase64,
       };
 
       // Render template with data
@@ -680,6 +708,24 @@ export class PdfService {
         right: '5mm',
         bottom: '5mm',
         left: '5mm',
+      },
+    });
+  }
+
+  /**
+   * Generate Temporary Receipt with Background Image (ใบรับเงินชั่วคราว - แบบมีพื้นหลัง)
+   */
+  public async generateTemporaryReceiptBg(data: TemporaryReceiptData): Promise<Buffer> {
+    // Custom size: A4 Landscape (29.7cm x 21cm)
+    return this.generatePdf(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, {
+      width: '29.71cm',
+      height: '21cm',
+      padding: '0mm',
+      margin: {
+        top: '0mm',
+        right: '0mm',
+        bottom: '0mm',
+        left: '0mm',
       },
     });
   }

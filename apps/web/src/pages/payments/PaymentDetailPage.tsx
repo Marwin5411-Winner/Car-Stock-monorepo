@@ -51,6 +51,7 @@ export default function PaymentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [voiding, setVoiding] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingBg, setDownloadingBg] = useState(false);
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidReason, setVoidReason] = useState('');
 
@@ -139,6 +140,19 @@ export default function PaymentDetailPage() {
     }
   };
 
+  const handlePrintBg = async () => {
+    if (!payment) return;
+    try {
+      setDownloadingBg(true);
+      await paymentService.downloadReceiptBg(payment.id);
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('ไม่สามารถดาวน์โหลดใบเสร็จได้');
+    } finally {
+      setDownloadingBg(false);
+    }
+  };
+
   if (loading) {
     return (
       <MainLayout>
@@ -191,6 +205,14 @@ export default function PaymentDetailPage() {
 
               {payment.status === 'ACTIVE' && (
                 <>
+                  <button
+                    onClick={handlePrintBg}
+                    disabled={downloadingBg}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    {downloadingBg ? 'กำลังโหลด...' : 'ใบเสร็จ (ชั่วคราว)'}
+                  </button>
                   <button
                     onClick={handlePrint}
                     disabled={downloading}

@@ -967,293 +967,169 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   )
 
   /**
-   * Preview PDF without authentication (for testing only - remove in production)
+   * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว - แบบมีพื้นหลัง)
    */
   .get(
-    '/preview/:type',
+    '/temporary-receipt-bg/:paymentId',
     async ({ params, set }) => {
       try {
-        // Sample data for preview
-        const sampleCustomer: CustomerInfo = {
-          name: 'นายทดสอบ ระบบ',
-          address: '123/456',
-          street: 'ถนนทดสอบ',
-          subdistrict: 'ในเมือง',
-          district: 'เมือง',
-          province: 'นครราชสีมา',
-          postalCode: '30000',
-          phone: '0812345678',
-        };
+        const payment = await db.payment.findUnique({
+          where: { id: params.paymentId },
+          include: {
+            sale: {
+              include: {
+                customer: true,
+                stock: {
+                  include: {
+                    vehicleModel: true,
+                  },
+                },
+              },
+            },
+          },
+        });
 
-        const sampleCar: CarInfo = {
-          brand: 'Tesla',
-          model: 'Model 3',
-          engineNo: 'ENG123456',
-          chassisNo: 'CHS789012',
-          color: 'ขาว',
-          type: 'รถยนต์ไฟฟ้า',
-        };
-
-        let pdfBuffer: Buffer;
-
-        const sampleHeader = {
-          logoBase64: '',
-          companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-          address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-          address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-          phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-        };
-
-        switch (params.type) {
-          case 'delivery-receipt':
-            pdfBuffer = await pdfService.generateDeliveryReceipt({
-              header: sampleHeader,
-              customer: sampleCustomer,
-              car: sampleCar,
-            });
-            break;
-
-          case 'thank-you-letter':
-            pdfBuffer = await pdfService.generateThankYouLetter({
-              header: sampleHeader,
-              thaiDate: formatThaiDate(new Date(), 'full'),
-              customerName: sampleCustomer.name,
-              carBrand: sampleCar.brand,
-              detailsTable: {
-                sellingPrice: '890000',
-                discount: '50000',
-                remaining: '840000',
-                downPayment: '100000',
-                downPaymentDiscount: '0',
-                insurance: '15000',
-                actInsurance: '2500',
-                registrationFee: '3000',
-                totalDelivery: '120500',
-                financeAmount: '740000',
-                interestRate: '3.5',
-                installmentMonths: '60',
-                monthlyPayment: '14500',
-                gifts: [{ name: 'ฟิล์มกรองแสง' }, { name: 'กล้องหน้าหลัง' }],
-              },
-              contactPerson: {
-                name: 'นายณัฐนันท์ คมฤทัย',
-                phone: 'โทร.(044) 272888, 094-978-9926',
-                position: 'ฝ่ายตรวจสอบ',
-              },
-            });
-            break;
-
-          case 'sales-confirmation':
-            pdfBuffer = await pdfService.generateSalesConfirmation({
-              header: sampleHeader,
-              createdDate: new Date().toISOString(),
-              car: sampleCar,
-              customer: sampleCustomer,
-              paymentMethod: 'เงินสด',
-            });
-            break;
-
-          case 'sales-record':
-            pdfBuffer = await pdfService.generateSalesRecord({
-              header: sampleHeader,
-              customer: sampleCustomer,
-              car: sampleCar,
-              pricing: {
-                sellingPrice: '890,000',
-                remaining: '800,000',
-                downPayment: '90,000',
-                downPaymentDiscount: '0',
-                insurance: '15,000',
-                actInsurance: '1,500',
-                registrationFee: '2,500',
-                totalDelivery: '109,000',
-                financeAmount: '800,000',
-                deductDeposit: '10,000',
-                deliveryAmount: '99,000',
-                outstandingBalance: '0',
-                paymentDueDate: '15/12/2568',
-                financeCompany: 'ธนาคารกสิกรไทย',
-                interestRate: '2.5',
-                installmentMonths: '60',
-                monthlyPayment: '15,000',
-              },
-              gifts: [
-                { item: 'ฟิล์มกรองแสง', value: '5,000' },
-                { item: 'กล้องติดรถ', value: '3,000' },
-              ],
-              staff: {
-                salesConsultant: 'นายขาย ดี',
-                salesManager: 'นายผู้จัดการ ฝ่ายขาย',
-                auditor: 'นายตรวจสอบ เอกสาร',
-              },
-            });
-            break;
-
-          case 'payment-receipt':
-            pdfBuffer = await pdfService.generatePaymentReceipt({
-              header: sampleHeader,
-              receiptNumber: 'RCP-2024001',
-              date: new Date().toISOString(),
-              customer: sampleCustomer,
-              car: sampleCar,
-              amount: '50,000',
-              amountText: '', // calculated
-              paymentMethod: 'เงินสด',
-              note: 'ชำระค่างวดที่ 1',
-            });
-            break;
-
-          case 'contract':
-            pdfBuffer = await pdfService.generateContract({
-              copyTypes: [
-                { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
-                { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
-                { thai: 'สำเนาคู่ฉบับ', english: 'COPY' },
-              ],
-              header: sampleHeader,
-              documentInfo: {
-                volumeNumber: '12/2568', // เล่มที่ (MM/YYYY)
-                documentNumber: '68120001', // เลขที่ (YYMMXXXX)
-                contractLocation: 'นครราชสีมา',
-                contractDay: '7',
-                contractMonth: 'ธันวาคม',
-                contractYear: '2568',
-                salesManagerName: 'นายผู้จัดการ ฝ่ายขาย',
-                salesManagerPhone: '081-234-5678',
-                salesStaffName: 'นายพนักงาน ขาย',
-                salesStaffPhone: '089-876-5432',
-              },
-              parties: {
-                companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น',
-                dealerName: 'VBeyond Innovation',
-                isHeadOffice: true,
-                isBranchOffice: false,
-                branchLocation: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-                companyPhone: '044-272-888',
-                companyEmail: 'info@vbeyond.co.th',
-                authorizedPerson: 'นายผู้มีอำนาจ ลงนาม',
-                authorizedDate: '1',
-                authorizedMonth: 'มกราคม',
-                authorizedYear: '2568',
-                customerName: 'นายทดสอบ ระบบ',
-                customerIdCard: '1-2345-67890-12-3',
-                customerAddress: '123/456 ถนนทดสอบ ตำบลในเมือง อำเภอเมือง จังหวัดนครราชสีมา 30000',
-                customerOfficePhone: '044-123-456',
-                customerHomePhone: '044-789-012',
-                customerMobile: '081-234-5678',
-                customerEmail: 'test@email.com',
-              },
-              vehicleDetails: {
-                type: 'รถยนต์ไฟฟ้า',
-                brand: 'Tesla',
-                model: 'Model 3',
-                color: 'ขาว',
-                mfy: '2024',
-                engineCCOrKW: '283 kW',
-                batteryType: 'Lithium-ion',
-                batteryCapacity: '60 kWh',
-                nedcRange: '491',
-                bookingDepositDate: '7 ธันวาคม 2568',
-              },
-              pricing: {
-                priceExcludeVAT: '831,775.70',
-                priceIncludeVAT: '890,000.00',
-              },
-              freeAccessories: ['ฟิล์มกรองแสง 3M', 'กล้องติดรถ', 'พรมปูพื้น'],
-              reservationFee: {
-                isCash: true,
-                amount: '10,000',
-              },
-              additionalAccessories: [],
-              primaryExpenses: {
-                carPrice: '890,000',
-                downPayment: '90,000',
-                registrationFee: '2,500',
-                redPlateFee: '1,000',
-                insurancePremium: '15,000',
-                accessoryFee: '0',
-                otherFee: '0',
-                totalExpense: '998,500',
-                reservationFee: '10,000',
-                usedCarTradeIn: '0',
-                otherDiscount: '0',
-                netTotalExpense: '988,500',
-              },
-              purchaseConditions: {
-                isCash: false,
-                isHirePurchase: true,
-                financeCompany: 'ธนาคารกสิกรไทย',
-                downPaymentPercent: '10',
-                downPaymentAmount: '89,000',
-                interestPercent: '2.5',
-                isBeginning: false,
-                isEnding: true,
-                financeAmount: '800,000',
-                installmentMonths: '60',
-                monthlyPayment: '15,000',
-              },
-              insurance: {
-                companyName: 'ทิพยประกันภัย',
-                partNumber: '1',
-                sumInsured: '890,000',
-                specifyPremium: true,
-                premiumAmount: '15,000',
-                notSpecifyPremium: false,
-                notSpecifyPremiumAmount: '',
-              },
-              delivery: {
-                deliveryDate: '15 มกราคม 2569',
-                deliveryLocation: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด สำนักงานใหญ่',
-              },
-            });
-            break;
-
-          case 'deposit-receipt':
-            pdfBuffer = await pdfService.generateDepositReceipt({
-              header: sampleHeader,
-              receiptNumber: 'DEP-2568-0001',
-              date: new Date().toISOString(),
-              customer: sampleCustomer,
-              vehicle: {
-                model: 'Tesla Model 3',
-                color: 'ขาว',
-              },
-              deposit: {
-                amount: '10,000',
-                amountInWords: 'หนึ่งหมื่นบาทถ้วน',
-                paymentMethod: 'เงินสด',
-                referenceNo: '-',
-              },
-            });
-            break;
-
-          default:
-            set.status = 400;
-            return { success: false, error: 'Invalid template type. Valid types: delivery-receipt, thank-you-letter, sales-confirmation, sales-record, contract, deposit-receipt' };
+        if (!payment) {
+          set.status = 404;
+          return { success: false, error: 'Payment not found' };
         }
 
+        const sale = payment.sale;
+        const customer = sale?.customer;
+
+        // Build items array from payment description or default
+        const items = [
+          {
+            description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
+            amount: payment.amount.toString(),
+          },
+        ];
+
+        // Determine payment method
+        const paymentMethodData = {
+          isCash: payment.paymentMethod === 'CASH',
+          isCheque: payment.paymentMethod === 'CHEQUE',
+          isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+          bankName: payment.receivingBank || '',
+          branchName: '',
+          accountNumber: '',
+          transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+        };
+
+        const data: TemporaryReceiptData = {
+          header: {
+            logoBase64: '',
+            companyName: 'บริษัท สยามเค มาสเตอร์เซลส์ จำกัด',
+            address1: '438 หนองคาย 288 Thanon Mittraphap, ในเมือง เมือง Nakhon Ratchasima 30000',
+            address2: '',
+            phone: '044-272888, 271178, 271169. 271851',
+            fax: '044-271224',
+          },
+          customerCode: customer?.code || '',
+          receiptNumber: payment.receiptNumber,
+          date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+          contractNumber: sale?.saleNumber || '',
+          customer: transformCustomer(customer),
+          items,
+          // Totals section
+          paymentAmount: payment.amount.toString(),
+          lateFee: '0',
+          discount: '0',
+          totalAmount: payment.amount.toString(),
+          totalAmountText: '', // Will be calculated by helper
+          paymentMethod: paymentMethodData,
+          note: payment.notes || undefined,
+        };
+
+        const pdfBuffer = await pdfService.generateTemporaryReceiptBg(data);
+
         set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `inline; filename="preview-${params.type}.pdf"`;
+        set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-bg-${payment.receiptNumber}.pdf"`;
         
         return pdfBuffer;
       } catch (error) {
-        console.error('PDF preview error:', error);
+        console.error('PDF generation error:', error);
         set.status = 500;
         return {
           success: false,
-          error: 'Failed to generate PDF preview',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    {
+      detail: {
+        tags: ['PDF'],
+        summary: 'Generate Temporary Receipt PDF with Background',
+        description: 'Generate ใบรับเงินชั่วคราว PDF (แบบมีพื้นหลัง) for a payment',
+      },
+    }
+  )
+
+  /**
+   * Generate Daily Payment Report PDF
+   */
+  .get(
+    '/daily-payment-report/:date',
+    async ({ params, set }) => {
+      try {
+        const date = new Date(params.date);
+        const dailyPaymentReport = await db.payment.findMany({
+          where: {
+            paymentDate: {
+              gte: new Date(date.getTime() - 86400000),
+              lte: new Date(date.getTime() + 86400000),
+            },
+          },
+          include: {
+            sale: {
+              include: {
+                customer: true,
+                stock: {
+                  include: {
+                    vehicleModel: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        const data: DailyPaymentReportData = {
+          header: {
+            logoBase64: '',
+            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
+            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
+            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+          },
+          date: formatThaiDate(date),
+          payments: dailyPaymentReport,
+        };
+
+        const pdfBuffer = await pdfService.generateDailyPaymentReport(data);
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `inline; filename="daily-payment-report-${date.toISOString().slice(0, 10)}.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Failed to generate PDF',
           message: error instanceof Error ? error.message : 'Unknown error',
         };
       }
     },
     {
       params: t.Object({
-        type: t.String(),
+        date: t.String(),
       }),
       detail: {
         tags: ['Documents'],
-        summary: 'Preview PDF template',
-        description: 'Preview a PDF template with sample data (for testing)',
+        summary: 'Generate Daily Payment Report PDF',
+        description: 'Generate ใบบันทึกการชำระเงินรายวัน PDF',
       },
     }
   );

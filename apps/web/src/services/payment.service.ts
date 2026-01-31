@@ -228,6 +228,26 @@ class PaymentService {
       throw error;
     }
   }
+
+  /**
+   * Download payment receipt PDF with Background
+   */
+  async downloadReceiptBg(id: string): Promise<void> {
+    try {
+      const blob = await api.getBlob(`/api/pdf/temporary-receipt-bg/${id}`);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `temporary-receipt-bg-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      throw error;
+    }
+  }
 }
 
 export const paymentService = new PaymentService();
