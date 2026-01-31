@@ -15,29 +15,25 @@
 ">
 
     <div style="position: absolute; top: 2.5cm; right: 2cm; text-align: right; line-height: 1.5;">
-        <div style="margin-bottom: 0.2cm;"><strong>เลขที่:</strong> {{ receiptNumber }}</div>
-        <div style="margin-bottom: 0.2cm;"><strong>วันที่:</strong> {{ formatThaiDate date 'short' }}</div>
-        <div><strong>สัญญา:</strong> {{ contractNumber }}</div>
+        <div style="margin-bottom: 0.2cm;">{{ receiptNumber }}</div>
+        <div style="margin-bottom: 0.2cm;">{{ formatThaiDate date 'short' }}</div>
+        <div>{{ contractNumber }}</div>
     </div>
 
-    <div style="position: absolute; top: 3.8cm; left: 2.5cm; width: 15cm; line-height: 1.6;">
-        <div style="display: flex;">
-            <span style="width: 3cm;">รหัสลูกค้า:</span>
+    <div style="position: absolute; top: 3.8cm; left: 5.5cm; width: 15cm; line-height: 1.6;">
+        <div style="margin-bottom: 0.1cm;">
             <span>{{ customerCode }}</span>
         </div>
-        <div style="display: flex;">
-            <span style="width: 3cm;">ชื่อ-สกุล:</span>
+        <div style="margin-bottom: 0.1cm;">
             <span>{{ customer.name }}</span>
         </div>
-        <div style="display: flex;">
-            <span style="width: 3cm;">ที่อยู่:</span>
+        <div>
             <span>{{ customer.address }} {{ customer.subdistrict }} {{ customer.district }} {{ customer.province }} {{ customer.postalCode }}</span>
         </div>
     </div>
 
     <div style="position: absolute; top: 6cm; right: 2cm; width: 8cm; line-height: 1.6; text-align: right;">
-        <div style="display: flex; justify-content: flex-end;">
-            <span style="width: 2cm; text-align: right; margin-right: 0.5cm;">โทร:</span>
+        <div>
             <span>{{ customer.phone }}</span>
         </div>
     </div>
