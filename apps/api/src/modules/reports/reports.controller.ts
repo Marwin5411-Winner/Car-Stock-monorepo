@@ -5,14 +5,29 @@ import { authService } from '../auth/auth.service';
 import { pdfService } from '../pdf/pdf.service';
 import { formatThaiDate } from '../pdf/helpers';
 import '../../types/context.d';
+import { db } from '../../lib/db';
 
-const ADDRESS_HEADER = {
-  logoBase64: '',
-  companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-  address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-  address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-  phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-};
+// Helper to get company header from settings or default
+async function getCompanyHeader(): Promise<any> {
+  const settings = await db.companySettings.findFirst();
+  if (settings) {
+    return {
+      logoBase64: settings.logo || '', 
+      companyName: settings.companyNameTh,
+      address1: settings.addressTh,
+      address2: '', 
+      phone: `โทร. ${settings.phone} ${settings.fax ? `โทรสาร. ${settings.fax}` : ''}`,
+    };
+  }
+  
+  return {
+    logoBase64: '',
+    companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+    address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
+    address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
+    phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+  };
+}
 
 
 export const reportRoutes = new Elysia({ prefix: '/reports' })
@@ -85,9 +100,12 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         const dateRange = startDate && endDate 
           ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}` 
           : `ทั้งหมด`;
+        
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
         const pdfBuffer = await pdfService.generateDailyPaymentReport({
-          header: ADDRESS_HEADER,
+          header,
           dateRange,
           payments: result.payments,
           summary: result.summary,
@@ -180,8 +198,11 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         
         const dateRange = `ข้อมูล ณ วันที่ ${formatThaiDate(new Date(), 'full')}`;
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const pdfBuffer = await pdfService.generateStockReport({
-          header: ADDRESS_HEADER,
+          header,
           dateRange,
           stocks: result.stocks,
           summary: result.summary,
@@ -279,8 +300,11 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
           ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}` 
           : `ทั้งหมด`;
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const pdfBuffer = await pdfService.generateProfitLossReport({
-          header: ADDRESS_HEADER,
+          header,
           dateRange,
           items: result.items,
           summary: result.summary,
@@ -391,8 +415,11 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
           ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}` 
           : `ทั้งหมด`;
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const pdfBuffer = await pdfService.generateSalesSummaryReport({
-          header: ADDRESS_HEADER,
+          header,
           dateRange,
           sales: result.sales,
           summary: result.summary,
@@ -502,8 +529,11 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         
         const dateRange = `ข้อมูล ณ วันที่ ${formatThaiDate(new Date(), 'full')}`;
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const pdfBuffer = await pdfService.generateStockInterestReport({
-          header: ADDRESS_HEADER,
+          header,
           dateRange,
           stocks: result.stocks,
           summary: result.summary,

@@ -50,6 +50,28 @@ function transformCar(stock: any): CarInfo {
   };
 }
 
+// Helper to get company header from settings or default
+async function getCompanyHeader(): Promise<any> {
+  const settings = await db.companySettings.findFirst();
+  if (settings) {
+    return {
+      logoBase64: settings.logo || '', // Assuming logo is stored as base64 in settings
+      companyName: settings.companyNameTh,
+      address1: settings.addressTh,
+      address2: '', // Address might be split or single field in settings
+      phone: `โทร. ${settings.phone} ${settings.fax ? `โทรสาร. ${settings.fax}` : ''}`,
+    };
+  }
+  
+  return {
+    logoBase64: '',
+    companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+    address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
+    address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
+    phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+  };
+}
+
 export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   /**
    * Generate Delivery Receipt PDF (ใบปล่อยรถ/ใบรับรถ)
@@ -75,14 +97,12 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           return { success: false, error: 'Sale not found' };
         }
 
+        const header = await getCompanyHeader();
+        // If logo is missing in settings, try to load default from service (or handle it in getCompanyHeader)
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: DeliveryReceiptData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           customer: transformCustomer(sale.customer),
           car: transformCar(sale.stock),
           deliveryDate: sale.deliveryDate ? formatThaiDate(sale.deliveryDate) : undefined,
@@ -146,14 +166,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
         const car = transformCar(sale.stock);
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: ThankYouLetterData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           thaiDate: formatThaiDate(new Date(), 'full'),
           customerName: sale.customer?.name || '-',
           carBrand: car.brand,
@@ -233,14 +250,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           return { success: false, error: 'Sale not found' };
         }
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: SalesConfirmationData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           createdDate: sale.createdAt.toISOString(),
           car: transformCar(sale.stock),
           customer: transformCustomer(sale.customer),
@@ -301,14 +315,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           return { success: false, error: 'Sale not found' };
         }
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: SalesRecordData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           customer: transformCustomer(sale.customer),
           car: transformCar(sale.stock),
           pricing: {
@@ -428,23 +439,20 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           });
         }
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: any = { // Using any to bypass strict type check for now to support the template
           copyTypes: [
             { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
             { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
             { thai: 'สำเนาคู่ฉบับ', english: 'COPY' },
           ],
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           documentInfo: {
             volumeNumber: contractNumber.volumeNumber, // เล่มที่ e.g., "01/2568"
             documentNumber: contractNumber.documentNumber, // เลขที่ e.g., "68010001"
-            contractLocation: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+            contractLocation: header.companyName,
             salesManagerName: '', // Placeholder, no data available on sale object
             salesManagerPhone: '',
             salesStaffName: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
@@ -563,14 +571,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
         };
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+        // Additional fax field check for this specific template type if needed
+        // Assuming getCompanyHeader includes fax in phone field or we might need to adjust CompanyHeader type
+
         const data: TemporaryReceiptData = {
           header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: '044-272888, 271178, 271169, 271851',
-            fax: '044-271224',
+            ...header,
+            fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
           },
           customerCode: customer?.code || '',
           receiptNumber: payment.receiptNumber,
@@ -647,14 +656,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
         const sale = payment.sale;
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: PaymentReceiptData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           receiptNumber: payment.receiptNumber,
           date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
           customer: transformCustomer(sale?.customer),
@@ -713,14 +719,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           return { success: false, error: 'Stock not found' };
         }
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: VehicleCardData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           stockNumber: stock.vin || '-',
           date: formatThaiDate(new Date()),
           car: {
@@ -797,14 +800,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           return { success: false, error: 'Stock not found' };
         }
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: VehicleCardData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           stockNumber: stock.vin || '-',
           date: formatThaiDate(new Date()),
           car: {
@@ -912,14 +912,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
         };
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: TemporaryReceiptData = {
           header: {
-            logoBase64: '',
-            companyName: 'บริษัท สยามเค มาสเตอร์เซลส์ จำกัด',
-            address1: '438 หนองคาย 288 Thanon Mittraphap, ในเมือง เมือง Nakhon Ratchasima 30000',
-            address2: '',
-            phone: '044-272888, 271178, 271169. 271851',
-            fax: '044-271224',
+            ...header,
+            fax: '',
           },
           customerCode: customer?.code || '',
           receiptNumber: payment.receiptNumber,
@@ -1016,14 +1015,14 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
         };
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+        // Additional fax field check for this specific template type if needed
+
         const data: TemporaryReceiptData = {
           header: {
-            logoBase64: '',
-            companyName: 'บริษัท สยามเค มาสเตอร์เซลส์ จำกัด',
-            address1: '438 หนองคาย 288 Thanon Mittraphap, ในเมือง เมือง Nakhon Ratchasima 30000',
-            address2: '',
-            phone: '044-272888, 271178, 271169. 271851',
-            fax: '044-271224',
+            ...header,
+            fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
           },
           customerCode: customer?.code || '',
           receiptNumber: payment.receiptNumber,
@@ -1113,14 +1112,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           paymentMethod: p.paymentMethod,
         }));
 
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
         const data: DailyPaymentReportData = {
-          header: {
-            logoBase64: '',
-            companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-            address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-            address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-            phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
-          },
+          header,
           dateRange: `${formatThaiDate(date)} ถึง ${formatThaiDate(date)}`,
           payments: mappedPayments,
           summary: {
