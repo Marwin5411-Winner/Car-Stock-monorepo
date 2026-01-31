@@ -1,3 +1,34 @@
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  body {
+    font-family: 'Sarabun', sans-serif;
+    font-size: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 4px;
+    vertical-align: top;
+  }
+  th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .header-row th {
+    background-color: #e0e0e0;
+  }
+</style>
+
 <div class="header">
   <div class="header-logo">
     <img src="{{header.logoBase64}}" alt="Logo">
@@ -15,7 +46,7 @@
   </div>
 </div>
 
-<div class="document-title">รายงานสต็อกสินค้า</div>
+<div class="document-title">รายงานสต็อกสินค้า (Stock Report)</div>
 
 <div class="text-center" style="margin-bottom: 20px;">
   <strong>ข้อมูลวันที่:</strong> {{formatThaiDateWithDay (currentThaiDate)}}
@@ -49,37 +80,57 @@
 
 <div class="section">
   <div class="section-title">รายการสินค้า</div>
-  <table style="font-size: 11px;">
+  <table style="font-size: 9px;">
     <thead>
-      <tr>
-        <th style="width: 5%">No.</th>
-        <th style="width: 15%">VIN</th>
-        <th style="width: 10%">ยี่ห้อ</th>
-        <th style="width: 20%">รุ่น</th>
-        <th style="width: 10%">สี</th>
-        <th style="width: 10%">สถานะ</th>
-        <th style="width: 10%">วันที่รับเข้า</th>
-        <th style="width: 8%" class="text-center">อายุ (วัน)</th>
-        <th style="width: 12%" class="text-right">ต้นทุนรวม</th>
+      <tr class="header-row">
+        <th rowspan="2" style="width: 3%">No.</th>
+        <th style="width: 15%">รุ่นรถ / สี</th>
+        <th style="width: 15%">เลขถัง / เลขเครื่อง</th>
+        <th rowspan="2" style="width: 5%">ที่จอด</th>
+        <th rowspan="2" style="width: 6%">วันที่รับเข้า</th>
+        <th rowspan="2" style="width: 4%">อายุ<br>(วัน)</th>
+        <th colspan="4">ต้นทุน</th>
+        <th rowspan="2" style="width: 8%">สถานะ</th>
+        <th rowspan="2" style="width: 12%">ลูกค้าจอง</th>
+      </tr>
+      <tr class="header-row">
+        <th>ภายนอก / ภายใน</th>
+        <th>VIN / Engine No.</th>
+        <th style="width: 6%">ราคารถ</th>
+        <th style="width: 6%">ค่าใช้จ่าย</th>
+        <th style="width: 5%">ดอกเบี้ย</th>
+        <th style="width: 6%">รวม</th>
       </tr>
     </thead>
     <tbody>
       {{#each stocks}}
       <tr>
         <td class="text-center">{{add @index 1}}</td>
-        <td>{{vin}}</td>
-        <td>{{brand}}</td>
-        <td>{{model}} {{variant}}</td>
-        <td>{{exteriorColor}}</td>
-        <td>{{statusLabel}}</td>
-        <td>{{formatThaiDate arrivalDate 'numeric'}}</td>
+        <td>
+          <b>{{brand}} {{model}} {{variant}}</b><br>
+          <span style="color: #666;">{{exteriorColor}} / {{interiorColor}}</span>
+        </td>
+        <td>
+          {{vin}}<br>
+          <span style="color: #666;">{{engineNumber}}</span>
+        </td>
+        <td class="text-center">{{parkingSlot}}</td>
+        <td class="text-center">{{formatThaiDate arrivalDate 'numeric'}}</td>
         <td class="text-center">{{daysInStock}}</td>
-        <td class="text-right">{{formatCurrency totalCost}}</td>
+        <td class="text-right">{{formatCurrency baseCost}}</td>
+        <td class="text-right">{{formatCurrency (add transportCost (add accessoryCost otherCosts))}}</td>
+        <td class="text-right">{{formatCurrency accumulatedInterest}}</td>
+        <td class="text-right"><b>{{formatCurrency totalCost}}</b></td>
+        <td class="text-center">
+          <span class="badge status-{{toLowerCase status}}">{{statusLabel}}</span>
+        </td>
+        <td>{{reservedBy}}</td>
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
-        <td colspan="8" class="text-right">มูลค่ารวม</td>
+        <td colspan="9" class="text-right">มูลค่ารวม</td>
         <td class="text-right">{{formatCurrency summary.totalValue}}</td>
+        <td colspan="2"></td>
       </tr>
     </tbody>
   </table>

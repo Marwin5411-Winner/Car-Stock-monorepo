@@ -1081,6 +1081,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             },
           },
           include: {
+            customer: true,
             sale: {
               include: {
                 customer: true,
@@ -1092,7 +1093,25 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
               },
             },
           },
+          orderBy: {
+            paymentDate: 'asc',
+          },
         });
+
+        // Calculate summary
+        const totalAmount = dailyPaymentReport.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalCount = dailyPaymentReport.length;
+
+        // Map payments
+        const mappedPayments = dailyPaymentReport.map((p) => ({
+          paymentDate: p.paymentDate,
+          receiptNumber: p.receiptNumber,
+          invoiceNumber: p.receiptNumber, // Often matches document number
+          customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
+          amount: Number(p.amount),
+          paymentType: p.paymentType,
+          paymentMethod: p.paymentMethod,
+        }));
 
         const data: DailyPaymentReportData = {
           header: {
@@ -1102,8 +1121,14 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
             phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
           },
-          date: formatThaiDate(date),
-          payments: dailyPaymentReport,
+          dateRange: `${formatThaiDate(date)} ถึง ${formatThaiDate(date)}`,
+          payments: mappedPayments,
+          summary: {
+            totalAmount: totalAmount,
+            totalCount: totalCount,
+            byMethod: [],
+            byType: [],
+          },
         };
 
         const pdfBuffer = await pdfService.generateDailyPaymentReport(data);

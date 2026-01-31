@@ -1,3 +1,37 @@
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  body {
+    font-family: 'Sarabun', sans-serif;
+    font-size: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 4px;
+    vertical-align: top;
+  }
+  th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .header-row th {
+    background-color: #e0e0e0;
+  }
+  .sub-header-row th {
+    font-size: 9px;
+  }
+</style>
+
 <div class="header">
   <div class="header-logo">
     <img src="{{header.logoBase64}}" alt="Logo">
@@ -15,98 +49,89 @@
   </div>
 </div>
 
-<div class="document-title">สรุปยอดขาย (Sales Summary)</div>
+<div class="document-title">สรุปยอดขายตามช่วงเวลา</div>
 
 <div class="text-center" style="margin-bottom: 20px;">
   <strong>ช่วงเวลา:</strong> {{dateRange}}
 </div>
 
 <div class="section">
-  <div class="section-title">สรุปภาพรวม</div>
-  <table style="width: 100%; margin-bottom: 20px;">
+  <table style="font-size: 9px;">
     <thead>
-      <tr>
-        <th class="text-center">จำนวนขายทั้งหมด</th>
-        <th class="text-center">เสร็จสิ้น (คัน)</th>
-        <th class="text-center">ยอดขายรวม</th>
-        <th class="text-center">ยอดรับชำระแล้ว</th>
-        <th class="text-center">ยอดค้างชำระ</th>
+      <tr class="header-row">
+        <th rowspan="2" style="width: 3%">ลำดับ</th>
+        <th style="width: 12%">ชื่อ - สกุล</th>
+        <th style="width: 10%">เลขเครื่อง</th>
+        <th rowspan="2" style="width: 5%">ราคารถ</th>
+        <th rowspan="2" style="width: 5%">ส่วนลด<br>ตัวรถ</th>
+        <th rowspan="2" style="width: 4%">ดอกเบี้ย</th>
+        <th rowspan="2" style="width: 5%">เงินดาวน์</th>
+        <th rowspan="2" style="width: 5%">ค่างวด</th>
+        <th rowspan="2" style="width: 5%">คงเหลือ</th>
+        <th style="width: 5%">ยอดจัด</th>
+        <th style="width: 5%">ค่าตอบ</th>
+        <th rowspan="2" style="width: 5%">รวมรับเงิน</th>
+        <th rowspan="2" style="width: 5%">วันที่ขาย</th>
+        <th rowspan="2" style="width: 5%">ทะเบียน/พรบ<br>ขนส่ง</th>
+        <th rowspan="2" style="width: 5%">ต้นทุน</th>
+        <th rowspan="2" style="width: 5%">แคมเปญขาย</th>
+        <th rowspan="2" style="width: 5%">กำไร<br>ขั้นต้น</th>
+        <th rowspan="2" style="width: 4%">คอมฯ<br>พนักงาน</th>
+        <th rowspan="2" style="width: 4%">ค่าใช้จ่าย<br>ขาย</th>
+        <th rowspan="2" style="width: 4%">ค่าเบี้ย<br>ประกัน</th>
+        <th rowspan="2" style="width: 5%">กำไรสุทธิ</th>
       </tr>
-    </thead>
-    <tbody>
-      <tr>
-         <td class="text-center">{{summary.totalSales}}</td>
-         <td class="text-center">{{summary.completedCount}}</td>
-         <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
-         <td class="text-right">{{formatCurrency summary.totalPaid}}</td>
-         <td class="text-right">{{formatCurrency summary.totalRemaining}}</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title">สรุปตามพนักงานขาย</div>
-  <table style="margin-bottom: 20px;">
-    <thead>
-      <tr>
-        <th>พนักงานขาย</th>
-        <th class="text-center">จำนวนขาย (คัน)</th>
-        <th class="text-center">รอปิดการขาย</th>
-        <th class="text-center">สำเร็จ</th>
-        <th class="text-center">ยกเลิก</th>
-        <th class="text-right">ยอดขายรวม</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each bySalesperson}}
-      <tr>
-        <td>{{salesperson}}</td>
-        <td class="text-center">{{totalSales}}</td>
-        <td class="text-center">{{pendingCount}}</td>
-        <td class="text-center">{{completedCount}}</td>
-        <td class="text-center">{{canceledCount}}</td>
-        <td class="text-right">{{formatCurrency totalAmount}}</td>
-      </tr>
-      {{/each}}
-    </tbody>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title">รายการขาย</div>
-  <table style="font-size: 10px;">
-    <thead>
-      <tr>
-        <th style="width: 5%">No.</th>
-        <th style="width: 10%">วันที่</th>
-        <th style="width: 10%">เลขที่ขาย</th>
-        <th style="width: 15%">ลูกค้า</th>
-        <th style="width: 20%">รถยนต์</th>
-        <th style="width: 10%">สถานะ</th>
-        <th style="width: 10%">พนักงาน</th>
-        <th style="width: 10%" class="text-right">ยอดขาย</th>
-        <th style="width: 10%" class="text-right">รับชำระแล้ว</th>
+      <tr class="sub-header-row">
+        <th>แบบรถ</th>
+        <th>เลขคัซซี</th>
+        <th>ซื้อไฟแนนซ์</th>
+        <th>ไฟแนนซ์</th>
       </tr>
     </thead>
     <tbody>
       {{#each sales}}
       <tr>
         <td class="text-center">{{add @index 1}}</td>
-        <td>{{formatThaiDate saleDate 'numeric'}}</td>
-        <td>{{saleNumber}}</td>
-        <td>{{customerName}}</td>
-        <td>{{vehicleInfo}}</td>
-        <td>{{statusLabel}}</td>
-        <td>{{salesperson}}</td>
+        <td>
+          {{customerName}}<br>
+          <span style="color: #666;">{{vehicleModelName}}</span>
+        </td>
+        <td>
+          {{engineNumber}}<br>
+          <span style="color: #666;">{{chassisNumber}}</span>
+        </td>
         <td class="text-right">{{formatCurrency totalAmount}}</td>
+        <td class="text-right">{{formatCurrency discountAmount}}</td>
+        <td class="text-right">-</td>
+        <td class="text-right">{{formatCurrency downPayment}}</td>
+        <td class="text-right">-</td>
+        <td class="text-right">{{formatCurrency remainingAmount}}</td>
+        <td class="text-right">{{formatCurrency financeAmount}}</td>
+        <td class="text-right">{{formatCurrency financeReturn}}</td>
         <td class="text-right">{{formatCurrency paidAmount}}</td>
+        <td class="text-center">{{formatThaiDate saleDate 'numeric'}}</td>
+        <td class="text-right">{{formatCurrency transportFee}}</td>
+        <td class="text-right">{{formatCurrency totalCost}}</td>
+        <td>{{campaignName}}</td>
+        <td class="text-right">{{formatCurrency (subtract totalAmount totalCost)}}</td>
+        <td class="text-right">{{formatCurrency salesCommission}}</td>
+        <td class="text-right">{{formatCurrency salesExpense}}</td>
+        <td class="text-right">{{formatCurrency insurancePremium}}</td>
+        <td class="text-right">{{formatCurrency netProfit}}</td>
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
-        <td colspan="7" class="text-right">รวมทั้งสิ้น</td>
+        <td colspan="3" class="text-right">รวมทั้งสิ้น ({{summary.totalSales}} คัน)</td>
         <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+        <td class="text-right"></td>
+        <td class="text-right"></td>
+        <td class="text-right"></td>
+        <td class="text-right"></td>
+        <td class="text-right">{{formatCurrency summary.totalRemaining}}</td>
+        <td class="text-right"></td>
+        <td class="text-right"></td>
         <td class="text-right">{{formatCurrency summary.totalPaid}}</td>
+        <td colspan="9"></td>
       </tr>
     </tbody>
   </table>

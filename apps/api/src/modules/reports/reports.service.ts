@@ -185,6 +185,17 @@ export async function getStockReport(params: StockReportParams) {
           year: true,
         },
       },
+      sale: {
+        select: {
+          customer: {
+            select: {
+              name: true,
+            },
+          },
+          reservationDate: true, // Note: Schema might use reservedDate or createdAt
+          createdAt: true,
+        },
+      },
     },
     orderBy: { arrivalDate: 'desc' },
   });
@@ -193,15 +204,22 @@ export async function getStockReport(params: StockReportParams) {
 
   const stockItems = stocks.map((s) => {
     const daysInStock = calculateDays(s.arrivalDate, s.soldDate || today);
-    const totalCost = toNumber(s.baseCost) + toNumber(s.transportCost) + toNumber(s.accessoryCost) + toNumber(s.otherCosts);
+    const baseCost = toNumber(s.baseCost);
+    const transportCost = toNumber(s.transportCost);
+    const accessoryCost = toNumber(s.accessoryCost);
+    const otherCosts = toNumber(s.otherCosts);
+    const accumulatedInterest = toNumber(s.accumulatedInterest);
+    const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
 
     return {
       id: s.id,
       vin: s.vin,
+      engineNumber: s.engineNumber || '-',
       brand: s.vehicleModel.brand,
       model: s.vehicleModel.model,
       variant: s.vehicleModel.variant,
       year: s.vehicleModel.year,
+      vehicleModelName: `${s.vehicleModel.brand} ${s.vehicleModel.model} ${s.vehicleModel.variant || ''}`,
       exteriorColor: s.exteriorColor,
       interiorColor: s.interiorColor,
       status: s.status,
@@ -209,8 +227,19 @@ export async function getStockReport(params: StockReportParams) {
       arrivalDate: s.arrivalDate.toISOString(),
       orderDate: s.orderDate?.toISOString(),
       daysInStock,
-      baseCost: toNumber(s.baseCost),
+      parkingSlot: s.parkingSlot || '-',
+      
+      // Costs
+      baseCost,
+      transportCost,
+      accessoryCost,
+      otherCosts,
+      accumulatedInterest,
       totalCost,
+      
+      // Reservation info
+      reservedBy: s.sale?.customer?.name || '-',
+      reservedDate: s.sale?.createdAt ? s.sale.createdAt.toISOString() : undefined,
     };
   });
 
@@ -507,6 +536,16 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
 
   const saleItems = sales.map((sale) => {
     const vehicleModel = sale.stock?.vehicleModel || sale.vehicleModel;
+    const stock = sale.stock;
+
+    const sellingPrice = toNumber(sale.totalAmount);
+    // Cost calculation
+    const baseCost = toNumber(stock?.baseCost) || 0;
+    const transportCost = toNumber(stock?.transportCost) || 0;
+    const accessoryCost = toNumber(stock?.accessoryCost) || 0;
+    const otherCosts = toNumber(stock?.otherCosts) || 0;
+    const totalCost = baseCost + transportCost + accessoryCost + otherCosts;
+    const netProfit = sellingPrice - totalCost; // Simple Net Profit (Sale - Cost)
 
     return {
       id: sale.id,
@@ -514,18 +553,37 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       saleDate: sale.createdAt.toISOString(),
       customerName: sale.customer.name,
       customerType: sale.customer.type,
-      vehicleInfo: vehicleModel ? `${vehicleModel.brand} ${vehicleModel.model} ${vehicleModel.variant || ''} ${vehicleModel.year}` : 'N/A',
-      vin: sale.stock?.vin,
+      vehicleInfo: vehicleModel ? `${vehicleModel.brand} ${vehicleModel.model}` : 'N/A', // Shortened for report
+      vehicleModelName: vehicleModel ? `${vehicleModel.brand} ${vehicleModel.model} ${vehicleModel.variant || ''}` : 'N/A',
+      engineNumber: stock?.engineNumber || '-',
+      chassisNumber: stock?.vin || '-',
       saleType: sale.type,
       paymentMode: sale.paymentMode,
       paymentModeLabel: PAYMENT_MODE_LABELS[sale.paymentMode as keyof typeof PAYMENT_MODE_LABELS] || sale.paymentMode,
-      totalAmount: toNumber(sale.totalAmount),
+      totalAmount: sellingPrice,
+      discountAmount: toNumber(sale.discountSnapshot) || 0,
+      downPayment: toNumber(sale.downPayment) || toNumber(sale.depositAmount) || 0,
+      financeAmount: toNumber(sale.financeAmount) || 0,
+      financeProvider: sale.financeProvider || stock?.financeProvider || '-',
       paidAmount: toNumber(sale.paidAmount),
       remainingAmount: toNumber(sale.remainingAmount),
       status: sale.status,
       statusLabel: SALE_STATUS_LABELS[sale.status as keyof typeof SALE_STATUS_LABELS] || sale.status,
       salesperson: `${sale.createdBy.firstName} ${sale.createdBy.lastName}`,
       salespersonId: sale.createdBy.id,
+      
+      // Cost & Profit fields
+      baseCost,
+      totalCost,
+      netProfit,
+      
+      // Placeholder fields for report columns not yet in system
+      financeReturn: 0, // ค่าตอบไฟแนนซ์
+      transportFee: 0, // ทะเบียน/พรบ/ขนส่ง (Income or Expense?)
+      campaignName: '-', // แคมเปญขาย
+      salesCommission: 0, // คอมฯ พนักงานขาย
+      salesExpense: 0, // ค่าใช้จ่ายในการขาย
+      insurancePremium: 0, // ค่าเบี้ยประกัน
     };
   });
 
