@@ -192,7 +192,7 @@ export async function getStockReport(params: StockReportParams) {
               name: true,
             },
           },
-          reservationDate: true, // Note: Schema might use reservedDate or createdAt
+          reservedDate: true,
           createdAt: true,
         },
       },
@@ -239,7 +239,7 @@ export async function getStockReport(params: StockReportParams) {
       
       // Reservation info
       reservedBy: s.sale?.customer?.name || '-',
-      reservedDate: s.sale?.createdAt ? s.sale.createdAt.toISOString() : undefined,
+      reservedDate: s.sale?.reservedDate ? s.sale.reservedDate.toISOString() : undefined,
     };
   });
 
