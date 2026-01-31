@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { CompanyProvider, useCompany } from './contexts/CompanyContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -43,12 +44,22 @@ const queryClient = new QueryClient({
   },
 });
 
+function TitleUpdater() {
+  const { companyName } = useCompany();
+  React.useEffect(() => {
+    if (companyName) document.title = companyName;
+  }, [companyName]);
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
+      <CompanyProvider>
+        <TitleUpdater />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/dashboard"
@@ -398,9 +409,10 @@ function App() {
               }
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </CompanyProvider>
     </QueryClientProvider>
   );
 }

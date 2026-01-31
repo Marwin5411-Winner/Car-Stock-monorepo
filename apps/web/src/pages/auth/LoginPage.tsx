@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Label } from '../../components/ui/label';
-import { COMPANY } from '@car-stock/shared/constants';
+import { useCompany } from '../../contexts/CompanyContext';
 
 export const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -30,12 +30,13 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const { settings } = useCompany();
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{COMPANY.nameEn}</h1>
-          <p className="text-gray-600">{COMPANY.name}</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{settings?.companyNameEn || ''}</h1>
+          <p className="text-gray-600">{settings?.companyNameTh || ''}</p>
           <p className="text-sm text-gray-500 mt-2">Car Sales Management System</p>
         </div>
 
@@ -85,7 +86,7 @@ export const LoginPage: React.FC = () => {
         </Card>
 
         <div className="mt-8 text-center text-sm text-gray-600">
-          <p>© 2025 {COMPANY.nameEn}. All rights reserved.</p>
+          <p>© 2025 {settings?.companyNameEn || ''}. All rights reserved.</p>
         </div>
       </div>
     </div>
