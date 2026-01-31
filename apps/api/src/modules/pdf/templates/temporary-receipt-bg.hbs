@@ -33,8 +33,11 @@
             <span style="width: 3cm;">ที่อยู่:</span>
             <span>{{ customer.address }} {{ customer.subdistrict }} {{ customer.district }} {{ customer.province }} {{ customer.postalCode }}</span>
         </div>
-        <div style="display: flex; margin-top: 0.2cm;">
-            <span style="width: 3cm;">โทร:</span>
+    </div>
+
+    <div style="position: absolute; top: 6cm; right: 2cm; width: 8cm; line-height: 1.6; text-align: right;">
+        <div style="display: flex; justify-content: flex-end;">
+            <span style="width: 2cm; text-align: right; margin-right: 0.5cm;">โทร:</span>
             <span>{{ customer.phone }}</span>
         </div>
     </div>
