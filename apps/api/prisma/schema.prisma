@@ -129,6 +129,7 @@ model Stock {
   debtPaidOffDate       DateTime?          @map("debt_paid_off_date") // วันที่ปิดหนี้
   createdAt             DateTime           @default(now()) @map("created_at")
   updatedAt             DateTime           @updatedAt @map("updated_at")
+  deletedAt             DateTime?          @map("deleted_at") // Soft delete timestamp
   sale                  Sale?
   vehicleModel          VehicleModel       @relation(fields: [vehicleModelId], references: [id])
   interestPeriods       InterestPeriod[]
@@ -417,6 +418,7 @@ enum StockStatus {
   RESERVED
   PREPARING
   SOLD
+  DEMO
 }
 
 enum InterestBase {

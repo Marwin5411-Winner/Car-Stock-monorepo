@@ -33,7 +33,7 @@ export default function InterestListPage() {
   const [stats, setStats] = useState<InterestStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO'>('ALL');
   const [calculatingFilter, setCalculatingFilter] = useState<'ALL' | 'ACTIVE' | 'STOPPED'>('ALL');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -108,6 +108,7 @@ export default function InterestListPage() {
       RESERVED: { label: 'จองแล้ว', className: 'bg-yellow-100 text-yellow-800' },
       PREPARING: { label: 'เตรียมส่งมอบ', className: 'bg-blue-100 text-blue-800' },
       SOLD: { label: 'ขายแล้ว', className: 'bg-gray-100 text-gray-800' },
+      DEMO: { label: 'รถ Demo', className: 'bg-purple-100 text-purple-800' },
     };
     const config = statusConfig[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
     return (
@@ -243,6 +244,7 @@ export default function InterestListPage() {
                 <option value="RESERVED">จองแล้ว</option>
                 <option value="PREPARING">เตรียมส่งมอบ</option>
                 <option value="SOLD">ขายแล้ว</option>
+                <option value="DEMO">รถ Demo</option>
               </select>
             </div>
             <div>

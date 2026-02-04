@@ -169,7 +169,9 @@ interface StockReportParams {
 export async function getStockReport(params: StockReportParams) {
   const { status } = params;
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = {
+    deletedAt: null,
+  };
   if (status) {
     where.status = status;
   }
@@ -196,8 +198,17 @@ export async function getStockReport(params: StockReportParams) {
           createdAt: true,
         },
       },
+      interestPeriods: {
+        select: {
+          startDate: true,
+          endDate: true,
+          annualRate: true,
+          principalAmount: true,
+          calculatedInterest: true,
+        },
+      },
     },
-    orderBy: { arrivalDate: 'desc' },
+    orderBy: { orderDate: 'desc' },
   });
 
   const today = new Date();
@@ -208,8 +219,47 @@ export async function getStockReport(params: StockReportParams) {
     const transportCost = toNumber(s.transportCost);
     const accessoryCost = toNumber(s.accessoryCost);
     const otherCosts = toNumber(s.otherCosts);
-    const accumulatedInterest = toNumber(s.accumulatedInterest);
-    const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
+    const costWithoutInterest = baseCost + transportCost + accessoryCost + otherCosts;
+
+    let accumulatedInterest = 0;
+    const activeEndDate = s.soldDate || today;
+    const interestStartDate = s.orderDate || s.arrivalDate;
+    const hasStopDate = s.stopInterestCalc && s.interestStoppedAt;
+    const endDate = hasStopDate
+      ? new Date(Math.min(activeEndDate.getTime(), s.interestStoppedAt!.getTime()))
+      : activeEndDate;
+    const canAccrueActiveInterest = s.debtStatus !== 'PAID_OFF' && !s.stopInterestCalc;
+
+    if (s.interestPeriods.length > 0) {
+      s.interestPeriods.forEach((period) => {
+        if (period.endDate) {
+          accumulatedInterest += toNumber(period.calculatedInterest);
+          return;
+        }
+
+        if (!canAccrueActiveInterest) {
+          return;
+        }
+
+        const days = calculateDays(period.startDate, activeEndDate);
+        accumulatedInterest += calculateInterest(
+          toNumber(period.principalAmount),
+          toNumber(period.annualRate),
+          days
+        );
+      });
+    } else {
+      const canAccrueInterest = s.debtStatus !== 'PAID_OFF' || hasStopDate;
+
+      if (canAccrueInterest) {
+        const rate = toNumber(s.interestRate) * 100;
+        const principal = s.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : costWithoutInterest;
+        const days = calculateDays(interestStartDate, endDate);
+        accumulatedInterest = calculateInterest(principal, rate, days);
+      }
+    }
+
+    const totalCost = costWithoutInterest + accumulatedInterest;
 
     return {
       id: s.id,
@@ -234,8 +284,8 @@ export async function getStockReport(params: StockReportParams) {
       transportCost,
       accessoryCost,
       otherCosts,
-      accumulatedInterest,
-      totalCost,
+      accumulatedInterest: Math.round(accumulatedInterest * 100) / 100,
+      totalCost: Math.round(totalCost * 100) / 100,
       
       // Reservation info
       reservedBy: s.sale?.customer?.name || '-',
@@ -351,25 +401,31 @@ export async function getProfitLossReport(params: ProfitLossParams) {
     // Calculate accumulated interest
     let accumulatedInterest = 0;
     if (stock) {
+      const canAccrueActiveInterest = stock.debtStatus !== 'PAID_OFF' && !stock.stopInterestCalc;
+      const activeEndDate = stock.soldDate || today;
+
       stock.interestPeriods.forEach((period) => {
         if (period.endDate) {
           accumulatedInterest += toNumber(period.calculatedInterest);
-        } else {
-          const endDate = stock.soldDate || today;
-          const days = calculateDays(period.startDate, endDate);
-          accumulatedInterest += calculateInterest(
-            toNumber(period.principalAmount),
-            toNumber(period.annualRate),
-            days
-          );
+          return;
         }
+
+        if (!canAccrueActiveInterest) {
+          return;
+        }
+
+        const days = calculateDays(period.startDate, activeEndDate);
+        accumulatedInterest += calculateInterest(
+          toNumber(period.principalAmount),
+          toNumber(period.annualRate),
+          days
+        );
       });
 
-      // If no periods, use default rate
-      if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc) {
+      // If no periods, use default rate, but respect debtStatus and stopInterestCalc
+      if (stock.interestPeriods.length === 0 && canAccrueActiveInterest) {
         const interestStartDate = stock.orderDate || stock.arrivalDate;
-        const endDate = stock.soldDate || today;
-        const days = calculateDays(interestStartDate, endDate);
+        const days = calculateDays(interestStartDate, activeEndDate);
         const rate = toNumber(stock.interestRate) * 100;
         const principal = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
         accumulatedInterest = calculateInterest(principal, rate, days);
@@ -526,6 +582,15 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       stock: {
         include: {
           vehicleModel: { select: { brand: true, model: true, variant: true, year: true } },
+          interestPeriods: {
+            select: {
+              startDate: true,
+              endDate: true,
+              annualRate: true,
+              principalAmount: true,
+              calculatedInterest: true,
+            },
+          },
         },
       },
       vehicleModel: { select: { brand: true, model: true, variant: true, year: true } },
@@ -533,6 +598,8 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     },
     orderBy: { createdAt: 'desc' },
   });
+
+  const today = new Date();
 
   const saleItems = sales.map((sale) => {
     const vehicleModel = sale.stock?.vehicleModel || sale.vehicleModel;
@@ -545,7 +612,56 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     const accessoryCost = toNumber(stock?.accessoryCost) || 0;
     const otherCosts = toNumber(stock?.otherCosts) || 0;
     const totalCost = baseCost + transportCost + accessoryCost + otherCosts;
-    const netProfit = sellingPrice - totalCost; // Simple Net Profit (Sale - Cost)
+
+    let accumulatedInterest = 0;
+    if (stock?.financeProvider) {
+      const activeEndDate = stock.soldDate || today;
+      const interestStartDate = stock.orderDate || stock.arrivalDate;
+      const hasStopDate = stock.stopInterestCalc && stock.interestStoppedAt;
+      const endDate = hasStopDate
+        ? new Date(Math.min(activeEndDate.getTime(), stock.interestStoppedAt!.getTime()))
+        : activeEndDate;
+      const canAccrueActiveInterest = stock.debtStatus !== 'PAID_OFF' && !stock.stopInterestCalc;
+
+      if (stock.interestPeriods?.length) {
+        stock.interestPeriods.forEach((period: {
+          startDate: Date;
+          endDate: Date | null;
+          annualRate: Decimal | number;
+          principalAmount: Decimal | number;
+          calculatedInterest: Decimal | number;
+        }) => {
+          if (period.endDate) {
+            accumulatedInterest += toNumber(period.calculatedInterest);
+            return;
+          }
+
+          if (!canAccrueActiveInterest) {
+            return;
+          }
+
+          const days = calculateDays(period.startDate, activeEndDate);
+          accumulatedInterest += calculateInterest(
+            toNumber(period.principalAmount),
+            toNumber(period.annualRate),
+            days
+          );
+        });
+      } else {
+        const canAccrueInterest = stock.debtStatus !== 'PAID_OFF' || hasStopDate;
+
+        if (canAccrueInterest) {
+          const rate = toNumber(stock.interestRate) * 100;
+          const principal = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
+          const days = calculateDays(interestStartDate, endDate);
+          accumulatedInterest = calculateInterest(principal, rate, days);
+        }
+      }
+    }
+
+    const totalCostWithInterest = totalCost + accumulatedInterest;
+    const netProfit = sellingPrice - totalCostWithInterest; // Net Profit includes interest cost
+    const interestCost = Math.round(accumulatedInterest * 100) / 100;
 
     return {
       id: sale.id,
@@ -575,7 +691,10 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       // Cost & Profit fields
       baseCost,
       totalCost,
-      netProfit,
+      interestCost,
+      accumulatedInterest: interestCost,
+      totalCostWithInterest: Math.round(totalCostWithInterest * 100) / 100,
+      netProfit: Math.round(netProfit * 100) / 100,
       
       // Placeholder fields for report columns not yet in system
       financeReturn: 0, // ค่าตอบไฟแนนซ์
@@ -765,7 +884,9 @@ interface StockInterestParams {
 export async function getStockInterestReport(params: StockInterestParams) {
   const { status, isCalculating, brand } = params;
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = {
+    deletedAt: null,
+  };
 
   if (status) {
     where.status = status;
@@ -806,7 +927,10 @@ export async function getStockInterestReport(params: StockInterestParams) {
 
   const stockItems = stocks.map((stock) => {
     const interestStartDate = stock.orderDate || stock.arrivalDate;
-    const endDate = stock.soldDate || today;
+    const soldOrToday = stock.soldDate || today;
+    const endDate = stock.stopInterestCalc && stock.interestStoppedAt
+      ? new Date(Math.min(soldOrToday.getTime(), stock.interestStoppedAt.getTime()))
+      : soldOrToday;
     const daysCount = calculateDays(interestStartDate, endDate);
 
     const baseCost = toNumber(stock.baseCost);
@@ -820,17 +944,18 @@ export async function getStockInterestReport(params: StockInterestParams) {
 
     // Get active period
     const activePeriod = stock.interestPeriods.find((p) => !p.endDate);
+    const canAccrueActiveInterest = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
 
-    if (activePeriod) {
+    if (activePeriod && canAccrueActiveInterest) {
       currentRate = toNumber(activePeriod.annualRate);
       principalBase = activePeriod.principalBase;
       principalAmount = toNumber(activePeriod.principalAmount);
 
-      // Calculate interest for active period up to today
-      const periodDays = calculateDays(activePeriod.startDate, today);
+      // Calculate interest for active period up to sold date (or today)
+      const periodDays = calculateDays(activePeriod.startDate, soldOrToday);
       const activeInterest = calculateInterest(principalAmount, currentRate, periodDays);
       totalAccumulatedInterest += activeInterest;
-    } else if (stock.interestPeriods.length === 0 && !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF') {
+    } else if (stock.interestPeriods.length === 0 && canAccrueActiveInterest) {
       // No periods yet, use stock's default rate
       totalAccumulatedInterest = calculateInterest(principalAmount, currentRate, daysCount);
     }
@@ -994,10 +1119,126 @@ export async function getStockInterestReport(params: StockInterestParams) {
   };
 }
 
+// ============================================
+// Purchase Requirement Report Service
+// รายงานรถที่ต้องซื้อเพิ่ม (จากการจองหักลบกับสต็อก)
+// ============================================
+
+interface PurchaseRequirementParams {
+  brand?: string;
+}
+
+export async function getPurchaseRequirementReport(params: PurchaseRequirementParams) {
+  const { brand } = params;
+
+  // Get active reservations (RESERVED/PREPARING status, RESERVATION_SALE type) without assigned stock
+  const reservationWhere: Record<string, unknown> = {
+    status: { in: ['RESERVED', 'PREPARING'] as SaleStatus[] },
+    type: 'RESERVATION_SALE',
+    stockId: null, // ยังไม่ได้ assign stock
+  };
+
+  if (brand) {
+    reservationWhere.vehicleModel = { brand };
+  }
+
+  const reservations = await db.sale.findMany({
+    where: reservationWhere,
+    include: {
+      vehicleModel: {
+        select: { id: true, brand: true, model: true, variant: true, year: true },
+      },
+    },
+  });
+
+  // Get available stock
+  const stockWhere: Record<string, unknown> = {
+    status: 'AVAILABLE' as StockStatus,
+    deletedAt: null,
+  };
+
+  if (brand) {
+    stockWhere.vehicleModel = { brand };
+  }
+
+  const availableStocks = await db.stock.findMany({
+    where: stockWhere,
+    include: {
+      vehicleModel: {
+        select: { id: true, brand: true, model: true, variant: true, year: true },
+      },
+    },
+  });
+
+  // Group reservations by vehicle model
+  const reservationGroups: Record<string, { count: number; vehicleModel: any }> = {};
+  reservations.forEach((sale) => {
+    if (sale.vehicleModel) {
+      const key = sale.vehicleModel.id;
+      if (!reservationGroups[key]) {
+        reservationGroups[key] = { count: 0, vehicleModel: sale.vehicleModel };
+      }
+      reservationGroups[key].count += 1;
+    }
+  });
+
+  // Group available stock by vehicle model
+  const stockGroups: Record<string, { count: number; vehicleModel: any }> = {};
+  availableStocks.forEach((stock) => {
+    const key = stock.vehicleModel.id;
+    if (!stockGroups[key]) {
+      stockGroups[key] = { count: 0, vehicleModel: stock.vehicleModel };
+    }
+    stockGroups[key].count += 1;
+  });
+
+  // Calculate purchase requirements
+  const allModelIds = new Set([...Object.keys(reservationGroups), ...Object.keys(stockGroups)]);
+
+  const items = Array.from(allModelIds).map((modelId) => {
+    const reservationCount = reservationGroups[modelId]?.count || 0;
+    const availableCount = stockGroups[modelId]?.count || 0;
+    const requiredPurchase = Math.max(0, reservationCount - availableCount);
+    const vehicleModel = reservationGroups[modelId]?.vehicleModel || stockGroups[modelId]?.vehicleModel;
+
+    return {
+      vehicleModelId: modelId,
+      brand: vehicleModel?.brand || '-',
+      model: vehicleModel?.model || '-',
+      variant: vehicleModel?.variant || '',
+      year: vehicleModel?.year || 0,
+      vehicleModelName: `${vehicleModel?.brand || ''} ${vehicleModel?.model || ''} ${vehicleModel?.variant || ''}`.trim(),
+      reservationCount,
+      availableCount,
+      requiredPurchase,
+      status: requiredPurchase > 0 ? 'NEED_TO_BUY' : 'SUFFICIENT',
+    };
+  }).filter((item) => item.reservationCount > 0 || item.availableCount > 0)
+    .sort((a, b) => b.requiredPurchase - a.requiredPurchase);
+
+  // Summary
+  const totalReservations = items.reduce((sum, item) => sum + item.reservationCount, 0);
+  const totalAvailable = items.reduce((sum, item) => sum + item.availableCount, 0);
+  const totalRequired = items.reduce((sum, item) => sum + item.requiredPurchase, 0);
+  const modelsNeedingPurchase = items.filter((item) => item.requiredPurchase > 0).length;
+
+  return {
+    items,
+    summary: {
+      totalReservations,
+      totalAvailable,
+      totalRequired,
+      modelsNeedingPurchase,
+      totalModels: items.length,
+    },
+  };
+}
+
 export const reportsService = {
   getDailyPaymentReport,
   getStockReport,
   getProfitLossReport,
   getSalesSummaryReport,
   getStockInterestReport,
+  getPurchaseRequirementReport,
 };

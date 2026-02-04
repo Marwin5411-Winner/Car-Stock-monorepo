@@ -78,6 +78,7 @@ export default function StockInterestReportPage() {
           'RESERVED': { label: 'จองแล้ว', color: 'bg-yellow-100 text-yellow-800' },
           'PREPARING': { label: 'เตรียมส่งมอบ', color: 'bg-blue-100 text-blue-800' },
           'SOLD': { label: 'ขายแล้ว', color: 'bg-gray-100 text-gray-800' },
+          'DEMO': { label: 'รถ Demo', color: 'bg-purple-100 text-purple-800' },
         };
         const s = statusMap[row.status] || { label: row.status, color: 'bg-gray-100 text-gray-800' };
         return <span className={`px-2 py-1 text-xs rounded-full ${s.color}`}>{s.label}</span>;
@@ -215,6 +216,7 @@ export default function StockInterestReportPage() {
             <option value="RESERVED">จองแล้ว</option>
             <option value="PREPARING">เตรียมส่งมอบ</option>
             <option value="SOLD">ขายแล้ว</option>
+            <option value="DEMO">รถ Demo</option>
           </select>
         </div>
         <div className="flex items-end">

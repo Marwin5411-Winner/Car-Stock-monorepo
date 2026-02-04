@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
   RESERVED: 'จองแล้ว',
   PREPARING: 'เตรียมส่งมอบ',
   SOLD: 'ขายแล้ว',
+  DEMO: 'รถ Demo',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -32,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
   RESERVED: 'bg-yellow-100 text-yellow-800',
   PREPARING: 'bg-blue-100 text-blue-800',
   SOLD: 'bg-gray-100 text-gray-800',
+  DEMO: 'bg-purple-100 text-purple-800',
 };
 
 export default function StockDetailPage() {
@@ -172,7 +174,12 @@ export default function StockDetailPage() {
   }
 
   const totalCost = stock.baseCost + stock.transportCost + stock.accessoryCost + stock.otherCosts;
+<<<<<<< /Users/marwinropmuang/Documents/NexmindIT/Car-Stock-monorepo/apps/web/src/pages/stock/StockDetailPage.tsx
   const totalWithInterest = totalCost + stock.accumulatedInterest;
+=======
+  const interestAmount = stock.calculatedInterest ?? 0;
+  const totalWithInterest = totalCost + interestAmount;
+>>>>>>> /Users/marwinropmuang/.windsurf/worktrees/Car-Stock-monorepo/Car-Stock-monorepo-865a4b20/apps/web/src/pages/stock/StockDetailPage.tsx
 
   return (
     <MainLayout>
@@ -326,7 +333,11 @@ export default function StockDetailPage() {
                   <TrendingUp className="h-4 w-4 mr-1 text-orange-500" />
                   ดอกเบี้ยสะสม
                 </span>
+<<<<<<< /Users/marwinropmuang/Documents/NexmindIT/Car-Stock-monorepo/apps/web/src/pages/stock/StockDetailPage.tsx
                 <span className="text-orange-600 font-medium">{formatCurrency(stock.accumulatedInterest)}</span>
+=======
+                <span className="text-orange-600 font-medium">{formatCurrency(interestAmount)}</span>
+>>>>>>> /Users/marwinropmuang/.windsurf/worktrees/Car-Stock-monorepo/Car-Stock-monorepo-865a4b20/apps/web/src/pages/stock/StockDetailPage.tsx
               </div>
               <div className="flex justify-between py-3 bg-blue-50 -mx-6 px-6 rounded-b-lg">
                 <span className="text-blue-700 font-semibold">ต้นทุนรวม + ดอกเบี้ย</span>

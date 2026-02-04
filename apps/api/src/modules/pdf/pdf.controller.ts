@@ -5,7 +5,7 @@
 
 import { Elysia, t } from 'elysia';
 import { pdfService } from './pdf.service';
-import { authMiddleware } from '../auth/auth.middleware';
+import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { db } from '../../lib/db';
 import {
   DeliveryReceiptData,
@@ -72,6 +72,62 @@ async function getCompanyHeader(): Promise<any> {
   };
 }
 
+const calculateDays = (startDate: Date, endDate: Date): number => {
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const calculateAccumulatedInterest = (stock: any): number => {
+  if (!stock?.financeProvider) {
+    return 0;
+  }
+
+  const baseCost = Number(stock.baseCost || 0);
+  const transportCost = Number(stock.transportCost || 0);
+  const accessoryCost = Number(stock.accessoryCost || 0);
+  const otherCosts = Number(stock.otherCosts || 0);
+  const totalCost = baseCost + transportCost + accessoryCost + otherCosts;
+  const principalAmount = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
+  const today = new Date();
+  const activeEndDate = stock.soldDate || today;
+  const interestStartDate = stock.orderDate || stock.arrivalDate;
+  const hasStopDate = stock.stopInterestCalc && stock.interestStoppedAt;
+  const endDate = hasStopDate
+    ? new Date(Math.min(activeEndDate.getTime(), stock.interestStoppedAt.getTime()))
+    : activeEndDate;
+  const canAccrueActiveInterest = stock.debtStatus !== 'PAID_OFF' && !stock.stopInterestCalc;
+
+  if (stock.interestPeriods?.length) {
+    let totalAccumulatedInterest = 0;
+
+    stock.interestPeriods.forEach((period: any) => {
+      if (period.endDate) {
+        totalAccumulatedInterest += Number(period.calculatedInterest);
+        return;
+      }
+
+      if (!canAccrueActiveInterest) {
+        return;
+      }
+
+      const days = calculateDays(period.startDate, activeEndDate);
+      const dailyRate = Number(period.annualRate) / 100 / 365;
+      totalAccumulatedInterest += Number(period.principalAmount) * dailyRate * days;
+    });
+
+    return totalAccumulatedInterest;
+  }
+
+  const canAccrueInterest = stock.debtStatus !== 'PAID_OFF' || hasStopDate;
+  if (!canAccrueInterest) {
+    return 0;
+  }
+
+  const days = calculateDays(interestStartDate, endDate);
+  const dailyRate = Number(stock.interestRate || 0) / 365;
+  return principalAmount * dailyRate * days;
+};
+
 export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   /**
    * Generate Delivery Receipt PDF (ใบปล่อยรถ/ใบรับรถ)
@@ -127,7 +183,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         saleId: t.String(),
       }),
@@ -214,7 +270,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         saleId: t.String(),
       }),
@@ -278,7 +334,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         saleId: t.String(),
       }),
@@ -366,7 +422,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_SALES_RECORD')],
       params: t.Object({
         saleId: t.String(),
       }),
@@ -509,7 +565,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         saleId: t.String(),
       }),
@@ -614,7 +670,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         paymentId: t.String(),
       }),
@@ -688,7 +744,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         paymentId: t.String(),
       }),
@@ -711,6 +767,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           where: { id: params.stockId },
           include: {
             vehicleModel: true,
+            interestPeriods: {
+              select: {
+                startDate: true,
+                endDate: true,
+                annualRate: true,
+                principalAmount: true,
+                calculatedInterest: true,
+              },
+            },
           },
         });
 
@@ -721,6 +786,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
         const header = await getCompanyHeader();
         if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+        const accumulatedInterest = calculateAccumulatedInterest(stock);
+        const baseCost = Number(stock.baseCost || 0);
+        const transportCost = Number(stock.transportCost || 0);
+        const accessoryCost = Number(stock.accessoryCost || 0);
+        const otherCosts = Number(stock.otherCosts || 0);
+        const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
 
         const data: VehicleCardData = {
           header,
@@ -738,16 +810,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             ccOrKw: '-', // Not in stock model
           },
           costs: {
-            baseCost: stock.baseCost.toString(),
-            transportCost: stock.transportCost.toString(),
-            accessoryCost: stock.accessoryCost.toString(),
-            otherCosts: stock.otherCosts.toString(),
-            totalCost: stock.baseCost
-              .plus(stock.transportCost)
-              .plus(stock.accessoryCost)
-              .plus(stock.otherCosts)
-              .plus(stock.accumulatedInterest)
-              .toString(),
+            baseCost: baseCost.toString(),
+            transportCost: transportCost.toString(),
+            accessoryCost: accessoryCost.toString(),
+            otherCosts: otherCosts.toString(),
+            totalCost: totalCost.toString(),
           },
           location: stock.parkingSlot || '-',
         };
@@ -769,7 +836,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
       params: t.Object({
         stockId: t.String(),
       }),
@@ -792,6 +859,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           where: { id: params.stockId },
           include: {
             vehicleModel: true,
+            interestPeriods: {
+              select: {
+                startDate: true,
+                endDate: true,
+                annualRate: true,
+                principalAmount: true,
+                calculatedInterest: true,
+              },
+            },
           },
         });
 
@@ -802,6 +878,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
         const header = await getCompanyHeader();
         if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+        const accumulatedInterest = calculateAccumulatedInterest(stock);
+        const baseCost = Number(stock.baseCost || 0);
+        const transportCost = Number(stock.transportCost || 0);
+        const accessoryCost = Number(stock.accessoryCost || 0);
+        const otherCosts = Number(stock.otherCosts || 0);
+        const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
 
         const data: VehicleCardData = {
           header,
@@ -819,16 +902,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             ccOrKw: '-', // Not in stock model
           },
           costs: {
-            baseCost: stock.baseCost.toString(),
-            transportCost: stock.transportCost.toString(),
-            accessoryCost: stock.accessoryCost.toString(),
-            otherCosts: stock.otherCosts.toString(),
-            totalCost: stock.baseCost
-              .plus(stock.transportCost)
-              .plus(stock.accessoryCost)
-              .plus(stock.otherCosts)
-              .plus(stock.accumulatedInterest)
-              .toString(),
+            baseCost: baseCost.toString(),
+            transportCost: transportCost.toString(),
+            accessoryCost: accessoryCost.toString(),
+            otherCosts: otherCosts.toString(),
+            totalCost: totalCost.toString(),
           },
           location: stock.parkingSlot || '-',
         };
@@ -850,7 +928,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
       params: t.Object({
         stockId: t.String(),
       }),
@@ -953,7 +1031,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({
         paymentId: t.String(),
       }),

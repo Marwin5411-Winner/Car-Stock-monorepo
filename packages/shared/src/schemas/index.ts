@@ -32,6 +32,7 @@ export const StockStatusSchema = z.enum([
   'RESERVED',
   'PREPARING',
   'SOLD',
+  'DEMO',
 ]);
 
 export const InterestBaseSchema = z.enum(['BASE_COST_ONLY', 'TOTAL_COST']);
@@ -306,6 +307,7 @@ export const StockSchema = z.object({
   
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
+  deletedAt: z.coerce.date().nullable(),
 });
 
 export const CreateStockSchema = z.object({

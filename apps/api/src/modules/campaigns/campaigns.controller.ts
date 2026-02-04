@@ -1,22 +1,13 @@
 import { Elysia, t } from 'elysia';
 import { campaignsService } from './campaigns.service';
-import { authMiddleware, requireRole } from '../auth/auth.middleware';
+import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 
 export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Get all campaigns (ADMIN only)
   .get(
     '/',
-    async ({ query, set, requester }) => {
+    async ({ query, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can access campaigns',
-          };
-        }
-
         const page = parseInt(query.page || '1');
         const limit = parseInt(query.limit || '20');
         const search = query.search;
@@ -38,7 +29,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
       query: t.Object({
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
@@ -54,17 +45,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Get active campaigns (for sales - any authenticated user)
   .get(
     '/active',
-    async ({ set, requester }) => {
+    async ({ set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can access campaigns',
-          };
-        }
-
         const campaigns = await campaignsService.getActiveCampaigns();
         set.status = 200;
         return {
@@ -81,7 +63,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
       detail: {
         tags: ['Campaigns'],
         summary: 'Get active campaigns',
@@ -92,17 +74,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Get campaign by ID (ADMIN only)
   .get(
     '/:id',
-    async ({ params, set, requester }) => {
+    async ({ params, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can access campaigns',
-          };
-        }
-
         const campaign = await campaignsService.getById(params.id);
         if (!campaign) {
           set.status = 404;
@@ -128,7 +101,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
       params: t.Object({
         id: t.String(),
       }),
@@ -142,17 +115,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Get campaign analytics (ADMIN only)
   .get(
     '/:id/analytics',
-    async ({ params, query, set, requester }) => {
+    async ({ params, query, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can access campaign analytics',
-          };
-        }
-
         const startDate = query.startDate ? new Date(query.startDate) : undefined;
         const endDate = query.endDate ? new Date(query.endDate) : undefined;
 
@@ -172,7 +136,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
       params: t.Object({
         id: t.String(),
       }),
@@ -190,17 +154,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Get vehicle models under campaign (ADMIN only)
   .get(
     '/:id/vehicle-models',
-    async ({ params, set, requester }) => {
+    async ({ params, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can access campaigns',
-          };
-        }
-
         const vehicleModels = await campaignsService.getVehicleModels(params.id);
         set.status = 200;
         return {
@@ -217,7 +172,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
       params: t.Object({
         id: t.String(),
       }),
@@ -265,7 +220,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_CREATE')],
       body: t.Object({
         name: t.String({ minLength: 1 }),
         description: t.Optional(t.String()),
@@ -284,17 +239,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Update campaign (ADMIN only)
   .put(
     '/:id',
-    async ({ params, body, set, requester }) => {
+    async ({ params, body, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can update campaigns',
-          };
-        }
-
         const existing = await campaignsService.getById(params.id);
         if (!existing) {
           set.status = 404;
@@ -327,7 +273,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
       params: t.Object({
         id: t.String(),
       }),
@@ -350,17 +296,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Delete campaign (ADMIN only)
   .delete(
     '/:id',
-    async ({ params, set, requester }) => {
+    async ({ params, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can delete campaigns',
-          };
-        }
-
         const existing = await campaignsService.getById(params.id);
         if (!existing) {
           set.status = 404;
@@ -387,7 +324,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_DELETE')],
       params: t.Object({
         id: t.String(),
       }),
@@ -401,17 +338,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Add vehicle model to campaign (ADMIN only)
   .post(
     '/:id/vehicle-models',
-    async ({ params, body, set, requester }) => {
+    async ({ params, body, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can modify campaigns',
-          };
-        }
-
         await campaignsService.addVehicleModel(params.id, body.vehicleModelId);
         set.status = 201;
         return {
@@ -428,7 +356,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
       params: t.Object({
         id: t.String(),
       }),
@@ -445,17 +373,8 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Remove vehicle model from campaign (ADMIN only)
   .delete(
     '/:id/vehicle-models/:modelId',
-    async ({ params, set, requester }) => {
+    async ({ params, set }) => {
       try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can modify campaigns',
-          };
-        }
-
         await campaignsService.removeVehicleModel(params.id, params.modelId);
         set.status = 200;
         return {
@@ -472,7 +391,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
       params: t.Object({
         id: t.String(),
         modelId: t.String(),

@@ -168,6 +168,7 @@ export default function StockReportPage() {
             <option value="RESERVED">จองแล้ว</option>
             <option value="PREPARING">เตรียมส่งมอบ</option>
             <option value="SOLD">ขายแล้ว</option>
+            <option value="DEMO">รถ Demo</option>
           </select>
         </div>
         <div className="flex items-end">

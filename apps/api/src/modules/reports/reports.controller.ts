@@ -175,6 +175,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
             t.Literal('RESERVED'),
             t.Literal('PREPARING'),
             t.Literal('SOLD'),
+            t.Literal('DEMO'),
           ])
         ),
       }),
@@ -497,6 +498,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
             t.Literal('RESERVED'),
             t.Literal('PREPARING'),
             t.Literal('SOLD'),
+            t.Literal('DEMO'),
           ])
         ),
         isCalculating: t.Optional(t.String()),
@@ -558,5 +560,52 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         isCalculating: t.Optional(t.String()),
         brand: t.Optional(t.String()),
       }),
+    }
+  )
+  // ============================================
+  // Purchase Requirement Report
+  // ============================================
+  .get(
+    '/purchase-requirement',
+    async ({ query, set, requester }) => {
+      try {
+        // Check permission - REPORT_STOCK
+        if (!authService.hasPermission(requester!.role, 'REPORT_STOCK')) {
+          set.status = 403;
+          return {
+            success: false,
+            error: 'Forbidden',
+            message: 'คุณไม่มีสิทธิ์ดูรายงานนี้',
+          };
+        }
+
+        const result = await reportsService.getPurchaseRequirementReport({
+          brand: query.brand,
+        });
+
+        set.status = 200;
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to fetch purchase requirement report',
+        };
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        brand: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['Reports'],
+        summary: 'Get purchase requirement report',
+        description: 'Get report of vehicles that need to be purchased based on reservations vs available stock',
+      },
     }
   );

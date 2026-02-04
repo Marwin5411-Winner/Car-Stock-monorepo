@@ -37,7 +37,7 @@ export default function StockFormPage() {
     arrivalDate: new Date().toISOString().split('T')[0],
     orderDate: '',
     parkingSlot: '',
-    status: 'AVAILABLE' as 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD',
+    status: 'AVAILABLE' as 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO',
     baseCost: '' as number | '',
     transportCost: '' as number | '',
     accessoryCost: '' as number | '',
@@ -404,6 +404,7 @@ export default function StockFormPage() {
                   <option value="AVAILABLE">พร้อมขาย</option>
                   <option value="RESERVED">จองแล้ว</option>
                   <option value="PREPARING">เตรียมขาย</option>
+                  <option value="DEMO">รถ Demo</option>
                   <option value="SOLD">ขายแล้ว</option>
                 </select>
               </div>

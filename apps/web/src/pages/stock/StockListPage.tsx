@@ -23,7 +23,7 @@ export default function StockListPage() {
   const [stats, setStats] = useState<StockStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO'>('ALL');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -184,6 +184,7 @@ export default function StockListPage() {
             <option value="RESERVED">จองแล้ว</option>
             <option value="PREPARING">เตรียมขาย</option>
             <option value="SOLD">ขายแล้ว</option>
+            <option value="DEMO">รถ Demo</option>
           </select>
         </div>
       </div>
@@ -203,6 +204,7 @@ export default function StockListPage() {
                     <TableHead>รถยนต์</TableHead>
                     <TableHead>สี</TableHead>
                     <TableHead>วันที่เข้า</TableHead>
+                    <TableHead>ราคาต้นทุน</TableHead>
                     <TableHead>ดอกเบี้ยสะสม</TableHead>
                     <TableHead>สถานะ</TableHead>
                     <TableHead className="text-right">จัดการ</TableHead>
@@ -242,7 +244,17 @@ export default function StockListPage() {
                         {new Intl.NumberFormat('th-TH', {
                           style: 'currency',
                           currency: 'THB',
-                        }).format(stock.accumulatedInterest)}
+<<<<<<< /Users/marwinropmuang/Documents/NexmindIT/Car-Stock-monorepo/apps/web/src/pages/stock/StockListPage.tsx
+                        }).format(stock.baseCost)}
+                      </TableCell>
+                      <TableCell className="text-gray-900">
+                        {new Intl.NumberFormat('th-TH', {
+                          style: 'currency',
+                          currency: 'THB',
+                        }).format(stock.calculatedInterest ?? stock.accumulatedInterest)}
+=======
+                        }).format(stock.calculatedInterest ?? 0)}
+>>>>>>> /Users/marwinropmuang/.windsurf/worktrees/Car-Stock-monorepo/Car-Stock-monorepo-865a4b20/apps/web/src/pages/stock/StockListPage.tsx
                       </TableCell>
                       <TableCell>
                         <span
@@ -252,13 +264,16 @@ export default function StockListPage() {
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : stock.status === 'PREPARING'
                                   ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-gray-100 text-gray-800'
+                                  : stock.status === 'DEMO'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-gray-100 text-gray-800'
                             }`}
                         >
                           {stock.status === 'AVAILABLE' && 'พร้อมขาย'}
                           {stock.status === 'RESERVED' && 'จองแล้ว'}
                           {stock.status === 'PREPARING' && 'เตรียมขาย'}
                           {stock.status === 'SOLD' && 'ขายแล้ว'}
+                          {stock.status === 'DEMO' && 'รถ Demo'}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">

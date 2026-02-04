@@ -16,7 +16,7 @@ export interface Stock {
   };
   exteriorColor: string;
   interiorColor?: string;
-  status: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD';
+  status: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO';
   parkingSlot?: string;
   arrivalDate: string;
   orderDate?: string;
@@ -38,6 +38,7 @@ export interface Stock {
   notes?: string;
   createdAt: string;
   updatedAt?: string;
+  deletedAt?: string;
   daysInStock?: number;
   calculatedInterest?: number;
 }
@@ -88,7 +89,7 @@ export interface StockFilters {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD';
+  status?: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO';
   vehicleModelId?: string;
 }
 

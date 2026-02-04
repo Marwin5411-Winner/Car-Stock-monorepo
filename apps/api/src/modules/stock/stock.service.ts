@@ -23,17 +23,65 @@ export class StockService {
     otherCosts: number,
     interestRate: number,
     arrivalDate: Date,
+    orderDate: Date | null,
+    interestPrincipalBase: string,
     stopInterestCalc: boolean,
-    interestStoppedAt: Date | null
+    interestStoppedAt: Date | null,
+    debtStatus: string,
+    soldDate?: Date | null,
+    interestPeriods?: Array<{
+      startDate: Date;
+      endDate: Date | null;
+      annualRate: number;
+      principalAmount: number;
+      calculatedInterest: number;
+    }>
   ): number {
     const totalCost = baseCost + transportCost + accessoryCost + otherCosts;
+    const principalAmount = interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
     const today = new Date();
-    const endDate = stopInterestCalc && interestStoppedAt ? interestStoppedAt : today;
-    const days = Math.abs(endDate.getTime() - arrivalDate.getTime()) / (1000 * 60 * 60 * 24);
+    const activeEndDate = soldDate || today;
+    const interestStartDate = orderDate || arrivalDate;
+    const hasStopDate = stopInterestCalc && interestStoppedAt;
+    const endDate = hasStopDate
+      ? new Date(Math.min(activeEndDate.getTime(), interestStoppedAt!.getTime()))
+      : activeEndDate;
+    const canAccrueActiveInterest = debtStatus !== 'PAID_OFF' && !stopInterestCalc;
+
+    if (interestPeriods && interestPeriods.length > 0) {
+      let totalAccumulatedInterest = 0;
+
+      interestPeriods.forEach((period) => {
+        if (period.endDate) {
+          totalAccumulatedInterest += Number(period.calculatedInterest);
+          return;
+        }
+
+        if (!canAccrueActiveInterest) {
+          return;
+        }
+
+        const days = Math.ceil(
+          Math.abs(activeEndDate.getTime() - period.startDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const dailyRate = Number(period.annualRate) / 100 / 365;
+        totalAccumulatedInterest += Number(period.principalAmount) * dailyRate * days;
+      });
+
+      return totalAccumulatedInterest;
+    }
+
+    const canAccrueInterest = debtStatus !== 'PAID_OFF' || hasStopDate;
+
+    if (!canAccrueInterest) {
+      return 0;
+    }
+
+    const days = Math.ceil(Math.abs(endDate.getTime() - interestStartDate.getTime()) / (1000 * 60 * 60 * 24));
 
     // Annual rate to daily rate (interestRate is decimal, e.g., 0.05 for 5%)
     const dailyRate = interestRate / 365;
-    return totalCost * dailyRate * days;
+    return principalAmount * dailyRate * days;
   }
 
   /**
@@ -48,7 +96,9 @@ export class StockService {
     const validated = StockFilterSchema.parse(params);
     const skip = (validated.page - 1) * validated.limit;
 
-    const where: any = {};
+    const where: any = {
+      deletedAt: null, // Exclude soft deleted records
+    };
 
     if (validated.search) {
       where.OR = [
@@ -91,6 +141,22 @@ export class StockService {
           transportCost: true,
           accessoryCost: true,
           otherCosts: true,
+          interestRate: true,
+          interestPrincipalBase: true,
+          orderDate: true,
+          stopInterestCalc: true,
+          interestStoppedAt: true,
+          debtStatus: true,
+          soldDate: true,
+          interestPeriods: {
+            select: {
+              startDate: true,
+              endDate: true,
+              annualRate: true,
+              principalAmount: true,
+              calculatedInterest: true,
+            },
+          },
           accumulatedInterest: true,
           expectedSalePrice: true,
           actualSalePrice: true,
@@ -104,8 +170,31 @@ export class StockService {
       db.stock.count({ where }),
     ]);
 
+    const data = stocks.map((stock: any) => {
+      const { interestPeriods, ...stockData } = stock;
+
+      return {
+        ...stockData,
+        calculatedInterest: this.calculateAccumulatedInterest(
+          Number(stock.baseCost),
+          Number(stock.transportCost),
+          Number(stock.accessoryCost),
+          Number(stock.otherCosts),
+          Number(stock.interestRate),
+          stock.arrivalDate,
+          stock.orderDate,
+          stock.interestPrincipalBase,
+          stock.stopInterestCalc,
+          stock.interestStoppedAt,
+          stock.debtStatus,
+          stock.soldDate,
+          interestPeriods
+        ),
+      };
+    });
+
     return {
-      data: stocks,
+      data,
       meta: {
         total,
         page: validated.page,
@@ -169,6 +258,15 @@ export class StockService {
         notes: true,
         createdAt: true,
         updatedAt: true,
+        interestPeriods: {
+          select: {
+            startDate: true,
+            endDate: true,
+            annualRate: true,
+            principalAmount: true,
+            calculatedInterest: true,
+          },
+        },
         sale: {
           select: {
             id: true,
@@ -203,12 +301,20 @@ export class StockService {
       Number(stock.otherCosts),
       Number(stock.interestRate),
       stock.arrivalDate,
+      stock.orderDate,
+      stock.interestPrincipalBase,
       stock.stopInterestCalc,
-      stock.interestStoppedAt
+      stock.interestStoppedAt,
+      stock.debtStatus,
+      stock.soldDate,
+      stock.interestPeriods
     );
 
     return {
-      ...stock,
+      ...(() => {
+        const { interestPeriods, ...rest } = stock;
+        return rest;
+      })(),
       daysInStock,
       calculatedInterest: accumulatedInterest,
     };
@@ -399,6 +505,17 @@ export class StockService {
 
     const stock = await db.stock.findUnique({
       where: { id },
+      include: {
+        interestPeriods: {
+          select: {
+            startDate: true,
+            endDate: true,
+            annualRate: true,
+            principalAmount: true,
+            calculatedInterest: true,
+          },
+        },
+      },
     });
 
     if (!stock) {
@@ -413,8 +530,13 @@ export class StockService {
       Number(stock.otherCosts),
       Number(stock.interestRate),
       stock.arrivalDate,
+      stock.orderDate,
+      stock.interestPrincipalBase,
       stock.stopInterestCalc,
-      stock.interestStoppedAt
+      stock.interestStoppedAt,
+      stock.debtStatus,
+      stock.soldDate,
+      stock.interestPeriods
     );
 
     // Update accumulated interest
@@ -472,9 +594,10 @@ export class StockService {
       select: { vin: true },
     });
 
-    // Delete stock
-    await db.stock.delete({
+    // Soft delete stock (set deletedAt)
+    await db.stock.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
 
     // Log activity
@@ -500,6 +623,7 @@ export class StockService {
     const stocks = await db.stock.findMany({
       where: {
         status: 'AVAILABLE',
+        deletedAt: null, // Exclude soft deleted records
       },
       select: {
         id: true,
@@ -535,31 +659,97 @@ export class StockService {
       throw new Error('Insufficient permissions');
     }
 
+<<<<<<< /Users/marwinropmuang/Documents/NexmindIT/Car-Stock-monorepo/apps/api/src/modules/stock/stock.service.ts
     const [totalStock, availableStock, reservedStock, preparingStock, soldStock] = await Promise.all([
-      db.stock.count(),
-      db.stock.count({ where: { status: 'AVAILABLE' } }),
-      db.stock.count({ where: { status: 'RESERVED' } }),
-      db.stock.count({ where: { status: 'PREPARING' } }),
-      db.stock.count({ where: { status: 'SOLD' } }),
+      db.stock.count({ where: { deletedAt: null } }),
+      db.stock.count({ where: { status: 'AVAILABLE', deletedAt: null } }),
+      db.stock.count({ where: { status: 'RESERVED', deletedAt: null } }),
+      db.stock.count({ where: { status: 'PREPARING', deletedAt: null } }),
+      db.stock.count({ where: { status: 'SOLD', deletedAt: null } }),
     ]);
 
     // Calculate total stock value (for available stock only)
     const stockValue = await db.stock.aggregate({
-      where: { status: 'AVAILABLE' },
+      where: { status: 'AVAILABLE', deletedAt: null },
       _sum: {
         baseCost: true,
         transportCost: true,
         accessoryCost: true,
         otherCosts: true,
         accumulatedInterest: true,
-      },
-    });
+=======
+    const [
+      totalStock,
+      availableStock,
+      reservedStock,
+      preparingStock,
+      soldStock,
+      availableStocks,
+    ] = await Promise.all([
+      db.stock.count(),
+      db.stock.count({ where: { status: 'AVAILABLE' } }),
+      db.stock.count({ where: { status: 'RESERVED' } }),
+      db.stock.count({ where: { status: 'PREPARING' } }),
+      db.stock.count({ where: { status: 'SOLD' } }),
+      db.stock.findMany({
+        where: { status: 'AVAILABLE' },
+        select: {
+          baseCost: true,
+          transportCost: true,
+          accessoryCost: true,
+          otherCosts: true,
+          interestRate: true,
+          arrivalDate: true,
+          orderDate: true,
+          interestPrincipalBase: true,
+          stopInterestCalc: true,
+          interestStoppedAt: true,
+          debtStatus: true,
+          soldDate: true,
+          financeProvider: true,
+          interestPeriods: {
+            select: {
+              startDate: true,
+              endDate: true,
+              annualRate: true,
+              principalAmount: true,
+              calculatedInterest: true,
+            },
+          },
+        },
+      }),
+    ]);
 
-    const totalValue = Number(stockValue._sum.baseCost || 0) +
-      Number(stockValue._sum.transportCost || 0) +
-      Number(stockValue._sum.accessoryCost || 0) +
-      Number(stockValue._sum.otherCosts || 0) +
-      Number(stockValue._sum.accumulatedInterest || 0);
+    const totalValue = availableStocks.reduce(
+      (sum: number, stock: (typeof availableStocks)[number]) => {
+        const baseCost = Number(stock.baseCost || 0);
+        const transportCost = Number(stock.transportCost || 0);
+        const accessoryCost = Number(stock.accessoryCost || 0);
+        const otherCosts = Number(stock.otherCosts || 0);
+        const costWithoutInterest = baseCost + transportCost + accessoryCost + otherCosts;
+        const accumulatedInterest = stock.financeProvider
+          ? this.calculateAccumulatedInterest(
+              baseCost,
+              transportCost,
+              accessoryCost,
+              otherCosts,
+              Number(stock.interestRate || 0),
+              stock.arrivalDate,
+              stock.orderDate,
+              stock.interestPrincipalBase,
+              stock.stopInterestCalc,
+              stock.interestStoppedAt,
+              stock.debtStatus,
+              stock.soldDate,
+              stock.interestPeriods
+            )
+          : 0;
+
+        return sum + costWithoutInterest + accumulatedInterest;
+>>>>>>> /Users/marwinropmuang/.windsurf/worktrees/Car-Stock-monorepo/Car-Stock-monorepo-865a4b20/apps/api/src/modules/stock/stock.service.ts
+      },
+      0
+    );
 
     return {
       totalStock,

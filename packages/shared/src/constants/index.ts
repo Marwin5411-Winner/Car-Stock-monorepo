@@ -47,6 +47,7 @@ export const STOCK_STATUS_LABELS = {
   RESERVED: 'จองแล้ว',
   PREPARING: 'เตรียมส่งมอบ',
   SOLD: 'ขายแล้ว',
+  DEMO: 'รถ Demo',
 } as const;
 
 export const SALE_STATUS_LABELS = {
@@ -169,6 +170,7 @@ export const STOCK_STATUS_COLORS = {
   RESERVED: 'yellow',
   PREPARING: 'blue',
   SOLD: 'gray',
+  DEMO: 'purple',
 } as const;
 
 export const SALE_STATUS_COLORS = {
