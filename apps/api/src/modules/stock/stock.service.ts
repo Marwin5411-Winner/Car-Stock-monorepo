@@ -96,7 +96,7 @@ export class StockService {
     const validated = StockFilterSchema.parse(params);
     const skip = (validated.page - 1) * validated.limit;
 
-    const where: any = {
+    let where: any = {
       deletedAt: null, // Exclude soft deleted records
     };
 
