@@ -244,17 +244,13 @@ export default function StockListPage() {
                         {new Intl.NumberFormat('th-TH', {
                           style: 'currency',
                           currency: 'THB',
-<<<<<<< /Users/marwinropmuang/Documents/NexmindIT/Car-Stock-monorepo/apps/web/src/pages/stock/StockListPage.tsx
                         }).format(stock.baseCost)}
                       </TableCell>
                       <TableCell className="text-gray-900">
                         {new Intl.NumberFormat('th-TH', {
                           style: 'currency',
                           currency: 'THB',
-                        }).format(stock.calculatedInterest ?? stock.accumulatedInterest)}
-=======
                         }).format(stock.calculatedInterest ?? 0)}
->>>>>>> /Users/marwinropmuang/.windsurf/worktrees/Car-Stock-monorepo/Car-Stock-monorepo-865a4b20/apps/web/src/pages/stock/StockListPage.tsx
                       </TableCell>
                       <TableCell>
                         <span
