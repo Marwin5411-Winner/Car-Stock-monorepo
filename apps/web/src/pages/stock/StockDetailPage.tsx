@@ -173,7 +173,7 @@ export default function StockDetailPage() {
     );
   }
 
-  const totalCost = stock.baseCost + stock.transportCost + stock.accessoryCost + stock.otherCosts;
+  const totalCost = Number(stock.baseCost) + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
   const interestAmount = stock.calculatedInterest ?? 0;
   const totalWithInterest = totalCost + interestAmount;
 
