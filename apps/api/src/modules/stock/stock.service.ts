@@ -32,9 +32,9 @@ export class StockService {
     interestPeriods?: Array<{
       startDate: Date;
       endDate: Date | null;
-      annualRate: number;
-      principalAmount: number;
-      calculatedInterest: number;
+      annualRate: number | Decimal;
+      principalAmount: number | Decimal;
+      calculatedInterest: number | Decimal;
     }>
   ): number {
     const totalCost = baseCost + transportCost + accessoryCost + otherCosts;
@@ -251,9 +251,9 @@ export class StockService {
         financePaymentDate: true,
         stopInterestCalc: true,
         interestStoppedAt: true,
-        expectedSalePrice: true,
-        actualSalePrice: true,
+        debtStatus: true,
         soldDate: true,
+        actualSalePrice: true,
         deliveryNotes: true,
         notes: true,
         createdAt: true,
