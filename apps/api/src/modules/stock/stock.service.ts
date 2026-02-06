@@ -659,25 +659,6 @@ export class StockService {
       throw new Error('Insufficient permissions');
     }
 
-<<<<<<< /Users/marwinropmuang/Documents/NexmindIT/Car-Stock-monorepo/apps/api/src/modules/stock/stock.service.ts
-    const [totalStock, availableStock, reservedStock, preparingStock, soldStock] = await Promise.all([
-      db.stock.count({ where: { deletedAt: null } }),
-      db.stock.count({ where: { status: 'AVAILABLE', deletedAt: null } }),
-      db.stock.count({ where: { status: 'RESERVED', deletedAt: null } }),
-      db.stock.count({ where: { status: 'PREPARING', deletedAt: null } }),
-      db.stock.count({ where: { status: 'SOLD', deletedAt: null } }),
-    ]);
-
-    // Calculate total stock value (for available stock only)
-    const stockValue = await db.stock.aggregate({
-      where: { status: 'AVAILABLE', deletedAt: null },
-      _sum: {
-        baseCost: true,
-        transportCost: true,
-        accessoryCost: true,
-        otherCosts: true,
-        accumulatedInterest: true,
-=======
     const [
       totalStock,
       availableStock,
@@ -746,7 +727,6 @@ export class StockService {
           : 0;
 
         return sum + costWithoutInterest + accumulatedInterest;
->>>>>>> /Users/marwinropmuang/.windsurf/worktrees/Car-Stock-monorepo/Car-Stock-monorepo-865a4b20/apps/api/src/modules/stock/stock.service.ts
       },
       0
     );
