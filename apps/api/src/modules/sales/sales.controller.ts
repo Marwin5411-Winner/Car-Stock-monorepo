@@ -238,7 +238,7 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
       }
     },
     {
-      beforeHandle: [authMiddleware, requirePermission('SALE_UPDATE')],
+      beforeHandle: [authMiddleware, requirePermission('SALE_STATUS_UPDATE')],
       body: t.Object({
         // Updated: Removed INQUIRY and QUOTED - now handled by Quotation module
         status: t.Union([
@@ -279,7 +279,7 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
       }
     },
     {
-      beforeHandle: [authMiddleware, requirePermission('SALE_UPDATE')],
+      beforeHandle: [authMiddleware, requirePermission('SALE_ASSIGN_STOCK')],
       body: t.Object({
         stockId: t.String({ minLength: 1 }),
       }),

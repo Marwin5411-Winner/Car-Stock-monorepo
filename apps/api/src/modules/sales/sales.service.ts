@@ -46,7 +46,7 @@ export class SalesService {
    */
   async getAllSales(params: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -148,7 +148,7 @@ export class SalesService {
    */
   async getSaleById(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -226,7 +226,7 @@ export class SalesService {
    */
   async createSale(data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -348,7 +348,7 @@ export class SalesService {
    */
   async updateSale(id: string, data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -408,10 +408,17 @@ export class SalesService {
   /**
    * Update sale status
    */
-  async updateSaleStatus(id: string, status: any, notes: string | undefined, currentUser: any) {
-    // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+  async updateSaleStatus(id: string, status: string, notes: string | undefined, currentUser: any) {
+    // Check permission - use SALE_STATUS_UPDATE for general status changes
+    if (!authService.hasPermission(currentUser.role, 'SALE_STATUS_UPDATE')) {
       throw new Error('Insufficient permissions');
+    }
+
+    // Cancellation requires SALE_CANCEL permission (ADMIN only)
+    if (status === 'CANCELLED') {
+      if (!authService.hasPermission(currentUser.role, 'SALE_CANCEL')) {
+        throw new Error('Only admin can cancel sales');
+      }
     }
 
     // Check if sale exists
@@ -525,7 +532,7 @@ export class SalesService {
    */
   async deleteSale(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_DELETE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_DELETE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -586,7 +593,7 @@ export class SalesService {
    */
   async assignStock(saleId: string, stockId: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_ASSIGN_STOCK')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -703,7 +710,7 @@ export class SalesService {
    */
   async getSalesStats(currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 

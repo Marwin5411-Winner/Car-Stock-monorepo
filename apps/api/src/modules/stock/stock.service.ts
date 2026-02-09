@@ -5,6 +5,32 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export class StockService {
   /**
+   * Cost-related fields to strip for users without STOCK_VIEW_COST permission
+   */
+  private static readonly COST_FIELDS = [
+    'baseCost', 'transportCost', 'accessoryCost', 'otherCosts',
+    'interestRate', 'accumulatedInterest',
+    'financeProvider', 'financePaymentDate', 'interestPrincipalBase',
+    'stopInterestCalc', 'interestStoppedAt',
+    'debtAmount', 'paidDebtAmount', 'paidInterestAmount',
+    'remainingDebt', 'debtStatus', 'debtPaidOffDate',
+  ];
+
+  /**
+   * Strip cost fields from stock data if user lacks STOCK_VIEW_COST permission
+   */
+  private stripCostFields(data: any, currentUser: any): any {
+    if (authService.hasPermission(currentUser.role, 'STOCK_VIEW_COST')) {
+      return data;
+    }
+    const stripped = { ...data };
+    for (const field of StockService.COST_FIELDS) {
+      delete stripped[field];
+    }
+    return stripped;
+  }
+
+  /**
    * Calculate days in stock
    */
   private calculateDaysInStock(arrivalDate: Date): number {
@@ -89,7 +115,7 @@ export class StockService {
    */
   async getAllStock(params: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -170,10 +196,12 @@ export class StockService {
       db.stock.count({ where }),
     ]);
 
+    const canViewCost = authService.hasPermission(currentUser.role, 'STOCK_VIEW_COST');
+
     const data = stocks.map((stock: any) => {
       const { interestPeriods, ...stockData } = stock;
 
-      return {
+      const result: any = {
         ...stockData,
         calculatedInterest: this.calculateAccumulatedInterest(
           Number(stock.baseCost),
@@ -191,6 +219,8 @@ export class StockService {
           interestPeriods
         ),
       };
+
+      return canViewCost ? result : this.stripCostFields(result, currentUser);
     });
 
     return {
@@ -211,7 +241,7 @@ export class StockService {
    */
   async getStockById(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -310,7 +340,7 @@ export class StockService {
       stock.interestPeriods
     );
 
-    return {
+    const result = {
       ...(() => {
         const { interestPeriods, ...rest } = stock;
         return rest;
@@ -318,6 +348,8 @@ export class StockService {
       daysInStock,
       calculatedInterest: accumulatedInterest,
     };
+
+    return this.stripCostFields(result, currentUser);
   }
 
   /**
@@ -325,7 +357,7 @@ export class StockService {
    */
   async createStock(data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_CREATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_CREATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -394,7 +426,7 @@ export class StockService {
    */
   async updateStock(id: string, data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -452,7 +484,7 @@ export class StockService {
    */
   async updateStockStatus(id: string, status: any, notes: string | undefined, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -499,7 +531,7 @@ export class StockService {
    */
   async recalculateInterest(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -569,7 +601,7 @@ export class StockService {
    */
   async deleteStock(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_DELETE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_DELETE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -655,7 +687,7 @@ export class StockService {
    */
   async getStockStats(currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -731,13 +763,15 @@ export class StockService {
       0
     );
 
+    const canViewCost = authService.hasPermission(currentUser.role, 'STOCK_VIEW_COST');
+
     return {
       totalStock,
       availableStock,
       reservedStock,
       preparingStock,
       soldStock,
-      totalValue,
+      ...(canViewCost ? { totalValue } : {}),
     };
   }
 }

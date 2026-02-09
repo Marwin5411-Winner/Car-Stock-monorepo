@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { quotationService } from '../../services/quotation.service';
 import type { Quotation, QuotationStatus } from '../../services/quotation.service';
 import { MainLayout } from '../../components/layout';
@@ -52,6 +53,9 @@ const STATUS_ICONS: Record<QuotationStatus, React.ReactNode> = {
 export default function QuotationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canEditQuotation = ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'].includes(user?.role || '');
+  const canDeleteQuotation = user?.role === 'ADMIN';
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -261,24 +265,24 @@ export default function QuotationDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {['DRAFT', 'SENT'].includes(quotation.status) && (
-              <>
-                <Link
-                  to={`/quotations/${quotation.id}/edit`}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  แก้ไข
-                </Link>
-                <button
-                  onClick={handleDelete}
-                  disabled={updating}
-                  className="inline-flex items-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  ลบ
-                </button>
-              </>
+            {['DRAFT', 'SENT'].includes(quotation.status) && canEditQuotation && (
+              <Link
+                to={`/quotations/${quotation.id}/edit`}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                แก้ไข
+              </Link>
+            )}
+            {quotation.status === 'DRAFT' && canDeleteQuotation && (
+              <button
+                onClick={handleDelete}
+                disabled={updating}
+                className="inline-flex items-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                ลบ
+              </button>
             )}
             {['SENT', 'REJECTED', 'EXPIRED'].includes(quotation.status) && (
               <button

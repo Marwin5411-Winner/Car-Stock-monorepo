@@ -48,7 +48,7 @@ const queryClient = new QueryClient({
 const ROLE_ACCESS = {
   ADMIN_ONLY: ['ADMIN'] as const,
   CUSTOMER_VIEW: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
-  CUSTOMER_EDIT: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF'] as const,
+  CUSTOMER_EDIT: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
   VEHICLE_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
   VEHICLE_EDIT: ['ADMIN', 'STOCK_STAFF'] as const,
   STOCK_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
@@ -56,9 +56,11 @@ const ROLE_ACCESS = {
   INTEREST_VIEW: ['ADMIN', 'ACCOUNTANT', 'STOCK_STAFF'] as const,
   INTEREST_EDIT: ['ADMIN', 'ACCOUNTANT'] as const,
   SALES_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  SALES_EDIT: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF'] as const,
+  SALES_CREATE: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
+  SALES_UPDATE: ['ADMIN'] as const,
+  QUOTATION_EDIT: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
   PAYMENTS_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  PAYMENTS_CREATE: ['ADMIN', 'ACCOUNTANT', 'SALES_STAFF'] as const,
+  PAYMENTS_CREATE: ['ADMIN', 'ACCOUNTANT'] as const,
   CAMPAIGN_VIEW: ['ADMIN', 'SALES_MANAGER', 'ACCOUNTANT', 'SALES_STAFF'] as const,
   REPORTS_INDEX: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT'] as const,
   REPORT_FINANCE: ['ADMIN', 'ACCOUNTANT'] as const,
@@ -222,7 +224,7 @@ function App() {
             <Route
               path="/sales/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_EDIT}>
+                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_CREATE}>
                   <SalesFormPage />
                 </ProtectedRoute>
               }
@@ -238,7 +240,7 @@ function App() {
             <Route
               path="/sales/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_EDIT}>
+                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_UPDATE}>
                   <SalesFormPage />
                 </ProtectedRoute>
               }
@@ -254,7 +256,7 @@ function App() {
             <Route
               path="/quotations/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_EDIT}>
+                <ProtectedRoute allowedRoles={ROLE_ACCESS.QUOTATION_EDIT}>
                   <QuotationFormPage />
                 </ProtectedRoute>
               }
@@ -270,7 +272,7 @@ function App() {
             <Route
               path="/quotations/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_EDIT}>
+                <ProtectedRoute allowedRoles={ROLE_ACCESS.QUOTATION_EDIT}>
                   <QuotationFormPage />
                 </ProtectedRoute>
               }

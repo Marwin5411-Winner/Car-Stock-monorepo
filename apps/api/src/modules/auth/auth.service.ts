@@ -2,7 +2,7 @@ import { db } from '../../lib/db';
 import { LoginSchema, RegisterSchema } from '@car-stock/shared/schemas';
 import bcrypt from 'bcryptjs';
 import type { Context } from 'elysia';
-import { PERMISSIONS } from '@car-stock/shared/constants';
+import { PERMISSIONS, type Permission } from '@car-stock/shared/constants';
 
 export class AuthService {
   /**
@@ -198,8 +198,8 @@ export class AuthService {
   /**
    * Check if user has permission
    */
-  hasPermission(userRole: string, permission: string): boolean {
-    const allowedRoles = PERMISSIONS[permission as keyof typeof PERMISSIONS];
+  hasPermission(userRole: string, permission: Permission): boolean {
+    const allowedRoles = PERMISSIONS[permission];
     return allowedRoles ? allowedRoles.includes(userRole as any) : false;
   }
 

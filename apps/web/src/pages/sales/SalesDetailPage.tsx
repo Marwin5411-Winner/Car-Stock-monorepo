@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { salesService } from '../../services/sales.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import type { Sale, SaleStatus } from '../../services/sales.service';
@@ -149,6 +150,8 @@ const STATUS_FLOW: SaleStatus[] = ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLE
 export default function SalesDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -390,7 +393,12 @@ export default function SalesDetailPage() {
       COMPLETED: [],
       CANCELLED: [],
     };
-    return statusTransitions[currentStatus] || [];
+    const statuses = statusTransitions[currentStatus] || [];
+    // Only ADMIN can cancel sales
+    if (!isAdmin) {
+      return statuses.filter(s => s !== 'CANCELLED');
+    }
+    return statuses;
   };
 
   const getStatusIndex = (status: SaleStatus): number => {
@@ -846,13 +854,15 @@ export default function SalesDetailPage() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h3 className="text-lg font-semibold">ประวัติการชำระเงิน</h3>
-          <Link
-            to={`/payments/new?saleId=${sale.id}`}
-            className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 text-sm"
-          >
-            <CreditCard className="h-4 w-4 mr-1" />
-            บันทึกการชำระเงิน
-          </Link>
+          {(user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT') && (
+            <Link
+              to={`/payments/new?saleId=${sale.id}`}
+              className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 text-sm"
+            >
+              <CreditCard className="h-4 w-4 mr-1" />
+              บันทึกการชำระเงิน
+            </Link>
+          )}
         </div>
         {sale.payments && sale.payments.length > 0 ? (
           <table className="min-w-full divide-y divide-gray-200">
@@ -973,13 +983,15 @@ export default function SalesDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to={`/sales/${sale.id}/edit`}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              แก้ไข
-            </Link>
+            {isAdmin && (
+              <Link
+                to={`/sales/${sale.id}/edit`}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                แก้ไข
+              </Link>
+            )}
           </div>
         </div>
 

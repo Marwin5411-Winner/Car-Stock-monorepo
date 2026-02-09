@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { quotationsService } from './quotations.service';
-import { authMiddleware } from '../auth/auth.middleware';
+import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 
 export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   // Get all quotations
@@ -131,7 +131,7 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('QUOTATION_CREATE')],
       body: t.Object({
         customerId: t.String(),
         vehicleModelId: t.Optional(t.String()),
@@ -170,7 +170,7 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('QUOTATION_UPDATE')],
       params: t.Object({
         id: t.String(),
       }),
@@ -211,7 +211,7 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('QUOTATION_UPDATE')],
       params: t.Object({
         id: t.String(),
       }),
@@ -252,7 +252,7 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('QUOTATION_CONVERT')],
       params: t.Object({
         id: t.String(),
       }),
@@ -290,7 +290,7 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('QUOTATION_CREATE')],
       params: t.Object({
         id: t.String(),
       }),
@@ -331,7 +331,7 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
       }
     },
     {
-      beforeHandle: authMiddleware,
+      beforeHandle: [authMiddleware, requirePermission('QUOTATION_DELETE')],
       params: t.Object({
         id: t.String(),
       }),

@@ -90,7 +90,7 @@ export class QuotationsService {
    */
   async getAllQuotations(params: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -195,7 +195,7 @@ export class QuotationsService {
    */
   async getQuotationById(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -234,7 +234,7 @@ export class QuotationsService {
    */
   async getQuotationStats(currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -282,7 +282,7 @@ export class QuotationsService {
    */
   async createQuotation(data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'QUOTATION_CREATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -370,7 +370,7 @@ export class QuotationsService {
    */
   async updateQuotation(id: string, data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'QUOTATION_UPDATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -466,7 +466,7 @@ export class QuotationsService {
    */
   async updateQuotationStatus(id: string, status: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'QUOTATION_UPDATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -541,7 +541,7 @@ export class QuotationsService {
    */
   async convertToSale(id: string, data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'QUOTATION_CONVERT')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -741,7 +741,7 @@ export class QuotationsService {
    */
   async createNewVersion(id: string, data: any, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_CREATE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'QUOTATION_CREATE')) {
       throw new Error('Insufficient permissions');
     }
 
@@ -830,7 +830,7 @@ export class QuotationsService {
    */
   async deleteQuotation(id: string, currentUser: any) {
     // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_DELETE' as any)) {
+    if (!authService.hasPermission(currentUser.role, 'QUOTATION_DELETE')) {
       throw new Error('Insufficient permissions');
     }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { paymentService } from '../../services/payment.service';
 import type { PaymentListItem, PaymentStats, PaymentStatus, PaymentType, PaymentFilters } from '../../services/payment.service';
 import { MainLayout } from '../../components/layout';
@@ -54,6 +55,8 @@ const STATUS_LABELS: Record<PaymentStatus, string> = {
 };
 
 export default function PaymentsListPage() {
+  const { user } = useAuth();
+  const canCreatePayment = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,13 +159,15 @@ export default function PaymentsListPage() {
               </p>
             )}
           </div>
-          <Link
-            to="/payments/new"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            บันทึกการชำระเงิน
-          </Link>
+          {canCreatePayment && (
+            <Link
+              to="/payments/new"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              บันทึกการชำระเงิน
+            </Link>
+          )}
         </div>
 
         {/* Stats Cards */}
