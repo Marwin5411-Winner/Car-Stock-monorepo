@@ -317,6 +317,40 @@ export interface StockInterestReportResponse {
 }
 
 // ============================================
+// Purchase Requirement Report Types
+// ============================================
+
+export interface PurchaseRequirementItem {
+  vehicleModelId: string;
+  brand: string;
+  model: string;
+  variant: string;
+  year: number;
+  vehicleModelName: string;
+  reservationCount: number;
+  availableCount: number;
+  requiredPurchase: number;
+  status: 'NEED_TO_BUY' | 'SUFFICIENT';
+}
+
+export interface PurchaseRequirementSummary {
+  totalReservations: number;
+  totalAvailable: number;
+  totalRequired: number;
+  modelsNeedingPurchase: number;
+  totalModels: number;
+}
+
+export interface PurchaseRequirementReportResponse {
+  items: PurchaseRequirementItem[];
+  summary: PurchaseRequirementSummary;
+}
+
+export interface PurchaseRequirementParams {
+  brand?: string;
+}
+
+// ============================================
 // Report Query Params
 // ============================================
 

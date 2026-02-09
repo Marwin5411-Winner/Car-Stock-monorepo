@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import { salesService } from './sales.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { authService } from '../auth/auth.service';
+import { BadRequestError } from '../../lib/errors';
 
 export const salesRoutes = new Elysia({ prefix: '/sales' })
   // Get all sales
@@ -115,7 +116,25 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
     '/',
     async ({ body, set, requester }) => {
       try {
-        const sale = await salesService.createSale(body, requester);
+        // Helper to safely parse float
+        const safeParseFloat = (value: unknown): number => {
+          if (typeof value !== 'string') return value as number;
+          const parsed = parseFloat(value);
+          if (isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
+          return parsed;
+        };
+
+        // Convert string numbers to actual numbers
+        const processedBody = {
+          ...body,
+          totalAmount: safeParseFloat(body.totalAmount),
+          depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : body.depositAmount,
+          discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : body.discountSnapshot,
+          downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : body.downPayment,
+          financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : body.financeAmount,
+        };
+
+        const sale = await salesService.createSale(processedBody, requester);
         set.status = 201;
         return {
           success: true,
@@ -140,16 +159,16 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         vehicleModelId: t.Optional(t.String()),
         preferredExtColor: t.Optional(t.String()),
         preferredIntColor: t.Optional(t.String()),
-        totalAmount: t.Number(),
-        depositAmount: t.Optional(t.Number()),
+        totalAmount: t.Union([t.String(), t.Number()]),
+        depositAmount: t.Optional(t.Union([t.String(), t.Number()])),
         expirationDate: t.Optional(t.Date()),
         hasExpiration: t.Optional(t.Boolean()),
         campaignId: t.Optional(t.String()),
-        discountSnapshot: t.Optional(t.Number()),
+        discountSnapshot: t.Optional(t.Union([t.String(), t.Number()])),
         freebiesSnapshot: t.Optional(t.String()),
         paymentMode: t.Optional(t.Union([t.Literal('CASH'), t.Literal('FINANCE'), t.Literal('MIXED')])),
-        downPayment: t.Optional(t.Number()),
-        financeAmount: t.Optional(t.Number()),
+        downPayment: t.Optional(t.Union([t.String(), t.Number()])),
+        financeAmount: t.Optional(t.Union([t.String(), t.Number()])),
         financeProvider: t.Optional(t.String()),
         refundPolicy: t.Optional(t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])),
         notes: t.Optional(t.String()),

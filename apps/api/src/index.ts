@@ -3,6 +3,7 @@ import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { jwt } from '@elysiajs/jwt';
 import { db } from './lib/db';
+import { AppError, handlePrismaError, isAppError, isPrismaError } from './lib/errors';
 
 // Import routes
 import { authRoutes } from './modules/auth/auth.controller';
@@ -114,11 +115,55 @@ const app = new Elysia()
   .onError(({ code, error, set }) => {
     console.error(`Error [${code}]:`, error);
 
+    // Handle AppError (custom application errors)
+    if (isAppError(error)) {
+      set.status = error.statusCode;
+      return {
+        success: false,
+        error: error.errorCode,
+        message: error.message,
+        details: error.details,
+      };
+    }
+
+    // Handle Prisma errors
+    if (isPrismaError(error)) {
+      const appError = handlePrismaError(error);
+      set.status = appError.statusCode;
+      return {
+        success: false,
+        error: appError.errorCode,
+        message: appError.message,
+        details: appError.details,
+      };
+    }
+
+    // Handle Zod validation errors
+    if (error instanceof Error && error.name === 'ZodError') {
+      const zodError = error as import('zod').ZodError;
+      const fieldErrors: Record<string, string[]> = {};
+      zodError.errors.forEach((err) => {
+        const path = err.path.join('.');
+        if (!fieldErrors[path]) {
+          fieldErrors[path] = [];
+        }
+        fieldErrors[path].push(err.message);
+      });
+
+      set.status = 400;
+      return {
+        success: false,
+        error: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        details: { fields: fieldErrors },
+      };
+    }
+
     if (code === 'VALIDATION') {
       set.status = 400;
       return {
         success: false,
-        error: 'Validation Error',
+        error: 'VALIDATION_ERROR',
         message: error.message,
       };
     }
@@ -127,7 +172,7 @@ const app = new Elysia()
       set.status = 404;
       return {
         success: false,
-        error: 'Not Found',
+        error: 'NOT_FOUND',
         message: 'The requested resource was not found',
       };
     }
@@ -135,8 +180,8 @@ const app = new Elysia()
     set.status = 500;
     return {
       success: false,
-      error: 'Internal Server Error',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred',
+      error: 'INTERNAL_ERROR',
+      message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'An unexpected error occurred',
     };
   })
   .listen(process.env.PORT || 3001);

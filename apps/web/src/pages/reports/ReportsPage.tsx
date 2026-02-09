@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Percent,
   Lock,
+  Truck,
 } from 'lucide-react';
 
 interface ReportCard {
@@ -71,6 +72,16 @@ const REPORTS: ReportCard[] = [
     color: 'text-red-600',
     bgColor: 'bg-red-100',
     permission: ['ADMIN', 'ACCOUNTANT', 'STOCK_STAFF'],
+  },
+  {
+    id: 'purchase-requirement',
+    title: 'รายงานความต้องการซื้อรถ',
+    description: 'แสดงรุ่นรถที่ต้องซื้อเพิ่มจากการเปรียบเทียบการจองกับสต็อก',
+    icon: <Truck className="w-8 h-8" />,
+    path: '/reports/purchase-requirement',
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-100',
+    permission: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF'],
   },
 ];
 

@@ -5,7 +5,9 @@ import type {
   ProfitLossReportResponse,
   SalesSummaryReportResponse,
   StockInterestReportResponse,
+  PurchaseRequirementReportResponse,
   ReportQueryParams,
+  PurchaseRequirementParams,
 } from '@car-stock/shared/types';
 
 interface ApiResponse<T> {
@@ -164,6 +166,31 @@ class ReportService {
     }
 
     const url = `/api/reports/stock-interest/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
+  }
+
+  // ============================================
+  // Purchase Requirement Report
+  // ============================================
+  async getPurchaseRequirementReport(params?: PurchaseRequirementParams): Promise<PurchaseRequirementReportResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.brand) queryParams.append('brand', params.brand);
+
+    const url = `/api/reports/purchase-requirement${queryParams.toString() ? `?${queryParams}` : ''}`;
+    const response = await api.get<ApiResponse<PurchaseRequirementReportResponse>>(url);
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to fetch purchase requirement report');
+    }
+
+    return response.data;
+  }
+
+  async getPurchaseRequirementReportPdf(params?: PurchaseRequirementParams): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.brand) queryParams.append('brand', params.brand);
+
+    const url = `/api/reports/purchase-requirement/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
     return api.getBlob(url);
   }
 }

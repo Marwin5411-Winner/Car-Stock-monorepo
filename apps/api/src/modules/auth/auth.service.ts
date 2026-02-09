@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { LoginSchema, RegisterSchema } from '@car-stock/shared/schemas';
 import bcrypt from 'bcryptjs';
+import { UnauthorizedError, ForbiddenError, ConflictError, NotFoundError } from '../../lib/errors';
 import type { Context } from 'elysia';
 import { PERMISSIONS, type Permission } from '@car-stock/shared/constants';
 
@@ -56,16 +57,16 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new Error('Invalid username or password');
+      throw new UnauthorizedError('Invalid username or password');
     }
 
     if (user.status !== 'ACTIVE') {
-      throw new Error('Account is inactive');
+      throw new UnauthorizedError('Account is inactive');
     }
 
     const isValidPassword = await this.verifyPassword(validated.password, user.password);
     if (!isValidPassword) {
-      throw new Error('Invalid username or password');
+      throw new UnauthorizedError('Invalid username or password');
     }
 
     // Remove password from response
@@ -98,7 +99,7 @@ export class AuthService {
   async register(data: any, currentUser: any) {
     // Check if current user has permission
     if (!currentUser || !PERMISSIONS.USER_CREATE.includes(currentUser.role)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = RegisterSchema.parse(data);
@@ -109,7 +110,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new Error('Username already exists');
+      throw new ConflictError('Username');
     }
 
     // Check if email exists
@@ -118,7 +119,7 @@ export class AuthService {
     });
 
     if (existingEmail) {
-      throw new Error('Email already exists');
+      throw new ConflictError('Email');
     }
 
     // Hash password
@@ -189,7 +190,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User');
     }
 
     return user;

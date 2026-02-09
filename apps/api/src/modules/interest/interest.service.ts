@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InterestBase, StockStatus, DebtStatus, PaymentMethod } from '@prisma/client';
+import { NotFoundError, BadRequestError } from '../../lib/errors';
 
 interface InterestSummary {
   stockId: string;
@@ -264,7 +265,7 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     const today = new Date();
@@ -379,15 +380,15 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     if (stock.stopInterestCalc) {
-      throw new Error('Interest calculation has been stopped for this stock');
+      throw new BadRequestError('Interest calculation has been stopped for this stock');
     }
 
     if (stock.debtStatus === 'PAID_OFF') {
-      throw new Error('Cannot update interest for stock with paid off debt');
+      throw new BadRequestError('Cannot update interest for stock with paid off debt');
     }
 
     const today = new Date();
@@ -483,7 +484,7 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     const today = new Date();
@@ -538,15 +539,15 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     if (!stock.stopInterestCalc) {
-      throw new Error('Interest calculation is not stopped');
+      throw new BadRequestError('Interest calculation is not stopped');
     }
 
     if (stock.debtStatus === 'PAID_OFF') {
-      throw new Error('Cannot resume interest for stock with paid off debt');
+      throw new BadRequestError('Cannot resume interest for stock with paid off debt');
     }
 
     const today = new Date();
@@ -618,11 +619,11 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     if (stock.interestPeriods.length > 0) {
-      throw new Error('Stock already has interest periods. Use update instead.');
+      throw new BadRequestError('Stock already has interest periods. Use update instead.');
     }
 
     // ใช้ orderDate เป็น default ถ้ามี ไม่งั้นใช้ arrivalDate
@@ -781,11 +782,11 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     if (stock.debtStatus !== 'NO_DEBT' && Number(stock.debtAmount) > 0) {
-      throw new Error('Stock already has debt initialized');
+      throw new BadRequestError('Stock already has debt initialized');
     }
 
     await db.stock.update({
@@ -857,11 +858,11 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     if (stock.debtStatus === 'PAID_OFF') {
-      throw new Error('Stock debt is already paid off');
+      throw new BadRequestError('Stock debt is already paid off');
     }
 
     const today = new Date();
@@ -888,7 +889,7 @@ export class InterestService {
         },
       });
     } else if (stock.debtStatus === 'NO_DEBT' && !stock.financeProvider) {
-      throw new Error('Stock has no debt to pay (no finance provider)');
+      throw new BadRequestError('Stock has no debt to pay (no finance provider)');
     }
 
     // คำนวณดอกเบี้ยสะสม ณ วันจ่าย
@@ -924,14 +925,14 @@ export class InterestService {
     if (paymentType === 'PRINCIPAL_ONLY') {
       // จ่ายเฉพาะเงินต้น
       if (input.amount > currentRemainingDebt) {
-        throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds remaining principal (${currentRemainingDebt.toLocaleString()})`);
+        throw new BadRequestError(`Payment amount (${input.amount.toLocaleString()}) exceeds remaining principal (${currentRemainingDebt.toLocaleString()})`);
       }
       interestPaid = 0;
       principalPaid = input.amount;
     } else if (paymentType === 'INTEREST_ONLY') {
       // จ่ายเฉพาะดอกเบี้ย
       if (input.amount > accruedInterestAtPayment) {
-        throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds accrued interest (${accruedInterestAtPayment.toLocaleString()})`);
+        throw new BadRequestError(`Payment amount (${input.amount.toLocaleString()}) exceeds accrued interest (${accruedInterestAtPayment.toLocaleString()})`);
       }
       interestPaid = input.amount;
       principalPaid = 0;
@@ -939,7 +940,7 @@ export class InterestService {
       // AUTO: Interest-First Allocation
       const totalPayoff = currentRemainingDebt + accruedInterestAtPayment;
       if (input.amount > totalPayoff) {
-        throw new Error(`Payment amount (${input.amount.toLocaleString()}) exceeds total payoff (${totalPayoff.toLocaleString()})`);
+        throw new BadRequestError(`Payment amount (${input.amount.toLocaleString()}) exceeds total payoff (${totalPayoff.toLocaleString()})`);
       }
 
       if (input.amount >= accruedInterestAtPayment) {
@@ -1174,7 +1175,7 @@ export class InterestService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     const paymentStats = await db.stockDebtPayment.aggregate({

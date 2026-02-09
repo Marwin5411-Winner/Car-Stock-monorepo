@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { CreateVehicleModelSchema, UpdateVehicleModelSchema } from '@car-stock/shared/schemas';
 import { authService } from '../auth/auth.service';
+import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
 
 export class VehiclesService {
   /**
@@ -82,7 +83,7 @@ export class VehiclesService {
     });
 
     if (!vehicle) {
-      throw new Error('Vehicle model not found');
+      throw new NotFoundError('Vehicle model');
     }
 
     return vehicle;
@@ -94,7 +95,7 @@ export class VehiclesService {
   async createVehicle(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CreateVehicleModelSchema.parse(data);
@@ -110,7 +111,7 @@ export class VehiclesService {
     });
 
     if (existing) {
-      throw new Error('Vehicle model already exists');
+      throw new ConflictError('Vehicle model');
     }
 
     // Create vehicle model
@@ -143,7 +144,7 @@ export class VehiclesService {
   async updateVehicle(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = UpdateVehicleModelSchema.parse(data);
@@ -155,7 +156,7 @@ export class VehiclesService {
     });
 
     if (!existingVehicle) {
-      throw new Error('Vehicle model not found');
+      throw new NotFoundError('Vehicle model');
     }
 
     // Check for duplicate (if updating key fields)
@@ -176,7 +177,7 @@ export class VehiclesService {
       });
 
       if (duplicate) {
-        throw new Error('Vehicle model already exists');
+        throw new ConflictError('Vehicle model');
       }
     }
 
@@ -210,7 +211,7 @@ export class VehiclesService {
   async deleteVehicle(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_DELETE' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if vehicle has associated stock or sales
@@ -220,7 +221,7 @@ export class VehiclesService {
     ]);
 
     if (stockCount > 0 || salesCount > 0) {
-      throw new Error('Cannot delete vehicle model with existing stock or sales');
+      throw new BadRequestError('Cannot delete vehicle model with existing stock or sales');
     }
 
     // Get vehicle for logging
@@ -230,7 +231,7 @@ export class VehiclesService {
     });
 
     if (!vehicle) {
-      throw new Error('Vehicle model not found');
+      throw new NotFoundError('Vehicle model');
     }
 
     // Delete vehicle model

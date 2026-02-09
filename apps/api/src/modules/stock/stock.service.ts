@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { CreateStockSchema, UpdateStockSchema, StockFilterSchema } from '@car-stock/shared/schemas';
 import { authService } from '../auth/auth.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
 
 export class StockService {
   /**
@@ -116,7 +117,7 @@ export class StockService {
   async getAllStock(params: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = StockFilterSchema.parse(params);
@@ -242,7 +243,7 @@ export class StockService {
   async getStockById(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const stock = await db.stock.findUnique({
@@ -317,7 +318,7 @@ export class StockService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     // Calculate days in stock
@@ -358,7 +359,7 @@ export class StockService {
   async createStock(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_CREATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CreateStockSchema.parse(data);
@@ -374,11 +375,11 @@ export class StockService {
     });
 
     if (existingEngineNumber) {
-      throw new Error('Engine Number already exists');
+      throw new ConflictError('Engine Number');
     }
 
     if (existingStock) {
-      throw new Error('VIN already exists');
+      throw new ConflictError('VIN');
     }
 
     // Check if vehicle model exists
@@ -388,7 +389,7 @@ export class StockService {
     });
 
     if (!vehicleModel) {
-      throw new Error('Vehicle model not found');
+      throw new NotFoundError('Vehicle model');
     }
 
     // Create stock - sanitize empty strings to null for unique optional fields
@@ -427,7 +428,7 @@ export class StockService {
   async updateStock(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = UpdateStockSchema.parse(data);
@@ -439,12 +440,12 @@ export class StockService {
     });
 
     if (!existingStock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     // Cannot update sold stock
     if (existingStock.status === 'SOLD') {
-      throw new Error('Cannot update sold stock');
+      throw new BadRequestError('Cannot update sold stock');
     }
 
     // Sanitize empty strings to null for unique optional fields
@@ -485,7 +486,7 @@ export class StockService {
   async updateStockStatus(id: string, status: any, notes: string | undefined, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if stock exists
@@ -495,7 +496,7 @@ export class StockService {
     });
 
     if (!existingStock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     // Update status
@@ -532,7 +533,7 @@ export class StockService {
   async recalculateInterest(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const stock = await db.stock.findUnique({
@@ -551,7 +552,7 @@ export class StockService {
     });
 
     if (!stock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     // Calculate accumulated interest
@@ -602,7 +603,7 @@ export class StockService {
   async deleteStock(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_DELETE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if stock exists
@@ -612,12 +613,12 @@ export class StockService {
     });
 
     if (!existingStock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     // Cannot delete sold stock
     if (existingStock.status === 'SOLD') {
-      throw new Error('Cannot delete sold stock');
+      throw new BadRequestError('Cannot delete sold stock');
     }
 
     // Get stock for logging
@@ -688,7 +689,7 @@ export class StockService {
   async getStockStats(currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const [

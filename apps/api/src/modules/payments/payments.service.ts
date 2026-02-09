@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { CreatePaymentSchema, VoidPaymentSchema, PaymentFilterSchema } from '@car-stock/shared/schemas';
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
+import { AppError, NotFoundError, ForbiddenError, BadRequestError } from '../../lib/errors';
 
 // Payment types that affect car price (should update paidAmount and remainingAmount)
 const CAR_PAYMENT_TYPES = ['DEPOSIT', 'DOWN_PAYMENT', 'FINANCE_PAYMENT'] as const;
@@ -54,7 +55,7 @@ export class PaymentsService {
   async getAllPayments(params: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'PAYMENT_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = PaymentFilterSchema.parse(params);
@@ -140,7 +141,7 @@ export class PaymentsService {
   async getPaymentById(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'PAYMENT_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const payment = await db.payment.findUnique({
@@ -170,7 +171,7 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new Error('Payment not found');
+      throw new NotFoundError('Payment');
     }
 
     return payment;
@@ -182,7 +183,7 @@ export class PaymentsService {
   async createPayment(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'PAYMENT_CREATE' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CreatePaymentSchema.parse(data);
@@ -194,7 +195,7 @@ export class PaymentsService {
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new NotFoundError('Customer');
     }
 
     let sale = null;
@@ -207,7 +208,7 @@ export class PaymentsService {
       });
 
       if (!sale) {
-        throw new Error('Sale not found');
+        throw new NotFoundError('Sale');
       }
     }
 
@@ -277,7 +278,7 @@ export class PaymentsService {
   async voidPayment(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'PAYMENT_VOID' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = VoidPaymentSchema.parse(data);
@@ -289,11 +290,11 @@ export class PaymentsService {
     });
 
     if (!existingPayment) {
-      throw new Error('Payment not found');
+      throw new NotFoundError('Payment');
     }
 
     if (existingPayment.status === 'VOIDED') {
-      throw new Error('Payment already voided');
+      throw new BadRequestError('Cannot void already voided payment');
     }
 
     // Void payment
@@ -355,7 +356,7 @@ export class PaymentsService {
   async getPaymentStats(currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'PAYMENT_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const [totalPayments, activePayments, voidedPayments] = await Promise.all([
@@ -438,7 +439,7 @@ export class PaymentsService {
   async getOutstandingPayments(currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'PAYMENT_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const outstandingSales = await db.sale.findMany({

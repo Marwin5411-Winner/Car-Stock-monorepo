@@ -465,24 +465,68 @@ Phone:   โทร. 044-272-888 โทรสาร. 044-271-224
 
 ### 4.2 Permission Matrix
 
-| Feature | ADMIN | SALES_MGR | STOCK_STAFF | ACCOUNTANT | SALES_STAFF |
-|---------|-------|-----------|-------------|------------|-------------|
-| **User Management** | ✅ Full | ❌ | ❌ | ❌ | ❌ |
-| **Customer CRUD** | ✅ | ✅ | ❌ | Read | ✅ |
-| **Stock - View** | ✅ All | ✅ Price only | ✅ All | Read | ✅ Price only |
-| **Stock - CRUD** | ✅ | ❌ | ✅ | ❌ | ❌ |
-| **Stock - Cost Info** | ✅ | ❌ | ✅ | ❌ | ❌ |
-| **Sales - All** | ✅ | ✅ | Read | Read | ✅ |
-| **Sales - Documents** | ✅ All | ✅ Most | Read | ✅ Financial | ✅ Basic |
-| **Payment CRUD** | ✅ | Read | Read | ✅ | ✅ Create |
-| **Payment Void** | ✅ | ❌ | ❌ | ✅ | ❌ |
-| **Campaign Manage** | ✅ | Read | ❌ | Read | Read |
-| **Reports - All** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Reports - Sales** | ✅ | ✅ | ❌ | ❌ | Own only |
-| **Reports - Stock** | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Reports - Finance** | ✅ | ❌ | ❌ | ✅ | ❌ |
-| **See Cost Price** | ✅ | ❌ | ✅ | ❌ | ❌ |
-| **See Profit** | ✅ | ✅ | ❌ | ❌ | ❌ |
+> ⚠️ **Single Source of Truth:** `packages/shared/src/constants/index.ts` → `PERMISSIONS` object.
+> ทั้ง Frontend (route guards) และ Backend (middleware + service) ใช้ค่าจากที่เดียวกัน
+
+| Permission Key | ADMIN | SALES_MGR | STOCK_STAFF | ACCOUNTANT | SALES_STAFF |
+|----------------|:-----:|:---------:|:-----------:|:----------:|:-----------:|
+| **User Management** | | | | | |
+| `USER_CREATE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `USER_UPDATE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `USER_DELETE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `USER_VIEW` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Customer Management** | | | | | |
+| `CUSTOMER_CREATE` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `CUSTOMER_UPDATE` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `CUSTOMER_DELETE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `CUSTOMER_VIEW` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| **Vehicle Model Management** | | | | | |
+| `VEHICLE_VIEW` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `VEHICLE_EDIT` | ✅ | ❌ | ✅ | ❌ | ❌ |
+| **Stock Management** | | | | | |
+| `STOCK_CREATE` | ✅ | ❌ | ✅ | ❌ | ❌ |
+| `STOCK_UPDATE` | ✅ | ❌ | ✅ | ❌ | ❌ |
+| `STOCK_DELETE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `STOCK_VIEW` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `STOCK_VIEW_COST` | ✅ | ❌ | ✅ | ❌ | ❌ |
+| **Sales Management** | | | | | |
+| `SALE_CREATE` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `SALE_UPDATE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `SALE_STATUS_UPDATE` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `SALE_CANCEL` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `SALE_ASSIGN_STOCK` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `SALE_DELETE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `SALE_VIEW` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `SALE_VIEW_PROFIT` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Quotation Management** | | | | | |
+| `QUOTATION_CREATE` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `QUOTATION_UPDATE` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `QUOTATION_DELETE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `QUOTATION_CONVERT` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| **Payment Management** | | | | | |
+| `PAYMENT_CREATE` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `PAYMENT_VOID` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `PAYMENT_VIEW` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Campaign Management** | | | | | |
+| `CAMPAIGN_CREATE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `CAMPAIGN_UPDATE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `CAMPAIGN_DELETE` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `CAMPAIGN_VIEW` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| **Interest Management** | | | | | |
+| `INTEREST_VIEW` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `INTEREST_UPDATE` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **Reports** | | | | | |
+| `REPORTS_INDEX` | ✅ | ✅ | ✅ | ✅ | ❌ |
+| `REPORT_ALL` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `REPORT_SALES` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `REPORT_STOCK` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `REPORT_FINANCE` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **Settings** | | | | | |
+| `SETTINGS_VIEW` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Documents** | | | | | |
+| `DOC_CAR_DETAIL_CARD` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `DOC_SALES_RECORD` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `DOC_GENERAL` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### 4.3 Document Access by Role
 

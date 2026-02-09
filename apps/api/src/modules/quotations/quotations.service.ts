@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
+import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
 
 export class QuotationsService {
   /**
@@ -91,7 +92,7 @@ export class QuotationsService {
   async getAllQuotations(params: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const page = parseInt(params.page) || 1;
@@ -196,7 +197,7 @@ export class QuotationsService {
   async getQuotationById(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const quotation = await db.quotation.findUnique({
@@ -223,7 +224,7 @@ export class QuotationsService {
     });
 
     if (!quotation) {
-      throw new Error('Quotation not found');
+      throw new NotFoundError('Quotation');
     }
 
     return quotation;
@@ -235,7 +236,7 @@ export class QuotationsService {
   async getQuotationStats(currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const [
@@ -283,7 +284,7 @@ export class QuotationsService {
   async createQuotation(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'QUOTATION_CREATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if customer exists
@@ -293,7 +294,7 @@ export class QuotationsService {
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new NotFoundError('Customer');
     }
 
     // Check if vehicle model exists (if provided)
@@ -304,7 +305,7 @@ export class QuotationsService {
       });
 
       if (!vehicleModel) {
-        throw new Error('Vehicle model not found');
+        throw new NotFoundError('Vehicle model');
       }
     }
 
@@ -371,7 +372,7 @@ export class QuotationsService {
   async updateQuotation(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'QUOTATION_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const existing = await db.quotation.findUnique({
@@ -380,12 +381,12 @@ export class QuotationsService {
     });
 
     if (!existing) {
-      throw new Error('Quotation not found');
+      throw new NotFoundError('Quotation');
     }
 
     // Can only update DRAFT quotations
     if (existing.status !== 'DRAFT') {
-      throw new Error('Can only update draft quotations');
+      throw new BadRequestError('Can only update draft quotations');
     }
 
     // Check if vehicle model exists (if provided)
@@ -395,7 +396,7 @@ export class QuotationsService {
         select: { id: true },
       });
       if (!vehicleModel) {
-        throw new Error('Vehicle model not found');
+        throw new NotFoundError('Vehicle model');
       }
     }
 
@@ -467,7 +468,7 @@ export class QuotationsService {
   async updateQuotationStatus(id: string, status: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'QUOTATION_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const existing = await db.quotation.findUnique({
@@ -476,7 +477,7 @@ export class QuotationsService {
     });
 
     if (!existing) {
-      throw new Error('Quotation not found');
+      throw new NotFoundError('Quotation');
     }
 
     // Validate status transitions
@@ -491,7 +492,7 @@ export class QuotationsService {
 
     const allowed = validTransitions[existing.status] || [];
     if (!allowed.includes(status)) {
-      throw new Error(`Cannot transition from ${existing.status} to ${status}`);
+      throw new BadRequestError(`Cannot transition from ${existing.status} to ${status}`);
     }
 
     const quotation = await db.quotation.update({
@@ -542,7 +543,7 @@ export class QuotationsService {
   async convertToSale(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'QUOTATION_CONVERT')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const quotation = await db.quotation.findUnique({
@@ -554,11 +555,11 @@ export class QuotationsService {
     });
 
     if (!quotation) {
-      throw new Error('Quotation not found');
+      throw new NotFoundError('Quotation');
     }
 
     if (quotation.status !== 'ACCEPTED') {
-      throw new Error('Can only convert accepted quotations');
+      throw new BadRequestError('Can only convert accepted quotations');
     }
 
     // Generate sale number
@@ -742,7 +743,7 @@ export class QuotationsService {
   async createNewVersion(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'QUOTATION_CREATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const original = await db.quotation.findUnique({
@@ -754,7 +755,7 @@ export class QuotationsService {
     });
 
     if (!original) {
-      throw new Error('Quotation not found');
+      throw new NotFoundError('Quotation');
     }
 
     // Get the highest version for this customer/vehicle combination
@@ -831,7 +832,7 @@ export class QuotationsService {
   async deleteQuotation(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'QUOTATION_DELETE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const quotation = await db.quotation.findUnique({
@@ -840,11 +841,11 @@ export class QuotationsService {
     });
 
     if (!quotation) {
-      throw new Error('Quotation not found');
+      throw new NotFoundError('Quotation');
     }
 
     if (quotation.status !== 'DRAFT') {
-      throw new Error('Can only delete draft quotations');
+      throw new BadRequestError('Can only delete draft quotations');
     }
 
     await db.quotation.delete({

@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { CreateCustomerSchema, UpdateCustomerSchema, CustomerFilterSchema } from '@car-stock/shared/schemas';
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
+import { AppError, NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
 
 export class CustomersService {
   /**
@@ -46,7 +47,7 @@ export class CustomersService {
   async getAllCustomers(params: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'CUSTOMER_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CustomerFilterSchema.parse(params);
@@ -113,7 +114,7 @@ export class CustomersService {
   async getCustomerById(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'CUSTOMER_VIEW' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const customer = await db.customer.findUnique({
@@ -145,7 +146,7 @@ export class CustomersService {
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new NotFoundError('Customer');
     }
 
     return customer;
@@ -157,7 +158,7 @@ export class CustomersService {
   async createCustomer(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'CUSTOMER_CREATE' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CreateCustomerSchema.parse(data);
@@ -169,7 +170,7 @@ export class CustomersService {
       });
 
       if (existingTaxId) {
-        throw new Error('Tax ID already exists');
+        throw new ConflictError('Tax ID');
       }
     }
 
@@ -207,7 +208,7 @@ export class CustomersService {
   async updateCustomer(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'CUSTOMER_UPDATE' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = UpdateCustomerSchema.parse(data);
@@ -219,7 +220,7 @@ export class CustomersService {
     });
 
     if (!existingCustomer) {
-      throw new Error('Customer not found');
+      throw new NotFoundError('Customer');
     }
 
     // Check if tax ID exists (if updating tax ID)
@@ -229,7 +230,7 @@ export class CustomersService {
       });
 
       if (existingTaxId && existingTaxId.id !== id) {
-        throw new Error('Tax ID already exists');
+        throw new ConflictError('Tax ID');
       }
     }
 
@@ -262,7 +263,7 @@ export class CustomersService {
   async deleteCustomer(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'CUSTOMER_DELETE' as any)) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if customer has sales
@@ -271,7 +272,7 @@ export class CustomersService {
     });
 
     if (salesCount > 0) {
-      throw new Error('Cannot delete customer with existing sales');
+      throw new BadRequestError('Cannot delete customer with existing sales');
     }
 
     // Get customer for logging
@@ -281,7 +282,7 @@ export class CustomersService {
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new NotFoundError('Customer');
     }
 
     // Delete customer

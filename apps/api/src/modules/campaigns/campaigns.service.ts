@@ -1,4 +1,5 @@
 import { db } from '../../lib/db';
+import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '../../lib/errors';
 import { Prisma } from '@prisma/client';
 
 interface CreateCampaignData {
@@ -262,7 +263,7 @@ class CampaignsService {
     });
 
     if (salesCount > 0) {
-      throw new Error('Cannot delete campaign with associated sales');
+      throw new BadRequestError('Cannot delete campaign with associated sales');
     }
 
     await db.campaign.delete({
@@ -310,7 +311,7 @@ class CampaignsService {
     });
 
     if (existing) {
-      throw new Error('Vehicle model already in campaign');
+      throw new ConflictError('Vehicle model');
     }
 
     await db.campaignVehicleModel.create({
@@ -359,7 +360,7 @@ class CampaignsService {
     });
 
     if (!campaign) {
-      throw new Error('Campaign not found');
+      throw new NotFoundError('Campaign');
     }
 
     // Default to campaign period if no dates provided

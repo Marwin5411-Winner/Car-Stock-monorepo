@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
-import { CreateUserSchema, UpdateUserSchema } from '@car-stock/shared/schemas';
+import { CreateUserSchema, UpdateUserSchema, UserFilterSchema } from '@car-stock/shared/schemas';
 import { authService } from '../auth/auth.service';
+import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
 import { PERMISSIONS } from '@car-stock/shared/constants';
 
 export class UsersService {
@@ -66,7 +67,7 @@ export class UsersService {
       currentUser.id !== id &&
       !authService.hasPermission(currentUser.role, 'USER_VIEW')
     ) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const user = await db.user.findUnique({
@@ -87,7 +88,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User');
     }
 
     return user;
@@ -99,7 +100,7 @@ export class UsersService {
   async createUser(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'USER_CREATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CreateUserSchema.parse(data);
@@ -110,7 +111,7 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new Error('Username already exists');
+      throw new ConflictError('Username');
     }
 
     // Check if email exists
@@ -119,7 +120,7 @@ export class UsersService {
     });
 
     if (existingEmail) {
-      throw new Error('Email already exists');
+      throw new ConflictError('Email');
     }
 
     // Hash password
@@ -177,7 +178,7 @@ export class UsersService {
       currentUser.id !== id &&
       !authService.hasPermission(currentUser.role, 'USER_UPDATE')
     ) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = UpdateUserSchema.parse(data);
@@ -189,7 +190,7 @@ export class UsersService {
       });
 
       if (existingEmail && existingEmail.id !== id) {
-        throw new Error('Email already exists');
+        throw new ConflictError('Email');
       }
     }
 
@@ -235,12 +236,12 @@ export class UsersService {
   async deleteUser(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'USER_DELETE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Cannot delete yourself
     if (currentUser.id === id) {
-      throw new Error('Cannot delete your own account');
+      throw new BadRequestError('Cannot delete your own account');
     }
 
     // Get user before delete for logging
@@ -250,7 +251,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User');
     }
 
     // Delete user (soft delete by setting status to INACTIVE)
@@ -286,7 +287,7 @@ export class UsersService {
   ) {
     // Users can only update their own password unless admin
     if (currentUser.id !== id && currentUser.role !== 'ADMIN') {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const user = await db.user.findUnique({
@@ -295,7 +296,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User');
     }
 
     // Verify current password (skip for admin updating others)
@@ -341,7 +342,7 @@ export class UsersService {
   async resetPassword(id: string, newPassword: string, currentUser: any) {
     // Only admin can reset passwords
     if (!authService.hasPermission(currentUser.role, 'USER_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const user = await db.user.findUnique({
@@ -350,7 +351,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User');
     }
 
     // Hash new password

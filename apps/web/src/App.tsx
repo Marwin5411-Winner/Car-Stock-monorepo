@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CompanyProvider, useCompany } from './contexts/CompanyContext';
 import React from 'react';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider, ToastContainer } from './components/toast';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import CustomersListPage from './pages/customers/CustomersListPage';
@@ -32,8 +34,10 @@ import {
   ProfitLossReportPage,
   SalesSummaryReportPage,
   StockInterestReportPage,
+  PurchaseRequirementReportPage,
 } from './pages/reports';
 import SettingsPage from './pages/settings/SettingsPage';
+import { PERMISSIONS } from '@car-stock/shared/constants';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -45,28 +49,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const ROLE_ACCESS = {
-  ADMIN_ONLY: ['ADMIN'] as const,
-  CUSTOMER_VIEW: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
-  CUSTOMER_EDIT: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
-  VEHICLE_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  VEHICLE_EDIT: ['ADMIN', 'STOCK_STAFF'] as const,
-  STOCK_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  STOCK_EDIT: ['ADMIN', 'STOCK_STAFF'] as const,
-  INTEREST_VIEW: ['ADMIN', 'ACCOUNTANT', 'STOCK_STAFF'] as const,
-  INTEREST_EDIT: ['ADMIN', 'ACCOUNTANT'] as const,
-  SALES_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  SALES_CREATE: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
-  SALES_UPDATE: ['ADMIN'] as const,
-  QUOTATION_EDIT: ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'] as const,
-  PAYMENTS_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  PAYMENTS_CREATE: ['ADMIN', 'ACCOUNTANT'] as const,
-  CAMPAIGN_VIEW: ['ADMIN', 'SALES_MANAGER', 'ACCOUNTANT', 'SALES_STAFF'] as const,
-  REPORTS_INDEX: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT'] as const,
-  REPORT_FINANCE: ['ADMIN', 'ACCOUNTANT'] as const,
-  REPORT_STOCK: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF'] as const,
-  REPORT_SALES: ['ADMIN', 'SALES_MANAGER'] as const,
-};
+const P = PERMISSIONS;
 
 function TitleUpdater() {
   const { companyName } = useCompany();
@@ -78,12 +61,15 @@ function TitleUpdater() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <CompanyProvider>
-        <TitleUpdater />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <CompanyProvider>
+            <TitleUpdater />
+            <BrowserRouter>
+              <AuthProvider>
+                <ToastContainer />
+                <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/dashboard"
@@ -96,7 +82,7 @@ function App() {
             <Route
               path="/customers"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.CUSTOMER_VIEW}>
+                <ProtectedRoute allowedRoles={P.CUSTOMER_VIEW}>
                   <CustomersListPage />
                 </ProtectedRoute>
               }
@@ -104,7 +90,7 @@ function App() {
             <Route
               path="/customers/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.CUSTOMER_EDIT}>
+                <ProtectedRoute allowedRoles={P.CUSTOMER_UPDATE}>
                   <CustomerFormPage />
                 </ProtectedRoute>
               }
@@ -112,7 +98,7 @@ function App() {
             <Route
               path="/customers/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.CUSTOMER_VIEW}>
+                <ProtectedRoute allowedRoles={P.CUSTOMER_VIEW}>
                   <CustomerDetailPage />
                 </ProtectedRoute>
               }
@@ -120,7 +106,7 @@ function App() {
             <Route
               path="/customers/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.CUSTOMER_EDIT}>
+                <ProtectedRoute allowedRoles={P.CUSTOMER_UPDATE}>
                   <CustomerFormPage />
                 </ProtectedRoute>
               }
@@ -128,7 +114,7 @@ function App() {
             <Route
               path="/vehicles"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.VEHICLE_VIEW}>
+                <ProtectedRoute allowedRoles={P.VEHICLE_VIEW}>
                   <VehiclesListPage />
                 </ProtectedRoute>
               }
@@ -136,7 +122,7 @@ function App() {
             <Route
               path="/vehicles/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.VEHICLE_EDIT}>
+                <ProtectedRoute allowedRoles={P.VEHICLE_EDIT}>
                   <VehicleFormPage />
                 </ProtectedRoute>
               }
@@ -144,7 +130,7 @@ function App() {
             <Route
               path="/vehicles/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.VEHICLE_VIEW}>
+                <ProtectedRoute allowedRoles={P.VEHICLE_VIEW}>
                   <VehicleDetailPage />
                 </ProtectedRoute>
               }
@@ -152,7 +138,7 @@ function App() {
             <Route
               path="/vehicles/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.VEHICLE_EDIT}>
+                <ProtectedRoute allowedRoles={P.VEHICLE_EDIT}>
                   <VehicleFormPage />
                 </ProtectedRoute>
               }
@@ -160,7 +146,7 @@ function App() {
             <Route
               path="/stock"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.STOCK_VIEW}>
+                <ProtectedRoute allowedRoles={P.STOCK_VIEW}>
                   <StockListPage />
                 </ProtectedRoute>
               }
@@ -168,7 +154,7 @@ function App() {
             <Route
               path="/stock/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.STOCK_EDIT}>
+                <ProtectedRoute allowedRoles={P.STOCK_CREATE}>
                   <StockFormPage />
                 </ProtectedRoute>
               }
@@ -176,7 +162,7 @@ function App() {
             <Route
               path="/stock/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.STOCK_VIEW}>
+                <ProtectedRoute allowedRoles={P.STOCK_VIEW}>
                   <StockDetailPage />
                 </ProtectedRoute>
               }
@@ -184,7 +170,7 @@ function App() {
             <Route
               path="/stock/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.STOCK_EDIT}>
+                <ProtectedRoute allowedRoles={P.STOCK_UPDATE}>
                   <StockFormPage />
                 </ProtectedRoute>
               }
@@ -192,7 +178,7 @@ function App() {
             <Route
               path="/interest"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.INTEREST_VIEW}>
+                <ProtectedRoute allowedRoles={P.INTEREST_VIEW}>
                   <InterestListPage />
                 </ProtectedRoute>
               }
@@ -200,7 +186,7 @@ function App() {
             <Route
               path="/interest/:stockId"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.INTEREST_VIEW}>
+                <ProtectedRoute allowedRoles={P.INTEREST_VIEW}>
                   <InterestDetailPage />
                 </ProtectedRoute>
               }
@@ -208,7 +194,7 @@ function App() {
             <Route
               path="/interest/:stockId/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.INTEREST_EDIT}>
+                <ProtectedRoute allowedRoles={P.INTEREST_UPDATE}>
                   <InterestEditPage />
                 </ProtectedRoute>
               }
@@ -216,7 +202,7 @@ function App() {
             <Route
               path="/sales"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_VIEW}>
+                <ProtectedRoute allowedRoles={P.SALE_VIEW}>
                   <SalesListPage />
                 </ProtectedRoute>
               }
@@ -224,7 +210,7 @@ function App() {
             <Route
               path="/sales/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_CREATE}>
+                <ProtectedRoute allowedRoles={P.SALE_CREATE}>
                   <SalesFormPage />
                 </ProtectedRoute>
               }
@@ -232,7 +218,7 @@ function App() {
             <Route
               path="/sales/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_VIEW}>
+                <ProtectedRoute allowedRoles={P.SALE_VIEW}>
                   <SalesDetailPage />
                 </ProtectedRoute>
               }
@@ -240,7 +226,7 @@ function App() {
             <Route
               path="/sales/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_UPDATE}>
+                <ProtectedRoute allowedRoles={P.SALE_UPDATE}>
                   <SalesFormPage />
                 </ProtectedRoute>
               }
@@ -248,7 +234,7 @@ function App() {
             <Route
               path="/quotations"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_VIEW}>
+                <ProtectedRoute allowedRoles={P.SALE_VIEW}>
                   <QuotationListPage />
                 </ProtectedRoute>
               }
@@ -256,7 +242,7 @@ function App() {
             <Route
               path="/quotations/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.QUOTATION_EDIT}>
+                <ProtectedRoute allowedRoles={P.QUOTATION_CREATE}>
                   <QuotationFormPage />
                 </ProtectedRoute>
               }
@@ -264,7 +250,7 @@ function App() {
             <Route
               path="/quotations/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.SALES_VIEW}>
+                <ProtectedRoute allowedRoles={P.SALE_VIEW}>
                   <QuotationDetailPage />
                 </ProtectedRoute>
               }
@@ -272,7 +258,7 @@ function App() {
             <Route
               path="/quotations/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.QUOTATION_EDIT}>
+                <ProtectedRoute allowedRoles={P.QUOTATION_UPDATE}>
                   <QuotationFormPage />
                 </ProtectedRoute>
               }
@@ -280,7 +266,7 @@ function App() {
             <Route
               path="/payments"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.PAYMENTS_VIEW}>
+                <ProtectedRoute allowedRoles={P.PAYMENT_VIEW}>
                   <PaymentsListPage />
                 </ProtectedRoute>
               }
@@ -288,7 +274,7 @@ function App() {
             <Route
               path="/payments/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.PAYMENTS_CREATE}>
+                <ProtectedRoute allowedRoles={P.PAYMENT_CREATE}>
                   <PaymentFormPage />
                 </ProtectedRoute>
               }
@@ -296,7 +282,7 @@ function App() {
             <Route
               path="/payments/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.PAYMENTS_VIEW}>
+                <ProtectedRoute allowedRoles={P.PAYMENT_VIEW}>
                   <PaymentDetailPage />
                 </ProtectedRoute>
               }
@@ -305,7 +291,7 @@ function App() {
             <Route
               path="/settings"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.SETTINGS_VIEW}>
                   <SettingsPage />
                 </ProtectedRoute>
               }
@@ -313,7 +299,7 @@ function App() {
             <Route
               path="/users"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.USER_VIEW}>
                   <UsersListPage />
                 </ProtectedRoute>
               }
@@ -321,7 +307,7 @@ function App() {
             <Route
               path="/users/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.USER_CREATE}>
                   <UserFormPage />
                 </ProtectedRoute>
               }
@@ -329,7 +315,7 @@ function App() {
             <Route
               path="/users/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.USER_VIEW}>
                   <UserDetailPage />
                 </ProtectedRoute>
               }
@@ -337,7 +323,7 @@ function App() {
             <Route
               path="/users/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.USER_UPDATE}>
                   <UserFormPage />
                 </ProtectedRoute>
               }
@@ -346,7 +332,7 @@ function App() {
             <Route
               path="/campaigns"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.CAMPAIGN_VIEW}>
+                <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
                   <CampaignsListPage />
                 </ProtectedRoute>
               }
@@ -354,7 +340,7 @@ function App() {
             <Route
               path="/campaigns/new"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.CAMPAIGN_CREATE}>
                   <CampaignFormPage />
                 </ProtectedRoute>
               }
@@ -362,7 +348,7 @@ function App() {
             <Route
               path="/campaigns/:id"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.CAMPAIGN_VIEW}>
+                <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
                   <CampaignDetailPage />
                 </ProtectedRoute>
               }
@@ -370,7 +356,7 @@ function App() {
             <Route
               path="/campaigns/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.CAMPAIGN_UPDATE}>
                   <CampaignFormPage />
                 </ProtectedRoute>
               }
@@ -378,7 +364,7 @@ function App() {
             <Route
               path="/campaigns/:id/analytics"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.ADMIN_ONLY}>
+                <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
                   <CampaignAnalyticsPage />
                 </ProtectedRoute>
               }
@@ -387,7 +373,7 @@ function App() {
             <Route
               path="/reports"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.REPORTS_INDEX}>
+                <ProtectedRoute allowedRoles={P.REPORTS_INDEX}>
                   <ReportsPage />
                 </ProtectedRoute>
               }
@@ -395,7 +381,7 @@ function App() {
             <Route
               path="/reports/daily-payments"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.REPORT_FINANCE}>
+                <ProtectedRoute allowedRoles={P.REPORT_FINANCE}>
                   <DailyPaymentReportPage />
                 </ProtectedRoute>
               }
@@ -403,7 +389,7 @@ function App() {
             <Route
               path="/reports/stock"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.REPORT_STOCK}>
+                <ProtectedRoute allowedRoles={P.REPORT_STOCK}>
                   <StockReportPage />
                 </ProtectedRoute>
               }
@@ -411,7 +397,7 @@ function App() {
             <Route
               path="/reports/profit-loss"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.REPORT_SALES}>
+                <ProtectedRoute allowedRoles={P.REPORT_SALES}>
                   <ProfitLossReportPage />
                 </ProtectedRoute>
               }
@@ -419,7 +405,7 @@ function App() {
             <Route
               path="/reports/sales-summary"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.REPORT_SALES}>
+                <ProtectedRoute allowedRoles={P.REPORT_SALES}>
                   <SalesSummaryReportPage />
                 </ProtectedRoute>
               }
@@ -427,8 +413,16 @@ function App() {
             <Route
               path="/reports/stock-interest"
               element={
-                <ProtectedRoute allowedRoles={ROLE_ACCESS.INTEREST_VIEW}>
+                <ProtectedRoute allowedRoles={P.INTEREST_VIEW}>
                   <StockInterestReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/purchase-requirement"
+              element={
+                <ProtectedRoute allowedRoles={P.REPORT_STOCK}>
+                  <PurchaseRequirementReportPage />
                 </ProtectedRoute>
               }
             />
@@ -437,7 +431,9 @@ function App() {
           </AuthProvider>
         </BrowserRouter>
       </CompanyProvider>
-    </QueryClientProvider>
+    </ToastProvider>
+  </QueryClientProvider>
+</ErrorBoundary>
   );
 }
 

@@ -1,3 +1,5 @@
+import { ApiError } from './errors';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 interface RequestOptions extends RequestInit {
@@ -68,14 +70,22 @@ class ApiClient {
     // Handle unauthorized - clear token but don't redirect (let React handle it)
     if (response.status === 401) {
       this.setToken(null);
-      // Throw error with response data for proper handling
-      const error = new Error(data.message || 'Unauthorized') as Error & { status: number };
-      error.status = 401;
-      throw error;
+      // Throw ApiError with response data for proper handling
+      throw new ApiError(
+        data.error || 'UNAUTHORIZED',
+        data.message || 'Unauthorized',
+        401,
+        data.details
+      );
     }
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || 'Request failed');
+      throw new ApiError(
+        data.error || 'INTERNAL_ERROR',
+        data.message || 'Request failed',
+        response.status,
+        data.details
+      );
     }
 
     return data;
@@ -128,9 +138,7 @@ class ApiClient {
 
     if (response.status === 401) {
       this.setToken(null);
-      const error = new Error('Unauthorized') as Error & { status: number };
-      error.status = 401;
-      throw error;
+      throw new ApiError('UNAUTHORIZED', 'Unauthorized', 401);
     }
 
     if (!response.ok) {
@@ -138,9 +146,14 @@ class ApiClient {
       const contentType = response.headers.get('content-type');
       if (contentType?.includes('application/json')) {
         const data = await response.json();
-        throw new Error(data.message || data.error || 'Request failed');
+        throw new ApiError(
+          data.error || 'INTERNAL_ERROR',
+          data.message || 'Request failed',
+          response.status,
+          data.details
+        );
       }
-      throw new Error(`Request failed with status ${response.status}`);
+      throw new ApiError('INTERNAL_ERROR', `Request failed with status ${response.status}`, response.status);
     }
 
     return response.blob();

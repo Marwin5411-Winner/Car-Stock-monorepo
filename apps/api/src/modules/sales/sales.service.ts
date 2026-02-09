@@ -3,6 +3,7 @@ import { CreateSaleSchema, UpdateSaleSchema, SaleFilterSchema } from '@car-stock
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
 
 export class SalesService {
   /**
@@ -47,7 +48,7 @@ export class SalesService {
   async getAllSales(params: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = SaleFilterSchema.parse(params);
@@ -149,7 +150,7 @@ export class SalesService {
   async getSaleById(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const sale = await db.sale.findUnique({
@@ -215,7 +216,7 @@ export class SalesService {
     });
 
     if (!sale) {
-      throw new Error('Sale not found');
+      throw new NotFoundError('Sale');
     }
 
     return sale;
@@ -227,7 +228,7 @@ export class SalesService {
   async createSale(data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_CREATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = CreateSaleSchema.parse(data);
@@ -239,7 +240,7 @@ export class SalesService {
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new NotFoundError('Customer');
     }
 
     // Check if stock exists (if provided)
@@ -250,11 +251,11 @@ export class SalesService {
       });
 
       if (!stock) {
-        throw new Error('Stock not found');
+        throw new NotFoundError('Stock');
       }
 
       if (stock.status !== 'AVAILABLE') {
-        throw new Error('Stock is not available');
+        throw new BadRequestError('Stock is not available');
       }
     }
 
@@ -266,7 +267,7 @@ export class SalesService {
       });
 
       if (!vehicleModel) {
-        throw new Error('Vehicle model not found');
+        throw new NotFoundError('Vehicle model');
       }
     }
 
@@ -278,11 +279,11 @@ export class SalesService {
       });
 
       if (!campaign) {
-        throw new Error('Campaign not found');
+        throw new NotFoundError('Campaign');
       }
 
       if (campaign.status !== 'ACTIVE') {
-        throw new Error('Campaign is not active');
+        throw new BadRequestError('Campaign is not active');
       }
     }
 
@@ -349,7 +350,7 @@ export class SalesService {
   async updateSale(id: string, data: any, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     const validated = UpdateSaleSchema.parse(data);
@@ -361,12 +362,12 @@ export class SalesService {
     });
 
     if (!existingSale) {
-      throw new Error('Sale not found');
+      throw new NotFoundError('Sale');
     }
 
     // Cannot update completed or cancelled sale
     if (existingSale.status === 'COMPLETED' || existingSale.status === 'CANCELLED') {
-      throw new Error(`Cannot update ${existingSale.status.toLowerCase()} sale`);
+      throw new BadRequestError(`Cannot update ${existingSale.status.toLowerCase()} sale`);
     }
 
     // Recalculate remaining amount if total or deposit changed
@@ -411,13 +412,13 @@ export class SalesService {
   async updateSaleStatus(id: string, status: string, notes: string | undefined, currentUser: any) {
     // Check permission - use SALE_STATUS_UPDATE for general status changes
     if (!authService.hasPermission(currentUser.role, 'SALE_STATUS_UPDATE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Cancellation requires SALE_CANCEL permission (ADMIN only)
     if (status === 'CANCELLED') {
       if (!authService.hasPermission(currentUser.role, 'SALE_CANCEL')) {
-        throw new Error('Only admin can cancel sales');
+        throw new ForbiddenError('Only admin can cancel sales');
       }
     }
 
@@ -428,18 +429,18 @@ export class SalesService {
     });
 
     if (!existingSale) {
-      throw new Error('Sale not found');
+      throw new NotFoundError('Sale');
     }
 
     // Cannot change status of cancelled sale
     if (existingSale.status === 'CANCELLED') {
-      throw new Error('Cannot change status of cancelled sale');
+      throw new BadRequestError('Cannot change status of cancelled sale');
     }
 
     // Validate stock assignment when moving from PREPARING to DELIVERED
     if (existingSale.status === 'PREPARING' && status === 'DELIVERED') {
       if (!existingSale.stockId) {
-        throw new Error('Cannot deliver sale without assigned stock car. Please assign a stock vehicle before marking as delivered.');
+        throw new BadRequestError('Cannot deliver sale without assigned stock car. Please assign a stock vehicle before marking as delivered.');
       }
     }
 
@@ -533,7 +534,7 @@ export class SalesService {
   async deleteSale(id: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_DELETE')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if sale exists
@@ -543,12 +544,12 @@ export class SalesService {
     });
 
     if (!existingSale) {
-      throw new Error('Sale not found');
+      throw new NotFoundError('Sale');
     }
 
     // Cannot delete completed or cancelled sale
     if (existingSale.status === 'COMPLETED' || existingSale.status === 'CANCELLED') {
-      throw new Error(`Cannot delete ${existingSale.status.toLowerCase()} sale`);
+      throw new BadRequestError(`Cannot delete ${existingSale.status.toLowerCase()} sale`);
     }
 
     // Get sale for logging
@@ -594,7 +595,7 @@ export class SalesService {
   async assignStock(saleId: string, stockId: string, currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_ASSIGN_STOCK')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Check if sale exists
@@ -610,12 +611,12 @@ export class SalesService {
     });
 
     if (!existingSale) {
-      throw new Error('Sale not found');
+      throw new NotFoundError('Sale');
     }
 
     // Cannot assign stock to delivered, completed or cancelled sale
     if (['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(existingSale.status)) {
-      throw new Error(`Cannot assign stock to ${existingSale.status.toLowerCase()} sale`);
+      throw new BadRequestError(`Cannot assign stock to ${existingSale.status.toLowerCase()} sale`);
     }
 
     // Check if new stock exists and is available
@@ -625,11 +626,11 @@ export class SalesService {
     });
 
     if (!newStock) {
-      throw new Error('Stock not found');
+      throw new NotFoundError('Stock');
     }
 
     if (newStock.status !== 'AVAILABLE') {
-      throw new Error('Stock is not available');
+      throw new BadRequestError('Stock is not available');
     }
 
     // Optionally validate that stock matches the vehicle model preference
@@ -711,7 +712,7 @@ export class SalesService {
   async getSalesStats(currentUser: any) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
-      throw new Error('Insufficient permissions');
+      throw new ForbiddenError();
     }
 
     // Updated: Removed INQUIRY and QUOTED counts - now handled by Quotation module
