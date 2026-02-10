@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import { salesService } from '../../services/sales.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import type { Sale, SaleStatus } from '../../services/sales.service';
@@ -151,7 +152,11 @@ export default function SalesDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const { hasPermission } = usePermission();
+  const canUpdateStatus = hasPermission('SALE_STATUS_UPDATE');
+  const canCancel = hasPermission('SALE_CANCEL');
+  const canAssignStock = hasPermission('SALE_ASSIGN_STOCK');
+  const canCreatePayment = hasPermission('PAYMENT_CREATE');
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -394,8 +399,8 @@ export default function SalesDetailPage() {
       CANCELLED: [],
     };
     const statuses = statusTransitions[currentStatus] || [];
-    // Only ADMIN can cancel sales
-    if (!isAdmin) {
+    // Only users with SALE_CANCEL permission can cancel sales
+    if (!canCancel) {
       return statuses.filter(s => s !== 'CANCELLED');
     }
     return statuses;
@@ -536,7 +541,7 @@ export default function SalesDetailPage() {
         </div>
 
         {/* Status Actions */}
-        {sale.status !== 'COMPLETED' && sale.status !== 'CANCELLED' && (
+        {canUpdateStatus && sale.status !== 'COMPLETED' && sale.status !== 'CANCELLED' && (
           <div className="flex gap-2 mt-4 pt-4 border-t">
             {getNextStatuses(sale.status).map((nextStatus) => (
               <button
@@ -637,7 +642,7 @@ export default function SalesDetailPage() {
                 >
                   ดูข้อมูล Stock เพิ่มเติม →
                 </Link>
-                {canChangeStock() && (
+                {canAssignStock && canChangeStock() && (
                   <button
                     onClick={openStockModal}
                     className="inline-flex items-center text-sm text-orange-600 hover:text-orange-700"
@@ -674,7 +679,7 @@ export default function SalesDetailPage() {
                   <AlertCircle className="h-3 w-3 mr-1" />
                   ยังไม่ได้เลือก Stock
                 </span>
-                {canChangeStock() && (
+                {canAssignStock && canChangeStock() && (
                   <button
                     onClick={openStockModal}
                     className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
@@ -854,7 +859,7 @@ export default function SalesDetailPage() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h3 className="text-lg font-semibold">ประวัติการชำระเงิน</h3>
-          {(user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT') && (
+          {(canCreatePayment) && (
             <Link
               to={`/payments/new?saleId=${sale.id}`}
               className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 text-sm"

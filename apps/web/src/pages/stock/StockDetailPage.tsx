@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { stockService } from '../../services/stock.service';
 import type { Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
+import { usePermission } from '../../hooks/usePermission';
 import {
   ArrowLeft,
   Edit,
@@ -42,6 +43,13 @@ export default function StockDetailPage() {
   const [stock, setStock] = useState<Stock | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+
+  const { hasPermission } = usePermission();
+  const canEdit = hasPermission('STOCK_UPDATE');
+  const canUpdateStatus = hasPermission('STOCK_UPDATE');
+  const canRecalculateInterest = hasPermission('INTEREST_UPDATE');
+  const canCreateSale = hasPermission('SALE_CREATE');
+  const canViewCost = hasPermission('STOCK_VIEW_COST');
 
   useEffect(() => {
     if (id) {
@@ -200,21 +208,25 @@ export default function StockDetailPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={handleRecalculateInterest}
-              disabled={recalculating}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-5 h-5 mr-2 ${recalculating ? 'animate-spin' : ''}`} />
-              คำนวณดอกเบี้ยใหม่
-            </button>
-            <Link
-              to={`/stock/${stock.id}/edit`}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Edit className="w-5 h-5 mr-2" />
-              แก้ไข
-            </Link>
+            {canRecalculateInterest && (
+              <button
+                onClick={handleRecalculateInterest}
+                disabled={recalculating}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-5 h-5 mr-2 ${recalculating ? 'animate-spin' : ''}`} />
+                คำนวณดอกเบี้ยใหม่
+              </button>
+            )}
+            {canEdit && (
+              <Link
+                to={`/stock/${stock.id}/edit`}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Edit className="w-5 h-5 mr-2" />
+                แก้ไข
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -298,45 +310,47 @@ export default function StockDetailPage() {
           </div>
 
           {/* Cost Breakdown */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <DollarSign className="h-5 w-5 mr-2 text-green-600" />
-              รายละเอียดต้นทุน
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">ต้นทุนฐาน</span>
-                <span className="text-gray-900 font-medium">{formatCurrency(stock.baseCost)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">ค่าขนส่ง</span>
-                <span className="text-gray-900 font-medium">{formatCurrency(stock.transportCost)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">ค่าอุปกรณ์เสริม</span>
-                <span className="text-gray-900 font-medium">{formatCurrency(stock.accessoryCost)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">ค่าใช้จ่ายอื่นๆ</span>
-                <span className="text-gray-900 font-medium">{formatCurrency(stock.otherCosts)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-200 bg-gray-50 -mx-6 px-6">
-                <span className="text-gray-700 font-medium">ต้นทุนรวม</span>
-                <span className="text-gray-900 font-bold">{formatCurrency(totalCost)}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600 flex items-center">
-                  <TrendingUp className="h-4 w-4 mr-1 text-orange-500" />
-                  ดอกเบี้ยสะสม
-                </span>
-                <span className="text-orange-600 font-medium">{formatCurrency(interestAmount)}</span>
-              </div>
-              <div className="flex justify-between py-3 bg-blue-50 -mx-6 px-6 rounded-b-lg">
-                <span className="text-blue-700 font-semibold">ต้นทุนรวม + ดอกเบี้ย</span>
-                <span className="text-blue-900 font-bold text-lg">{formatCurrency(totalWithInterest)}</span>
+          {canViewCost && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <DollarSign className="h-5 w-5 mr-2 text-green-600" />
+                รายละเอียดต้นทุน
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">ต้นทุนฐาน</span>
+                  <span className="text-gray-900 font-medium">{formatCurrency(stock.baseCost)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">ค่าขนส่ง</span>
+                  <span className="text-gray-900 font-medium">{formatCurrency(stock.transportCost)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">ค่าอุปกรณ์เสริม</span>
+                  <span className="text-gray-900 font-medium">{formatCurrency(stock.accessoryCost)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">ค่าใช้จ่ายอื่นๆ</span>
+                  <span className="text-gray-900 font-medium">{formatCurrency(stock.otherCosts)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-200 bg-gray-50 -mx-6 px-6">
+                  <span className="text-gray-700 font-medium">ต้นทุนรวม</span>
+                  <span className="text-gray-900 font-bold">{formatCurrency(totalCost)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600 flex items-center">
+                    <TrendingUp className="h-4 w-4 mr-1 text-orange-500" />
+                    ดอกเบี้ยสะสม
+                  </span>
+                  <span className="text-orange-600 font-medium">{formatCurrency(interestAmount)}</span>
+                </div>
+                <div className="flex justify-between py-3 bg-blue-50 -mx-6 px-6 rounded-b-lg">
+                  <span className="text-blue-700 font-semibold">ต้นทุนรวม + ดอกเบี้ย</span>
+                  <span className="text-blue-900 font-bold text-lg">{formatCurrency(totalWithInterest)}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Dates */}
           <div className="bg-white rounded-lg shadow p-6">
@@ -392,7 +406,7 @@ export default function StockDetailPage() {
                   </p>
                 </div>
               )}
-              {stock.expectedSalePrice && (
+              {stock.expectedSalePrice && canViewCost && (
                 <div className="pt-4 border-t border-gray-200">
                   <p className="text-sm text-gray-500">กำไรที่คาดหวัง</p>
                   <p className={`text-xl font-bold ${stock.expectedSalePrice - totalWithInterest >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -404,7 +418,7 @@ export default function StockDetailPage() {
           </div>
 
           {/* Status Change */}
-          {stock.status !== 'SOLD' && (
+          {canUpdateStatus && stock.status !== 'SOLD' && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">เปลี่ยนสถานะ</h2>
               <div className="space-y-2">
@@ -458,7 +472,7 @@ export default function StockDetailPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">การดำเนินการ</h2>
             <div className="space-y-2">
-              {stock.status === 'AVAILABLE' && (
+              {canCreateSale && stock.status === 'AVAILABLE' && (
                 <Link
                   to={`/sales/new?stockId=${stock.id}`}
                   className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700"
@@ -466,12 +480,14 @@ export default function StockDetailPage() {
                   สร้างใบสั่งขาย
                 </Link>
               )}
-              <Link
-                to={`/stock/${stock.id}/edit`}
-                className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50"
-              >
-                แก้ไขข้อมูล
-              </Link>
+              {canEdit && (
+                <Link
+                  to={`/stock/${stock.id}/edit`}
+                  className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50"
+                >
+                  แก้ไขข้อมูล
+                </Link>
+              )}
               <button
                 onClick={handlePrintVehicleCard}
                 className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"

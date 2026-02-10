@@ -3,13 +3,19 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Edit, User, Phone, Mail, MapPin, CreditCard, Calendar, FileText } from 'lucide-react';
+import { usePermission } from '../../hooks/usePermission';
+import { ArrowLeft, Edit, User, Phone, Mail, MapPin, Calendar, FileText } from 'lucide-react';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const { hasPermission } = usePermission();
+  const canEdit = hasPermission('CUSTOMER_UPDATE');
+  const canCreateSale = hasPermission('SALE_CREATE');
+  const canCreatePayment = hasPermission('PAYMENT_CREATE');
 
   useEffect(() => {
     if (id) {
@@ -67,13 +73,15 @@ export default function CustomerDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900">{customer.name}</h1>
             <p className="text-gray-700">{customer.code}</p>
           </div>
-          <Link
-            to={`/customers/${customer.id}/edit`}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Edit className="w-5 h-5 mr-2" />
-            แก้ไข
-          </Link>
+          {canEdit && (
+            <Link
+              to={`/customers/${customer.id}/edit`}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Edit className="w-5 h-5 mr-2" />
+              แก้ไข
+            </Link>
+          )}
         </div>
       </div>
 
@@ -139,32 +147,6 @@ export default function CustomerDetailPage() {
               )}
 
               <div className="flex items-start">
-                <CreditCard className="h-5 w-5 text-gray-400 mt-1 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-700">วงเงินเครดิต</p>
-                  <p className="text-gray-900">
-                    {new Intl.NumberFormat('th-TH', {
-                      style: 'currency',
-                      currency: 'THB',
-                    }).format(customer.creditLimit ?? 0)}
-                  </p>
-                </div>
-              </div>
-
-              {/* <div className="flex items-start">
-                <CreditCard className="h-5 w-5 text-gray-400 mt-1 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-700">ใช้วงเงินไปแล้ว</p>
-                  <p className="text-gray-900">
-                    {new Intl.NumberFormat('th-TH', {
-                      style: 'currency',
-                      currency: 'THB',
-                    }).format(customer.creditUsed)}
-                  </p>
-                </div>
-              </div> */}
-
-              <div className="flex items-start">
                 <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
                 <div>
                   <p className="text-sm text-gray-700">วันที่สร้าง</p>
@@ -206,18 +188,22 @@ export default function CustomerDetailPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">การดำเนินการ</h2>
             <div className="space-y-2">
-              <Link
-                to={`/sales/new?customerId=${customer.id}`}
-                className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700"
-              >
-                สร้างใบสั่งซื้อ
-              </Link>
-              <Link
-                to={`/payments/new?customerId=${customer.id}`}
-                className="block w-full px-4 py-2 bg-green-600 text-white text-center rounded-lg hover:bg-green-700"
-              >
-                บันทึกการชำระ
-              </Link>
+              {canCreateSale && (
+                <Link
+                  to={`/sales/new?customerId=${customer.id}`}
+                  className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700"
+                >
+                  สร้างใบสั่งซื้อ
+                </Link>
+              )}
+              {canCreatePayment && (
+                <Link
+                  to={`/payments/new?customerId=${customer.id}`}
+                  className="block w-full px-4 py-2 bg-green-600 text-white text-center rounded-lg hover:bg-green-700"
+                >
+                  บันทึกการชำระ
+                </Link>
+              )}
             </div>
           </div>
         </div>

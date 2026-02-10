@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
+import { usePermission } from '../../hooks/usePermission';
 import { campaignService } from '../../services/campaign.service';
 import type { Campaign } from '../../services/campaign.service';
 import { Plus, Search, Eye, Edit, Trash2, Calendar, BarChart3 } from 'lucide-react';
@@ -21,6 +22,10 @@ const statusLabels = {
 export const CampaignsListPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const canCreate = hasPermission('CAMPAIGN_CREATE');
+  const canUpdate = hasPermission('CAMPAIGN_UPDATE');
+  const canDelete = hasPermission('CAMPAIGN_DELETE');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -84,13 +89,15 @@ export const CampaignsListPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">จัดการแคมเปญ</h1>
             <p className="text-gray-600 mt-1">วิเคราะห์ยอดขายตามแคมเปญและรุ่นรถยนต์</p>
           </div>
-          <Link
-            to="/campaigns/new"
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            สร้างแคมเปญ
-          </Link>
+          {canCreate && (
+            <Link
+              to="/campaigns/new"
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              สร้างแคมเปญ
+            </Link>
+          )}
         </div>
 
         {/* Search */}
@@ -199,21 +206,25 @@ export const CampaignsListPage: React.FC = () => {
                         >
                           <BarChart3 className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
-                          className="text-yellow-600 hover:text-yellow-900 p-1"
-                          title="แก้ไข"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(campaign)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="ลบ"
-                          disabled={campaign.salesCount > 0}
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
+                            className="text-yellow-600 hover:text-yellow-900 p-1"
+                            title="แก้ไข"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(campaign)}
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title="ลบ"
+                            disabled={campaign.salesCount > 0}
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { usePermission } from '../../hooks/usePermission';
 import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
-import { Plus, Search, Edit, Trash2, User, Phone, Mail, CreditCard } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Phone, Mail } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -26,6 +27,11 @@ export default function CustomersListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
+
+  const { hasPermission } = usePermission();
+  const canCreate = hasPermission('CUSTOMER_CREATE');
+  const canEdit = hasPermission('CUSTOMER_UPDATE');
+  const canDelete = hasPermission('CUSTOMER_DELETE');
 
   useEffect(() => {
     fetchCustomers();
@@ -87,13 +93,15 @@ export default function CustomersListPage() {
     <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900">จัดการลูกค้า</h1>
-          <Link
-            to="/customers/new"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            เพิ่มลูกค้าใหม่
-          </Link>
+          {canCreate && (
+            <Link
+              to="/customers/new"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              เพิ่มลูกค้าใหม่
+            </Link>
+          )}
         </div>
 
         <div className="flex gap-4">
@@ -123,7 +131,6 @@ export default function CustomersListPage() {
                   <TableRow>
                     <TableHead>ลูกค้า</TableHead>
                     <TableHead>ติดต่อ</TableHead>
-                    <TableHead>วงเงินเครดิต</TableHead>
                     <TableHead className="text-right">จัดการ</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -159,15 +166,6 @@ export default function CustomersListPage() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-900 flex items-center">
-                          <CreditCard className="h-4 w-4 mr-2 text-gray-400" />
-                          {new Intl.NumberFormat('th-TH', {
-                            style: 'currency',
-                            currency: 'THB',
-                          }).format(customer.creditLimit ?? 0)}
-                        </div>
-                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Link
@@ -177,20 +175,24 @@ export default function CustomersListPage() {
                           >
                             ดู
                           </Link>
-                          <Link
-                            to={`/customers/${customer.id}/edit`}
-                            className="inline-flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="แก้ไข"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(customer.id, customer.name)}
-                            className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="ลบ"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {canEdit && (
+                            <Link
+                              to={`/customers/${customer.id}/edit`}
+                              className="inline-flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="แก้ไข"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(customer.id, customer.name)}
+                              className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="ลบ"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

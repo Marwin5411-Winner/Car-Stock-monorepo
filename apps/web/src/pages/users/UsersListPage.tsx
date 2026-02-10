@@ -4,6 +4,7 @@ import { userService } from '../../services/user.service';
 import type { User } from '../../services/user.service';
 import { MainLayout } from '../../components/layout';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import { Plus, Search, Edit, Trash2, Eye, UserCog, Shield } from 'lucide-react';
 import {
   Table,
@@ -41,6 +42,10 @@ const roleColors: Record<string, string> = {
 export default function UsersListPage() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { hasPermission } = usePermission();
+  const canCreate = hasPermission('USER_CREATE');
+  const canUpdate = hasPermission('USER_UPDATE');
+  const canDelete = hasPermission('USER_DELETE');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,13 +135,15 @@ export default function UsersListPage() {
             <Shield className="w-8 h-8 text-purple-600" />
             <h1 className="text-2xl font-bold text-gray-900">จัดการผู้ใช้งาน</h1>
           </div>
-          <Link
-            to="/users/new"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            เพิ่มผู้ใช้ใหม่
-          </Link>
+          {canCreate && (
+            <Link
+              to="/users/new"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              เพิ่มผู้ใช้ใหม่
+            </Link>
+          )}
         </div>
 
         <div className="flex gap-4">
@@ -222,14 +229,16 @@ export default function UsersListPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        <Link
-                          to={`/users/${user.id}/edit`}
-                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                          title="แก้ไข"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        {user.id !== currentUser?.id && (
+                        {canUpdate && (
+                          <Link
+                            to={`/users/${user.id}/edit`}
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="แก้ไข"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {canDelete && user.id !== currentUser?.id && (
                           <button
                             onClick={() => handleDelete(user.id, user.username)}
                             className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"

@@ -28,6 +28,7 @@ import {
   TableLoading,
   TablePagination,
 } from '@/components/ui/table';
+import { usePermission } from '../../hooks/usePermission';
 
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_LABELS: Record<SaleStatus, string> = {
@@ -63,6 +64,9 @@ export default function SalesListPage() {
   const [total, setTotal] = useState(0);
   const limit = 10;
   const navigate = useNavigate();
+
+  const { hasPermission } = usePermission();
+  const canCreate = hasPermission('SALE_CREATE');
 
   const fetchSales = async () => {
     try {
@@ -142,13 +146,15 @@ export default function SalesListPage() {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900">จัดการการขาย</h1>
-          <Link
-            to="/sales/new"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            สร้างการขายใหม่
-          </Link>
+          {canCreate && (
+            <Link
+              to="/sales/new"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              สร้างการขายใหม่
+            </Link>
+          )}
         </div>
 
         {/* Stats Cards - Updated for new flow without INQUIRY/QUOTED */}

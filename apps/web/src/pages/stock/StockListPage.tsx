@@ -17,6 +17,7 @@ import {
   TableLoading,
   TablePagination,
 } from '@/components/ui/table';
+import { usePermission } from '../../hooks/usePermission';
 
 export default function StockListPage() {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -28,6 +29,12 @@ export default function StockListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
+
+  const { hasPermission } = usePermission();
+  const canCreate = hasPermission('STOCK_CREATE');
+  const canEdit = hasPermission('STOCK_UPDATE');
+  const canDelete = hasPermission('STOCK_DELETE');
+  const canViewCost = hasPermission('STOCK_VIEW_COST');
 
   useEffect(() => {
     fetchStocks();
@@ -96,13 +103,15 @@ export default function StockListPage() {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900">จัดการ Stock</h1>
-          <Link
-            to="/stock/new"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            เพิ่ม Stock ใหม่
-          </Link>
+          {canCreate && (
+            <Link
+              to="/stock/new"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              เพิ่ม Stock ใหม่
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
@@ -146,21 +155,23 @@ export default function StockListPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">มูลค่ารวม</p>
-                <p className="text-xl font-bold text-purple-600">
-                  {stats ? new Intl.NumberFormat('th-TH', {
-                    style: 'currency',
-                    currency: 'THB',
-                    notation: 'compact',
-                  }).format(stats.totalValue) : '--'}
-                </p>
+          {canViewCost && (
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">มูลค่ารวม</p>
+                  <p className="text-xl font-bold text-purple-600">
+                    {stats ? new Intl.NumberFormat('th-TH', {
+                      style: 'currency',
+                      currency: 'THB',
+                      notation: 'compact',
+                    }).format(stats.totalValue) : '--'}
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-purple-600" />
               </div>
-              <TrendingUp className="h-8 w-8 text-purple-600" />
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex gap-4">
@@ -204,8 +215,12 @@ export default function StockListPage() {
                     <TableHead>รถยนต์</TableHead>
                     <TableHead>สี</TableHead>
                     <TableHead>วันที่เข้า</TableHead>
-                    <TableHead>ราคาต้นทุน</TableHead>
-                    <TableHead>ดอกเบี้ยสะสม</TableHead>
+                    {canViewCost && (
+                      <>
+                        <TableHead>ราคาต้นทุน</TableHead>
+                        <TableHead>ดอกเบี้ยสะสม</TableHead>
+                      </>
+                    )}
                     <TableHead>สถานะ</TableHead>
                     <TableHead className="text-right">จัดการ</TableHead>
                   </TableRow>
@@ -240,18 +255,22 @@ export default function StockListPage() {
                       <TableCell className="text-gray-900">
                         {new Date(stock.arrivalDate).toLocaleDateString('th-TH')}
                       </TableCell>
-                      <TableCell className="text-gray-900">
-                        {new Intl.NumberFormat('th-TH', {
-                          style: 'currency',
-                          currency: 'THB',
-                        }).format(stock.baseCost)}
-                      </TableCell>
-                      <TableCell className="text-gray-900">
-                        {new Intl.NumberFormat('th-TH', {
-                          style: 'currency',
-                          currency: 'THB',
-                        }).format(stock.calculatedInterest ?? 0)}
-                      </TableCell>
+                      {canViewCost && (
+                        <>
+                          <TableCell className="text-gray-900">
+                            {new Intl.NumberFormat('th-TH', {
+                              style: 'currency',
+                              currency: 'THB',
+                            }).format(stock.baseCost)}
+                          </TableCell>
+                          <TableCell className="text-gray-900">
+                            {new Intl.NumberFormat('th-TH', {
+                              style: 'currency',
+                              currency: 'THB',
+                            }).format(stock.calculatedInterest ?? 0)}
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell>
                         <span
                           className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.status === 'AVAILABLE'
@@ -281,14 +300,16 @@ export default function StockListPage() {
                           >
                             ดู
                           </Link>
-                          <Link
-                            to={`/stock/${stock.id}/edit`}
-                            className="inline-flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="แก้ไข"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                          {stock.status !== 'SOLD' && (
+                          {canEdit && (
+                            <Link
+                              to={`/stock/${stock.id}/edit`}
+                              className="inline-flex items-center justify-center p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="แก้ไข"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          )}
+                          {canDelete && stock.status !== 'SOLD' && (
                             <button
                               onClick={() => handleDelete(stock.id, stock.vin)}
                               className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
