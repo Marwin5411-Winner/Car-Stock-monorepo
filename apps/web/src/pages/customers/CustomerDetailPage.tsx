@@ -4,7 +4,7 @@ import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
-import { ArrowLeft, Edit, User, Phone, Mail, MapPin, Calendar, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, User, Phone, Mail, MapPin, Calendar, FileText, CreditCard } from 'lucide-react';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();

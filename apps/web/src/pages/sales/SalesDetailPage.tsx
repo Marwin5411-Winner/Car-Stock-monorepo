@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
 import { salesService } from '../../services/sales.service';
 import { stockService, type Stock } from '../../services/stock.service';
@@ -151,12 +150,12 @@ const STATUS_FLOW: SaleStatus[] = ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLE
 export default function SalesDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { hasPermission } = usePermission();
   const canUpdateStatus = hasPermission('SALE_STATUS_UPDATE');
   const canCancel = hasPermission('SALE_CANCEL');
   const canAssignStock = hasPermission('SALE_ASSIGN_STOCK');
   const canCreatePayment = hasPermission('PAYMENT_CREATE');
+  const canUpdate = hasPermission('SALE_UPDATE');
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -988,7 +987,7 @@ export default function SalesDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && (
+            {canUpdate && (
               <Link
                 to={`/sales/${sale.id}/edit`}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

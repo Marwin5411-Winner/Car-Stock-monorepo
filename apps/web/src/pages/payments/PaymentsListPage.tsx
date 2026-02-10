@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
 import { paymentService } from '../../services/payment.service';
 import type { PaymentListItem, PaymentStats, PaymentStatus, PaymentType, PaymentFilters } from '../../services/payment.service';
@@ -56,7 +55,6 @@ const STATUS_LABELS: Record<PaymentStatus, string> = {
 };
 
 export default function PaymentsListPage() {
-  const { user } = useAuth();
   const { hasPermission } = usePermission();
   const canCreatePayment = hasPermission('PAYMENT_CREATE');
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
