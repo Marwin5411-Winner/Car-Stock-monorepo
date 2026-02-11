@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { MainLayout } from '../../components/layout';
 import { reportService } from '../../services/report.service';
 import { useToast } from '../../components/toast';
 import type { PurchaseRequirementReportResponse } from '@car-stock/shared/types';
@@ -38,25 +39,29 @@ export function PurchaseRequirementReportPage(): React.ReactElement {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-          <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+      <MainLayout>
+        <div className="p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h2 className="text-red-800 font-semibold mb-2">เกิดข้อผิดพลาด</h2>
-          <p className="text-red-600">ไม่สามารถโหลดรายงานได้ กรุณาลองใหม่อีกครั้ง</p>
+      <MainLayout>
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h2 className="text-red-800 font-semibold mb-2">เกิดข้อผิดพลาด</h2>
+            <p className="text-red-600">ไม่สามารถโหลดรายงานได้ กรุณาลองใหม่อีกครั้ง</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
@@ -64,7 +69,8 @@ export function PurchaseRequirementReportPage(): React.ReactElement {
   const sufficientItems = report?.items?.filter(item => item.status === 'SUFFICIENT') || [];
 
   return (
-    <div className="p-6">
+    <MainLayout>
+      <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">รายงานความต้องการซื้อรถเพิ่ม</h1>
@@ -228,5 +234,6 @@ export function PurchaseRequirementReportPage(): React.ReactElement {
         </div>
       )}
     </div>
+    </MainLayout>
   );
 }
