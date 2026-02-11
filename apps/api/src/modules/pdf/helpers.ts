@@ -55,10 +55,13 @@ const THAI_DIGIT_NAMES = ['', 'สิบ', 'ร้อย', 'พัน', 'หม�
  * @returns Formatted Thai date string
  */
 export function formatThaiDate(
-  date: Date | string,
+  date: Date | string | null | undefined,
   format: 'full' | 'short' | 'numeric' = 'full'
 ): string {
+  if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '-';
+  
   const day = d.getDate();
   const month = d.getMonth();
   const buddhistYear = d.getFullYear() + 543;
@@ -80,8 +83,11 @@ export function formatThaiDate(
  * @param date - Date object or date string
  * @returns Formatted Thai date with day name
  */
-export function formatThaiDateWithDay(date: Date | string): string {
+export function formatThaiDateWithDay(date: Date | string | null | undefined): string {
+  if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '-';
+  
   const dayName = THAI_DAYS[d.getDay()];
   const day = d.getDate();
   const month = THAI_MONTHS[d.getMonth()];

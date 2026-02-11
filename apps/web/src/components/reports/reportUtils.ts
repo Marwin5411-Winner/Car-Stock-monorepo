@@ -54,8 +54,10 @@ export function formatPercent(value: number | null | undefined): string {
 /**
  * Format datetime to Thai locale
  */
-export function formatDateTime(dateString: string): string {
+export function formatDateTime(dateString: string | null | undefined): string {
+  if (!dateString) return '-';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleString('th-TH', {
     year: 'numeric',
     month: 'short',
