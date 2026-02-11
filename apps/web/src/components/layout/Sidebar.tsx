@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
+import type { Permission } from '@car-stock/shared/constants';
 import {
   Users,
   Car,
@@ -20,27 +21,27 @@ interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
-  adminOnly?: boolean;
+  permission?: Permission;
 }
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <BarChart3 className="w-5 h-5" /> },
-  { to: '/customers', label: 'ลูกค้า', icon: <Users className="w-5 h-5" /> },
-  { to: '/vehicles', label: 'รุ่นรถยนต์', icon: <Car className="w-5 h-5" /> },
-  { to: '/stock', label: 'Stock', icon: <Package className="w-5 h-5" /> },
-  { to: '/interest', label: 'ดอกเบี้ย Stock', icon: <Percent className="w-5 h-5" /> },
-  { to: '/quotations', label: 'ใบเสนอราคา', icon: <FileText className="w-5 h-5" /> },
-  { to: '/sales', label: 'การขาย', icon: <ShoppingCart className="w-5 h-5" /> },
-  { to: '/payments', label: 'การชำระเงิน', icon: <CreditCard className="w-5 h-5" /> },
-  { to: '/reports', label: 'รายงาน', icon: <PieChart className="w-5 h-5" /> },
-  { to: '/campaigns', label: 'แคมเปญ', icon: <Megaphone className="w-5 h-5" />, adminOnly: true },
-  { to: '/users', label: 'จัดการผู้ใช้', icon: <Shield className="w-5 h-5" />, adminOnly: true },
-  { to: '/settings', label: 'ตั้งค่าบริษัท', icon: <Settings className="w-5 h-5" />, adminOnly: true },
+  { to: '/customers', label: 'ลูกค้า', icon: <Users className="w-5 h-5" />, permission: 'CUSTOMER_VIEW' },
+  { to: '/vehicles', label: 'รุ่นรถยนต์', icon: <Car className="w-5 h-5" />, permission: 'VEHICLE_VIEW' },
+  { to: '/stock', label: 'Stock', icon: <Package className="w-5 h-5" />, permission: 'STOCK_VIEW' },
+  { to: '/interest', label: 'ดอกเบี้ย Stock', icon: <Percent className="w-5 h-5" />, permission: 'INTEREST_VIEW' },
+  { to: '/quotations', label: 'ใบเสนอราคา', icon: <FileText className="w-5 h-5" />, permission: 'QUOTATION_CREATE' },
+  { to: '/sales', label: 'การขาย', icon: <ShoppingCart className="w-5 h-5" />, permission: 'SALE_VIEW' },
+  { to: '/payments', label: 'การชำระเงิน', icon: <CreditCard className="w-5 h-5" />, permission: 'PAYMENT_VIEW' },
+  { to: '/reports', label: 'รายงาน', icon: <PieChart className="w-5 h-5" />, permission: 'REPORTS_INDEX' },
+  { to: '/campaigns', label: 'แคมเปญ', icon: <Megaphone className="w-5 h-5" />, permission: 'CAMPAIGN_VIEW' },
+  { to: '/users', label: 'จัดการผู้ใช้', icon: <Shield className="w-5 h-5" />, permission: 'USER_VIEW' },
+  { to: '/settings', label: 'ตั้งค่าบริษัท', icon: <Settings className="w-5 h-5" />, permission: 'SETTINGS_VIEW' },
 ];
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { hasPermission } = usePermission();
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -57,7 +58,7 @@ export const Sidebar: React.FC = () => {
         </h2>
         <ul className="space-y-2">
           {navItems
-            .filter((item) => !item.adminOnly || user?.role === 'ADMIN')
+            .filter((item) => !item.permission || hasPermission(item.permission))
             .map((item) => (
               <li key={item.to}>
                 <Link
