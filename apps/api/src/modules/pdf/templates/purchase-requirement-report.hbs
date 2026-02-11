@@ -177,13 +177,6 @@
       </tr>
       {{/ifEquals}}
       {{/each}}
-      {{#unless (items.filter (i) => i.status === 'NEED_TO_BUY').length}}
-      <tr>
-        <td colspan="7" class="text-center" style="color: #666; padding: 20px;">
-          ไม่มีรุ่นที่ต้องซื้อเพิ่ม
-        </td>
-      </tr>
-      {{/unless}}
     </tbody>
   </table>
 </div>
@@ -220,13 +213,6 @@
       </tr>
       {{/ifEquals}}
       {{/each}}
-      {{#unless (items.filter (i) => i.status === 'SUFFICIENT').length}}
-      <tr>
-        <td colspan="6" class="text-center" style="color: #666; padding: 20px;">
-          ไม่มีรุ่นที่สต็อกเพียงพอ
-        </td>
-      </tr>
-      {{/unless}}
     </tbody>
   </table>
 </div>
