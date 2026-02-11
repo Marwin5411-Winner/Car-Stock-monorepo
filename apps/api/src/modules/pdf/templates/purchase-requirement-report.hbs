@@ -1,0 +1,245 @@
+<style>
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  body {
+    font-family: 'Kanit', sans-serif;
+    font-size: 11px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    vertical-align: top;
+  }
+  th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .text-left { text-align: left; }
+  .header-row th {
+    background-color: #e0e0e0;
+  }
+  .badge-need {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+  }
+  .badge-sufficient {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+  }
+  .section-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 20px 0 10px;
+    padding: 8px;
+    background-color: #f5f5f5;
+    border-left: 4px solid #1976d2;
+  }
+  .summary-box {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .summary-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  .summary-label {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  .summary-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1976d2;
+  }
+  /* Print styles */
+  @media print {
+    .page {
+      margin: 0;
+      padding: 10mm;
+      page-break-after: always;
+    }
+    .no-break {
+      page-break-inside: avoid;
+    }
+    table {
+      page-break-inside: auto;
+    }
+    tr {
+      page-break-inside: avoid;
+    }
+    thead {
+      display: table-header-group;
+    }
+  }
+</style>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo" style="max-width: 80px;">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">รายงานความต้องการซื้อรถเพิ่ม (Purchase Requirement Report)</div>
+
+<div class="text-center" style="margin-bottom: 20px;">
+  <strong>ข้อมูลวันที่:</strong> {{formatThaiDateWithDay (currentThaiDate)}}
+</div>
+
+<!-- Summary Section -->
+<div class="section">
+  <div class="summary-box">
+    <div class="summary-item">
+      <div class="summary-label">จำนวนรุ่นที่ต้องซื้อ</div>
+      <div class="summary-value">{{summary.modelsNeedingPurchase}}</div>
+      <div style="font-size: 10px; color: #666;">จาก {{summary.totalModels}} รุ่น</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">จำนวนที่ต้องซื้อเพิ่ม</div>
+      <div class="summary-value" style="color: #e65100;">{{summary.totalRequired}}</div>
+      <div style="font-size: 10px; color: #666;">คัน</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">จำนวนการจอง</div>
+      <div class="summary-value" style="color: #6a1b9a;">{{summary.totalReservations}}</div>
+      <div style="font-size: 10px; color: #666;">คัน</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">สต็อกที่มีอยู่</div>
+      <div class="summary-value" style="color: #2e7d32;">{{summary.totalAvailable}}</div>
+      <div style="font-size: 10px; color: #666;">คัน</div>
+    </div>
+  </div>
+</div>
+
+<!-- Need to Buy Section -->
+<div class="section no-break">
+  <div class="section-title" style="border-left-color: #c62828;">
+    รุ่นที่ต้องซื้อเพิ่ม
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 5%;">ลำดับ</th>
+        <th style="width: 35%;">รุ่นรถ</th>
+        <th style="width: 10%;">ปี</th>
+        <th style="width: 12%;" class="text-center">จอง (คัน)</th>
+        <th style="width: 12%;" class="text-center">สต็อก (คัน)</th>
+        <th style="width: 12%;" class="text-center">ขาดอีก (คัน)</th>
+        <th style="width: 14%;">สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      {{#ifEquals status 'NEED_TO_BUY'}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>
+          <strong>{{brand}} {{model}}</strong>
+          {{#if variant}}<br><span style="color: #666;">{{variant}}</span>{{/if}}
+        </td>
+        <td class="text-center">{{year}}</td>
+        <td class="text-center">{{reservationCount}}</td>
+        <td class="text-center">{{availableCount}}</td>
+        <td class="text-center" style="color: #c62828; font-weight: bold;">{{requiredPurchase}}</td>
+        <td class="text-center"><span class="badge-need">ต้องซื้อเพิ่ม</span></td>
+      </tr>
+      {{/ifEquals}}
+      {{/each}}
+      {{#unless (items.filter (i) => i.status === 'NEED_TO_BUY').length}}
+      <tr>
+        <td colspan="7" class="text-center" style="color: #666; padding: 20px;">
+          ไม่มีรุ่นที่ต้องซื้อเพิ่ม
+        </td>
+      </tr>
+      {{/unless}}
+    </tbody>
+  </table>
+</div>
+
+<!-- Sufficient Stock Section -->
+<div class="section no-break">
+  <div class="section-title" style="border-left-color: #2e7d32;">
+    รุ่นที่สต็อกเพียงพอ
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 5%;">ลำดับ</th>
+        <th style="width: 35%;">รุ่นรถ</th>
+        <th style="width: 10%;">ปี</th>
+        <th style="width: 15%;" class="text-center">จอง (คัน)</th>
+        <th style="width: 15%;" class="text-center">สต็อก (คัน)</th>
+        <th style="width: 15%;">สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      {{#ifEquals status 'SUFFICIENT'}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>
+          <strong>{{brand}} {{model}}</strong>
+          {{#if variant}}<br><span style="color: #666;">{{variant}}</span>{{/if}}
+        </td>
+        <td class="text-center">{{year}}</td>
+        <td class="text-center">{{reservationCount}}</td>
+        <td class="text-center">{{availableCount}}</td>
+        <td class="text-center"><span class="badge-sufficient">เพียงพอ</span></td>
+      </tr>
+      {{/ifEquals}}
+      {{/each}}
+      {{#unless (items.filter (i) => i.status === 'SUFFICIENT').length}}
+      <tr>
+        <td colspan="6" class="text-center" style="color: #666; padding: 20px;">
+          ไม่มีรุ่นที่สต็อกเพียงพอ
+        </td>
+      </tr>
+      {{/unless}}
+    </tbody>
+  </table>
+</div>
+
+<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+  พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
+</div>
+
+<script>
+  // Auto-print when PDF is loaded in browser
+  window.onload = function() {
+    if (window.matchMedia && window.matchMedia('print').matches) {
+      window.print();
+    }
+  };
+</script>

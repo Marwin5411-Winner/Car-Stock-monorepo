@@ -26,6 +26,7 @@ import {
   ProfitLossReportData,
   SalesSummaryReportData,
   StockInterestReportData,
+  PurchaseRequirementReportData,
 } from './types';
 import {
   formatThaiDate,
@@ -767,6 +768,13 @@ export class PdfService {
    */
   public async generateStockInterestReport(data: StockInterestReportData): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.STOCK_INTEREST_REPORT, data, { landscape: true });
+  }
+
+  /**
+   * Generate Purchase Requirement Report PDF
+   */
+  public async generatePurchaseRequirementReport(data: PurchaseRequirementReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.PURCHASE_REQUIREMENT_REPORT, data);
   }
 
   /**

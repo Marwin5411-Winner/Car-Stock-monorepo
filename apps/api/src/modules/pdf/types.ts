@@ -352,6 +352,7 @@ export enum PdfTemplateType {
   PROFIT_LOSS_REPORT = 'profit-loss-report',
   SALES_SUMMARY_REPORT = 'sales-summary-report',
   STOCK_INTEREST_REPORT = 'stock-interest-report',
+  PURCHASE_REQUIREMENT_REPORT = 'purchase-requirement-report',
 }
 
 /**
@@ -491,3 +492,31 @@ export interface StockInterestReportData {
   stocks: any[];
   summary: any;
 }
+
+/**
+ * Purchase Requirement Report Data
+ */
+export interface PurchaseRequirementReportData {
+  header: CompanyHeader;
+  dateRange: string;
+  items: {
+    vehicleModelId: string;
+    brand: string;
+    model: string;
+    variant: string;
+    year: number;
+    vehicleModelName: string;
+    reservationCount: number;
+    availableCount: number;
+    requiredPurchase: number;
+    status: 'NEED_TO_BUY' | 'SUFFICIENT';
+  }[];
+  summary: {
+    totalReservations: number;
+    totalAvailable: number;
+    totalRequired: number;
+    modelsNeedingPurchase: number;
+    totalModels: number;
+  };
+}
+

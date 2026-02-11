@@ -608,4 +608,46 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         description: 'Get report of vehicles that need to be purchased based on reservations vs available stock',
       },
     }
+  )
+  .get(
+    '/purchase-requirement/pdf',
+    async ({ query, set, requester }) => {
+      try {
+        if (!authService.hasPermission(requester!.role, 'REPORT_STOCK')) {
+          set.status = 403;
+          return 'Forbidden';
+        }
+
+        const result = await reportsService.getPurchaseRequirementReport({
+          brand: query.brand,
+        });
+        
+        const dateRange = `ข้อมูล ณ วันที่ ${formatThaiDate(new Date(), 'full')}`;
+
+        const header = await getCompanyHeader();
+        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+        const pdfBuffer = await pdfService.generatePurchaseRequirementReport({
+          header,
+          dateRange,
+          items: result.items,
+          summary: result.summary,
+        });
+
+        set.headers['Content-Type'] = 'application/pdf';
+        set.headers['Content-Disposition'] = `attachment; filename="purchase-requirement-report.pdf"`;
+        
+        return pdfBuffer;
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        set.status = 500;
+        return 'Failed to generate PDF';
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        brand: t.Optional(t.String()),
+      }),
+    }
   );
