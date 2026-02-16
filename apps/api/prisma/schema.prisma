@@ -318,13 +318,32 @@ model Campaign {
 }
 
 model CampaignVehicleModel {
-  campaignId     String       @map("campaign_id")
-  vehicleModelId String       @map("vehicle_model_id")
-  campaign       Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  vehicleModel   VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+  campaignId     String                 @map("campaign_id")
+  vehicleModelId String                 @map("vehicle_model_id")
+  campaign       Campaign               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  vehicleModel   VehicleModel           @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+  formulas       CampaignModelFormula[]
 
   @@id([campaignId, vehicleModelId])
   @@map("campaign_vehicle_models")
+}
+
+model CampaignModelFormula {
+  id             String             @id @default(cuid())
+  campaignId     String             @map("campaign_id")
+  vehicleModelId String             @map("vehicle_model_id")
+  name           String             // ชื่อสูตร เช่น "ส่วนลดพิเศษ", "คอมมิชชั่นเพิ่ม"
+  operator       FormulaOperator    // +, -, *, %
+  value          Decimal            @db.Decimal(15, 2) // ค่าที่ใช้คำนวณ
+  priceTarget    FormulaPriceTarget @map("price_target") // มีผลกับราคาทุนหรือราคาขาย
+  sortOrder      Int                @map("sort_order") // ลำดับการคำนวณ
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  campaignVehicleModel CampaignVehicleModel @relation(fields: [campaignId, vehicleModelId], references: [campaignId, vehicleModelId], onDelete: Cascade)
+
+  @@index([campaignId, vehicleModelId])
+  @@map("campaign_model_formulas")
 }
 
 model Document {
@@ -490,6 +509,18 @@ enum CampaignStatus {
   DRAFT
   ACTIVE
   ENDED
+}
+
+enum FormulaOperator {
+  ADD       // +
+  SUBTRACT  // -
+  MULTIPLY  // *
+  PERCENT   // %
+}
+
+enum FormulaPriceTarget {
+  COST_PRICE    // ราคาทุน (baseCost จาก Stock)
+  SELLING_PRICE // ราคาขาย (price จาก VehicleModel)
 }
 
 enum DocumentType {

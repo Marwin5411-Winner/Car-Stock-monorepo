@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { campaignsService } from './campaigns.service';
+import { campaignFormulasService } from './campaign-formulas.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 
 export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
@@ -400,6 +401,222 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         tags: ['Campaigns'],
         summary: 'Remove vehicle model from campaign',
         description: 'Remove a vehicle model from a campaign (ADMIN only)',
+      },
+    }
+  )
+  // ============================================
+  // Campaign Formula Routes
+  // ============================================
+  // Get formulas for a vehicle model in campaign
+  .get(
+    '/:id/vehicle-models/:modelId/formulas',
+    async ({ params, set }) => {
+      try {
+        const formulas = await campaignFormulasService.getFormulas(params.id, params.modelId);
+        set.status = 200;
+        return { success: true, data: formulas };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to fetch formulas',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
+      params: t.Object({ id: t.String(), modelId: t.String() }),
+      detail: {
+        tags: ['Campaign Formulas'],
+        summary: 'Get formulas for vehicle model in campaign',
+      },
+    }
+  )
+  // Create formula
+  .post(
+    '/:id/vehicle-models/:modelId/formulas',
+    async ({ params, body, set }) => {
+      try {
+        const formula = await campaignFormulasService.create({
+          campaignId: params.id,
+          vehicleModelId: params.modelId,
+          name: body.name,
+          operator: body.operator as any,
+          value: body.value,
+          priceTarget: body.priceTarget as any,
+          sortOrder: body.sortOrder,
+        });
+        set.status = 201;
+        return { success: true, data: formula, message: 'Formula created successfully' };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to create formula',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
+      params: t.Object({ id: t.String(), modelId: t.String() }),
+      body: t.Object({
+        name: t.String({ minLength: 1 }),
+        operator: t.Union([
+          t.Literal('ADD'),
+          t.Literal('SUBTRACT'),
+          t.Literal('MULTIPLY'),
+          t.Literal('PERCENT'),
+        ]),
+        value: t.Number(),
+        priceTarget: t.Union([t.Literal('COST_PRICE'), t.Literal('SELLING_PRICE')]),
+        sortOrder: t.Optional(t.Number()),
+      }),
+      detail: {
+        tags: ['Campaign Formulas'],
+        summary: 'Create formula for vehicle model in campaign',
+      },
+    }
+  )
+  // Update formula
+  .put(
+    '/:id/vehicle-models/:modelId/formulas/:formulaId',
+    async ({ params, body, set }) => {
+      try {
+        const formula = await campaignFormulasService.update(params.formulaId, {
+          name: body.name,
+          operator: body.operator as any,
+          value: body.value,
+          priceTarget: body.priceTarget as any,
+          sortOrder: body.sortOrder,
+        });
+        set.status = 200;
+        return { success: true, data: formula, message: 'Formula updated successfully' };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to update formula',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
+      params: t.Object({ id: t.String(), modelId: t.String(), formulaId: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 1 })),
+        operator: t.Optional(
+          t.Union([
+            t.Literal('ADD'),
+            t.Literal('SUBTRACT'),
+            t.Literal('MULTIPLY'),
+            t.Literal('PERCENT'),
+          ])
+        ),
+        value: t.Optional(t.Number()),
+        priceTarget: t.Optional(
+          t.Union([t.Literal('COST_PRICE'), t.Literal('SELLING_PRICE')])
+        ),
+        sortOrder: t.Optional(t.Number()),
+      }),
+      detail: {
+        tags: ['Campaign Formulas'],
+        summary: 'Update formula',
+      },
+    }
+  )
+  // Delete formula
+  .delete(
+    '/:id/vehicle-models/:modelId/formulas/:formulaId',
+    async ({ params, set }) => {
+      try {
+        await campaignFormulasService.delete(params.formulaId);
+        set.status = 200;
+        return { success: true, message: 'Formula deleted successfully' };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to delete formula',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
+      params: t.Object({ id: t.String(), modelId: t.String(), formulaId: t.String() }),
+      detail: {
+        tags: ['Campaign Formulas'],
+        summary: 'Delete formula',
+      },
+    }
+  )
+  // Reorder formulas
+  .put(
+    '/:id/vehicle-models/:modelId/formulas-reorder',
+    async ({ params, body, set }) => {
+      try {
+        const formulas = await campaignFormulasService.reorder(
+          params.id,
+          params.modelId,
+          body.items
+        );
+        set.status = 200;
+        return { success: true, data: formulas, message: 'Formulas reordered successfully' };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to reorder formulas',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
+      params: t.Object({ id: t.String(), modelId: t.String() }),
+      body: t.Object({
+        items: t.Array(
+          t.Object({
+            formulaId: t.String(),
+            sortOrder: t.Number(),
+          })
+        ),
+      }),
+      detail: {
+        tags: ['Campaign Formulas'],
+        summary: 'Reorder formulas for vehicle model in campaign',
+      },
+    }
+  )
+  // ============================================
+  // Campaign Report Route
+  // ============================================
+  .get(
+    '/:id/report',
+    async ({ params, set }) => {
+      try {
+        const report = await campaignsService.getCampaignReport(params.id);
+        set.status = 200;
+        return { success: true, data: report };
+      } catch (error) {
+        set.status = 500;
+        return {
+          success: false,
+          error: 'Server error',
+          message: error instanceof Error ? error.message : 'Failed to generate report',
+        };
+      }
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
+      params: t.Object({ id: t.String() }),
+      detail: {
+        tags: ['Campaigns'],
+        summary: 'Get campaign report data',
+        description: 'Get report data for campaign with sold stocks grouped by model and formula calculations',
       },
     }
   );

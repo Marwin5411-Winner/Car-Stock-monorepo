@@ -26,7 +26,7 @@ import QuotationFormPage from './pages/quotations/QuotationFormPage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import { PaymentsListPage, PaymentFormPage, PaymentDetailPage } from './pages/payments';
 import { UsersListPage, UserFormPage, UserDetailPage } from './pages/users';
-import { CampaignsListPage, CampaignFormPage, CampaignDetailPage, CampaignAnalyticsPage } from './pages/campaigns';
+import { CampaignsListPage, CampaignFormPage, CampaignDetailPage, CampaignAnalyticsPage, CampaignReportPage } from './pages/campaigns';
 import {
   ReportsPage,
   DailyPaymentReportPage,
@@ -366,6 +366,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
                   <CampaignAnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/:id/report"
+              element={
+                <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
+                  <CampaignReportPage />
                 </ProtectedRoute>
               }
             />

@@ -78,6 +78,111 @@ export interface CampaignAnalytics {
   summary: CampaignAnalyticsSummary;
 }
 
+export type FormulaOperator = 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'PERCENT';
+export type FormulaPriceTarget = 'COST_PRICE' | 'SELLING_PRICE';
+
+export interface CampaignFormula {
+  id: string;
+  campaignId: string;
+  vehicleModelId: string;
+  name: string;
+  operator: FormulaOperator;
+  value: number;
+  priceTarget: FormulaPriceTarget;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFormulaData {
+  name: string;
+  operator: FormulaOperator;
+  value: number;
+  priceTarget: FormulaPriceTarget;
+  sortOrder?: number;
+}
+
+export interface UpdateFormulaData {
+  name?: string;
+  operator?: FormulaOperator;
+  value?: number;
+  priceTarget?: FormulaPriceTarget;
+  sortOrder?: number;
+}
+
+export interface ReorderItem {
+  formulaId: string;
+  sortOrder: number;
+}
+
+export interface CampaignReportSaleItem {
+  saleId: string;
+  saleNumber: string;
+  saleType: string;
+  saleStatus: string;
+  customerName: string;
+  salesperson: string;
+  vin: string;
+  engineNumber: string;
+  exteriorColor: string;
+  saleDate: string;
+  soldDate: string | null;
+  totalAmount: number;
+  paymentMode: string;
+  financeProvider: string;
+  originalCostPrice: number;
+  originalSellingPrice: number;
+  adjustedCostPrice: number;
+  adjustedSellingPrice: number;
+  costPriceDiff: number;
+  sellingPriceDiff: number;
+  formulaResults: {
+    formulaId: string;
+    name: string;
+    operator: FormulaOperator;
+    value: number;
+    priceTarget: FormulaPriceTarget;
+    sortOrder: number;
+    resultValue: number;
+  }[];
+}
+
+export interface CampaignReportGroup {
+  vehicleModelId: string;
+  vehicleModel: VehicleModelSummary;
+  formulas: {
+    id: string;
+    name: string;
+    operator: FormulaOperator;
+    value: number;
+    priceTarget: FormulaPriceTarget;
+    sortOrder: number;
+  }[];
+  sales: CampaignReportSaleItem[];
+  totalSales: number;
+  totalAmount: number;
+}
+
+export interface CampaignReport {
+  campaign: {
+    id: string;
+    name: string;
+    description?: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    notes?: string;
+    createdBy: { id: string; firstName: string; lastName: string };
+  };
+  vehicleModels: (VehicleModelSummary & { formulaCount: number })[];
+  groups: CampaignReportGroup[];
+  summary: {
+    totalVehicleModels: number;
+    totalSales: number;
+    totalAmount: number;
+  };
+}
+
 export interface CampaignFilters {
   page?: number;
   limit?: number;
@@ -167,6 +272,75 @@ class CampaignService {
 
     const response = await api.get<ApiResponse<CampaignAnalytics>>(
       `/api/campaigns/${campaignId}/analytics?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Formula Methods
+  // ============================================
+
+  async getFormulas(campaignId: string, vehicleModelId: string): Promise<CampaignFormula[]> {
+    const response = await api.get<ApiResponse<CampaignFormula[]>>(
+      `/api/campaigns/${campaignId}/vehicle-models/${vehicleModelId}/formulas`
+    );
+    return response.data;
+  }
+
+  async createFormula(
+    campaignId: string,
+    vehicleModelId: string,
+    data: CreateFormulaData
+  ): Promise<CampaignFormula> {
+    const response = await api.post<ApiResponse<CampaignFormula>>(
+      `/api/campaigns/${campaignId}/vehicle-models/${vehicleModelId}/formulas`,
+      data
+    );
+    return response.data;
+  }
+
+  async updateFormula(
+    campaignId: string,
+    vehicleModelId: string,
+    formulaId: string,
+    data: UpdateFormulaData
+  ): Promise<CampaignFormula> {
+    const response = await api.put<ApiResponse<CampaignFormula>>(
+      `/api/campaigns/${campaignId}/vehicle-models/${vehicleModelId}/formulas/${formulaId}`,
+      data
+    );
+    return response.data;
+  }
+
+  async deleteFormula(
+    campaignId: string,
+    vehicleModelId: string,
+    formulaId: string
+  ): Promise<void> {
+    await api.delete(
+      `/api/campaigns/${campaignId}/vehicle-models/${vehicleModelId}/formulas/${formulaId}`
+    );
+  }
+
+  async reorderFormulas(
+    campaignId: string,
+    vehicleModelId: string,
+    items: ReorderItem[]
+  ): Promise<CampaignFormula[]> {
+    const response = await api.put<ApiResponse<CampaignFormula[]>>(
+      `/api/campaigns/${campaignId}/vehicle-models/${vehicleModelId}/formulas-reorder`,
+      { items }
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Report Methods
+  // ============================================
+
+  async getReport(campaignId: string): Promise<CampaignReport> {
+    const response = await api.get<ApiResponse<CampaignReport>>(
+      `/api/campaigns/${campaignId}/report`
     );
     return response.data;
   }

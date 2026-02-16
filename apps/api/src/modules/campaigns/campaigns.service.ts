@@ -514,6 +514,249 @@ class CampaignsService {
 
     return campaigns.map((c) => c.campaign);
   }
+
+  /**
+   * Get campaign report data - sold stocks grouped by vehicle model with formula calculations
+   */
+  async getCampaignReport(campaignId: string) {
+    const campaign = await db.campaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+        vehicleModels: {
+          include: {
+            vehicleModel: {
+              select: {
+                id: true,
+                brand: true,
+                model: true,
+                variant: true,
+                year: true,
+                price: true,
+                standardCost: true,
+              },
+            },
+            formulas: {
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign');
+    }
+
+    // Get all sales for this campaign within the campaign period
+    const sales = await db.sale.findMany({
+      where: {
+        campaignId,
+        status: { notIn: ['CANCELLED'] },
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        stock: {
+          select: {
+            id: true,
+            vin: true,
+            engineNumber: true,
+            baseCost: true,
+            actualSalePrice: true,
+            exteriorColor: true,
+            soldDate: true,
+            vehicleModelId: true,
+            vehicleModel: {
+              select: {
+                id: true,
+                brand: true,
+                model: true,
+                variant: true,
+                year: true,
+                price: true,
+              },
+            },
+          },
+        },
+        vehicleModel: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            variant: true,
+            year: true,
+            price: true,
+          },
+        },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Build vehicle model info map with formulas
+    const vehicleModelMap = new Map<string, {
+      vehicleModel: any;
+      formulas: any[];
+    }>();
+
+    for (const cvm of campaign.vehicleModels) {
+      vehicleModelMap.set(cvm.vehicleModelId, {
+        vehicleModel: cvm.vehicleModel,
+        formulas: cvm.formulas,
+      });
+    }
+
+    // Group sales by vehicle model
+    const groupedSales = new Map<string, any[]>();
+
+    // Initialize groups for all vehicle models in campaign
+    for (const cvm of campaign.vehicleModels) {
+      groupedSales.set(cvm.vehicleModelId, []);
+    }
+
+    // Process each sale
+    for (const sale of sales) {
+      const vehicleModelId = sale.stock?.vehicleModelId || sale.vehicleModelId;
+      if (!vehicleModelId) continue;
+
+      const vmInfo = vehicleModelMap.get(vehicleModelId);
+      if (!vmInfo) continue;
+
+      // Get base prices
+      const costPrice = sale.stock ? Number(sale.stock.baseCost) : 0;
+      const sellingPrice = Number(vmInfo.vehicleModel.price);
+
+      // Apply formulas
+      let adjustedCostPrice = costPrice;
+      let adjustedSellingPrice = sellingPrice;
+
+      const formulaResults: any[] = [];
+
+      for (const formula of vmInfo.formulas) {
+        const value = Number(formula.value);
+        const target = formula.priceTarget;
+        const baseVal = target === 'COST_PRICE' ? adjustedCostPrice : adjustedSellingPrice;
+
+        let result: number;
+        switch (formula.operator) {
+          case 'ADD':
+            result = baseVal + value;
+            break;
+          case 'SUBTRACT':
+            result = baseVal - value;
+            break;
+          case 'MULTIPLY':
+            result = baseVal * value;
+            break;
+          case 'PERCENT':
+            result = baseVal + (baseVal * value) / 100;
+            break;
+          default:
+            result = baseVal;
+        }
+
+        if (target === 'COST_PRICE') {
+          adjustedCostPrice = result;
+        } else {
+          adjustedSellingPrice = result;
+        }
+
+        formulaResults.push({
+          formulaId: formula.id,
+          name: formula.name,
+          operator: formula.operator,
+          value: value,
+          priceTarget: formula.priceTarget,
+          sortOrder: formula.sortOrder,
+          resultValue: result,
+        });
+      }
+
+      const saleReportItem = {
+        saleId: sale.id,
+        saleNumber: sale.saleNumber,
+        saleType: sale.type,
+        saleStatus: sale.status,
+        customerName: sale.customer.name,
+        salesperson: `${sale.createdBy.firstName} ${sale.createdBy.lastName}`,
+        vin: sale.stock?.vin || '-',
+        engineNumber: sale.stock?.engineNumber || '-',
+        exteriorColor: sale.stock?.exteriorColor || '-',
+        saleDate: sale.createdAt,
+        soldDate: sale.stock?.soldDate || sale.completedDate,
+        totalAmount: Number(sale.totalAmount),
+        paymentMode: sale.paymentMode,
+        financeProvider: sale.financeProvider || '-',
+        // Price calculations
+        originalCostPrice: costPrice,
+        originalSellingPrice: sellingPrice,
+        adjustedCostPrice,
+        adjustedSellingPrice,
+        costPriceDiff: adjustedCostPrice - costPrice,
+        sellingPriceDiff: adjustedSellingPrice - sellingPrice,
+        formulaResults,
+      };
+
+      const group = groupedSales.get(vehicleModelId);
+      if (group) {
+        group.push(saleReportItem);
+      }
+    }
+
+    // Build report groups
+    const reportGroups = Array.from(vehicleModelMap.entries()).map(
+      ([vehicleModelId, vmInfo]) => {
+        const salesItems = groupedSales.get(vehicleModelId) || [];
+        return {
+          vehicleModelId,
+          vehicleModel: vmInfo.vehicleModel,
+          formulas: vmInfo.formulas.map((f) => ({
+            id: f.id,
+            name: f.name,
+            operator: f.operator,
+            value: Number(f.value),
+            priceTarget: f.priceTarget,
+            sortOrder: f.sortOrder,
+          })),
+          sales: salesItems,
+          totalSales: salesItems.length,
+          totalAmount: salesItems.reduce((sum, s) => sum + s.totalAmount, 0),
+        };
+      }
+    );
+
+    return {
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        description: campaign.description,
+        status: campaign.status,
+        startDate: campaign.startDate,
+        endDate: campaign.endDate,
+        notes: campaign.notes,
+        createdBy: campaign.createdBy,
+      },
+      vehicleModels: campaign.vehicleModels.map((vm) => ({
+        ...vm.vehicleModel,
+        formulaCount: vm.formulas.length,
+      })),
+      groups: reportGroups,
+      summary: {
+        totalVehicleModels: campaign.vehicleModels.length,
+        totalSales: sales.length,
+        totalAmount: sales.reduce((sum, s) => sum + Number(s.totalAmount), 0),
+      },
+    };
+  }
 }
 
 export const campaignsService = new CampaignsService();

@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { MainLayout } from '../../components/layout';
 import { campaignService } from '../../services/campaign.service';
-import { ArrowLeft, Edit, BarChart3, Calendar, Car, FileText } from 'lucide-react';
+import { FormulaManager } from '../../components/campaigns/FormulaManager';
+import { ArrowLeft, Edit, BarChart3, Calendar, Car, FileText, Printer } from 'lucide-react';
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -71,6 +72,13 @@ export const CampaignDetailPage: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-3">
+            <Link
+              to={`/campaigns/${id}/report`}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Printer className="w-5 h-5" />
+              พิมพ์รายงาน
+            </Link>
             <Link
               to={`/campaigns/${id}/analytics`}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -183,6 +191,27 @@ export const CampaignDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Formula Management */}
+            {campaign.vehicleModels.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  สูตรคำนวณราคา / คอมมิชชั่น
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  กำหนดสูตรคำนวณสำหรับแต่ละรุ่นรถยนต์ สามารถเพิ่ม +, -, ×, % และเรียงลำดับการคำนวณได้
+                </p>
+                <div className="space-y-4">
+                  {campaign.vehicleModels.map((model) => (
+                    <FormulaManager
+                      key={model.id}
+                      campaignId={id!}
+                      vehicleModel={model}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -217,6 +246,13 @@ export const CampaignDetailPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">การดำเนินการ</h2>
               <div className="space-y-3">
+                <Link
+                  to={`/campaigns/${id}/report`}
+                  className="flex items-center gap-2 w-full px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                >
+                  <Printer className="w-5 h-5" />
+                  พิมพ์รายงาน Campaign
+                </Link>
                 <Link
                   to={`/campaigns/${id}/analytics`}
                   className="flex items-center gap-2 w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
