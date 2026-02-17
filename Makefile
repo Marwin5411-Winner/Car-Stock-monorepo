@@ -1,4 +1,4 @@
-.PHONY: help build up down logs restart clean db-seed
+.PHONY: help build up down logs restart clean db-seed db-migrate db-studio shell-api shell-db logs-updater backup backups check-update update rollback shell-updater
 
 # Default target
 help:
@@ -17,6 +17,16 @@ help:
 	@echo "  logs-db      View Database logs"
 	@echo "  clean        Remove all containers, images, and volumes"
 	@echo "  db-seed      Seed the database"
+	@echo "  db-push      Sync database schema (prisma db push)"
+	@echo ""
+	@echo "Updater:"
+	@echo "  check-update   Check for available updates"
+	@echo "  update         Trigger system update"
+	@echo "  rollback       Trigger rollback to previous version"
+	@echo "  backup         Create a manual database backup"
+	@echo "  backups        List available backups"
+	@echo "  logs-updater   View updater logs"
+	@echo "  shell-updater  Shell into updater container"
 	@echo ""
 
 # Build all images
@@ -63,7 +73,11 @@ clean:
 db-seed:
 	docker compose exec api bunx prisma db seed
 
-# Run migrations manually
+# Sync database schema
+db-push:
+	docker compose exec api bunx prisma db push
+
+# Run migrations manually (legacy)
 db-migrate:
 	docker compose exec api bunx prisma migrate deploy
 
@@ -78,3 +92,33 @@ shell-api:
 # Shell into database
 shell-db:
 	docker compose exec postgres psql -U postgres -d car_stock
+
+# --- Updater Commands ---
+
+# View updater logs
+logs-updater:
+	docker compose --env-file .env.docker logs -f updater
+
+# Trigger a manual backup
+backup:
+	docker compose --env-file .env.docker exec updater /app/backup.sh manual
+
+# List backups
+backups:
+	docker compose --env-file .env.docker exec updater ls -lh /app/backups/
+
+# Check for updates
+check-update:
+	docker compose --env-file .env.docker exec updater /app/check.sh
+
+# Trigger update
+update:
+	docker compose --env-file .env.docker exec updater /app/update.sh
+
+# Trigger rollback
+rollback:
+	docker compose --env-file .env.docker exec updater /app/rollback.sh
+
+# Shell into updater container
+shell-updater:
+	docker compose --env-file .env.docker exec updater bash

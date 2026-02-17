@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MainLayout } from '../../components/layout';
 import { Save, Upload, Building } from 'lucide-react';
 import { settingsService } from '../../services/settings.service';
+import SystemUpdateSection from './SystemUpdateSection';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(false);
@@ -227,6 +228,11 @@ export default function SettingsPage() {
                     </button>
                 </div>
             </form>
+
+            {/* System Update Section - Admin Only */}
+            <div className="max-w-4xl mt-8">
+                <SystemUpdateSection />
+            </div>
         </MainLayout>
     );
 }

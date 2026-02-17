@@ -1,0 +1,2 @@
+# Daily backup at 17:00 (5 PM) Bangkok time
+0 17 * * * /app/backup.sh scheduled >> /app/logs/backup.log 2>&1

@@ -94,10 +94,23 @@ A comprehensive car sales management system for VBeyond Innovation Co., Ltd.
 | `make logs-db` | View Database logs only |
 | `make clean` | Remove all containers, images, and volumes |
 | `make db-seed` | Seed the database |
-| `make db-migrate` | Run database migrations |
+| `make db-push` | Sync database schema (prisma db push) |
+| `make db-migrate` | Run database migrations (legacy) |
 | `make monitoring` | Start services with pgAdmin |
 | `make shell-api` | Open shell in API container |
 | `make shell-db` | Open PostgreSQL shell |
+
+### System Update Commands
+
+| Command | Description |
+|---------|-------------|
+| `make check-update` | Check if updates are available |
+| `make update` | Trigger full update pipeline |
+| `make rollback` | Rollback to previous version |
+| `make backup` | Create a manual database backup |
+| `make backups` | List available database backups |
+| `make logs-updater` | View updater service logs |
+| `make shell-updater` | Open shell in updater container |
 
 ### Enable Database Monitoring (pgAdmin)
 
@@ -140,34 +153,85 @@ WEB_PORT=80
 PGADMIN_PORT=5050
 PGADMIN_EMAIL=admin@admin.com
 PGADMIN_PASSWORD=admin
+
+# System Updater Configuration
+UPDATE_BRANCH=main
+UPDATE_SECRET=change-this-to-a-random-secret
+PROJECT_PATH=.    # Absolute path to project on host (e.g. C:\projects\Car-Stock-monorepo on Windows)
 ```
 
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Docker Network                          │
-│                   (car-stock-network)                       │
-│                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │    web      │    │    api      │    │  postgres   │     │
-│  │   (nginx)   │───▶│  (bun/node) │───▶│ (database)  │     │
-│  │   :80       │    │   :3001     │    │   :5432     │     │
-│  └─────────────┘    └─────────────┘    └─────────────┘     │
-│        │                  │                   │             │
-│        │                  │                   │             │
-│  ┌─────────────┐                        ┌─────────────┐     │
-│  │  pgAdmin    │────────────────────────│  (optional) │     │
-│  │   :5050     │                        └─────────────┘     │
-│  └─────────────┘                                            │
-└─────────────────────────────────────────────────────────────┘
-        ▲                  ▲
-        │                  │
-   Exposed Ports      Exposed Port
-     80, 5050            3001
+┌──────────────────────────────────────────────────────────────────┐
+│                     Docker Network (car-stock-network)            │
+│                                                                   │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐  │
+│  │   web    │   │   api    │   │ postgres │   │   updater    │  │
+│  │ (nginx)  │──▶│(bun/node)│──▶│(database)│◀──│ (sidecar)    │  │
+│  │  :80     │   │  :3001   │   │  :5432   │   │  :9000       │  │
+│  └──────────┘   └─────┬────┘   └──────────┘   └──────┬───────┘  │
+│                       │                               │          │
+│                       │        HTTP (internal)        │          │
+│                       └───────────────────────────────┘          │
+│                                                                   │
+│  ┌──────────┐   ┌──────────┐                                     │
+│  │gotenberg │   │ pgAdmin  │ (optional)                          │
+│  │  :3000   │   │  :5050   │                                     │
+│  └──────────┘   └──────────┘                                     │
+└──────────────────────────────────────────────────────────────────┘
+       ▲               ▲
+       │               │
+  Exposed: 80     Exposed: 3001
+
+  Updater mounts: Docker socket + project source + shared status volume
 ```
 
-**Note:** PostgreSQL port 5432 is NOT exposed to the host. Only internal containers can access it.
+**Note:** PostgreSQL port 5432 is NOT exposed to the host. The updater container is internal-only (port 9000 not exposed).
+
+### Windows Server Deployment Notes
+
+On Windows Server with Docker Desktop (WSL2 backend):
+
+1. **Docker socket**: The default `/var/run/docker.sock` mount works with Docker Desktop's WSL2 integration. If using Windows containers or named pipes, change the volume mount to:
+   ```yaml
+   - //./pipe/docker_engine://./pipe/docker_engine
+   ```
+
+2. **PROJECT_PATH**: Set this to the absolute Windows path in `.env.docker`:
+   ```env
+   PROJECT_PATH=C:\Users\admin\Car-Stock-monorepo
+   ```
+
+3. **Line endings**: The `.gitattributes` file ensures all shell scripts use LF line endings. After cloning on Windows, run:
+   ```bash
+   git config core.autocrlf false
+   git checkout -- .
+   ```
+
+4. **Version tagging**: To create a new release from development:
+   ```bash
+   ./scripts/release.sh patch   # 1.0.0 → 1.0.1
+   ./scripts/release.sh minor   # 1.0.0 → 1.1.0
+   ./scripts/release.sh major   # 1.0.0 → 2.0.0
+   git push origin main --tags
+   ```
+
+### System Update Flow
+
+The admin-triggered update pipeline (Settings > System Update):
+
+1. **Pre-flight checks** — disk space, git status
+2. **Database backup** — `pg_dump` with gzip compression
+3. **Save rollback point** — records current git commit
+4. **Git pull** — fetches latest from `main` branch
+5. **Build containers** — rebuilds `api` and `web` images
+6. **Database schema sync** — `prisma db push` (refuses data-loss changes)
+7. **Restart services** — `docker compose up -d api web`
+8. **Health check** — verifies API and Web are responding (30s timeout)
+9. **Done** — or automatic rollback on any failure
+
+**Automatic backups**: Daily at 17:00 (Bangkok time), retaining the last 5 backups.
 
 ## 📁 Project Structure
 

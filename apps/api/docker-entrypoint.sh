@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "Running database migrations..."
-bunx prisma migrate deploy
+echo "Syncing database schema..."
+bunx prisma db push --skip-generate
 
 echo "Starting the application..."
 exec bun run dist/index.js

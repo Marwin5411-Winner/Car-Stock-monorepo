@@ -38,6 +38,10 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       GOTENBERG_URL: ${GOTENBERG_URL:-http://gotenberg:3000}
+      UPDATER_URL: http://updater:9000
+      UPDATE_SECRET: ${UPDATE_SECRET:-}
+    volumes:
+      - updater_status:/app/updater-status:ro
     networks:
       - car-stock-network
     depends_on:
@@ -69,6 +73,40 @@ services:
       timeout: 10s
       retries: 3
 
+  # System Updater Sidecar - manages git pull, rebuild, backup, rollback
+  updater:
+    build:
+      context: .
+      dockerfile: apps/updater/Dockerfile
+    container_name: car-stock-updater
+    restart: unless-stopped
+    environment:
+      PROJECT_PATH: /app/project
+      UPDATE_BRANCH: ${UPDATE_BRANCH:-main}
+      UPDATE_SECRET: ${UPDATE_SECRET:-}
+      UPDATER_PORT: 9000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-car_stock}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PROJECT_PATH:-.}:/app/project
+      - updater_backups:/app/backups
+      - updater_status:/app/status
+      - updater_logs:/app/logs
+    networks:
+      - car-stock-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   gotenberg:
     image: gotenberg/gotenberg:8
     container_name: car-stock-gotenberg
@@ -84,3 +122,6 @@ networks:
 
 volumes:
   postgres_data:
+  updater_backups:
+  updater_status:
+  updater_logs:
