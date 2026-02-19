@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { salesService, type CreateSaleData, type UpdateSaleData, type PaymentMode } from '../../services/sales.service';
+import { usePermission } from '../../hooks/usePermission';
 import { customerService, type Customer } from '../../services/customer.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
@@ -32,6 +33,11 @@ interface FormData {
   downPayment: number;
   financeAmount: number;
   financeProvider: string;
+  carDiscount: number;
+  downPaymentDiscount: number;
+  interestRate: number;
+  numberOfTerms: number;
+  monthlyInstallment: number;
   notes: string;
 }
 
@@ -39,6 +45,8 @@ export default function SalesFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+  const { hasPermission } = usePermission();
+  const canDiscount = hasPermission('SALE_DISCOUNT');
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -56,6 +64,11 @@ export default function SalesFormPage() {
     downPayment: 0,
     financeAmount: 0,
     financeProvider: '',
+    carDiscount: 0,
+    downPaymentDiscount: 0,
+    interestRate: 0,
+    numberOfTerms: 0,
+    monthlyInstallment: 0,
     notes: '',
   });
 
@@ -106,6 +119,11 @@ export default function SalesFormPage() {
         downPayment: sale.downPayment || 0,
         financeAmount: sale.financeAmount || 0,
         financeProvider: sale.financeProvider || '',
+        carDiscount: sale.carDiscount || 0,
+        downPaymentDiscount: sale.downPaymentDiscount || 0,
+        interestRate: sale.interestRate || 0,
+        numberOfTerms: sale.numberOfTerms || 0,
+        monthlyInstallment: sale.monthlyInstallment || 0,
         notes: sale.notes || '',
       });
       
@@ -227,6 +245,11 @@ export default function SalesFormPage() {
         downPayment: formData.downPayment || undefined,
         financeAmount: formData.financeAmount || undefined,
         financeProvider: formData.financeProvider || undefined,
+        carDiscount: formData.carDiscount || undefined,
+        downPaymentDiscount: formData.downPaymentDiscount || undefined,
+        interestRate: formData.interestRate || undefined,
+        numberOfTerms: formData.numberOfTerms || undefined,
+        monthlyInstallment: formData.monthlyInstallment || undefined,
         notes: formData.notes || undefined,
       };
 
@@ -431,51 +454,159 @@ export default function SalesFormPage() {
 
             {/* Finance Details */}
             {formData.paymentMode !== 'CASH' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">
-                    เงินดาวน์ (บาท)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.downPayment}
-                    onChange={(e) => setFormData({ ...formData, downPayment: parseFloat(e.target.value) || 0 })}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">
+                      เงินดาวน์ (บาท)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.downPayment}
+                      onChange={(e) => setFormData({ ...formData, downPayment: parseFloat(e.target.value) || 0 })}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">
+                      ยอดจัดไฟแนนซ์ (บาท)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.financeAmount}
+                      onChange={(e) => setFormData({ ...formData, financeAmount: parseFloat(e.target.value) || 0 })}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">
+                      บริษัทไฟแนนซ์ <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.financeProvider}
+                      onChange={(e) => setFormData({ ...formData, financeProvider: e.target.value })}
+                      placeholder="ชื่อบริษัทไฟแนนซ์"
+                      className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
+                        errors.financeProvider ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                    {errors.financeProvider && (
+                      <p className="text-red-500 text-sm mt-1">{errors.financeProvider}</p>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">
-                    ยอดไฟแนนซ์ (บาท)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.financeAmount}
-                    onChange={(e) => setFormData({ ...formData, financeAmount: parseFloat(e.target.value) || 0 })}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
-                </div>
+                {/* Discount fields - ADMIN/ACCOUNTANT only */}
+                {canDiscount && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="md:col-span-2">
+                      <p className="text-xs font-medium text-yellow-700 mb-2">ส่วนลด (สำหรับบัญชี/กรรมการ)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-1">
+                        ส่วนลดตัวรถ (บาท)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.carDiscount}
+                        onChange={(e) => setFormData({ ...formData, carDiscount: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-1">
+                        ส่วนลดเงินดาวน์ (บาท)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.downPaymentDiscount}
+                        onChange={(e) => setFormData({ ...formData, downPaymentDiscount: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                    </div>
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">
-                    บริษัทไฟแนนซ์ <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.financeProvider}
-                    onChange={(e) => setFormData({ ...formData, financeProvider: e.target.value })}
-                    placeholder="ชื่อบริษัทไฟแนนซ์"
-                    className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                      errors.financeProvider ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.financeProvider && (
-                    <p className="text-red-500 text-sm mt-1">{errors.financeProvider}</p>
-                  )}
+                {/* Interest rate and installment */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">
+                      อัตราดอกเบี้ย (% ต่อปี)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.interestRate}
+                      onChange={(e) => {
+                        const rate = parseFloat(e.target.value) || 0;
+                        const terms = formData.numberOfTerms;
+                        const finance = formData.financeAmount;
+                        let installment = formData.monthlyInstallment;
+                        if (rate > 0 && terms > 0 && finance > 0) {
+                          const years = terms / 12;
+                          const totalInterest = finance * (rate / 100) * years;
+                          installment = Math.round((finance + totalInterest) / terms);
+                        }
+                        setFormData({ ...formData, interestRate: rate, monthlyInstallment: installment });
+                      }}
+                      min="0"
+                      step="0.01"
+                      placeholder="เช่น 2.49"
+                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">
+                      จำนวนงวด (เดือน)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.numberOfTerms}
+                      onChange={(e) => {
+                        const terms = parseInt(e.target.value) || 0;
+                        const rate = formData.interestRate;
+                        const finance = formData.financeAmount;
+                        let installment = formData.monthlyInstallment;
+                        if (rate > 0 && terms > 0 && finance > 0) {
+                          const years = terms / 12;
+                          const totalInterest = finance * (rate / 100) * years;
+                          installment = Math.round((finance + totalInterest) / terms);
+                        }
+                        setFormData({ ...formData, numberOfTerms: terms, monthlyInstallment: installment });
+                      }}
+                      min="0"
+                      step="1"
+                      placeholder="เช่น 48"
+                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">
+                      ค่างวด/เดือน (บาท)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.monthlyInstallment}
+                      onChange={(e) => setFormData({ ...formData, monthlyInstallment: parseFloat(e.target.value) || 0 })}
+                      min="0"
+                      step="0.01"
+                      placeholder="คำนวณอัตโนมัติ"
+                      className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">คำนวณอัตโนมัติจากยอดจัด × ดอกเบี้ย × ปี ÷ งวด</p>
+                  </div>
                 </div>
               </div>
             )}

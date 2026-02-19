@@ -410,6 +410,11 @@ export const CreateSaleSchema = z.object({
   downPayment: z.number().optional(),
   financeAmount: z.number().optional(),
   financeProvider: z.string().optional(),
+  carDiscount: z.number().optional(),
+  downPaymentDiscount: z.number().optional(),
+  interestRate: z.number().optional(),
+  numberOfTerms: z.number().int().optional(),
+  monthlyInstallment: z.number().optional(),
   
   refundPolicy: RefundPolicySchema.default('FULL'),
   notes: z.string().optional(),

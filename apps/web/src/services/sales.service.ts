@@ -30,6 +30,7 @@ export interface Sale {
       brand: string;
       model: string;
       variant?: string;
+      price?: number;
     };
     exteriorColor?: string;
     interiorColor?: string;
@@ -62,6 +63,11 @@ export interface Sale {
   downPayment?: number;
   financeAmount?: number;
   financeProvider?: string;
+  carDiscount?: number;
+  downPaymentDiscount?: number;
+  interestRate?: number;
+  numberOfTerms?: number;
+  monthlyInstallment?: number;
   refundPolicy?: RefundPolicy;
   refundAmount?: number;
   notes?: string;
@@ -128,6 +134,11 @@ export interface CreateSaleData {
   downPayment?: number;
   financeAmount?: number;
   financeProvider?: string;
+  carDiscount?: number;
+  downPaymentDiscount?: number;
+  interestRate?: number;
+  numberOfTerms?: number;
+  monthlyInstallment?: number;
   refundPolicy?: RefundPolicy;
   notes?: string;
 }
@@ -149,6 +160,11 @@ export interface UpdateSaleData {
   downPayment?: number;
   financeAmount?: number;
   financeProvider?: string;
+  carDiscount?: number;
+  downPaymentDiscount?: number;
+  interestRate?: number;
+  numberOfTerms?: number;
+  monthlyInstallment?: number;
   refundPolicy?: RefundPolicy;
   notes?: string;
 }

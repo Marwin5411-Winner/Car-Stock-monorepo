@@ -156,6 +156,7 @@ export default function SalesDetailPage() {
   const canAssignStock = hasPermission('SALE_ASSIGN_STOCK');
   const canCreatePayment = hasPermission('PAYMENT_CREATE');
   const canUpdate = hasPermission('SALE_UPDATE');
+  const canDiscount = hasPermission('SALE_DISCOUNT');
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -700,16 +701,98 @@ export default function SalesDetailPage() {
             <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
             ข้อมูลการเงิน
           </h3>
-          <dl className="space-y-3">
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-700">ราคารถ</dt>
-              <dd className="text-sm font-medium">{formatCurrency(sale.totalAmount - sale.depositAmount)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-700">เงินมัดจำ</dt>
-              <dd className="text-sm font-medium">{formatCurrency(sale.depositAmount)}</dd>
-            </div>
-            <div className="flex justify-between border-t pt-2">
+
+          {/* Payment Mode Badge */}
+          <div className="mb-4 flex items-center gap-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {sale.paymentMode === 'CASH' ? 'เงินสด' : sale.paymentMode === 'FINANCE' ? 'ไฟแนนซ์' : 'ผสม'}
+            </span>
+            {sale.paymentMode !== 'CASH' && sale.financeProvider && (
+              <span className="text-sm text-gray-700">{sale.financeProvider}</span>
+            )}
+          </div>
+
+          <dl className="space-y-2">
+            {/* Car price from vehicle model */}
+            {(sale.stock?.vehicleModel?.price || sale.vehicleModel) && (
+              <div className="flex justify-between">
+                <dt className="text-sm text-gray-700">ราคารถ (ราคาตั้ง)</dt>
+                <dd className="text-sm font-medium">
+                  {formatCurrency(sale.stock?.vehicleModel?.price || 0)}
+                </dd>
+              </div>
+            )}
+
+            {/* Discounts - ADMIN/ACCOUNTANT only */}
+            {canDiscount && sale.carDiscount != null && sale.carDiscount > 0 && (
+              <div className="flex justify-between text-orange-700">
+                <dt className="text-sm">ส่วนลดตัวรถ</dt>
+                <dd className="text-sm font-medium">- {formatCurrency(sale.carDiscount)}</dd>
+              </div>
+            )}
+            {canDiscount && sale.downPaymentDiscount != null && sale.downPaymentDiscount > 0 && (
+              <div className="flex justify-between text-orange-700">
+                <dt className="text-sm">ส่วนลดเงินดาวน์</dt>
+                <dd className="text-sm font-medium">- {formatCurrency(sale.downPaymentDiscount)}</dd>
+              </div>
+            )}
+
+            {/* Deposit */}
+            {sale.depositAmount > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-sm text-gray-700">เงินมัดจำ</dt>
+                <dd className="text-sm font-medium">{formatCurrency(sale.depositAmount)}</dd>
+              </div>
+            )}
+
+            {/* Finance details */}
+            {sale.paymentMode !== 'CASH' && (
+              <>
+                {sale.downPayment != null && sale.downPayment > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-700">เงินดาวน์</dt>
+                    <dd className="text-sm font-medium">{formatCurrency(sale.downPayment)}</dd>
+                  </div>
+                )}
+                {sale.financeAmount != null && sale.financeAmount > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-700">ยอดจัดไฟแนนซ์</dt>
+                    <dd className="text-sm font-medium">{formatCurrency(sale.financeAmount)}</dd>
+                  </div>
+                )}
+                {sale.interestRate != null && sale.interestRate > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-700">อัตราดอกเบี้ย</dt>
+                    <dd className="text-sm font-medium">{sale.interestRate}% ต่อปี</dd>
+                  </div>
+                )}
+                {sale.monthlyInstallment != null && sale.monthlyInstallment > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-700">ค่างวด</dt>
+                    <dd className="text-sm font-medium">
+                      {formatCurrency(sale.monthlyInstallment)}
+                      {sale.numberOfTerms ? ` × ${sale.numberOfTerms} งวด` : ''}
+                    </dd>
+                  </div>
+                )}
+
+                {/* Finance Commission - ADMIN/ACCOUNTANT only */}
+                {canDiscount && sale.financeAmount != null && sale.financeAmount > 0 && sale.interestRate != null && sale.interestRate > 0 && sale.numberOfTerms != null && sale.numberOfTerms > 0 && (() => {
+                  const years = sale.numberOfTerms / 12;
+                  const cappedYears = Math.min(years, 5);
+                  const commission = (sale.financeAmount / 1.07) * (sale.interestRate / 100) * cappedYears * 0.08;
+                  return (
+                    <div className="flex justify-between text-green-700 bg-green-50 px-2 py-1 rounded">
+                      <dt className="text-sm font-medium">ค่าคอมไฟแนนซ์ 8%</dt>
+                      <dd className="text-sm font-semibold">{formatCurrency(commission)}</dd>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+
+            {/* Totals */}
+            <div className="flex justify-between border-t pt-2 mt-2">
               <dt className="text-sm text-gray-700">ยอดรวม</dt>
               <dd className="text-sm font-semibold">{formatCurrency(sale.totalAmount)}</dd>
             </div>
@@ -724,19 +807,6 @@ export default function SalesDetailPage() {
               </dd>
             </div>
           </dl>
-
-          {/* Payment Mode */}
-          <div className="mt-4 pt-4 border-t">
-            <p className="text-sm text-gray-700 mb-2">รูปแบบการชำระ</p>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {sale.paymentMode === 'CASH' ? 'เงินสด' : sale.paymentMode === 'FINANCE' ? 'ไฟแนนซ์' : 'ผสม'}
-            </span>
-            {sale.paymentMode !== 'CASH' && sale.financeProvider && (
-              <p className="text-sm text-gray-700 mt-2">
-                ไฟแนนซ์: {sale.financeProvider}
-              </p>
-            )}
-          </div>
         </div>
 
         {/* Dates Info */}

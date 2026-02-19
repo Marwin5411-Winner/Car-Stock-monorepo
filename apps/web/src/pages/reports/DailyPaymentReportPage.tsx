@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Banknote, Receipt, CreditCard, Wallet, FileText } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
   DateRangeFilter,
-  SummaryCard,
-  SummaryCardsGrid,
-  ReportBarChart,
-  ReportPieChart,
   ReportTable,
   ExportButton,
   PrintButton,
@@ -161,72 +157,68 @@ export default function DailyPaymentReportPage() {
       )}
 
       <div id="report-content">
-        {/* Summary Cards */}
         {data && (
           <>
-            <SummaryCardsGrid>
-              <SummaryCard
-                title="ยอดรับรวม"
-                value={formatCurrency(data.summary.totalAmount)}
-                subtitle={`${data.summary.totalCount} รายการ`}
-                icon={Banknote}
-                iconColor="text-green-600"
-                iconBgColor="bg-green-100"
-              />
-              {data.summary.byMethod.map((method) => {
-                const icons: Record<string, typeof CreditCard> = {
-                  CASH: Wallet,
-                  BANK_TRANSFER: Receipt,
-                  CREDIT_CARD: CreditCard,
-                  CHEQUE: Receipt,
-                };
-                const Icon = icons[method.method] || Receipt;
-                return (
-                  <SummaryCard
-                    key={method.method}
-                    title={method.label}
-                    value={formatCurrency(method.amount)}
-                    subtitle={`${method.count} รายการ`}
-                    icon={Icon}
-                    iconColor="text-blue-600"
-                    iconBgColor="bg-blue-100"
-                  />
-                );
-              })}
-            </SummaryCardsGrid>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">ยอดรับเงินรายวัน</h3>
-                <ReportBarChart
-                  data={data.chartData}
-                  xKey="date"
-                  yKey="amount"
-                  yKeyLabels={['ยอดเงิน']}
-                  height={300}
-                  className="border-0 shadow-none p-0"
-                />
+            {/* Method Breakdown Summary Table */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
+              <div className="px-6 py-4 border-b bg-gray-50">
+                <h3 className="text-base font-semibold text-gray-900">สรุปยอดรับเงินแยกตามวิธีชำระ</h3>
               </div>
-
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">สัดส่วนตามวิธีชำระ</h3>
-                <ReportPieChart
-                  data={data.summary.byMethod.map((m) => ({
-                    name: m.label,
-                    value: m.amount,
-                  }))}
-                  nameKey="name"
-                  valueKey="value"
-                  height={300}
-                  className="border-0 shadow-none p-0"
-                />
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วิธีชำระ</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวนรายการ</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดเงิน (บาท)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {(() => {
+                      const methodOrder = ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT_CARD'];
+                      const methodLabels: Record<string, string> = {
+                        CASH: 'เงินสด',
+                        BANK_TRANSFER: 'เงินโอน',
+                        CHEQUE: 'เช็ค',
+                        CREDIT_CARD: 'บัตรเครดิต',
+                      };
+                      const methodColors: Record<string, string> = {
+                        CASH: 'text-green-700 bg-green-50',
+                        BANK_TRANSFER: 'text-blue-700 bg-blue-50',
+                        CHEQUE: 'text-purple-700 bg-purple-50',
+                        CREDIT_CARD: 'text-orange-700 bg-orange-50',
+                      };
+                      const rows = methodOrder.map((method) => {
+                        const found = data.summary.byMethod.find((m) => m.method === method);
+                        return { method, label: methodLabels[method] || method, count: found?.count || 0, amount: found?.amount || 0 };
+                      });
+                      return rows.map((row) => (
+                        <tr key={row.method} className={row.amount > 0 ? '' : 'opacity-40'}>
+                          <td className="px-6 py-3 text-sm">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${methodColors[row.method] || 'text-gray-700 bg-gray-100'}`}>
+                              {row.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 text-sm text-right text-gray-700">{row.count} รายการ</td>
+                          <td className="px-6 py-3 text-sm text-right font-medium">{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                    <tr>
+                      <td className="px-6 py-3 text-sm font-bold text-gray-900">ยอดรวมทั้งหมด</td>
+                      <td className="px-6 py-3 text-sm text-right font-bold text-gray-900">{data.summary.totalCount} รายการ</td>
+                      <td className="px-6 py-3 text-sm text-right font-bold text-gray-900">{formatCurrency(data.summary.totalAmount)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
 
-            {/* Table */}
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">รายละเอียดการรับเงิน</h3>
+            {/* Detail Table */}
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 mb-4">รายละเอียดการรับเงิน</h3>
               <ReportTable
                 columns={columns}
                 data={data.payments}

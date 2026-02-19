@@ -221,6 +221,11 @@ model Sale {
   downPayment            Decimal?      @map("down_payment") @db.Decimal(15, 2)
   financeAmount          Decimal?      @map("finance_amount") @db.Decimal(15, 2)
   financeProvider        String?       @map("finance_provider")
+  carDiscount            Decimal?      @map("car_discount") @db.Decimal(15, 2)
+  downPaymentDiscount    Decimal?      @map("down_payment_discount") @db.Decimal(15, 2)
+  interestRate           Decimal?      @map("interest_rate") @db.Decimal(5, 4)
+  numberOfTerms          Int?          @map("number_of_terms")
+  monthlyInstallment     Decimal?      @map("monthly_installment") @db.Decimal(15, 2)
   refundPolicy           RefundPolicy  @default(FULL) @map("refund_policy")
   refundAmount           Decimal?      @map("refund_amount") @db.Decimal(15, 2)
   notes                  String?
