@@ -80,6 +80,7 @@ export default function SystemUpdateSection() {
   const [confirmRollback, setConfirmRollback] = useState(false);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number>(0);
 
   // Fetch version on mount
   useEffect(() => {
@@ -120,8 +121,19 @@ export default function SystemUpdateSection() {
   };
 
   const startPolling = useCallback(() => {
+    const MAX_POLL_DURATION = 10 * 60 * 1000; // 10 minutes
     if (pollingRef.current) clearInterval(pollingRef.current);
+    pollStartRef.current = Date.now();
     pollingRef.current = setInterval(async () => {
+      // Timeout protection — stop polling after 10 minutes
+      if (Date.now() - pollStartRef.current > MAX_POLL_DURATION) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        setUpdating(false);
+        setRollingBack(false);
+        setError('Update status polling timed out after 10 minutes. Check server logs.');
+        return;
+      }
       try {
         const res = await systemService.getUpdateStatus();
         if (res.success && res.data) {

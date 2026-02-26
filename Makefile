@@ -111,7 +111,7 @@ backups:
 check-update:
 	docker compose --env-file .env.docker exec updater /app/check.sh
 
-# Trigger update
+# Trigger update (update.sh has built-in lock protection against concurrent runs)
 update:
 	docker compose --env-file .env.docker exec updater /app/update.sh
 

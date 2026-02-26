@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # Manual Rollback Script
 # Usage: ./rollback.sh [commit_hash] [backup_file]
@@ -58,7 +58,7 @@ main() {
   # Determine target commit
   if [ -z "$TARGET_COMMIT" ]; then
     # Default: go back one commit
-    TARGET_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || "")
+    TARGET_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
     if [ -z "$TARGET_COMMIT" ]; then
       log "ERROR: Cannot determine rollback target. No previous commit found."
       write_status "Rollback failed" "error" "No previous commit found"
@@ -71,15 +71,16 @@ main() {
   # Determine backup file
   if [ -z "$BACKUP_FILE" ]; then
     # Use the latest backup
-    BACKUP_FILE=$(ls -1t "$BACKUP_DIR"/car-stock_*.sql.gz 2>/dev/null | head -1 || echo "")
+    BACKUP_FILE=$(ls -1t "$BACKUP_DIR"/car-stock_*.dump 2>/dev/null | head -1 || echo "")
   fi
 
-  # Step 1: Restore git state
+  # Step 1: Restore git state (stay on branch to avoid detached HEAD)
   log "Step 1: Restoring git to $TARGET_COMMIT"
   git fetch origin "$BRANCH" 2>>"$LOG_FILE" || true
-  git checkout "$TARGET_COMMIT" 2>>"$LOG_FILE" || {
-    log "ERROR: git checkout failed"
-    write_status "Rollback failed" "error" "Git checkout failed"
+  git checkout "$BRANCH" 2>>"$LOG_FILE" || true
+  git reset --hard "$TARGET_COMMIT" 2>>"$LOG_FILE" || {
+    log "ERROR: git reset to $TARGET_COMMIT failed"
+    write_status "Rollback failed" "error" "Git reset failed"
     exit 1
   }
 
@@ -94,7 +95,7 @@ main() {
       -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" 2>>"$LOG_FILE" || true
     psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
       -c "CREATE DATABASE \"$DB_NAME\";" 2>>"$LOG_FILE" || true
-    gunzip -c "$BACKUP_FILE" | pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges 2>>"$LOG_FILE" || true
+    pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$BACKUP_FILE" 2>>"$LOG_FILE" || true
 
     log "Database restored"
   else

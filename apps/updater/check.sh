@@ -45,10 +45,11 @@ if [ "$CURRENT_COMMIT" != "$REMOTE_COMMIT" ]; then
   HAS_UPDATE="true"
 fi
 
-# Get changelog (commits between current and remote)
+# Get changelog (commits between current and remote) — use jq for safe JSON construction
 CHANGELOG="[]"
 if [ "$HAS_UPDATE" = "true" ]; then
-  CHANGELOG=$(git log --oneline --format='{"hash":"%h","message":"%s","author":"%an","date":"%ci"}' "$CURRENT_COMMIT..$REMOTE_COMMIT" 2>/dev/null | jq -s '.' 2>/dev/null || echo "[]")
+  CHANGELOG=$(git log --format='%h%x00%s%x00%an%x00%ci' "$CURRENT_COMMIT..$REMOTE_COMMIT" 2>/dev/null | \
+    jq -R -s 'split("\n") | map(select(. != "") | split("\u0000") | {hash:.[0], message:.[1], author:.[2], date:.[3]})' 2>/dev/null || echo "[]")
 fi
 
 # Get commit count

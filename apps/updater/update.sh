@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # Update Pipeline Script
 # Performs: backup → git pull → build → db push → restart → health check
@@ -20,6 +20,9 @@ DB_HOST="${POSTGRES_HOST:-postgres}"
 DB_PORT="${POSTGRES_PORT:-5432}"
 DB_USER="${POSTGRES_USER:-postgres}"
 DB_NAME="${POSTGRES_DB:-car_stock}"
+
+# Lock file for concurrent update protection
+UPDATE_LOCK="/tmp/update.lock"
 
 # Track state for rollback
 ROLLBACK_COMMIT=""
@@ -57,17 +60,18 @@ log() {
 # --- Rollback Function ---
 
 rollback() {
+  trap - ERR  # Prevent recursive rollback on errors during rollback
   local reason="$1"
   log "🔄 ROLLBACK triggered: $reason"
   write_status 0 9 "Rolling back" "rolling_back" "$reason"
 
   cd "$PROJECT_DIR"
 
-  # Restore git state
+  # Restore git state (stay on branch to avoid detached HEAD)
   if [ -n "$ROLLBACK_COMMIT" ]; then
     log "Restoring git to commit: $ROLLBACK_COMMIT"
-    git checkout "$ROLLBACK_COMMIT" -- . 2>>"$LOG_FILE" || true
-    git checkout "$ROLLBACK_COMMIT" 2>>"$LOG_FILE" || true
+    git reset --hard "$ROLLBACK_COMMIT" 2>>"$LOG_FILE" || true
+    git checkout "$BRANCH" 2>>"$LOG_FILE" || true
   fi
 
   # Restore database if it was modified
@@ -81,7 +85,7 @@ rollback() {
       -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" 2>>"$LOG_FILE" || true
     psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
       -c "CREATE DATABASE \"$DB_NAME\";" 2>>"$LOG_FILE" || true
-    gunzip -c "$BACKUP_FILE" | pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges 2>>"$LOG_FILE" || true
+    pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$BACKUP_FILE" 2>>"$LOG_FILE" || true
     log "Database restored successfully"
   fi
 
@@ -103,6 +107,29 @@ rollback() {
 main() {
   UPDATE_STARTED_AT="$(date -Iseconds)"
   mkdir -p "$STATUS_DIR" "$BACKUP_DIR" "$(dirname "$LOG_FILE")"
+
+  # Concurrent update protection (guards against direct invocation via Makefile)
+  if [ -f "$UPDATE_LOCK" ]; then
+    local lock_pid
+    lock_pid=$(cat "$UPDATE_LOCK" 2>/dev/null)
+    if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
+      # Allow if lock holder is our parent (called via server.sh subshell)
+      if [ "$lock_pid" != "$PPID" ]; then
+        echo "ERROR: Another update is already running (PID: $lock_pid)" >&2
+        exit 1
+      fi
+    else
+      rm -f "$UPDATE_LOCK"
+    fi
+  fi
+  # Create lock if not already held (direct invocation)
+  if [ ! -f "$UPDATE_LOCK" ]; then
+    echo $$ > "$UPDATE_LOCK"
+    trap 'rm -f "$UPDATE_LOCK"' EXIT
+  fi
+
+  # Trap unexpected errors to trigger rollback
+  trap 'rollback "Unexpected error at line $LINENO"' ERR
 
   log "=========================================="
   log "🚀 Starting update pipeline"
@@ -220,7 +247,8 @@ main() {
     rollback "Health check failed after 30 seconds"
   fi
 
-  # Step 9: Done
+  # Step 9: Done — clear ERR trap since update succeeded
+  trap - ERR
   write_status 9 9 "Update complete" "success" "Successfully updated to $NEW_COMMIT"
   log "=========================================="
   log "✅ Update completed successfully!"
@@ -228,7 +256,7 @@ main() {
   log "   To:   $NEW_COMMIT ($NEW_TAG)"
   log "=========================================="
 
-  # Clean up old Docker images
+  # Clean up old Docker images (non-fatal)
   docker image prune -f 2>/dev/null || true
 }
 

@@ -66,7 +66,13 @@ handle_request() {
     body=$(dd bs=1 count="$content_length" 2>/dev/null)
   fi
 
-  # Check authentication
+  # Skip auth for health endpoint (needed by Docker healthcheck)
+  if [ "$method $path" = "GET /health" ]; then
+    send_response 200 '{"status": "ok", "service": "updater"}'
+    return
+  fi
+
+  # Check authentication (all other endpoints)
   if ! check_auth "$auth_header"; then
     send_response 401 '{"error": "Unauthorized", "message": "Invalid or missing UPDATE_SECRET"}'
     return
@@ -74,9 +80,6 @@ handle_request() {
 
   # Route requests
   case "$method $path" in
-    "GET /health")
-      send_response 200 '{"status": "ok", "service": "updater"}'
-      ;;
 
     "GET /check")
       handle_check
@@ -162,7 +165,7 @@ handle_update() {
   # Start update in background
   log "Starting update pipeline..."
   (
-    echo $$ > "$UPDATE_LOCK"
+    echo $BASHPID > "$UPDATE_LOCK"
     /app/update.sh
     rm -f "$UPDATE_LOCK"
   ) &
@@ -200,9 +203,15 @@ handle_rollback() {
     backup_file=$(echo "$body" | jq -r '.backupFile // empty' 2>/dev/null || echo "")
   fi
 
+  # Validate backup file path (defense-in-depth)
+  if [ -n "$backup_file" ] && [[ "$backup_file" != /app/backups/* ]]; then
+    send_response 400 '{"error": "Invalid backup file path"}'
+    return
+  fi
+
   log "Starting manual rollback... commit=$target_commit backup=$backup_file"
   (
-    echo $$ > "$UPDATE_LOCK"
+    echo $BASHPID > "$UPDATE_LOCK"
     /app/rollback.sh "$target_commit" "$backup_file"
     rm -f "$UPDATE_LOCK"
   ) &
@@ -213,7 +222,7 @@ handle_rollback() {
 handle_backups() {
   local backups="[]"
   if [ -d "$BACKUP_DIR" ]; then
-    backups=$(ls -1t "$BACKUP_DIR"/car-stock_*.sql.gz 2>/dev/null | while read -r f; do
+    backups=$(ls -1t "$BACKUP_DIR"/car-stock_*.dump 2>/dev/null | while read -r f; do
       local filename=$(basename "$f")
       local size=$(du -h "$f" | cut -f1)
       local modified=$(stat -c '%Y' "$f" 2>/dev/null || stat -f '%m' "$f" 2>/dev/null || echo "0")
