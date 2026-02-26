@@ -5,6 +5,60 @@ import { authService } from '../auth/auth.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
 
+const toNumber = (val: Decimal | number | null | undefined): number => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return val;
+  return Number(val);
+};
+
+const toNumberOrNull = (val: Decimal | number | null | undefined): number | null => {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return val;
+  return Number(val);
+};
+
+/**
+ * Convert Prisma Decimal fields to plain numbers for JSON serialization
+ */
+function serializeSale(sale: any): any {
+  return {
+    ...sale,
+    totalAmount: toNumber(sale.totalAmount),
+    depositAmount: toNumber(sale.depositAmount),
+    paidAmount: toNumber(sale.paidAmount),
+    remainingAmount: toNumber(sale.remainingAmount),
+    downPayment: toNumberOrNull(sale.downPayment),
+    financeAmount: toNumberOrNull(sale.financeAmount),
+    carDiscount: toNumberOrNull(sale.carDiscount),
+    downPaymentDiscount: toNumberOrNull(sale.downPaymentDiscount),
+    interestRate: toNumberOrNull(sale.interestRate),
+    monthlyInstallment: toNumberOrNull(sale.monthlyInstallment),
+    discountSnapshot: toNumberOrNull(sale.discountSnapshot),
+    refundAmount: toNumberOrNull(sale.refundAmount),
+    ...(sale.stock?.vehicleModel?.price != null && {
+      stock: {
+        ...sale.stock,
+        vehicleModel: {
+          ...sale.stock.vehicleModel,
+          price: toNumber(sale.stock.vehicleModel.price),
+        },
+      },
+    }),
+    ...(sale.payments && {
+      payments: sale.payments.map((p: any) => ({
+        ...p,
+        amount: toNumber(p.amount),
+      })),
+    }),
+    ...(sale.quotation && Array.isArray(sale.quotation) && {
+      quotation: sale.quotation.map((q: any) => ({
+        ...q,
+        quotedPrice: toNumber(q.quotedPrice),
+      })),
+    }),
+  };
+}
+
 export class SalesService {
   /**
    * Generate sale number
@@ -132,7 +186,7 @@ export class SalesService {
     ]);
 
     return {
-      data: sales,
+      data: sales.map(serializeSale),
       meta: {
         total,
         page: validated.page,
@@ -219,7 +273,7 @@ export class SalesService {
       throw new NotFoundError('Sale');
     }
 
-    return sale;
+    return serializeSale(sale);
   }
 
   /**

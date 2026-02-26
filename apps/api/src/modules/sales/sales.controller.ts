@@ -194,7 +194,27 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
     '/:id',
     async ({ params, body, set, requester }) => {
       try {
-        const sale = await salesService.updateSale(params.id, body, requester);
+        const safeParseFloat = (value: unknown): number => {
+          if (typeof value !== 'string') return value as number;
+          const parsed = parseFloat(value);
+          if (isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
+          return parsed;
+        };
+
+        const processedBody = {
+          ...body,
+          totalAmount: body.totalAmount !== undefined ? safeParseFloat(body.totalAmount) : undefined,
+          depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : undefined,
+          discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : undefined,
+          downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : undefined,
+          financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : undefined,
+          carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : undefined,
+          downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : undefined,
+          interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : undefined,
+          monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : undefined,
+        };
+
+        const sale = await salesService.updateSale(params.id, processedBody, requester);
         set.status = 200;
         return {
           success: true,
@@ -218,22 +238,22 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         vehicleModelId: t.Optional(t.String()),
         preferredExtColor: t.Optional(t.String()),
         preferredIntColor: t.Optional(t.String()),
-        totalAmount: t.Optional(t.Number()),
-        depositAmount: t.Optional(t.Number()),
+        totalAmount: t.Optional(t.Union([t.String(), t.Number()])),
+        depositAmount: t.Optional(t.Union([t.String(), t.Number()])),
         expirationDate: t.Optional(t.Date()),
         hasExpiration: t.Optional(t.Boolean()),
         campaignId: t.Optional(t.String()),
-        discountSnapshot: t.Optional(t.Number()),
+        discountSnapshot: t.Optional(t.Union([t.String(), t.Number()])),
         freebiesSnapshot: t.Optional(t.String()),
         paymentMode: t.Optional(t.Union([t.Literal('CASH'), t.Literal('FINANCE'), t.Literal('MIXED')])),
-        downPayment: t.Optional(t.Number()),
-        financeAmount: t.Optional(t.Number()),
+        downPayment: t.Optional(t.Union([t.String(), t.Number()])),
+        financeAmount: t.Optional(t.Union([t.String(), t.Number()])),
         financeProvider: t.Optional(t.String()),
-        carDiscount: t.Optional(t.Number()),
-        downPaymentDiscount: t.Optional(t.Number()),
-        interestRate: t.Optional(t.Number()),
+        carDiscount: t.Optional(t.Union([t.String(), t.Number()])),
+        downPaymentDiscount: t.Optional(t.Union([t.String(), t.Number()])),
+        interestRate: t.Optional(t.Union([t.String(), t.Number()])),
         numberOfTerms: t.Optional(t.Number()),
-        monthlyInstallment: t.Optional(t.Number()),
+        monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),
         refundPolicy: t.Optional(t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])),
         notes: t.Optional(t.String()),
       }),
