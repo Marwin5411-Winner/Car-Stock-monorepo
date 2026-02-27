@@ -284,6 +284,7 @@ export class StockService {
         interestStoppedAt: true,
         debtStatus: true,
         soldDate: true,
+        expectedSalePrice: true,
         actualSalePrice: true,
         deliveryNotes: true,
         notes: true,
