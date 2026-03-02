@@ -4,6 +4,7 @@ import { swagger } from '@elysiajs/swagger';
 import { jwt } from '@elysiajs/jwt';
 import { db } from './lib/db';
 import { AppError, handlePrismaError, isAppError, isPrismaError } from './lib/errors';
+import { logger } from './lib/logger';
 
 // Import routes
 import { authRoutes } from './modules/auth/auth.controller';
@@ -113,9 +114,24 @@ const app = new Elysia()
       .use(systemRoutes)
       // .use(documentRoutes)
   )
+  // Request logging
+  .onRequest(({ request, store }) => {
+    (store as any).startTime = Date.now();
+    logger.debug({ method: request.method, url: request.url }, 'Incoming request');
+  })
+  .onAfterResponse(({ request, set, store }) => {
+    const duration = Date.now() - ((store as any).startTime || Date.now());
+    const url = new URL(request.url);
+    logger.info({
+      method: request.method,
+      path: url.pathname,
+      status: set.status || 200,
+      duration,
+    }, `${request.method} ${url.pathname} ${set.status || 200} ${duration}ms`);
+  })
   // Error handling
   .onError(({ code, error, set }) => {
-    console.error(`Error [${code}]:`, error);
+    logger.error({ code, err: error, stack: error instanceof Error ? error.stack : undefined }, `Error [${code}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
     // Handle AppError (custom application errors)
     if (isAppError(error)) {
@@ -195,5 +211,6 @@ console.log(`
 📚 Docs:    http://${app.server?.hostname}:${app.server?.port}/docs
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
+logger.info({ port: app.server?.port }, 'VBeyond Car Sales API started');
 
 export type App = typeof app;

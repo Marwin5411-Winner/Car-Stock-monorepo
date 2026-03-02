@@ -21,10 +21,14 @@ import {
   Plus,
   Banknote,
 } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 export default function InterestDetailPage() {
   const { stockId } = useParams<{ stockId: string }>();
   const navigate = useNavigate();
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
   const [detail, setDetail] = useState<InterestDetail | null>(null);
   const [debtSummary, setDebtSummary] = useState<DebtSummary | null>(null);
   const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
@@ -42,30 +46,27 @@ export default function InterestDetailPage() {
   }, [stockId]);
 
   const fetchDetail = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await interestService.getById(stockId!);
-      setDetail(data);
-    } catch (err) {
-      console.error('Error fetching interest detail:', err);
+    setLoading(true);
+    setError(null);
+    const result = await executeQuery(
+      interestService.getById(stockId!).then(data => setDetail(data))
+    );
+    if (!result) {
       setError('ไม่สามารถโหลดข้อมูลได้');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const fetchDebtData = async () => {
-    try {
-      const [summary, payments] = await Promise.all([
+    await executeQuery(
+      Promise.all([
         interestService.getDebtSummary(stockId!),
         interestService.getDebtPayments(stockId!),
-      ]);
-      setDebtSummary(summary);
-      setDebtPayments(payments);
-    } catch (err) {
-      console.error('Error fetching debt data:', err);
-    }
+      ]).then(([summary, payments]) => {
+        setDebtSummary(summary);
+        setDebtPayments(payments);
+      })
+    );
   };
 
   const handleDebtPayment = async (data: {
@@ -80,11 +81,11 @@ export default function InterestDetailPage() {
 
     // Show success message
     if (result.debtPaidOff) {
-      alert('🎉 ปิดหนี้เรียบร้อยแล้ว! ระบบหยุดคิดดอกเบี้ยอัตโนมัติ');
+      addToast('ปิดหนี้เรียบร้อยแล้ว! ระบบหยุดคิดดอกเบี้ยอัตโนมัติ', 'success');
     } else if (result.interestAdjusted) {
-      alert('บันทึกการจ่ายเงินเรียบร้อย ดอกเบี้ยจะคิดจากยอดหนี้คงเหลือใหม่');
+      addToast('บันทึกการจ่ายเงินเรียบร้อย ดอกเบี้ยจะคิดจากยอดหนี้คงเหลือใหม่', 'success');
     } else {
-      alert('บันทึกการจ่ายเงินเรียบร้อยแล้ว');
+      addToast('บันทึกการจ่ายเงินเรียบร้อยแล้ว', 'success');
     }
 
     // Refresh data
@@ -96,16 +97,14 @@ export default function InterestDetailPage() {
       return;
     }
 
-    try {
-      setActionLoading(true);
-      await interestService.stopCalculation(stockId!, 'Stopped by user');
+    setActionLoading(true);
+    const result = await executeQuery(
+      interestService.stopCalculation(stockId!, 'Stopped by user')
+    );
+    if (result) {
       await fetchDetail();
-    } catch (err) {
-      console.error('Error stopping calculation:', err);
-      alert('ไม่สามารถหยุดคิดดอกเบี้ยได้');
-    } finally {
-      setActionLoading(false);
     }
+    setActionLoading(false);
   };
 
   const formatCurrency = (amount: number) => {

@@ -9,44 +9,35 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const page = query.page ? parseInt(query.page) : 1;
-        const limit = query.limit ? parseInt(query.limit) : 20;
-        const isCalculating = query.isCalculating === 'true' ? true : 
-                              query.isCalculating === 'false' ? false : undefined;
-
-        const result = await interestService.getAllStockInterest({
-          page,
-          limit,
-          search: query.search,
-          status: query.status as any,
-          isCalculating,
-        });
-
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch interest data',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const page = query.page ? parseInt(query.page) : 1;
+      const limit = query.limit ? parseInt(query.limit) : 20;
+      const isCalculating = query.isCalculating === 'true' ? true :
+                            query.isCalculating === 'false' ? false : undefined;
+
+      const result = await interestService.getAllStockInterest({
+        page,
+        limit,
+        search: query.search,
+        status: query.status as any,
+        isCalculating,
+      });
+
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -75,31 +66,22 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/stats',
     async ({ set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const stats = await interestService.getInterestStats();
-        set.status = 200;
-        return {
-          success: true,
-          data: stats,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch interest stats',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const stats = await interestService.getInterestStats();
+      set.status = 200;
+      return {
+        success: true,
+        data: stats,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -114,32 +96,22 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/:stockId',
     async ({ params, set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const result = await interestService.getStockInterestDetail(params.stockId);
-        set.status = 200;
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message === 'Stock not found' ? 404 : 500;
-        set.status = status;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch interest detail',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const result = await interestService.getStockInterestDetail(params.stockId);
+      set.status = 200;
+      return {
+        success: true,
+        data: result,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -157,43 +129,33 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .post(
     '/:stockId/initialize',
     async ({ params, body, set, requester }) => {
-      try {
-        // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
-        if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const result = await interestService.initializeInterestPeriod(
-          params.stockId,
-          {
-            annualRate: body.annualRate,
-            principalBase: body.principalBase as any,
-            startDate: body.startDate ? new Date(body.startDate) : undefined,
-            notes: body.notes,
-          },
-          requester!.userId
-        );
-
-        set.status = 201;
-        return {
-          success: true,
-          data: result,
-          message: 'Interest period initialized successfully',
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message.includes('not found') ? 404 : 400;
-        set.status = status;
+      // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to initialize interest period',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const result = await interestService.initializeInterestPeriod(
+        params.stockId,
+        {
+          annualRate: body.annualRate,
+          principalBase: body.principalBase as any,
+          startDate: body.startDate ? new Date(body.startDate) : undefined,
+          notes: body.notes,
+        },
+        requester!.userId
+      );
+
+      set.status = 201;
+      return {
+        success: true,
+        data: result,
+        message: 'Interest period initialized successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -217,43 +179,33 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .put(
     '/:stockId',
     async ({ params, body, set, requester }) => {
-      try {
-        // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
-        if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const result = await interestService.updateInterestRate(
-          params.stockId,
-          {
-            annualRate: body.annualRate,
-            principalBase: body.principalBase as any,
-            effectiveDate: body.effectiveDate ? new Date(body.effectiveDate) : undefined,
-            notes: body.notes,
-          },
-          requester!.userId
-        );
-
-        set.status = 200;
-        return {
-          success: true,
-          data: result,
-          message: 'Interest rate updated successfully',
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message.includes('not found') ? 404 : 400;
-        set.status = status;
+      // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to update interest rate',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const result = await interestService.updateInterestRate(
+        params.stockId,
+        {
+          annualRate: body.annualRate,
+          principalBase: body.principalBase as any,
+          effectiveDate: body.effectiveDate ? new Date(body.effectiveDate) : undefined,
+          notes: body.notes,
+        },
+        requester!.userId
+      );
+
+      set.status = 200;
+      return {
+        success: true,
+        data: result,
+        message: 'Interest rate updated successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -277,37 +229,27 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .post(
     '/:stockId/stop',
     async ({ params, body, set, requester }) => {
-      try {
-        // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
-        if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        await interestService.stopInterestCalculation(
-          params.stockId,
-          requester!.userId,
-          body?.notes
-        );
-
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Interest calculation stopped successfully',
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message.includes('not found') ? 404 : 400;
-        set.status = status;
+      // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to stop interest calculation',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      await interestService.stopInterestCalculation(
+        params.stockId,
+        requester!.userId,
+        body?.notes
+      );
+
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Interest calculation stopped successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -330,42 +272,32 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .post(
     '/:stockId/resume',
     async ({ params, body, set, requester }) => {
-      try {
-        // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
-        if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const result = await interestService.resumeInterestCalculation(
-          params.stockId,
-          {
-            annualRate: body.annualRate,
-            principalBase: body.principalBase as any,
-            notes: body.notes,
-          },
-          requester!.userId
-        );
-
-        set.status = 200;
-        return {
-          success: true,
-          data: result,
-          message: 'Interest calculation resumed successfully',
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message.includes('not found') ? 404 : 400;
-        set.status = status;
+      // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to resume interest calculation',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const result = await interestService.resumeInterestCalculation(
+        params.stockId,
+        {
+          annualRate: body.annualRate,
+          principalBase: body.principalBase as any,
+          notes: body.notes,
+        },
+        requester!.userId
+      );
+
+      set.status = 200;
+      return {
+        success: true,
+        data: result,
+        message: 'Interest calculation resumed successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -387,42 +319,32 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   // ============================================
   // Debt Payment Management Endpoints
   // ============================================
-  
+
   // Initialize debt for a stock
   .post(
     '/:stockId/debt/initialize',
     async ({ params, body, set, requester }) => {
-      try {
-        // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
-        if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        await interestService.initializeDebt(
-          params.stockId,
-          body.debtAmount,
-          requester!.userId
-        );
-
-        set.status = 201;
-        return {
-          success: true,
-          message: 'Debt initialized successfully',
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message.includes('not found') ? 404 : 400;
-        set.status = status;
+      // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to initialize debt',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      await interestService.initializeDebt(
+        params.stockId,
+        body.debtAmount,
+        requester!.userId
+      );
+
+      set.status = 201;
+      return {
+        success: true,
+        message: 'Debt initialized successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -443,47 +365,37 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .post(
     '/:stockId/debt/payment',
     async ({ params, body, set, requester }) => {
-      try {
-        // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
-        if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const result = await interestService.recordDebtPayment(
-          params.stockId,
-          {
-            amount: body.amount,
-            paymentMethod: body.paymentMethod as any,
-            paymentType: body.paymentType as any,
-            paymentDate: body.paymentDate ? new Date(body.paymentDate) : undefined,
-            referenceNumber: body.referenceNumber,
-            notes: body.notes,
-          },
-          requester!.id
-        );
-
-        set.status = 201;
-        return {
-          success: true,
-          data: result,
-          message: result.debtPaidOff 
-            ? 'Debt fully paid off! Interest calculation stopped.' 
-            : 'Debt payment recorded successfully',
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message.includes('not found') ? 404 : 400;
-        set.status = status;
+      // Need INTEREST_UPDATE permission (ADMIN or ACCOUNTANT only)
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to record debt payment',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const result = await interestService.recordDebtPayment(
+        params.stockId,
+        {
+          amount: body.amount,
+          paymentMethod: body.paymentMethod as any,
+          paymentType: body.paymentType as any,
+          paymentDate: body.paymentDate ? new Date(body.paymentDate) : undefined,
+          referenceNumber: body.referenceNumber,
+          notes: body.notes,
+        },
+        requester!.id
+      );
+
+      set.status = 201;
+      return {
+        success: true,
+        data: result,
+        message: result.debtPaidOff
+          ? 'Debt fully paid off! Interest calculation stopped.'
+          : 'Debt payment recorded successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -518,31 +430,22 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/:stockId/debt/payments',
     async ({ params, set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const payments = await interestService.getDebtPayments(params.stockId);
-        set.status = 200;
-        return {
-          success: true,
-          data: payments,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch debt payments',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const payments = await interestService.getDebtPayments(params.stockId);
+      set.status = 200;
+      return {
+        success: true,
+        data: payments,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -560,32 +463,22 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/:stockId/debt/summary',
     async ({ params, set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const summary = await interestService.getDebtSummary(params.stockId);
-        set.status = 200;
-        return {
-          success: true,
-          data: summary,
-        };
-      } catch (error) {
-        const status = error instanceof Error && error.message === 'Stock not found' ? 404 : 500;
-        set.status = status;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: status === 404 ? 'Not found' : 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch debt summary',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const summary = await interestService.getDebtSummary(params.stockId);
+      set.status = 200;
+      return {
+        success: true,
+        data: summary,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -603,40 +496,31 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/debts/outstanding',
     async ({ query, set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const page = query.page ? parseInt(query.page) : 1;
-        const limit = query.limit ? parseInt(query.limit) : 20;
-
-        const result = await interestService.getOutstandingDebts({
-          page,
-          limit,
-          search: query.search,
-        });
-
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch outstanding debts',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const page = query.page ? parseInt(query.page) : 1;
+      const limit = query.limit ? parseInt(query.limit) : 20;
+
+      const result = await interestService.getOutstandingDebts({
+        page,
+        limit,
+        search: query.search,
+      });
+
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -656,31 +540,22 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
   .get(
     '/debts/stats',
     async ({ set, requester }) => {
-      try {
-        // Check permission - need INTEREST_VIEW
-        if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const stats = await interestService.getDebtStats();
-        set.status = 200;
-        return {
-          success: true,
-          data: stats,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission - need INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch debt stats',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const stats = await interestService.getDebtStats();
+      set.status = 200;
+      return {
+        success: true,
+        data: stats,
+      };
     },
     {
       beforeHandle: authMiddleware,

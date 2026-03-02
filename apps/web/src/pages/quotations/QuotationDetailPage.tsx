@@ -22,6 +22,8 @@ import {
   AlertCircle,
   ShoppingCart
 } from 'lucide-react';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 const STATUS_LABELS: Record<QuotationStatus, string> = {
   DRAFT: 'แบบร่าง',
@@ -54,6 +56,9 @@ export default function QuotationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+  const { execute: executeDelete } = useMutationHandler('ลบใบเสนอราคาสำเร็จ');
   const canEditQuotation = ['ADMIN', 'SALES_MANAGER', 'SALES_STAFF', 'ACCOUNTANT'].includes(user?.role || '');
   const canDeleteQuotation = user?.role === 'ADMIN';
   const [quotation, setQuotation] = useState<Quotation | null>(null);
@@ -75,17 +80,14 @@ export default function QuotationDetailPage() {
   }, [id]);
 
   const fetchQuotation = async (quotationId: string) => {
-    try {
-      setLoading(true);
-      const data = await quotationService.getById(quotationId);
-      setQuotation(data);
-    } catch (error) {
-      console.error('Error fetching quotation:', error);
-      alert('ไม่สามารถโหลดข้อมูลใบเสนอราคาได้');
+    setLoading(true);
+    const result = await executeQuery(
+      quotationService.getById(quotationId).then(data => setQuotation(data))
+    );
+    if (!result) {
       navigate('/quotations');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const handleStatusChange = async (newStatus: QuotationStatus) => {
@@ -94,79 +96,64 @@ export default function QuotationDetailPage() {
     const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
-    try {
-      setUpdating(true);
-      const updated = await quotationService.updateStatus(quotation.id, newStatus);
-      setQuotation(updated);
-      alert('เปลี่ยนสถานะสำเร็จ');
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('ไม่สามารถเปลี่ยนสถานะได้');
-    } finally {
-      setUpdating(false);
-    }
+    setUpdating(true);
+    await executeQuery(
+      quotationService.updateStatus(quotation.id, newStatus).then(updated => {
+        setQuotation(updated);
+        addToast('เปลี่ยนสถานะสำเร็จ', 'success');
+      })
+    );
+    setUpdating(false);
   };
 
   const handleConvertToSale = async () => {
     if (!quotation) return;
 
-    try {
-      setUpdating(true);
-      // Always convert as RESERVATION_SALE - Direct Sales should use SalesFormPage with stock selection
-      const result = await quotationService.convertToSale(quotation.id, {
+    setUpdating(true);
+    await executeQuery(
+      quotationService.convertToSale(quotation.id, {
         saleType: 'RESERVATION_SALE',
         depositAmount: convertData.depositAmount,
         paymentMethod: convertData.depositAmount > 0 ? convertData.paymentMethod : undefined,
         paymentReferenceNumber: convertData.depositAmount > 0 ? convertData.paymentReferenceNumber : undefined,
-      });
-      setShowConvertModal(false);
-      alert(`แปลงเป็นการขายสำเร็จ!\nเลขที่การขาย: ${result.sale.saleNumber}`);
-      navigate(`/sales/${result.sale.id}`);
-    } catch (error) {
-      console.error('Error converting to sale:', error);
-      alert('ไม่สามารถแปลงเป็นการขายได้');
-    } finally {
-      setUpdating(false);
-    }
+      }).then((result) => {
+        setShowConvertModal(false);
+        addToast(`แปลงเป็นการขายสำเร็จ! เลขที่การขาย: ${result.sale.saleNumber}`, 'success');
+        navigate(`/sales/${result.sale.id}`);
+      })
+    );
+    setUpdating(false);
   };
 
   const handleCreateNewVersion = async () => {
     if (!quotation) return;
 
-    try {
-      setUpdating(true);
-      const newVersion = await quotationService.createNewVersion(quotation.id, {});
-      alert('สร้างเวอร์ชันใหม่สำเร็จ');
-      navigate(`/quotations/${newVersion.id}/edit`);
-    } catch (error) {
-      console.error('Error creating new version:', error);
-      alert('ไม่สามารถสร้างเวอร์ชันใหม่ได้');
-    } finally {
-      setUpdating(false);
-    }
+    setUpdating(true);
+    await executeQuery(
+      quotationService.createNewVersion(quotation.id, {}).then((result) => {
+        addToast('สร้างเวอร์ชันใหม่สำเร็จ', 'success');
+        navigate(`/quotations/${result.id}/edit`);
+      })
+    );
+    setUpdating(false);
   };
 
   const handleDelete = async () => {
     if (!quotation) return;
 
     if (quotation.status !== 'DRAFT') {
-      alert('สามารถลบได้เฉพาะใบเสนอราคาที่เป็นแบบร่างเท่านั้น');
+      addToast('สามารถลบได้เฉพาะใบเสนอราคาที่เป็นแบบร่างเท่านั้น', 'error');
       return;
     }
 
     if (!window.confirm('คุณต้องการลบใบเสนอราคานี้หรือไม่?')) return;
 
-    try {
-      setUpdating(true);
-      await quotationService.delete(quotation.id);
-      alert('ลบใบเสนอราคาสำเร็จ');
+    setUpdating(true);
+    const result = await executeDelete(quotationService.delete(quotation.id));
+    if (result) {
       navigate('/quotations');
-    } catch (error) {
-      console.error('Error deleting quotation:', error);
-      alert('ไม่สามารถลบใบเสนอราคาได้');
-    } finally {
-      setUpdating(false);
     }
+    setUpdating(false);
   };
 
   const formatCurrency = (amount: number) => {

@@ -4,10 +4,12 @@ import { vehicleService } from '../../services/vehicle.service';
 import type { VehicleModel } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft, Edit, Car, Calendar, Tag } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
   const [vehicle, setVehicle] = useState<VehicleModel | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,17 +20,14 @@ export default function VehicleDetailPage() {
   }, [id]);
 
   const fetchVehicle = async (vehicleId: string) => {
-    try {
-      setLoading(true);
-      const data = await vehicleService.getById(vehicleId);
-      setVehicle(data);
-    } catch (error) {
-      console.error('Error fetching vehicle:', error);
-      alert('ไม่สามารถโหลดข้อมูลรุ่นรถได้');
+    setLoading(true);
+    const result = await executeQuery(
+      vehicleService.getById(vehicleId).then(data => setVehicle(data))
+    );
+    if (!result) {
       navigate('/vehicles');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   if (loading) {

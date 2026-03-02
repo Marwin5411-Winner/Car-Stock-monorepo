@@ -6,6 +6,8 @@ import { usePermission } from '../../hooks/usePermission';
 import { campaignService } from '../../services/campaign.service';
 import type { Campaign } from '../../services/campaign.service';
 import { Plus, Search, Eye, Edit, Trash2, Calendar, BarChart3 } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -26,6 +28,8 @@ export const CampaignsListPage: React.FC = () => {
   const canCreate = hasPermission('CAMPAIGN_CREATE');
   const canUpdate = hasPermission('CAMPAIGN_UPDATE');
   const canDelete = hasPermission('CAMPAIGN_DELETE');
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -50,15 +54,11 @@ export const CampaignsListPage: React.FC = () => {
 
   const handleDelete = async (campaign: Campaign) => {
     if (campaign.salesCount > 0) {
-      alert('ไม่สามารถลบแคมเปญที่มีการขายได้');
+      addToast('ไม่สามารถลบแคมเปญที่มีการขายได้', 'error');
       return;
     }
     if (window.confirm(`ต้องการลบแคมเปญ "${campaign.name}" หรือไม่?`)) {
-      try {
-        await deleteMutation.mutateAsync(campaign.id);
-      } catch {
-        alert('เกิดข้อผิดพลาดในการลบแคมเปญ');
-      }
+      await executeQuery(deleteMutation.mutateAsync(campaign.id));
     }
   };
 

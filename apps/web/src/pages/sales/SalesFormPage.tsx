@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { salesService, type CreateSaleData, type UpdateSaleData, type PaymentMode } from '../../services/sales.service';
 import { usePermission } from '../../hooks/usePermission';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 import { customerService, type Customer } from '../../services/customer.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  ArrowLeft, 
-  User, 
-  Car, 
+import {
+  ArrowLeft,
+  User,
+  Car,
   DollarSign,
   Save
 } from 'lucide-react';
@@ -48,7 +50,14 @@ export default function SalesFormPage() {
   const isEditing = Boolean(id);
   const { hasPermission } = usePermission();
   const canDiscount = hasPermission('SALE_DISCOUNT');
-  
+
+  const { addToast } = useToast();
+  const { execute: executeMutation, clearFieldErrors } = useMutationHandler(
+    isEditing ? 'แก้ไขข้อมูลการขายสำเร็จ' : 'สร้างการขายสำเร็จ',
+    { onSuccess: () => navigate('/sales') }
+  );
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [availableStocks, setAvailableStocks] = useState<Stock[]>([]);
@@ -89,74 +98,63 @@ export default function SalesFormPage() {
   }, [id]);
 
   const fetchInitialData = async () => {
-    try {
-      setLoading(true);
-      // Only fetch available stocks for Direct Sale
-      const stocksRes = await stockService.getAvailable();
-      setAvailableStocks(stocksRes);
-    } catch (error) {
-      console.error('Error fetching initial data:', error);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await executeQuery(
+      stockService.getAvailable().then((stocksRes) => {
+        setAvailableStocks(stocksRes);
+      })
+    );
+    setLoading(false);
   };
 
   const fetchSale = async (saleId: string) => {
-    try {
-      setLoading(true);
-      const sale = await salesService.getById(saleId);
-      
-      // For editing, we only allow editing Direct Sales
-      if (sale.type !== 'DIRECT_SALE') {
-        alert('ไม่สามารถแก้ไขการขายผ่านการจองได้ที่นี่ กรุณาแก้ไขผ่านหน้ารายละเอียดการขาย');
-        navigate('/sales');
-        return;
-      }
-      
-      setFormData({
-        customerId: sale.customer.id,
-        stockId: sale.stock?.id || '',
-        totalAmount: Number(sale.totalAmount) || 0,
-        depositAmount: Number(sale.depositAmount) || 0,
-        paymentMode: sale.paymentMode,
-        downPayment: Number(sale.downPayment) || 0,
-        financeAmount: Number(sale.financeAmount) || 0,
-        financeProvider: sale.financeProvider || '',
-        carDiscount: Number(sale.carDiscount) || 0,
-        downPaymentDiscount: Number(sale.downPaymentDiscount) || 0,
-        interestRate: Number(sale.interestRate) || 0,
-        numberOfTerms: Number(sale.numberOfTerms) || 0,
-        monthlyInstallment: Number(sale.monthlyInstallment) || 0,
-        notes: sale.notes || '',
-      });
-      
-      setSelectedCustomer(sale.customer as Customer);
-      if (sale.stock) {
-        setSelectedStock(sale.stock as unknown as Stock);
-      }
-    } catch (error) {
-      console.error('Error fetching sale:', error);
-      alert('ไม่สามารถโหลดข้อมูลการขายได้');
-      navigate('/sales');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    let found = false;
+    await executeQuery(
+      salesService.getById(saleId).then((sale) => {
+        // For editing, we only allow editing Direct Sales
+        if (sale.type !== 'DIRECT_SALE') {
+          addToast('ไม่สามารถแก้ไขการขายผ่านการจองได้ที่นี่ กรุณาแก้ไขผ่านหน้ารายละเอียดการขาย', 'error');
+          return;
+        }
+
+        found = true;
+        setFormData({
+          customerId: sale.customer.id,
+          stockId: sale.stock?.id || '',
+          totalAmount: Number(sale.totalAmount) || 0,
+          depositAmount: Number(sale.depositAmount) || 0,
+          paymentMode: sale.paymentMode,
+          downPayment: Number(sale.downPayment) || 0,
+          financeAmount: Number(sale.financeAmount) || 0,
+          financeProvider: sale.financeProvider || '',
+          carDiscount: Number(sale.carDiscount) || 0,
+          downPaymentDiscount: Number(sale.downPaymentDiscount) || 0,
+          interestRate: Number(sale.interestRate) || 0,
+          numberOfTerms: Number(sale.numberOfTerms) || 0,
+          monthlyInstallment: Number(sale.monthlyInstallment) || 0,
+          notes: sale.notes || '',
+        });
+
+        setSelectedCustomer(sale.customer as Customer);
+        if (sale.stock) {
+          setSelectedStock(sale.stock as unknown as Stock);
+        }
+      })
+    );
+    if (!found) navigate('/sales');
+    setLoading(false);
   };
 
   // Async customer search for SearchSelect
   const loadCustomerOptions = useCallback(async (query: string): Promise<SearchSelectOption<Customer>[]> => {
-    try {
-      const response = await customerService.getAll({ search: query, limit: 10 });
-      return response.data.map((customer: Customer) => ({
-        value: customer.id,
-        label: customer.name,
-        description: `${customer.code} • ${customer.phone}`,
-        data: customer,
-      }));
-    } catch (error) {
-      console.error('Error searching customers:', error);
-      return [];
-    }
+    const response = await customerService.getAll({ search: query, limit: 10 });
+    return response.data.map((customer: Customer) => ({
+      value: customer.id,
+      label: customer.name,
+      description: `${customer.code} • ${customer.phone}`,
+      data: customer,
+    }));
   }, []);
 
   const handleCustomerSelect = (value: string, option?: SearchSelectOption<Customer>) => {
@@ -258,48 +256,37 @@ export default function SalesFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
-    try {
-      setSaving(true);
-      
-      // Direct Sale data - always DIRECT_SALE type
-      const data: CreateSaleData | UpdateSaleData = {
-        type: 'DIRECT_SALE',
-        customerId: formData.customerId,
-        stockId: formData.stockId,
-        totalAmount: formData.totalAmount,
-        depositAmount: formData.depositAmount || undefined,
-        paymentMode: formData.paymentMode,
-        downPayment: formData.downPayment || undefined,
-        financeAmount: formData.financeAmount || undefined,
-        financeProvider: formData.financeProvider || undefined,
-        carDiscount: formData.carDiscount || undefined,
-        downPaymentDiscount: formData.downPaymentDiscount || undefined,
-        interestRate: formData.interestRate || undefined,
-        numberOfTerms: formData.numberOfTerms || undefined,
-        monthlyInstallment: formData.monthlyInstallment || undefined,
-        notes: formData.notes || undefined,
-      };
+    setSaving(true);
+    clearFieldErrors();
 
-      if (isEditing && id) {
-        await salesService.update(id, data);
-        alert('แก้ไขข้อมูลสำเร็จ');
-      } else {
-        await salesService.create(data as CreateSaleData);
-        alert('สร้างการขายสำเร็จ');
-      }
-      
-      navigate('/sales');
-    } catch (error) {
-      console.error('Error saving sale:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-    } finally {
-      setSaving(false);
-    }
+    // Direct Sale data - always DIRECT_SALE type
+    const data: CreateSaleData | UpdateSaleData = {
+      type: 'DIRECT_SALE',
+      customerId: formData.customerId,
+      stockId: formData.stockId,
+      totalAmount: formData.totalAmount,
+      depositAmount: formData.depositAmount || undefined,
+      paymentMode: formData.paymentMode,
+      downPayment: formData.downPayment || undefined,
+      financeAmount: formData.financeAmount || undefined,
+      financeProvider: formData.financeProvider || undefined,
+      carDiscount: formData.carDiscount || undefined,
+      downPaymentDiscount: formData.downPaymentDiscount || undefined,
+      interestRate: formData.interestRate || undefined,
+      numberOfTerms: formData.numberOfTerms || undefined,
+      monthlyInstallment: formData.monthlyInstallment || undefined,
+      notes: formData.notes || undefined,
+    };
+
+    await executeMutation(
+      isEditing && id ? salesService.update(id, data) : salesService.create(data as CreateSaleData)
+    );
+    setSaving(false);
   };
 
   if (loading) {

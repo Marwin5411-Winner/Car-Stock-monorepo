@@ -8,26 +8,17 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/',
     async ({ query, set }) => {
-      try {
-        const page = parseInt(query.page || '1');
-        const limit = parseInt(query.limit || '20');
-        const search = query.search;
+      const page = parseInt(query.page || '1');
+      const limit = parseInt(query.limit || '20');
+      const search = query.search;
 
-        const result = await campaignsService.getAll(page, limit, search);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch campaigns',
-        };
-      }
+      const result = await campaignsService.getAll(page, limit, search);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
@@ -47,21 +38,12 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/active',
     async ({ set }) => {
-      try {
-        const campaigns = await campaignsService.getActiveCampaigns();
-        set.status = 200;
-        return {
-          success: true,
-          data: campaigns,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch active campaigns',
-        };
-      }
+      const campaigns = await campaignsService.getActiveCampaigns();
+      set.status = 200;
+      return {
+        success: true,
+        data: campaigns,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
@@ -76,30 +58,21 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/:id',
     async ({ params, set }) => {
-      try {
-        const campaign = await campaignsService.getById(params.id);
-        if (!campaign) {
-          set.status = 404;
-          return {
-            success: false,
-            error: 'Not Found',
-            message: 'Campaign not found',
-          };
-        }
-
-        set.status = 200;
-        return {
-          success: true,
-          data: campaign,
-        };
-      } catch (error) {
-        set.status = 500;
+      const campaign = await campaignsService.getById(params.id);
+      if (!campaign) {
+        set.status = 404;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch campaign',
+          error: 'Not Found',
+          message: 'Campaign not found',
         };
       }
+
+      set.status = 200;
+      return {
+        success: true,
+        data: campaign,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
@@ -117,24 +90,15 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/:id/analytics',
     async ({ params, query, set }) => {
-      try {
-        const startDate = query.startDate ? new Date(query.startDate) : undefined;
-        const endDate = query.endDate ? new Date(query.endDate) : undefined;
+      const startDate = query.startDate ? new Date(query.startDate) : undefined;
+      const endDate = query.endDate ? new Date(query.endDate) : undefined;
 
-        const result = await campaignsService.getAnalytics(params.id, startDate, endDate);
-        set.status = 200;
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch analytics',
-        };
-      }
+      const result = await campaignsService.getAnalytics(params.id, startDate, endDate);
+      set.status = 200;
+      return {
+        success: true,
+        data: result,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
@@ -156,21 +120,12 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/:id/vehicle-models',
     async ({ params, set }) => {
-      try {
-        const vehicleModels = await campaignsService.getVehicleModels(params.id);
-        set.status = 200;
-        return {
-          success: true,
-          data: vehicleModels,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch vehicle models',
-        };
-      }
+      const vehicleModels = await campaignsService.getVehicleModels(params.id);
+      set.status = 200;
+      return {
+        success: true,
+        data: vehicleModels,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
@@ -188,37 +143,28 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        if (requester.role !== 'ADMIN') {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Only admins can create campaigns',
-          };
-        }
-
-        const campaign = await campaignsService.create({
-          ...body,
-          startDate: new Date(body.startDate),
-          endDate: new Date(body.endDate),
-          createdById: requester.id,
-        });
-
-        set.status = 201;
-        return {
-          success: true,
-          data: campaign,
-          message: 'Campaign created successfully',
-        };
-      } catch (error) {
-        set.status = 500;
+      if (requester.role !== 'ADMIN') {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to create campaign',
+          error: 'Forbidden',
+          message: 'Only admins can create campaigns',
         };
       }
+
+      const campaign = await campaignsService.create({
+        ...body,
+        startDate: new Date(body.startDate),
+        endDate: new Date(body.endDate),
+        createdById: requester.id,
+      });
+
+      set.status = 201;
+      return {
+        success: true,
+        data: campaign,
+        message: 'Campaign created successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_CREATE')],
@@ -241,37 +187,28 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .put(
     '/:id',
     async ({ params, body, set }) => {
-      try {
-        const existing = await campaignsService.getById(params.id);
-        if (!existing) {
-          set.status = 404;
-          return {
-            success: false,
-            error: 'Not Found',
-            message: 'Campaign not found',
-          };
-        }
-
-        const campaign = await campaignsService.update(params.id, {
-          ...body,
-          startDate: body.startDate ? new Date(body.startDate) : undefined,
-          endDate: body.endDate ? new Date(body.endDate) : undefined,
-        });
-
-        set.status = 200;
-        return {
-          success: true,
-          data: campaign,
-          message: 'Campaign updated successfully',
-        };
-      } catch (error) {
-        set.status = 500;
+      const existing = await campaignsService.getById(params.id);
+      if (!existing) {
+        set.status = 404;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to update campaign',
+          error: 'Not Found',
+          message: 'Campaign not found',
         };
       }
+
+      const campaign = await campaignsService.update(params.id, {
+        ...body,
+        startDate: body.startDate ? new Date(body.startDate) : undefined,
+        endDate: body.endDate ? new Date(body.endDate) : undefined,
+      });
+
+      set.status = 200;
+      return {
+        success: true,
+        data: campaign,
+        message: 'Campaign updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -298,31 +235,22 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .delete(
     '/:id',
     async ({ params, set }) => {
-      try {
-        const existing = await campaignsService.getById(params.id);
-        if (!existing) {
-          set.status = 404;
-          return {
-            success: false,
-            error: 'Not Found',
-            message: 'Campaign not found',
-          };
-        }
-
-        await campaignsService.delete(params.id);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Campaign deleted successfully',
-        };
-      } catch (error) {
-        set.status = 500;
+      const existing = await campaignsService.getById(params.id);
+      if (!existing) {
+        set.status = 404;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to delete campaign',
+          error: 'Not Found',
+          message: 'Campaign not found',
         };
       }
+
+      await campaignsService.delete(params.id);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Campaign deleted successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_DELETE')],
@@ -340,21 +268,12 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .post(
     '/:id/vehicle-models',
     async ({ params, body, set }) => {
-      try {
-        await campaignsService.addVehicleModel(params.id, body.vehicleModelId);
-        set.status = 201;
-        return {
-          success: true,
-          message: 'Vehicle model added to campaign',
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to add vehicle model',
-        };
-      }
+      await campaignsService.addVehicleModel(params.id, body.vehicleModelId);
+      set.status = 201;
+      return {
+        success: true,
+        message: 'Vehicle model added to campaign',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -375,21 +294,12 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .delete(
     '/:id/vehicle-models/:modelId',
     async ({ params, set }) => {
-      try {
-        await campaignsService.removeVehicleModel(params.id, params.modelId);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Vehicle model removed from campaign',
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to remove vehicle model',
-        };
-      }
+      await campaignsService.removeVehicleModel(params.id, params.modelId);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Vehicle model removed from campaign',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -411,18 +321,9 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/:id/vehicle-models/:modelId/formulas',
     async ({ params, set }) => {
-      try {
-        const formulas = await campaignFormulasService.getFormulas(params.id, params.modelId);
-        set.status = 200;
-        return { success: true, data: formulas };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch formulas',
-        };
-      }
+      const formulas = await campaignFormulasService.getFormulas(params.id, params.modelId);
+      set.status = 200;
+      return { success: true, data: formulas };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
@@ -437,26 +338,17 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .post(
     '/:id/vehicle-models/:modelId/formulas',
     async ({ params, body, set }) => {
-      try {
-        const formula = await campaignFormulasService.create({
-          campaignId: params.id,
-          vehicleModelId: params.modelId,
-          name: body.name,
-          operator: body.operator as any,
-          value: body.value,
-          priceTarget: body.priceTarget as any,
-          sortOrder: body.sortOrder,
-        });
-        set.status = 201;
-        return { success: true, data: formula, message: 'Formula created successfully' };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to create formula',
-        };
-      }
+      const formula = await campaignFormulasService.create({
+        campaignId: params.id,
+        vehicleModelId: params.modelId,
+        name: body.name,
+        operator: body.operator as any,
+        value: body.value,
+        priceTarget: body.priceTarget as any,
+        sortOrder: body.sortOrder,
+      });
+      set.status = 201;
+      return { success: true, data: formula, message: 'Formula created successfully' };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -483,24 +375,15 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .put(
     '/:id/vehicle-models/:modelId/formulas/:formulaId',
     async ({ params, body, set }) => {
-      try {
-        const formula = await campaignFormulasService.update(params.formulaId, {
-          name: body.name,
-          operator: body.operator as any,
-          value: body.value,
-          priceTarget: body.priceTarget as any,
-          sortOrder: body.sortOrder,
-        });
-        set.status = 200;
-        return { success: true, data: formula, message: 'Formula updated successfully' };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to update formula',
-        };
-      }
+      const formula = await campaignFormulasService.update(params.formulaId, {
+        name: body.name,
+        operator: body.operator as any,
+        value: body.value,
+        priceTarget: body.priceTarget as any,
+        sortOrder: body.sortOrder,
+      });
+      set.status = 200;
+      return { success: true, data: formula, message: 'Formula updated successfully' };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -531,18 +414,9 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .delete(
     '/:id/vehicle-models/:modelId/formulas/:formulaId',
     async ({ params, set }) => {
-      try {
-        await campaignFormulasService.delete(params.formulaId);
-        set.status = 200;
-        return { success: true, message: 'Formula deleted successfully' };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to delete formula',
-        };
-      }
+      await campaignFormulasService.delete(params.formulaId);
+      set.status = 200;
+      return { success: true, message: 'Formula deleted successfully' };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -557,22 +431,13 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .put(
     '/:id/vehicle-models/:modelId/formulas-reorder',
     async ({ params, body, set }) => {
-      try {
-        const formulas = await campaignFormulasService.reorder(
-          params.id,
-          params.modelId,
-          body.items
-        );
-        set.status = 200;
-        return { success: true, data: formulas, message: 'Formulas reordered successfully' };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to reorder formulas',
-        };
-      }
+      const formulas = await campaignFormulasService.reorder(
+        params.id,
+        params.modelId,
+        body.items
+      );
+      set.status = 200;
+      return { success: true, data: formulas, message: 'Formulas reordered successfully' };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_UPDATE')],
@@ -597,18 +462,9 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .get(
     '/:id/report',
     async ({ params, set }) => {
-      try {
-        const report = await campaignsService.getCampaignReport(params.id);
-        set.status = 200;
-        return { success: true, data: report };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to generate report',
-        };
-      }
+      const report = await campaignsService.getCampaignReport(params.id);
+      set.status = 200;
+      return { success: true, data: report };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],

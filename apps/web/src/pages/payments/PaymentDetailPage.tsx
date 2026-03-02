@@ -13,6 +13,8 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   DEPOSIT: 'เงินจอง',
@@ -47,6 +49,9 @@ const STATUS_ICONS: Record<PaymentStatus, React.ReactNode> = {
 export default function PaymentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+  const { execute: executeVoid } = useMutationHandler('ยกเลิกการชำระเงินสำเร็จ');
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [voiding, setVoiding] = useState(false);
@@ -63,17 +68,14 @@ export default function PaymentDetailPage() {
   }, [id]);
 
   const fetchPayment = async (paymentId: string) => {
-    try {
-      setLoading(true);
-      const data = await paymentService.getById(paymentId);
-      setPayment(data);
-    } catch (error) {
-      console.error('Error fetching payment:', error);
-      alert('ไม่สามารถโหลดข้อมูลการชำระเงินได้');
+    setLoading(true);
+    const result = await executeQuery(
+      paymentService.getById(paymentId).then(data => setPayment(data))
+    );
+    if (!result) {
       navigate('/payments');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const formatCurrency = (amount: number) => {
@@ -107,50 +109,34 @@ export default function PaymentDetailPage() {
     if (!payment) return;
 
     if (!voidReason.trim()) {
-      alert('กรุณาระบุเหตุผลในการยกเลิก');
+      addToast('กรุณาระบุเหตุผลในการยกเลิก', 'error');
       return;
     }
 
-    try {
-      setVoiding(true);
-      await paymentService.void(payment.id, { voidReason: voidReason.trim() });
-      alert('ยกเลิกการชำระเงินสำเร็จ');
+    setVoiding(true);
+    const result = await executeVoid(
+      paymentService.void(payment.id, { voidReason: voidReason.trim() })
+    );
+    if (result) {
       setShowVoidModal(false);
       setVoidReason('');
-      // Refresh payment data
       await fetchPayment(payment.id);
-    } catch (error) {
-      console.error('Error voiding payment:', error);
-      alert('ไม่สามารถยกเลิกการชำระเงินได้');
-    } finally {
-      setVoiding(false);
     }
+    setVoiding(false);
   };
 
   const handlePrint = async () => {
     if (!payment) return;
-    try {
-      setDownloading(true);
-      await paymentService.downloadReceipt(payment.id);
-    } catch (error) {
-      console.error('Error downloading receipt:', error);
-      alert('ไม่สามารถดาวน์โหลดใบเสร็จได้');
-    } finally {
-      setDownloading(false);
-    }
+    setDownloading(true);
+    await executeQuery(paymentService.downloadReceipt(payment.id));
+    setDownloading(false);
   };
 
   const handlePrintBg = async () => {
     if (!payment) return;
-    try {
-      setDownloadingBg(true);
-      await paymentService.downloadReceiptBg(payment.id);
-    } catch (error) {
-      console.error('Error downloading receipt:', error);
-      alert('ไม่สามารถดาวน์โหลดใบเสร็จได้');
-    } finally {
-      setDownloadingBg(false);
-    }
+    setDownloadingBg(true);
+    await executeQuery(paymentService.downloadReceiptBg(payment.id));
+    setDownloadingBg(false);
   };
 
   if (loading) {

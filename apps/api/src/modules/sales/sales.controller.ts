@@ -1,30 +1,28 @@
 import { Elysia, t } from 'elysia';
 import { salesService } from './sales.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
-import { authService } from '../auth/auth.service';
 import { BadRequestError } from '../../lib/errors';
+
+// Helper to safely parse float - moved to module scope
+const safeParseFloat = (value: unknown): number => {
+  if (typeof value !== 'string') return value as number;
+  const parsed = parseFloat(value);
+  if (isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
+  return parsed;
+};
 
 export const salesRoutes = new Elysia({ prefix: '/sales' })
   // Get all sales
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        const result = await salesService.getAllSales(query, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch sales',
-        };
-      }
+      const result = await salesService.getAllSales(query, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -57,21 +55,12 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .get(
     '/stats',
     async ({ set, requester }) => {
-      try {
-        const stats = await salesService.getSalesStats(requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: stats,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch sales stats',
-        };
-      }
+      const stats = await salesService.getSalesStats(requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: stats,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -86,21 +75,12 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .get(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        const sale = await salesService.getSaleById(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: sale,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Sale not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Not found',
-          message: error instanceof Error ? error.message : 'Failed to fetch sale',
-        };
-      }
+      const sale = await salesService.getSaleById(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: sale,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -115,44 +95,27 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        // Helper to safely parse float
-        const safeParseFloat = (value: unknown): number => {
-          if (typeof value !== 'string') return value as number;
-          const parsed = parseFloat(value);
-          if (isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
-          return parsed;
-        };
+      // Convert string numbers to actual numbers
+      const processedBody = {
+        ...body,
+        totalAmount: safeParseFloat(body.totalAmount),
+        depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : body.depositAmount,
+        discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : body.discountSnapshot,
+        downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : body.downPayment,
+        financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : body.financeAmount,
+        carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : body.carDiscount,
+        downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : body.downPaymentDiscount,
+        interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : body.interestRate,
+        monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : body.monthlyInstallment,
+      };
 
-        // Convert string numbers to actual numbers
-        const processedBody = {
-          ...body,
-          totalAmount: safeParseFloat(body.totalAmount),
-          depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : body.depositAmount,
-          discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : body.discountSnapshot,
-          downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : body.downPayment,
-          financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : body.financeAmount,
-          carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : body.carDiscount,
-          downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : body.downPaymentDiscount,
-          interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : body.interestRate,
-          monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : body.monthlyInstallment,
-        };
-
-        const sale = await salesService.createSale(processedBody, requester);
-        set.status = 201;
-        return {
-          success: true,
-          data: sale,
-          message: 'Sale created successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Creation failed',
-          message: error instanceof Error ? error.message : 'Failed to create sale',
-        };
-      }
+      const sale = await salesService.createSale(processedBody, requester);
+      set.status = 201;
+      return {
+        success: true,
+        data: sale,
+        message: 'Sale created successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('SALE_CREATE')],
@@ -193,42 +156,26 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .patch(
     '/:id',
     async ({ params, body, set, requester }) => {
-      try {
-        const safeParseFloat = (value: unknown): number => {
-          if (typeof value !== 'string') return value as number;
-          const parsed = parseFloat(value);
-          if (isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
-          return parsed;
-        };
+      const processedBody = {
+        ...body,
+        totalAmount: body.totalAmount !== undefined ? safeParseFloat(body.totalAmount) : undefined,
+        depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : undefined,
+        discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : undefined,
+        downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : undefined,
+        financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : undefined,
+        carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : undefined,
+        downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : undefined,
+        interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : undefined,
+        monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : undefined,
+      };
 
-        const processedBody = {
-          ...body,
-          totalAmount: body.totalAmount !== undefined ? safeParseFloat(body.totalAmount) : undefined,
-          depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : undefined,
-          discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : undefined,
-          downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : undefined,
-          financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : undefined,
-          carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : undefined,
-          downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : undefined,
-          interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : undefined,
-          monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : undefined,
-        };
-
-        const sale = await salesService.updateSale(params.id, processedBody, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: sale,
-          message: 'Sale updated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Sale not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Update failed',
-          message: error instanceof Error ? error.message : 'Failed to update sale',
-        };
-      }
+      const sale = await salesService.updateSale(params.id, processedBody, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: sale,
+        message: 'Sale updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('SALE_UPDATE')],
@@ -268,27 +215,18 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .patch(
     '/:id/status',
     async ({ params, body, set, requester }) => {
-      try {
-        const sale = await salesService.updateSaleStatus(
-          params.id,
-          body.status,
-          body.notes,
-          requester
-        );
-        set.status = 200;
-        return {
-          success: true,
-          data: sale,
-          message: 'Sale status updated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Sale not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Update failed',
-          message: error instanceof Error ? error.message : 'Failed to update sale status',
-        };
-      }
+      const sale = await salesService.updateSaleStatus(
+        params.id,
+        body.status,
+        body.notes,
+        requester
+      );
+      set.status = 200;
+      return {
+        success: true,
+        data: sale,
+        message: 'Sale status updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('SALE_STATUS_UPDATE')],
@@ -314,22 +252,13 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .patch(
     '/:id/assign-stock',
     async ({ params, body, set, requester }) => {
-      try {
-        const sale = await salesService.assignStock(params.id, body.stockId, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: sale,
-          message: 'Stock assigned successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Sale not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Assignment failed',
-          message: error instanceof Error ? error.message : 'Failed to assign stock',
-        };
-      }
+      const sale = await salesService.assignStock(params.id, body.stockId, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: sale,
+        message: 'Stock assigned successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('SALE_ASSIGN_STOCK')],
@@ -347,21 +276,12 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
   .delete(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        await salesService.deleteSale(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Sale deleted successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Sale not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Deletion failed',
-          message: error instanceof Error ? error.message : 'Failed to delete sale',
-        };
-      }
+      await salesService.deleteSale(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Sale deleted successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('SALE_DELETE')],

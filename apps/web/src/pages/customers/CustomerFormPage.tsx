@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft, Save } from 'lucide-react';
 import { PROVINCES } from '../../constants/provinces';
@@ -14,6 +15,12 @@ export default function CustomerFormPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ taxId?: string }>({});
+
+  const { execute: executeMutation, fieldErrors, clearFieldErrors } = useMutationHandler(
+    isEdit ? 'แก้ไขข้อมูลลูกค้าสำเร็จ' : 'เพิ่มลูกค้าสำเร็จ',
+    { onSuccess: () => navigate('/customers') }
+  );
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
 
   const [formData, setFormData] = useState({
     type: 'INDIVIDUAL' as 'INDIVIDUAL' | 'COMPANY',
@@ -46,29 +53,26 @@ export default function CustomerFormPage() {
   };
 
   const fetchCustomer = async (customerId: string) => {
-    try {
-      setLoading(true);
-      const customer = await customerService.getById(customerId);
-      setFormData({
-        type: customer.type,
-        salesType: customer.salesType,
-        name: customer.name,
-        phone: customer.phone,
-        email: customer.email || '',
-        taxId: customer.taxId || '',
-        houseNumber: customer.houseNumber,
-        street: customer.street || '',
-        subdistrict: customer.subdistrict,
-        district: customer.district,
-        province: customer.province,
-        postalCode: customer.postalCode || '',
-      });
-    } catch (error) {
-      console.error('Error fetching customer:', error);
-      alert('ไม่สามารถโหลดข้อมูลลูกค้าได้');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await executeQuery(
+      customerService.getById(customerId).then((customer) => {
+        setFormData({
+          type: customer.type,
+          salesType: customer.salesType,
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email || '',
+          taxId: customer.taxId || '',
+          houseNumber: customer.houseNumber,
+          street: customer.street || '',
+          subdistrict: customer.subdistrict,
+          district: customer.district,
+          province: customer.province,
+          postalCode: customer.postalCode || '',
+        });
+      })
+    );
+    setLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -105,36 +109,27 @@ export default function CustomerFormPage() {
       return;
     }
 
-    try {
-      const data = {
-        type: formData.type,
-        salesType: formData.salesType,
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email || undefined,
-        taxId: formData.taxId || undefined,
-        houseNumber: formData.houseNumber,
-        street: formData.street || undefined,
-        subdistrict: formData.subdistrict,
-        district: formData.district,
-        province: formData.province,
-        postalCode: formData.postalCode || undefined,
-      };
+    const data = {
+      type: formData.type,
+      salesType: formData.salesType,
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email || undefined,
+      taxId: formData.taxId || undefined,
+      houseNumber: formData.houseNumber,
+      street: formData.street || undefined,
+      subdistrict: formData.subdistrict,
+      district: formData.district,
+      province: formData.province,
+      postalCode: formData.postalCode || undefined,
+    };
 
-      if (isEdit && id) {
-        await customerService.update(id, data);
-        alert('อัปเดตข้อมูลลูกค้าสำเร็จ');
-      } else {
-        await customerService.create(data);
-        alert('เพิ่มลูกค้าใหม่สำเร็จ');
-      }
-      navigate('/customers');
-    } catch (error) {
-      console.error('Error saving customer:', error);
-      alert('ไม่สามารถบันทึกข้อมูลลูกค้าได้');
-    } finally {
-      setSaving(false);
+    if (isEdit && id) {
+      await executeMutation(customerService.update(id, data));
+    } else {
+      await executeMutation(customerService.create(data));
     }
+    setSaving(false);
   };
 
   // Convert provinces to SearchSelect options
@@ -261,13 +256,16 @@ export default function CustomerFormPage() {
               type="text"
               name="taxId"
               value={formData.taxId}
-              onChange={handleChange}
+              onChange={(e) => { handleChange(e); clearFieldErrors(); }}
               maxLength={13}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${errors.taxId ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${errors.taxId || fieldErrors.taxid ? 'border-red-500' : 'border-gray-300'
                 }`}
             />
             {errors.taxId && (
               <p className="mt-1 text-sm text-red-600">{errors.taxId}</p>
+            )}
+            {fieldErrors.taxid && (
+              <p className="text-sm text-red-500 mt-1">{fieldErrors.taxid}</p>
             )}
           </div>
 

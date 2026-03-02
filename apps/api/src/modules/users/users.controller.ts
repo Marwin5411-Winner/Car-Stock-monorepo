@@ -8,36 +8,27 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        const page = parseInt(query.page || '1');
-        const limit = parseInt(query.limit || '20');
-        const search = query.search;
+      const page = parseInt(query.page || '1');
+      const limit = parseInt(query.limit || '20');
+      const search = query.search;
 
-        // Check permission
-        if (!authService.hasPermission(requester.role, 'USER_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const result = await usersService.getAllUsers(page, limit, search);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission
+      if (!authService.hasPermission(requester.role, 'USER_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch users',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const result = await usersService.getAllUsers(page, limit, search);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -57,21 +48,12 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .get(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        const user = await usersService.getUserById(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: user,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'User not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Not found',
-          message: error instanceof Error ? error.message : 'Failed to fetch user',
-        };
-      }
+      const user = await usersService.getUserById(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: user,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -86,22 +68,13 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        const user = await usersService.createUser(body, requester);
-        set.status = 201;
-        return {
-          success: true,
-          data: user,
-          message: 'User created successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Creation failed',
-          message: error instanceof Error ? error.message : 'Failed to create user',
-        };
-      }
+      const user = await usersService.createUser(body, requester);
+      set.status = 201;
+      return {
+        success: true,
+        data: user,
+        message: 'User created successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('USER_CREATE')],
@@ -131,22 +104,13 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .patch(
     '/:id',
     async ({ params, body, set, requester }) => {
-      try {
-        const user = await usersService.updateUser(params.id, body, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: user,
-          message: 'User updated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'User not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Update failed',
-          message: error instanceof Error ? error.message : 'Failed to update user',
-        };
-      }
+      const user = await usersService.updateUser(params.id, body, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: user,
+        message: 'User updated successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -180,21 +144,12 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .delete(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        await usersService.deleteUser(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'User deleted successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'User not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Deletion failed',
-          message: error instanceof Error ? error.message : 'Failed to delete user',
-        };
-      }
+      await usersService.deleteUser(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'User deleted successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('USER_DELETE')],
@@ -209,26 +164,17 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .patch(
     '/:id/password',
     async ({ params, body, set, requester }) => {
-      try {
-        await usersService.updatePassword(
-          params.id,
-          body.currentPassword,
-          body.newPassword,
-          requester
-        );
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Password updated successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Password update failed',
-          message: error instanceof Error ? error.message : 'Failed to update password',
-        };
-      }
+      await usersService.updatePassword(
+        params.id,
+        body.currentPassword,
+        body.newPassword,
+        requester
+      );
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Password updated successfully',
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -247,25 +193,16 @@ export const userRoutes = new Elysia({ prefix: '/users' })
   .patch(
     '/:id/reset-password',
     async ({ params, body, set, requester }) => {
-      try {
-        await usersService.resetPassword(
-          params.id,
-          body.newPassword,
-          requester
-        );
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Password reset successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'User not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Password reset failed',
-          message: error instanceof Error ? error.message : 'Failed to reset password',
-        };
-      }
+      await usersService.resetPassword(
+        params.id,
+        body.newPassword,
+        requester
+      );
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Password reset successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('USER_UPDATE')],

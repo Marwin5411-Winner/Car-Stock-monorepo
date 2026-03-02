@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { stockService } from '../../services/stock.service';
 import type { Stock, StockStats } from '../../services/stock.service';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, Package, Car, Calendar, DollarSign, TrendingUp } from 'lucide-react';
 import {
@@ -30,6 +31,9 @@ export default function StockListPage() {
   const [total, setTotal] = useState(0);
   const limit = 10;
 
+  const { execute: executeDelete } = useMutationHandler('ลบสต็อกสำเร็จ');
+  const { execute: executeQuery } = useErrorHandler();
+
   const { hasPermission } = usePermission();
   const canCreate = hasPermission('STOCK_CREATE');
   const canEdit = hasPermission('STOCK_UPDATE');
@@ -51,36 +55,25 @@ export default function StockListPage() {
   }, [searchTerm]);
 
   const fetchStocks = async () => {
-    try {
-      setLoading(true);
-      const filters: any = { page, limit };
-      if (searchTerm) filters.search = searchTerm;
-      if (statusFilter !== 'ALL') filters.status = statusFilter;
+    setLoading(true);
+    const filters: any = { page, limit };
+    if (searchTerm) filters.search = searchTerm;
+    if (statusFilter !== 'ALL') filters.status = statusFilter;
 
-      const response = await stockService.getAll(filters);
-
-      // Safely access response properties with fallbacks
-      setStocks(response?.data || []);
-      setTotalPages(response?.meta?.totalPages || 1);
-      setTotal(response?.meta?.total || 0);
-    } catch (error) {
-      console.error('Error fetching stock:', error);
-      // Set safe defaults on error
-      setStocks([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+    await executeQuery(
+      stockService.getAll(filters).then((response) => {
+        setStocks(response?.data || []);
+        setTotalPages(response?.meta?.totalPages || 1);
+        setTotal(response?.meta?.total || 0);
+      })
+    );
+    setLoading(false);
   };
 
   const fetchStats = async () => {
-    try {
-      const data = await stockService.getStats();
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
+    await executeQuery(
+      stockService.getStats().then((data) => { setStats(data); })
+    );
   };
 
   const handleDelete = async (id: string, vin: string) => {
@@ -88,13 +81,10 @@ export default function StockListPage() {
       return;
     }
 
-    try {
-      await stockService.delete(id);
+    const result = await executeDelete(stockService.delete(id));
+    if (result) {
       fetchStocks();
       fetchStats();
-    } catch (error) {
-      console.error('Error deleting stock:', error);
-      alert('ไม่สามารถลบ Stock ได้');
     }
   };
 

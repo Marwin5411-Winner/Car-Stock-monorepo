@@ -83,15 +83,20 @@ export class ConflictError extends AppError {
     value?: string,
     details?: Record<string, unknown>
   ) {
-    const message = value 
-      ? `${field} already exists: ${value}` 
+    const message = value
+      ? `${field} already exists: ${value}`
       : `${field} already exists`;
-    super(
-      message,
-      409,
-      `${field.toUpperCase().replace(/\s+/g, '_')}_ALREADY_EXISTS`,
-      details
-    );
+
+    const errorCode = `${field.toUpperCase().replace(/\s+/g, '_')}_ALREADY_EXISTS`;
+
+    // Build field-level error details for frontend inline display
+    const fieldKey = field.toLowerCase().replace(/\s+/g, '');
+    const fieldDetails = {
+      ...details,
+      fields: { [fieldKey]: [`${field} already exists`] },
+    };
+
+    super(message, 409, errorCode, fieldDetails);
     this.name = 'ConflictError';
   }
 }
@@ -133,10 +138,24 @@ export function handlePrismaError(error: Prisma.PrismaClientKnownRequestError): 
   switch (code) {
     // Unique constraint violation
     case 'P2002': {
-      const field = (error.meta?.target as string[])?.[0] || 'field';
-      return new ConflictError(field, undefined, { 
+      const targets = error.meta?.target as string[] | undefined;
+      const field = targets?.[0] || 'field';
+
+      // Map DB column names to user-friendly field names
+      const fieldNameMap: Record<string, string> = {
+        vin: 'VIN',
+        engine_number: 'Engine Number',
+        engineNumber: 'Engine Number',
+        tax_id: 'Tax ID',
+        taxId: 'Tax ID',
+        username: 'Username',
+        email: 'Email',
+      };
+
+      const friendlyName = fieldNameMap[field] || field;
+      return new ConflictError(friendlyName, undefined, {
         target: error.meta?.target,
-        code: 'P2002' 
+        code: 'P2002',
       });
     }
 

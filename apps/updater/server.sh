@@ -127,13 +127,10 @@ send_response() {
   esac
 
   local content_length=${#body}
-  printf "HTTP/1.1 %s %s\r\n" "$status_code" "$status_text"
-  printf "Content-Type: application/json\r\n"
-  printf "Content-Length: %s\r\n" "$content_length"
-  printf "Connection: close\r\n"
-  printf "Access-Control-Allow-Origin: *\r\n"
-  printf "\r\n"
-  printf "%s" "$body"
+  local response
+  response=$(printf "HTTP/1.1 %s %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n%s" \
+    "$status_code" "$status_text" "$content_length" "$body")
+  printf "%s" "$response" 2>/dev/null
 }
 
 handle_check() {

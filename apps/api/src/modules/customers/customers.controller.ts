@@ -7,22 +7,13 @@ export const customerRoutes = new Elysia({ prefix: '/customers' })
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        const result = await customersService.getAllCustomers(query, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch customers',
-        };
-      }
+      const result = await customersService.getAllCustomers(query, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -44,21 +35,12 @@ export const customerRoutes = new Elysia({ prefix: '/customers' })
   .get(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        const customer = await customersService.getCustomerById(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: customer,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Customer not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Not found',
-          message: error instanceof Error ? error.message : 'Failed to fetch customer',
-        };
-      }
+      const customer = await customersService.getCustomerById(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: customer,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -73,22 +55,13 @@ export const customerRoutes = new Elysia({ prefix: '/customers' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        const customer = await customersService.createCustomer(body, requester);
-        set.status = 201;
-        return {
-          success: true,
-          data: customer,
-          message: 'Customer created successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Creation failed',
-          message: error instanceof Error ? error.message : 'Failed to create customer',
-        };
-      }
+      const customer = await customersService.createCustomer(body, requester);
+      set.status = 201;
+      return {
+        success: true,
+        data: customer,
+        message: 'Customer created successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CUSTOMER_CREATE')],
@@ -125,22 +98,13 @@ export const customerRoutes = new Elysia({ prefix: '/customers' })
   .patch(
     '/:id',
     async ({ params, body, set, requester }) => {
-      try {
-        const customer = await customersService.updateCustomer(params.id, body, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: customer,
-          message: 'Customer updated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Customer not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Update failed',
-          message: error instanceof Error ? error.message : 'Failed to update customer',
-        };
-      }
+      const customer = await customersService.updateCustomer(params.id, body, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: customer,
+        message: 'Customer updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CUSTOMER_UPDATE')],
@@ -177,21 +141,12 @@ export const customerRoutes = new Elysia({ prefix: '/customers' })
   .delete(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        await customersService.deleteCustomer(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Customer deleted successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Customer not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Deletion failed',
-          message: error instanceof Error ? error.message : 'Failed to delete customer',
-        };
-      }
+      await customersService.deleteCustomer(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Customer deleted successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('CUSTOMER_DELETE')],

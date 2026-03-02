@@ -9,22 +9,13 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        const result = await stockService.getAllStock(query, requester!);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch stock',
-        };
-      }
+      const result = await stockService.getAllStock(query, requester!);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -54,21 +45,12 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .get(
     '/stats',
     async ({ set, requester }) => {
-      try {
-        const stats = await stockService.getStockStats(requester!);
-        set.status = 200;
-        return {
-          success: true,
-          data: stats,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch stock stats',
-        };
-      }
+      const stats = await stockService.getStockStats(requester!);
+      set.status = 200;
+      return {
+        success: true,
+        data: stats,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -83,31 +65,22 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .get(
     '/available',
     async ({ set, requester }) => {
-      try {
-        // Check permission
-        if (!authService.hasPermission(requester!.role, 'STOCK_VIEW' as any)) {
-          set.status = 403;
-          return {
-            success: false,
-            error: 'Forbidden',
-            message: 'Insufficient permissions',
-          };
-        }
-
-        const stocks = await stockService.getAvailableStock();
-        set.status = 200;
-        return {
-          success: true,
-          data: stocks,
-        };
-      } catch (error) {
-        set.status = 500;
+      // Check permission
+      if (!authService.hasPermission(requester!.role, 'STOCK_VIEW' as any)) {
+        set.status = 403;
         return {
           success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch available stock',
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
         };
       }
+
+      const stocks = await stockService.getAvailableStock();
+      set.status = 200;
+      return {
+        success: true,
+        data: stocks,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -122,21 +95,12 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .get(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        const stock = await stockService.getStockById(params.id, requester!);
-        set.status = 200;
-        return {
-          success: true,
-          data: stock,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Stock not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Not found',
-          message: error instanceof Error ? error.message : 'Failed to fetch stock',
-        };
-      }
+      const stock = await stockService.getStockById(params.id, requester!);
+      set.status = 200;
+      return {
+        success: true,
+        data: stock,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -151,35 +115,26 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        // Convert string numbers to actual numbers
-        const processedBody = {
-          ...body,
-          baseCost: typeof body.baseCost === 'string' ? parseFloat(body.baseCost) : body.baseCost,
-          transportCost: typeof body.transportCost === 'string' ? parseFloat(body.transportCost) : body.transportCost,
-          accessoryCost: typeof body.accessoryCost === 'string' ? parseFloat(body.accessoryCost) : body.accessoryCost,
-          otherCosts: typeof body.otherCosts === 'string' ? parseFloat(body.otherCosts) : body.otherCosts,
-          interestRate: typeof body.interestRate === 'string' ? parseFloat(body.interestRate) : body.interestRate,
-          expectedSalePrice: body.expectedSalePrice !== undefined && typeof body.expectedSalePrice === 'string'
-            ? parseFloat(body.expectedSalePrice)
-            : body.expectedSalePrice,
-        };
+      // Convert string numbers to actual numbers
+      const processedBody = {
+        ...body,
+        baseCost: typeof body.baseCost === 'string' ? parseFloat(body.baseCost) : body.baseCost,
+        transportCost: typeof body.transportCost === 'string' ? parseFloat(body.transportCost) : body.transportCost,
+        accessoryCost: typeof body.accessoryCost === 'string' ? parseFloat(body.accessoryCost) : body.accessoryCost,
+        otherCosts: typeof body.otherCosts === 'string' ? parseFloat(body.otherCosts) : body.otherCosts,
+        interestRate: typeof body.interestRate === 'string' ? parseFloat(body.interestRate) : body.interestRate,
+        expectedSalePrice: body.expectedSalePrice !== undefined && typeof body.expectedSalePrice === 'string'
+          ? parseFloat(body.expectedSalePrice)
+          : body.expectedSalePrice,
+      };
 
-        const stock = await stockService.createStock(processedBody, requester!);
-        set.status = 201;
-        return {
-          success: true,
-          data: stock,
-          message: 'Stock created successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Creation failed',
-          message: error instanceof Error ? error.message : 'Failed to create stock',
-        };
-      }
+      const stock = await stockService.createStock(processedBody, requester!);
+      set.status = 201;
+      return {
+        success: true,
+        data: stock,
+        message: 'Stock created successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('STOCK_CREATE')],
@@ -218,43 +173,34 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .patch(
     '/:id',
     async ({ params, body, set, requester }) => {
-      try {
-        // Convert string numbers to actual numbers (only if the fields are present)
-        const processedBody: any = { ...body };
-        if (body.baseCost !== undefined) {
-          processedBody.baseCost = typeof body.baseCost === 'string' ? parseFloat(body.baseCost) : body.baseCost;
-        }
-        if (body.transportCost !== undefined) {
-          processedBody.transportCost = typeof body.transportCost === 'string' ? parseFloat(body.transportCost) : body.transportCost;
-        }
-        if (body.accessoryCost !== undefined) {
-          processedBody.accessoryCost = typeof body.accessoryCost === 'string' ? parseFloat(body.accessoryCost) : body.accessoryCost;
-        }
-        if (body.otherCosts !== undefined) {
-          processedBody.otherCosts = typeof body.otherCosts === 'string' ? parseFloat(body.otherCosts) : body.otherCosts;
-        }
-        if (body.interestRate !== undefined) {
-          processedBody.interestRate = typeof body.interestRate === 'string' ? parseFloat(body.interestRate) : body.interestRate;
-        }
-        if (body.expectedSalePrice !== undefined) {
-          processedBody.expectedSalePrice = typeof body.expectedSalePrice === 'string' ? parseFloat(body.expectedSalePrice) : body.expectedSalePrice;
-        }
-
-        const stock = await stockService.updateStock(params.id, processedBody, requester!);
-        set.status = 200;
-        return {
-          success: true,
-          data: stock,
-          message: 'Stock updated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Stock not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Update failed',
-          message: error instanceof Error ? error.message : 'Failed to update stock',
-        };
+      // Convert string numbers to actual numbers (only if the fields are present)
+      const processedBody: any = { ...body };
+      if (body.baseCost !== undefined) {
+        processedBody.baseCost = typeof body.baseCost === 'string' ? parseFloat(body.baseCost) : body.baseCost;
       }
+      if (body.transportCost !== undefined) {
+        processedBody.transportCost = typeof body.transportCost === 'string' ? parseFloat(body.transportCost) : body.transportCost;
+      }
+      if (body.accessoryCost !== undefined) {
+        processedBody.accessoryCost = typeof body.accessoryCost === 'string' ? parseFloat(body.accessoryCost) : body.accessoryCost;
+      }
+      if (body.otherCosts !== undefined) {
+        processedBody.otherCosts = typeof body.otherCosts === 'string' ? parseFloat(body.otherCosts) : body.otherCosts;
+      }
+      if (body.interestRate !== undefined) {
+        processedBody.interestRate = typeof body.interestRate === 'string' ? parseFloat(body.interestRate) : body.interestRate;
+      }
+      if (body.expectedSalePrice !== undefined) {
+        processedBody.expectedSalePrice = typeof body.expectedSalePrice === 'string' ? parseFloat(body.expectedSalePrice) : body.expectedSalePrice;
+      }
+
+      const stock = await stockService.updateStock(params.id, processedBody, requester!);
+      set.status = 200;
+      return {
+        success: true,
+        data: stock,
+        message: 'Stock updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('STOCK_UPDATE')],
@@ -292,27 +238,18 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .patch(
     '/:id/status',
     async ({ params, body, set, requester }) => {
-      try {
-        const stock = await stockService.updateStockStatus(
-          params.id,
-          body.status,
-          body.notes,
-          requester!
-        );
-        set.status = 200;
-        return {
-          success: true,
-          data: stock,
-          message: 'Stock status updated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Stock not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Update failed',
-          message: error instanceof Error ? error.message : 'Failed to update stock status',
-        };
-      }
+      const stock = await stockService.updateStockStatus(
+        params.id,
+        body.status,
+        body.notes,
+        requester!
+      );
+      set.status = 200;
+      return {
+        success: true,
+        data: stock,
+        message: 'Stock status updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('STOCK_UPDATE')],
@@ -337,22 +274,13 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .post(
     '/:id/recalculate-interest',
     async ({ params, set, requester }) => {
-      try {
-        const stock = await stockService.recalculateInterest(params.id, requester!);
-        set.status = 200;
-        return {
-          success: true,
-          data: stock,
-          message: 'Interest recalculated successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Stock not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Recalculation failed',
-          message: error instanceof Error ? error.message : 'Failed to recalculate interest',
-        };
-      }
+      const stock = await stockService.recalculateInterest(params.id, requester!);
+      set.status = 200;
+      return {
+        success: true,
+        data: stock,
+        message: 'Interest recalculated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('STOCK_UPDATE')],
@@ -367,21 +295,12 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
   .delete(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        await stockService.deleteStock(params.id, requester!);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Stock deleted successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Stock not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Deletion failed',
-          message: error instanceof Error ? error.message : 'Failed to delete stock',
-        };
-      }
+      await stockService.deleteStock(params.id, requester!);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Stock deleted successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('STOCK_DELETE')],

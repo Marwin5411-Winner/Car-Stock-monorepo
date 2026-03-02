@@ -7,22 +7,13 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        const result = await quotationsService.getAllQuotations(query, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch quotations',
-        };
-      }
+      const result = await quotationsService.getAllQuotations(query, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -53,21 +44,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .get(
     '/stats',
     async ({ set, requester }) => {
-      try {
-        const stats = await quotationsService.getQuotationStats(requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: stats,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch quotation stats',
-        };
-      }
+      const stats = await quotationsService.getQuotationStats(requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: stats,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -82,21 +64,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .get(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        const quotation = await quotationsService.getQuotationById(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: quotation,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Quotation not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Not found',
-          message: error instanceof Error ? error.message : 'Quotation not found',
-        };
-      }
+      const quotation = await quotationsService.getQuotationById(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: quotation,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -114,21 +87,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        const quotation = await quotationsService.createQuotation(body, requester);
-        set.status = 201;
-        return {
-          success: true,
-          data: quotation,
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to create quotation',
-        };
-      }
+      const quotation = await quotationsService.createQuotation(body, requester);
+      set.status = 201;
+      return {
+        success: true,
+        data: quotation,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('QUOTATION_CREATE')],
@@ -153,21 +117,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .put(
     '/:id',
     async ({ params, body, set, requester }) => {
-      try {
-        const quotation = await quotationsService.updateQuotation(params.id, body, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: quotation,
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to update quotation',
-        };
-      }
+      const quotation = await quotationsService.updateQuotation(params.id, body, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: quotation,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('QUOTATION_UPDATE')],
@@ -194,21 +149,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .patch(
     '/:id/status',
     async ({ params, body, set, requester }) => {
-      try {
-        const quotation = await quotationsService.updateQuotationStatus(params.id, body.status, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: quotation,
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to update quotation status',
-        };
-      }
+      const quotation = await quotationsService.updateQuotationStatus(params.id, body.status, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: quotation,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('QUOTATION_UPDATE')],
@@ -235,21 +181,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .post(
     '/:id/convert',
     async ({ params, body, set, requester }) => {
-      try {
-        const result = await quotationsService.convertToSale(params.id, body, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: result,
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to convert quotation to sale',
-        };
-      }
+      const result = await quotationsService.convertToSale(params.id, body, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: result,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('QUOTATION_CONVERT')],
@@ -273,21 +210,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .post(
     '/:id/new-version',
     async ({ params, body, set, requester }) => {
-      try {
-        const quotation = await quotationsService.createNewVersion(params.id, body, requester);
-        set.status = 201;
-        return {
-          success: true,
-          data: quotation,
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to create new quotation version',
-        };
-      }
+      const quotation = await quotationsService.createNewVersion(params.id, body, requester);
+      set.status = 201;
+      return {
+        success: true,
+        data: quotation,
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('QUOTATION_CREATE')],
@@ -314,21 +242,12 @@ export const quotationRoutes = new Elysia({ prefix: '/quotations' })
   .delete(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        await quotationsService.deleteQuotation(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          message: 'Quotation deleted successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Bad request',
-          message: error instanceof Error ? error.message : 'Failed to delete quotation',
-        };
-      }
+      await quotationsService.deleteQuotation(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        message: 'Quotation deleted successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('QUOTATION_DELETE')],
