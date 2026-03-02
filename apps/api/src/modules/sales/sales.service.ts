@@ -363,7 +363,6 @@ export class SalesService {
         where: { id: validated.stockId },
         data: {
           status: 'RESERVED',
-          reservedDate: new Date(),
         },
       });
     }
@@ -547,6 +546,11 @@ export class SalesService {
           data: {
             status: 'AVAILABLE',
           },
+        });
+        // Release stock from cancelled sale so it can be assigned to a new sale
+        await db.sale.update({
+          where: { id },
+          data: { stockId: null },
         });
       }
     }
