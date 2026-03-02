@@ -4,16 +4,18 @@ import { quotationService, type CreateQuotationData, type UpdateQuotationData } 
 import { customerService, type Customer } from '../../services/customer.service';
 import { vehicleService, type VehicleModel } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
-import { 
-  ArrowLeft, 
-  User, 
-  Car, 
+import {
+  ArrowLeft,
+  User,
+  Car,
   DollarSign,
   Calendar,
   Save,
   FileText
 } from 'lucide-react';
 import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 interface FormData {
   customerId: string;
@@ -30,7 +32,9 @@ export default function QuotationFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
-  
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]);
@@ -69,41 +73,36 @@ export default function QuotationFormPage() {
   }, [id]);
 
   const fetchVehicleModels = async () => {
-    try {
-      const response = await vehicleService.getAll({ limit: 100 });
-      setVehicleModels(response.data);
-    } catch (error) {
-      console.error('Error fetching vehicle models:', error);
-    }
+    await executeQuery(
+      vehicleService.getAll({ limit: 100 }).then(response => setVehicleModels(response.data))
+    );
   };
 
   const fetchQuotation = async (quotationId: string) => {
-    try {
-      setLoading(true);
-      const quotation = await quotationService.getById(quotationId);
-      
-      setFormData({
-        customerId: quotation.customer.id,
-        vehicleModelId: quotation.vehicleModel?.id || '',
-        preferredExtColor: quotation.preferredExtColor || '',
-        preferredIntColor: quotation.preferredIntColor || '',
-        quotedPrice: quotation.quotedPrice,
-        discountAmount: quotation.discountAmount || 0,
-        validUntil: quotation.validUntil ? new Date(quotation.validUntil).toISOString().split('T')[0] : getDefaultValidUntil(),
-        notes: quotation.notes || '',
-      });
-      
-      setSelectedCustomer(quotation.customer as Customer);
-      if (quotation.vehicleModel) {
-        setSelectedVehicle(quotation.vehicleModel as VehicleModel);
-      }
-    } catch (error) {
-      console.error('Error fetching quotation:', error);
-      alert('ไม่สามารถโหลดข้อมูลใบเสนอราคาได้');
+    setLoading(true);
+    const result = await executeQuery(
+      quotationService.getById(quotationId).then(quotation => {
+        setFormData({
+          customerId: quotation.customer.id,
+          vehicleModelId: quotation.vehicleModel?.id || '',
+          preferredExtColor: quotation.preferredExtColor || '',
+          preferredIntColor: quotation.preferredIntColor || '',
+          quotedPrice: quotation.quotedPrice,
+          discountAmount: quotation.discountAmount || 0,
+          validUntil: quotation.validUntil ? new Date(quotation.validUntil).toISOString().split('T')[0] : getDefaultValidUntil(),
+          notes: quotation.notes || '',
+        });
+
+        setSelectedCustomer(quotation.customer as Customer);
+        if (quotation.vehicleModel) {
+          setSelectedVehicle(quotation.vehicleModel as VehicleModel);
+        }
+      })
+    );
+    if (!result) {
       navigate('/quotations');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   // Async customer search for SearchSelect
@@ -182,35 +181,30 @@ export default function QuotationFormPage() {
       return;
     }
 
-    try {
-      setSaving(true);
-      
-      const data: CreateQuotationData | UpdateQuotationData = {
-        customerId: formData.customerId,
-        vehicleModelId: formData.vehicleModelId || undefined,
-        preferredExtColor: formData.preferredExtColor || undefined,
-        preferredIntColor: formData.preferredIntColor || undefined,
-        quotedPrice: formData.quotedPrice,
-        discountAmount: formData.discountAmount || undefined,
-        validUntil: new Date(formData.validUntil),
-        notes: formData.notes || undefined,
-      };
+    setSaving(true);
 
-      if (isEditing && id) {
-        await quotationService.update(id, data);
-        alert('แก้ไขข้อมูลสำเร็จ');
-      } else {
-        await quotationService.create(data as CreateQuotationData);
-        alert('สร้างใบเสนอราคาสำเร็จ');
-      }
-      
-      navigate('/quotations');
-    } catch (error) {
-      console.error('Error saving quotation:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-    } finally {
-      setSaving(false);
+    const data: CreateQuotationData | UpdateQuotationData = {
+      customerId: formData.customerId,
+      vehicleModelId: formData.vehicleModelId || undefined,
+      preferredExtColor: formData.preferredExtColor || undefined,
+      preferredIntColor: formData.preferredIntColor || undefined,
+      quotedPrice: formData.quotedPrice,
+      discountAmount: formData.discountAmount || undefined,
+      validUntil: new Date(formData.validUntil),
+      notes: formData.notes || undefined,
+    };
+
+    let result;
+    if (isEditing && id) {
+      result = await executeQuery(quotationService.update(id, data));
+      if (result) addToast('แก้ไขข้อมูลสำเร็จ', 'success');
+    } else {
+      result = await executeQuery(quotationService.create(data as CreateQuotationData));
+      if (result) addToast('สร้างใบเสนอราคาสำเร็จ', 'success');
     }
+
+    if (result) navigate('/quotations');
+    setSaving(false);
   };
 
   // Calculate final price

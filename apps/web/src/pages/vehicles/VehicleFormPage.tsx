@@ -3,11 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { vehicleService } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 export default function VehicleFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,32 +41,29 @@ export default function VehicleFormPage() {
   }, [id, isEdit]);
 
   const fetchVehicle = async (vehicleId: string) => {
-    try {
-      setLoading(true);
-      const vehicle = await vehicleService.getById(vehicleId);
-      setFormData({
-        brand: vehicle.brand,
-        model: vehicle.model,
-        variant: vehicle.variant || '',
-        year: vehicle.year,
-        type: vehicle.type,
-        primaryColor: vehicle.primaryColor || '',
-        secondaryColor: vehicle.secondaryColor || '',
-        colorNotes: vehicle.colorNotes || '',
-        mainOptions: vehicle.mainOptions || '',
-        engineSpecs: vehicle.engineSpecs || '',
-        dimensions: vehicle.dimensions || '',
-        price: typeof vehicle.price === 'string' ? parseFloat(vehicle.price) : vehicle.price,
-        standardCost: typeof vehicle.standardCost === 'string' ? parseFloat(vehicle.standardCost) : vehicle.standardCost,
-        targetMargin: vehicle.targetMargin ? (typeof vehicle.targetMargin === 'string' ? parseFloat(vehicle.targetMargin) : vehicle.targetMargin) : 0,
-        notes: vehicle.notes || '',
-      });
-    } catch (error) {
-      console.error('Error fetching vehicle:', error);
-      alert('ไม่สามารถโหลดข้อมูลรุ่นรถได้');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await executeQuery(
+      vehicleService.getById(vehicleId).then(vehicle => {
+        setFormData({
+          brand: vehicle.brand,
+          model: vehicle.model,
+          variant: vehicle.variant || '',
+          year: vehicle.year,
+          type: vehicle.type,
+          primaryColor: vehicle.primaryColor || '',
+          secondaryColor: vehicle.secondaryColor || '',
+          colorNotes: vehicle.colorNotes || '',
+          mainOptions: vehicle.mainOptions || '',
+          engineSpecs: vehicle.engineSpecs || '',
+          dimensions: vehicle.dimensions || '',
+          price: typeof vehicle.price === 'string' ? parseFloat(vehicle.price) : vehicle.price,
+          standardCost: typeof vehicle.standardCost === 'string' ? parseFloat(vehicle.standardCost) : vehicle.standardCost,
+          targetMargin: vehicle.targetMargin ? (typeof vehicle.targetMargin === 'string' ? parseFloat(vehicle.targetMargin) : vehicle.targetMargin) : 0,
+          notes: vehicle.notes || '',
+        });
+      })
+    );
+    setLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -81,39 +82,34 @@ export default function VehicleFormPage() {
     e.preventDefault();
     setSaving(true);
 
-    try {
-      const data = {
-        brand: formData.brand,
-        model: formData.model,
-        variant: formData.variant || undefined,
-        year: formData.year,
-        type: formData.type,
-        primaryColor: formData.primaryColor || undefined,
-        secondaryColor: formData.secondaryColor || undefined,
-        colorNotes: formData.colorNotes || undefined,
-        mainOptions: formData.mainOptions || undefined,
-        engineSpecs: formData.engineSpecs || undefined,
-        dimensions: formData.dimensions || undefined,
-        price: formData.price === '' ? 0 : Number(formData.price),
-        standardCost: formData.standardCost === '' ? 0 : Number(formData.standardCost),
-        targetMargin: formData.targetMargin === '' ? undefined : Number(formData.targetMargin),
-        notes: formData.notes || undefined,
-      };
+    const data = {
+      brand: formData.brand,
+      model: formData.model,
+      variant: formData.variant || undefined,
+      year: formData.year,
+      type: formData.type,
+      primaryColor: formData.primaryColor || undefined,
+      secondaryColor: formData.secondaryColor || undefined,
+      colorNotes: formData.colorNotes || undefined,
+      mainOptions: formData.mainOptions || undefined,
+      engineSpecs: formData.engineSpecs || undefined,
+      dimensions: formData.dimensions || undefined,
+      price: formData.price === '' ? 0 : Number(formData.price),
+      standardCost: formData.standardCost === '' ? 0 : Number(formData.standardCost),
+      targetMargin: formData.targetMargin === '' ? undefined : Number(formData.targetMargin),
+      notes: formData.notes || undefined,
+    };
 
-      if (isEdit && id) {
-        await vehicleService.update(id, data);
-        alert('อัปเดตข้อมูลรุ่นรถสำเร็จ');
-      } else {
-        await vehicleService.create(data);
-        alert('เพิ่มรุ่นรถใหม่สำเร็จ');
-      }
-      navigate('/vehicles');
-    } catch (error) {
-      console.error('Error saving vehicle:', error);
-      alert('ไม่สามารถบันทึกข้อมูลรุ่นรถได้');
-    } finally {
-      setSaving(false);
+    let result;
+    if (isEdit && id) {
+      result = await executeQuery(vehicleService.update(id, data));
+      if (result) addToast('อัปเดตข้อมูลรุ่นรถสำเร็จ', 'success');
+    } else {
+      result = await executeQuery(vehicleService.create(data));
+      if (result) addToast('เพิ่มรุ่นรถใหม่สำเร็จ', 'success');
     }
+    if (result) navigate('/vehicles');
+    setSaving(false);
   };
 
   if (loading) {

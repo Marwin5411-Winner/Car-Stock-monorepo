@@ -4,6 +4,7 @@ import { vehicleService } from '../../services/vehicle.service';
 import type { VehicleModel } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, Car } from 'lucide-react';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import {
   Table,
   TableHeader,
@@ -19,6 +20,8 @@ import {
 } from '@/components/ui/table';
 
 export default function VehiclesListPage() {
+  const { execute: executeQuery } = useErrorHandler();
+  const { execute: executeDelete } = useMutationHandler('ลบรุ่นรถสำเร็จ');
   const [vehicles, setVehicles] = useState<VehicleModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,29 +46,24 @@ export default function VehiclesListPage() {
   }, [searchTerm]);
 
   const fetchVehicles = async () => {
-    try {
-      setLoading(true);
-      const filters: any = {
-        page,
-        limit,
-      };
+    setLoading(true);
+    const filters: any = {
+      page,
+      limit,
+    };
 
-      if (searchTerm) {
-        filters.search = searchTerm;
-      }
-
-      const response = await vehicleService.getAll(filters);
-      setVehicles(response?.data || []);
-      setTotalPages(response?.meta?.totalPages || 1);
-      setTotal(response?.meta?.total || 0);
-    } catch (error) {
-      console.error('Error fetching vehicles:', error);
-      setVehicles([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
+    if (searchTerm) {
+      filters.search = searchTerm;
     }
+
+    await executeQuery(
+      vehicleService.getAll(filters).then((response) => {
+        setVehicles(response?.data || []);
+        setTotalPages(response?.meta?.totalPages || 1);
+        setTotal(response?.meta?.total || 0);
+      })
+    );
+    setLoading(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -73,13 +71,8 @@ export default function VehiclesListPage() {
       return;
     }
 
-    try {
-      await vehicleService.delete(id);
-      fetchVehicles();
-    } catch (error) {
-      console.error('Error deleting vehicle:', error);
-      alert('ไม่สามารถลบรุ่นรถได้');
-    }
+    const result = await executeDelete(vehicleService.delete(id));
+    if (result) fetchVehicles();
   };
 
   return (
