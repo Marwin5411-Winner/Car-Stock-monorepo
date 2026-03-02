@@ -236,7 +236,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({
         </div>
         {!isAdding && !editingId && (
           <button
-            onClick={() => { setIsAdding(true); setEditingId(null); resetForm(); }}
+            onClick={() => { setIsAdding(true); setEditingId(null); setFormData({ name: '', operator: 'ADD', value: 0, priceTarget: 'SELLING_PRICE' }); }}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
