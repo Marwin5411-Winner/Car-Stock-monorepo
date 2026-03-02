@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { stockService } from '../../services/stock.service';
 import type { Stock } from '../../services/stock.service';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
 import {
@@ -44,6 +46,9 @@ export default function StockDetailPage() {
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
 
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+
   const { hasPermission } = usePermission();
   const canEdit = hasPermission('STOCK_UPDATE');
   const canUpdateStatus = hasPermission('STOCK_UPDATE');
@@ -58,33 +63,25 @@ export default function StockDetailPage() {
   }, [id]);
 
   const fetchStock = async (stockId: string) => {
-    try {
-      setLoading(true);
-      const data = await stockService.getById(stockId);
-      setStock(data);
-    } catch (error) {
-      console.error('Error fetching stock:', error);
-      alert('ไม่สามารถโหลดข้อมูล Stock ได้');
-      navigate('/stock');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    let found = false;
+    await executeQuery(
+      stockService.getById(stockId).then((data) => { setStock(data); found = true; })
+    );
+    if (!found) navigate('/stock');
+    setLoading(false);
   };
 
   const handleRecalculateInterest = async () => {
     if (!stock) return;
-
-    try {
-      setRecalculating(true);
-      const updated = await stockService.recalculateInterest(stock.id);
-      setStock(updated);
-      alert('คำนวณดอกเบี้ยใหม่สำเร็จ');
-    } catch (error) {
-      console.error('Error recalculating interest:', error);
-      alert('ไม่สามารถคำนวณดอกเบี้ยใหม่ได้');
-    } finally {
-      setRecalculating(false);
-    }
+    setRecalculating(true);
+    await executeQuery(
+      stockService.recalculateInterest(stock.id).then((updated) => {
+        setStock(updated);
+        addToast('คำนวณดอกเบี้ยใหม่สำเร็จ', 'success');
+      })
+    );
+    setRecalculating(false);
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -93,48 +90,42 @@ export default function StockDetailPage() {
     const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
-    try {
-      const updated = await stockService.updateStatus(stock.id, newStatus);
-      setStock(updated);
-      alert('เปลี่ยนสถานะสำเร็จ');
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('ไม่สามารถเปลี่ยนสถานะได้');
-    }
+    await executeQuery(
+      stockService.updateStatus(stock.id, newStatus).then((updated) => {
+        setStock(updated);
+        addToast('เปลี่ยนสถานะสำเร็จ', 'success');
+      })
+    );
   };
 
   const handlePrintVehicleCard = async () => {
     if (!stock) return;
-    try {
-      const blob = await api.getBlob(`/api/pdf/vehicle-card/${stock.id}`);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `vehicle-card-${stock.vin}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error('Error downloading vehicle card:', error);
-      alert('ไม่สามารถดาวน์โหลดเอกสารได้');
-    }
+    await executeQuery(
+      api.getBlob(`/api/pdf/vehicle-card/${stock.id}`).then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `vehicle-card-${stock.vin}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+    );
   };
 
   const handlePrintVehicleCardTemplate = async () => {
     if (!stock) return;
-    try {
-      const blob = await api.getBlob(`/api/pdf/vehicle-card-template/${stock.id}`);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `vehicle-card-template-${stock.vin}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error('Error downloading vehicle card template:', error);
-      alert('ไม่สามารถดาวน์โหลดเอกสารได้');
-    }
+    await executeQuery(
+      api.getBlob(`/api/pdf/vehicle-card-template/${stock.id}`).then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `vehicle-card-template-${stock.vin}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+    );
   };
 
   const formatCurrency = (amount: number) => {

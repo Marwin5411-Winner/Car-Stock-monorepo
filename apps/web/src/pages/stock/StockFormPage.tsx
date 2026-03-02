@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { stockService } from '../../services/stock.service';
 import { vehicleService } from '../../services/vehicle.service';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft } from 'lucide-react';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
@@ -28,6 +29,12 @@ export default function StockFormPage() {
   const [vehicles, setVehicles] = useState<VehicleModel[]>([]);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState<VehicleModel | null>(null);
+
+  const { execute: executeMutation, fieldErrors, clearFieldErrors } = useMutationHandler(
+    isEdit ? 'แก้ไขข้อมูลสต็อกสำเร็จ' : 'เพิ่มสต็อกสำเร็จ',
+    { onSuccess: () => navigate('/stock') }
+  );
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
 
   const [formData, setFormData] = useState({
     vin: '',
@@ -60,46 +67,42 @@ export default function StockFormPage() {
   }, [id, isEdit]);
 
   const fetchVehicles = async () => {
-    try {
-      const response = await vehicleService.getAll({ limit: 100 });
-      setVehicles(response.data);
-    } catch (error) {
-      console.error('Error fetching vehicles:', error);
-    }
+    await executeQuery(
+      vehicleService.getAll({ limit: 100 }).then((response) => {
+        setVehicles(response.data);
+      })
+    );
   };
 
   const fetchStock = async (stockId: string) => {
-    try {
-      setLoading(true);
-      const stock = await stockService.getById(stockId);
-      setFormData({
-        vin: stock.vin,
-        engineNumber: stock.engineNumber || '',
-        motorNumber1: stock.motorNumber1 || '',
-        motorNumber2: stock.motorNumber2 || '',
-        vehicleModelId: stock.vehicleModel.id,
-        exteriorColor: stock.exteriorColor,
-        interiorColor: stock.interiorColor || '',
-        arrivalDate: new Date(stock.arrivalDate).toISOString().split('T')[0],
-        orderDate: stock.orderDate ? new Date(stock.orderDate).toISOString().split('T')[0] : '',
-        parkingSlot: stock.parkingSlot || '',
-        status: stock.status,
-        baseCost: Number(stock.baseCost),
-        transportCost: Number(stock.transportCost),
-        accessoryCost: Number(stock.accessoryCost),
-        otherCosts: Number(stock.otherCosts),
-        financeProvider: stock.financeProvider || '',
-        interestRate: Number(stock.interestRate) * 100,
-        interestPrincipalBase: stock.interestPrincipalBase,
-        expectedSalePrice: stock.expectedSalePrice ? Number(stock.expectedSalePrice) : '',
-        notes: stock.notes || '',
-      });
-    } catch (error) {
-      console.error('Error fetching stock:', error);
-      alert('ไม่สามารถโหลดข้อมูล Stock ได้');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await executeQuery(
+      stockService.getById(stockId).then((stock) => {
+        setFormData({
+          vin: stock.vin,
+          engineNumber: stock.engineNumber || '',
+          motorNumber1: stock.motorNumber1 || '',
+          motorNumber2: stock.motorNumber2 || '',
+          vehicleModelId: stock.vehicleModel.id,
+          exteriorColor: stock.exteriorColor,
+          interiorColor: stock.interiorColor || '',
+          arrivalDate: new Date(stock.arrivalDate).toISOString().split('T')[0],
+          orderDate: stock.orderDate ? new Date(stock.orderDate).toISOString().split('T')[0] : '',
+          parkingSlot: stock.parkingSlot || '',
+          status: stock.status,
+          baseCost: Number(stock.baseCost),
+          transportCost: Number(stock.transportCost),
+          accessoryCost: Number(stock.accessoryCost),
+          otherCosts: Number(stock.otherCosts),
+          financeProvider: stock.financeProvider || '',
+          interestRate: Number(stock.interestRate) * 100,
+          interestPrincipalBase: stock.interestPrincipalBase,
+          expectedSalePrice: stock.expectedSalePrice ? Number(stock.expectedSalePrice) : '',
+          notes: stock.notes || '',
+        });
+      })
+    );
+    setLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -172,44 +175,24 @@ export default function StockFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    clearFieldErrors();
 
-    try {
-      const data = {
-        ...formData,
-        baseCost: formData.baseCost === '' ? 0 : Number(formData.baseCost),
-        transportCost: formData.transportCost === '' ? 0 : Number(formData.transportCost),
-        accessoryCost: formData.accessoryCost === '' ? 0 : Number(formData.accessoryCost),
-        otherCosts: formData.otherCosts === '' ? 0 : Number(formData.otherCosts),
-        interestRate: formData.interestRate === '' ? 0 : Number(formData.interestRate) / 100,
-        expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
-        orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
-        arrivalDate: new Date(formData.arrivalDate),
-      };
+    const data = {
+      ...formData,
+      baseCost: formData.baseCost === '' ? 0 : Number(formData.baseCost),
+      transportCost: formData.transportCost === '' ? 0 : Number(formData.transportCost),
+      accessoryCost: formData.accessoryCost === '' ? 0 : Number(formData.accessoryCost),
+      otherCosts: formData.otherCosts === '' ? 0 : Number(formData.otherCosts),
+      interestRate: formData.interestRate === '' ? 0 : Number(formData.interestRate) / 100,
+      expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
+      orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
+      arrivalDate: new Date(formData.arrivalDate),
+    };
 
-      console.log('Sending data:', data);
-      console.log('Data types:', {
-        baseCost: typeof data.baseCost,
-        transportCost: typeof data.transportCost,
-        accessoryCost: typeof data.accessoryCost,
-        otherCosts: typeof data.otherCosts,
-        interestRate: typeof data.interestRate,
-        expectedSalePrice: typeof data.expectedSalePrice,
-      });
-
-      if (isEdit && id) {
-        await stockService.update(id, data);
-        alert('อัปเดตข้อมูล Stock สำเร็จ');
-      } else {
-        await stockService.create(data);
-        alert('เพิ่ม Stock ใหม่สำเร็จ');
-      }
-      navigate('/stock');
-    } catch (error) {
-      console.error('Error saving stock:', error);
-      alert('ไม่สามารถบันทึกข้อมูล Stock ได้');
-    } finally {
-      setSaving(false);
-    }
+    await executeMutation(
+      isEdit && id ? stockService.update(id, data) : stockService.create(data)
+    );
+    setSaving(false);
   };
 
   if (loading) {
@@ -305,12 +288,16 @@ export default function StockFormPage() {
                   id="vin"
                   name="vin"
                   value={formData.vin}
-                  onChange={handleChange}
+                  onChange={(e) => { handleChange(e); clearFieldErrors(); }}
                   placeholder="JTMHU09J704567123"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${fieldErrors.vin ? 'border-red-500' : 'border-gray-300'}`}
                 />
-                <p className="text-xs text-gray-500 mt-1">กรอกหมายเลข VIN หรือเลขตัวถัง</p>
+                {fieldErrors.vin ? (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.vin}</p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">กรอกหมายเลข VIN หรือเลขตัวถัง</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -322,10 +309,11 @@ export default function StockFormPage() {
                   id="engineNumber"
                   name="engineNumber"
                   value={formData.engineNumber}
-                  onChange={handleChange}
+                  onChange={(e) => { handleChange(e); clearFieldErrors(); }}
                   placeholder="1GD-FTV-0123456"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${fieldErrors.enginenumber ? 'border-red-500' : 'border-gray-300'}`}
                 />
+                {fieldErrors.enginenumber && <p className="text-sm text-red-500 mt-1">{fieldErrors.enginenumber}</p>}
               </div>
             </div>
 
