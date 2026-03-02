@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePermission } from '../../hooks/usePermission';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 import { salesService } from '../../services/sales.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import type { Sale, SaleStatus } from '../../services/sales.service';
@@ -157,6 +159,10 @@ export default function SalesDetailPage() {
   const canCreatePayment = hasPermission('PAYMENT_CREATE');
   const canUpdate = hasPermission('SALE_UPDATE');
   const canDiscount = hasPermission('SALE_DISCOUNT');
+
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -180,17 +186,13 @@ export default function SalesDetailPage() {
   }, [id]);
 
   const fetchSale = async (saleId: string) => {
-    try {
-      setLoading(true);
-      const data = await salesService.getById(saleId);
-      setSale(data);
-    } catch (error) {
-      console.error('Error fetching sale:', error);
-      alert('ไม่สามารถโหลดข้อมูลการขายได้');
-      navigate('/sales');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    let found = false;
+    await executeQuery(
+      salesService.getById(saleId).then((data) => { setSale(data); found = true; })
+    );
+    if (!found) navigate('/sales');
+    setLoading(false);
   };
 
   const handleStatusChange = async (newStatus: SaleStatus) => {
@@ -199,44 +201,38 @@ export default function SalesDetailPage() {
     const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
-    try {
-      setUpdatingStatus(true);
-      const updated = await salesService.updateStatus(sale.id, newStatus);
-      setSale(updated);
-      // Refresh to get updated data
-      await fetchSale(sale.id);
-      alert('เปลี่ยนสถานะสำเร็จ');
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('ไม่สามารถเปลี่ยนสถานะได้');
-    } finally {
-      setUpdatingStatus(false);
-    }
+    setUpdatingStatus(true);
+    await executeQuery(
+      salesService.updateStatus(sale.id, newStatus).then(async () => {
+        await fetchSale(sale.id);
+        addToast('เปลี่ยนสถานะสำเร็จ', 'success');
+      })
+    );
+    setUpdatingStatus(false);
   };
 
   // Stock assignment functions
   const openStockModal = async () => {
     if (!sale) return;
 
-    try {
-      setLoadingStocks(true);
-      setShowStockModal(true);
-      // Fetch available stocks for the same vehicle model
-      const vehicleModelId = sale.vehicleModel?.id;
-      const stocks = await stockService.getAll({
+    setLoadingStocks(true);
+    setShowStockModal(true);
+    // Fetch available stocks for the same vehicle model
+    const vehicleModelId = sale.vehicleModel?.id;
+    const result = await executeQuery(
+      stockService.getAll({
         vehicleModelId,
         status: 'AVAILABLE',
         limit: 50
-      });
-      setAvailableStocks(stocks.data || []);
-      setSelectedStockId(sale.stock?.id || '');
-    } catch (error) {
-      console.error('Error fetching stocks:', error);
-      alert('ไม่สามารถโหลดรายการสต็อกได้');
+      }).then((stocks) => {
+        setAvailableStocks(stocks.data || []);
+        setSelectedStockId(sale.stock?.id || '');
+      })
+    );
+    if (result === undefined) {
       setShowStockModal(false);
-    } finally {
-      setLoadingStocks(false);
     }
+    setLoadingStocks(false);
   };
 
   const closeStockModal = () => {
@@ -248,18 +244,15 @@ export default function SalesDetailPage() {
   const handleAssignStock = async () => {
     if (!sale || !selectedStockId) return;
 
-    try {
-      setAssigningStock(true);
-      await salesService.assignStock(sale.id, selectedStockId);
-      await fetchSale(sale.id);
-      closeStockModal();
-      alert('กำหนดสต็อกสำเร็จ');
-    } catch (error) {
-      console.error('Error assigning stock:', error);
-      alert('ไม่สามารถกำหนดสต็อกได้');
-    } finally {
-      setAssigningStock(false);
-    }
+    setAssigningStock(true);
+    await executeQuery(
+      salesService.assignStock(sale.id, selectedStockId).then(async () => {
+        await fetchSale(sale.id);
+        closeStockModal();
+        addToast('กำหนดสต็อกสำเร็จ', 'success');
+      })
+    );
+    setAssigningStock(false);
   };
 
   const canChangeStock = (): boolean => {
@@ -281,85 +274,74 @@ export default function SalesDetailPage() {
   const handleDownloadDocument = async (config: DocumentConfig) => {
     if (!sale) return;
 
-    try {
-      setDocumentLoading(config.id);
-
-      // Determine the ID to use (saleId or paymentId)
-      let endpoint = config.endpoint;
-      if (config.usePaymentId) {
-        const paymentId = getDepositPaymentId();
-        if (!paymentId) {
-          alert('ไม่พบข้อมูลการชำระเงินมัดจำ');
-          return;
-        }
-        endpoint = `${config.endpoint}/${paymentId}`;
-      } else {
-        endpoint = `${config.endpoint}/${sale.id}`;
+    // Determine the ID to use (saleId or paymentId)
+    let endpoint = config.endpoint;
+    if (config.usePaymentId) {
+      const paymentId = getDepositPaymentId();
+      if (!paymentId) {
+        addToast('ไม่พบข้อมูลการชำระเงินมัดจำ', 'error');
+        return;
       }
-
-      const blob = await api.getBlob(endpoint);
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${config.id}-${sale.saleNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading document:', error);
-      alert('ไม่สามารถดาวน์โหลดเอกสารได้');
-    } finally {
-      setDocumentLoading(null);
+      endpoint = `${config.endpoint}/${paymentId}`;
+    } else {
+      endpoint = `${config.endpoint}/${sale.id}`;
     }
+
+    setDocumentLoading(config.id);
+    await executeQuery(
+      api.getBlob(endpoint).then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${config.id}-${sale.saleNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      })
+    );
+    setDocumentLoading(null);
   };
 
   // Handle document print
   const handlePrintDocument = async (config: DocumentConfig) => {
     if (!sale) return;
 
-    try {
-      setDocumentLoading(config.id);
-
-      // Determine the ID to use (saleId or paymentId)
-      let endpoint = config.endpoint;
-      if (config.usePaymentId) {
-        const paymentId = getDepositPaymentId();
-        if (!paymentId) {
-          alert('ไม่พบข้อมูลการชำระเงินมัดจำ');
-          return;
-        }
-        endpoint = `${config.endpoint}/${paymentId}`;
-      } else {
-        endpoint = `${config.endpoint}/${sale.id}`;
+    // Determine the ID to use (saleId or paymentId)
+    let endpoint = config.endpoint;
+    if (config.usePaymentId) {
+      const paymentId = getDepositPaymentId();
+      if (!paymentId) {
+        addToast('ไม่พบข้อมูลการชำระเงินมัดจำ', 'error');
+        return;
       }
-
-      const blob = await api.getBlob(endpoint);
-
-      // Create blob URL and open in new window for printing
-      const url = window.URL.createObjectURL(blob);
-      const printWindow = window.open(url, '_blank');
-
-      if (printWindow) {
-        printWindow.onload = () => {
-          printWindow.focus();
-          // Give time for PDF to load before printing
-          setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        };
-      } else {
-        // Fallback: if popup blocked, just open the URL
-        window.open(url, '_blank');
-      }
-    } catch (error) {
-      console.error('Error printing document:', error);
-      alert('ไม่สามารถพิมพ์เอกสารได้');
-    } finally {
-      setDocumentLoading(null);
+      endpoint = `${config.endpoint}/${paymentId}`;
+    } else {
+      endpoint = `${config.endpoint}/${sale.id}`;
     }
+
+    setDocumentLoading(config.id);
+    await executeQuery(
+      api.getBlob(endpoint).then((blob) => {
+        // Create blob URL and open in new window for printing
+        const url = window.URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
+
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.focus();
+            // Give time for PDF to load before printing
+            setTimeout(() => {
+              printWindow.print();
+            }, 500);
+          };
+        } else {
+          // Fallback: if popup blocked, just open the URL
+          window.open(url, '_blank');
+        }
+      })
+    );
+    setDocumentLoading(null);
   };
 
   const formatCurrency = (amount: number) => {

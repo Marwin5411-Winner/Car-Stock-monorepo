@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { salesService } from '../../services/sales.service';
 import type { Sale, SalesStats, SaleStatus, SaleType, SaleFilters } from '../../services/sales.service';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
-import { 
-  Plus, 
-  Search, 
-  Eye, 
-  ShoppingCart, 
-  Clock, 
-  CheckCircle, 
+import {
+  Plus,
+  Search,
+  Eye,
+  ShoppingCart,
+  Clock,
+  CheckCircle,
   Truck,
   Package,
   DollarSign,
@@ -65,36 +66,31 @@ export default function SalesListPage() {
   const limit = 10;
   const navigate = useNavigate();
 
+  const { execute: executeQuery } = useErrorHandler();
   const { hasPermission } = usePermission();
   const canCreate = hasPermission('SALE_CREATE');
 
   const fetchSales = async () => {
-    try {
-      setLoading(true);
-      const filters: SaleFilters = { page, limit };
-      if (searchTerm) filters.search = searchTerm;
-      if (statusFilter !== 'ALL') filters.status = statusFilter;
-      if (typeFilter !== 'ALL') filters.type = typeFilter;
+    setLoading(true);
+    const filters: SaleFilters = { page, limit };
+    if (searchTerm) filters.search = searchTerm;
+    if (statusFilter !== 'ALL') filters.status = statusFilter;
+    if (typeFilter !== 'ALL') filters.type = typeFilter;
 
-      const response = await salesService.getAll(filters);
-      // Handle response structure - API returns { data: [...], meta: {...} }
-      setSales(response.data || []);
-      setTotalPages(response.meta?.totalPages || 1);
-      setTotal(response.meta?.total || 0);
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-    } finally {
-      setLoading(false);
-    }
+    await executeQuery(
+      salesService.getAll(filters).then((response) => {
+        setSales(response.data || []);
+        setTotalPages(response.meta?.totalPages || 1);
+        setTotal(response.meta?.total || 0);
+      })
+    );
+    setLoading(false);
   };
 
   const fetchStats = async () => {
-    try {
-      const data = await salesService.getStats();
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
+    await executeQuery(
+      salesService.getStats().then((data) => { setStats(data); })
+    );
   };
 
   useEffect(() => {
