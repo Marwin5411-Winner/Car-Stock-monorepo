@@ -280,5 +280,5 @@ trap 'log "Shutting down updater server"; exit 0' TERM INT
 
 # Use socat to handle HTTP connections
 # Each connection forks a new process calling this script with __handle
-# -d0 suppresses noisy warnings (connection reset by peer, signal 15)
-exec socat -d0 TCP-LISTEN:$PORT,reuseaddr,fork SYSTEM:"bash /app/server.sh __handle"
+# stderr suppressed: socat logs "Connection reset by peer" for TCP probes (expected)
+exec socat TCP-LISTEN:$PORT,reuseaddr,fork SYSTEM:"bash /app/server.sh __handle" 2>/dev/null
