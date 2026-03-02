@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { usePermission } from '../../hooks/usePermission';
 import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, User, Phone, Mail } from 'lucide-react';
 import {
@@ -28,6 +29,9 @@ export default function CustomersListPage() {
   const [total, setTotal] = useState(0);
   const limit = 10;
 
+  const { execute: executeDelete } = useMutationHandler('ลบลูกค้าสำเร็จ');
+  const { execute: executeQuery } = useErrorHandler();
+
   const { hasPermission } = usePermission();
   const canCreate = hasPermission('CUSTOMER_CREATE');
   const canEdit = hasPermission('CUSTOMER_UPDATE');
@@ -49,29 +53,24 @@ export default function CustomersListPage() {
   }, [searchTerm]);
 
   const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const filters: any = {
-        page,
-        limit,
-      };
+    setLoading(true);
+    const filters: any = {
+      page,
+      limit,
+    };
 
-      if (searchTerm) {
-        filters.search = searchTerm;
-      }
-
-      const response = await customerService.getAll(filters);
-      setCustomers(response?.data ?? []);
-      setTotalPages(response?.meta?.totalPages ?? 1);
-      setTotal(response?.meta?.total ?? 0);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      setCustomers([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
+    if (searchTerm) {
+      filters.search = searchTerm;
     }
+
+    await executeQuery(
+      customerService.getAll(filters).then((response) => {
+        setCustomers(response?.data ?? []);
+        setTotalPages(response?.meta?.totalPages ?? 1);
+        setTotal(response?.meta?.total ?? 0);
+      })
+    );
+    setLoading(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -79,12 +78,9 @@ export default function CustomersListPage() {
       return;
     }
 
-    try {
-      await customerService.delete(id);
+    const result = await executeDelete(customerService.delete(id));
+    if (result) {
       fetchCustomers();
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      alert('ไม่สามารถลบลูกค้าได้');
     }
   };
 

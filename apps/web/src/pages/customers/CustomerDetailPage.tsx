@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
 import type { Customer } from '../../services/customer.service';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
 import { ArrowLeft, Edit, User, Phone, Mail, MapPin, Calendar, FileText, CreditCard } from 'lucide-react';
@@ -17,6 +18,8 @@ export default function CustomerDetailPage() {
   const canCreateSale = hasPermission('SALE_CREATE');
   const canCreatePayment = hasPermission('PAYMENT_CREATE');
 
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+
   useEffect(() => {
     if (id) {
       fetchCustomer(id);
@@ -24,17 +27,13 @@ export default function CustomerDetailPage() {
   }, [id]);
 
   const fetchCustomer = async (customerId: string) => {
-    try {
-      setLoading(true);
-      const data = await customerService.getById(customerId);
-      setCustomer(data);
-    } catch (error) {
-      console.error('Error fetching customer:', error);
-      alert('ไม่สามารถโหลดข้อมูลลูกค้าได้');
-      navigate('/customers');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    let found = false;
+    await executeQuery(
+      customerService.getById(customerId).then((data) => { setCustomer(data); found = true; })
+    );
+    if (!found) navigate('/customers');
+    setLoading(false);
   };
 
   if (loading) {
