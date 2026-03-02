@@ -19,22 +19,13 @@ export const settingsRoutes = new Elysia({ prefix: '/settings' })
   )
   .put(
     '/',
-    async ({ body, set }) => {
-      try {
-        const result = await settingsService.updateSettings(body);
-        return {
-          success: true,
-          data: result,
-          message: 'Settings updated successfully',
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          message: 'Failed to update settings',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
+    async ({ body }) => {
+      const result = await settingsService.updateSettings(body);
+      return {
+        success: true,
+        data: result,
+        message: 'Settings updated successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requireRole('ADMIN')],

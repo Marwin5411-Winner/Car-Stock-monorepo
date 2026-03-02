@@ -1,29 +1,19 @@
 import { Elysia, t } from 'elysia';
 import { paymentsService } from './payments.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
-import { authService } from '../auth/auth.service';
 
 export const paymentRoutes = new Elysia({ prefix: '/payments' })
   // Get all payments
   .get(
     '/',
     async ({ query, set, requester }) => {
-      try {
-        const result = await paymentsService.getAllPayments(query, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: result.data,
-          meta: result.meta,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch payments',
-        };
-      }
+      const result = await paymentsService.getAllPayments(query, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -55,21 +45,12 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
   .get(
     '/stats',
     async ({ set, requester }) => {
-      try {
-        const stats = await paymentsService.getPaymentStats(requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: stats,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch payment stats',
-        };
-      }
+      const stats = await paymentsService.getPaymentStats(requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: stats,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -84,21 +65,12 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
   .get(
     '/outstanding',
     async ({ set, requester }) => {
-      try {
-        const outstanding = await paymentsService.getOutstandingPayments(requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: outstanding,
-        };
-      } catch (error) {
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Server error',
-          message: error instanceof Error ? error.message : 'Failed to fetch outstanding payments',
-        };
-      }
+      const outstanding = await paymentsService.getOutstandingPayments(requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: outstanding,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -113,21 +85,12 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
   .get(
     '/:id',
     async ({ params, set, requester }) => {
-      try {
-        const payment = await paymentsService.getPaymentById(params.id, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: payment,
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Payment not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Not found',
-          message: error instanceof Error ? error.message : 'Failed to fetch payment',
-        };
-      }
+      const payment = await paymentsService.getPaymentById(params.id, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: payment,
+      };
     },
     {
       beforeHandle: authMiddleware,
@@ -142,22 +105,13 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      try {
-        const payment = await paymentsService.createPayment(body, requester);
-        set.status = 201;
-        return {
-          success: true,
-          data: payment,
-          message: 'Payment recorded successfully',
-        };
-      } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error: 'Creation failed',
-          message: error instanceof Error ? error.message : 'Failed to create payment',
-        };
-      }
+      const payment = await paymentsService.createPayment(body, requester);
+      set.status = 201;
+      return {
+        success: true,
+        data: payment,
+        message: 'Payment recorded successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('PAYMENT_CREATE')],
@@ -194,22 +148,13 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
   .post(
     '/:id/void',
     async ({ params, body, set, requester }) => {
-      try {
-        const payment = await paymentsService.voidPayment(params.id, body, requester);
-        set.status = 200;
-        return {
-          success: true,
-          data: payment,
-          message: 'Payment voided successfully',
-        };
-      } catch (error) {
-        set.status = error instanceof Error && error.message === 'Payment not found' ? 404 : 400;
-        return {
-          success: false,
-          error: 'Void failed',
-          message: error instanceof Error ? error.message : 'Failed to void payment',
-        };
-      }
+      const payment = await paymentsService.voidPayment(params.id, body, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: payment,
+        message: 'Payment voided successfully',
+      };
     },
     {
       beforeHandle: [authMiddleware, requirePermission('PAYMENT_VOID')],

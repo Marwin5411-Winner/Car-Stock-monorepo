@@ -62,7 +62,7 @@ async function getCompanyHeader(): Promise<any> {
       phone: `โทร. ${settings.phone} ${settings.fax ? `โทรสาร. ${settings.fax}` : ''}`,
     };
   }
-  
+
   return {
     logoBase64: '',
     companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
@@ -135,52 +135,42 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/delivery-receipt/:saleId',
     async ({ params, set }) => {
-      try {
-        const sale = await db.sale.findUnique({
-          where: { id: params.saleId },
-          include: {
-            customer: true,
-            stock: {
-              include: {
-                vehicleModel: true,
-              },
+      const sale = await db.sale.findUnique({
+        where: { id: params.saleId },
+        include: {
+          customer: true,
+          stock: {
+            include: {
+              vehicleModel: true,
             },
           },
-        });
+        },
+      });
 
-        if (!sale) {
-          set.status = 404;
-          return { success: false, error: 'Sale not found' };
-        }
-
-        const header = await getCompanyHeader();
-        // If logo is missing in settings, try to load default from service (or handle it in getCompanyHeader)
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: DeliveryReceiptData = {
-          header,
-          customer: transformCustomer(sale.customer),
-          car: transformCar(sale.stock),
-          deliveryDate: sale.deliveryDate ? formatThaiDate(sale.deliveryDate) : undefined,
-        };
-
-        
-
-        const pdfBuffer = await pdfService.generateDeliveryReceipt(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="delivery-receipt-${sale.saleNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!sale) {
+        set.status = 404;
+        return { success: false, error: 'Sale not found' };
       }
+
+      const header = await getCompanyHeader();
+      // If logo is missing in settings, try to load default from service (or handle it in getCompanyHeader)
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: DeliveryReceiptData = {
+        header,
+        customer: transformCustomer(sale.customer),
+        car: transformCar(sale.stock),
+        deliveryDate: sale.deliveryDate ? formatThaiDate(sale.deliveryDate) : undefined,
+      };
+
+
+
+      const pdfBuffer = await pdfService.generateDeliveryReceipt(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="delivery-receipt-${sale.saleNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -201,73 +191,63 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/thank-you-letter/:saleId',
     async ({ params, set }) => {
-      try {
-        const sale = await db.sale.findUnique({
-          where: { id: params.saleId },
-          include: {
-            customer: true,
-            stock: {
-              include: {
-                vehicleModel: true,
-              },
+      const sale = await db.sale.findUnique({
+        where: { id: params.saleId },
+        include: {
+          customer: true,
+          stock: {
+            include: {
+              vehicleModel: true,
             },
-            payments: true,
           },
-        });
+          payments: true,
+        },
+      });
 
-        if (!sale) {
-          set.status = 404;
-          return { success: false, error: 'Sale not found' };
-        }
-
-        const car = transformCar(sale.stock);
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: ThankYouLetterData = {
-          header,
-          thaiDate: formatThaiDate(new Date(), 'full'),
-          customerName: sale.customer?.name || '-',
-          carBrand: car.brand,
-          detailsTable: {
-            sellingPrice: sale.totalAmount?.toString() || '0',
-            discount: sale.discountSnapshot?.toString() || '0',
-            remaining: sale.remainingAmount?.toString() || '0',
-            downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
-            downPaymentDiscount: '0',
-            insurance: '0', // Not in schema - to be added if needed
-            actInsurance: '0', // Not in schema - to be added if needed
-            registrationFee: '0', // Not in schema - to be added if needed
-            totalDelivery: sale.paidAmount?.toString() || '0',
-            financeAmount: sale.financeAmount?.toString() || '0',
-            interestRate: '0', // Not in schema - to be added if needed
-            installmentMonths: '0', // Not in schema - to be added if needed
-            monthlyPayment: '0', // Not in schema - to be added if needed
-            gifts: [], // TODO: Parse from freebiesSnapshot if available
-          },
-          contactPerson: {
-            name: 'นายณัฐนันท์ คมฤทัย',
-            phone: 'โทร.(044) 272888, 094-978-9926',
-            position: 'ฝ่ายตรวจสอบ',
-          },
-        };
-
-        const pdfBuffer = await pdfService.generateThankYouLetter(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="thank-you-letter-${sale.saleNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!sale) {
+        set.status = 404;
+        return { success: false, error: 'Sale not found' };
       }
+
+      const car = transformCar(sale.stock);
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: ThankYouLetterData = {
+        header,
+        thaiDate: formatThaiDate(new Date(), 'full'),
+        customerName: sale.customer?.name || '-',
+        carBrand: car.brand,
+        detailsTable: {
+          sellingPrice: sale.totalAmount?.toString() || '0',
+          discount: sale.discountSnapshot?.toString() || '0',
+          remaining: sale.remainingAmount?.toString() || '0',
+          downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
+          downPaymentDiscount: '0',
+          insurance: '0', // Not in schema - to be added if needed
+          actInsurance: '0', // Not in schema - to be added if needed
+          registrationFee: '0', // Not in schema - to be added if needed
+          totalDelivery: sale.paidAmount?.toString() || '0',
+          financeAmount: sale.financeAmount?.toString() || '0',
+          interestRate: '0', // Not in schema - to be added if needed
+          installmentMonths: '0', // Not in schema - to be added if needed
+          monthlyPayment: '0', // Not in schema - to be added if needed
+          gifts: [], // TODO: Parse from freebiesSnapshot if available
+        },
+        contactPerson: {
+          name: 'นายณัฐนันท์ คมฤทัย',
+          phone: 'โทร.(044) 272888, 094-978-9926',
+          position: 'ฝ่ายตรวจสอบ',
+        },
+      };
+
+      const pdfBuffer = await pdfService.generateThankYouLetter(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="thank-you-letter-${sale.saleNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -288,50 +268,40 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/sales-confirmation/:saleId',
     async ({ params, set }) => {
-      try {
-        const sale = await db.sale.findUnique({
-          where: { id: params.saleId },
-          include: {
-            customer: true,
-            stock: {
-              include: {
-                vehicleModel: true,
-              },
+      const sale = await db.sale.findUnique({
+        where: { id: params.saleId },
+        include: {
+          customer: true,
+          stock: {
+            include: {
+              vehicleModel: true,
             },
           },
-        });
+        },
+      });
 
-        if (!sale) {
-          set.status = 404;
-          return { success: false, error: 'Sale not found' };
-        }
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: SalesConfirmationData = {
-          header,
-          createdDate: sale.createdAt.toISOString(),
-          car: transformCar(sale.stock),
-          customer: transformCustomer(sale.customer),
-          paymentMethod: sale.paymentMode === 'CASH' ? 'เงินสด' : sale.paymentMode === 'FINANCE' ? 'บริษัทไฟแนนซ์' : sale.paymentMode,
-        };
-
-        const pdfBuffer = await pdfService.generateSalesConfirmation(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="sales-confirmation-${sale.saleNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!sale) {
+        set.status = 404;
+        return { success: false, error: 'Sale not found' };
       }
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: SalesConfirmationData = {
+        header,
+        createdDate: sale.createdAt.toISOString(),
+        car: transformCar(sale.stock),
+        customer: transformCustomer(sale.customer),
+        paymentMethod: sale.paymentMode === 'CASH' ? 'เงินสด' : sale.paymentMode === 'FINANCE' ? 'บริษัทไฟแนนซ์' : sale.paymentMode,
+      };
+
+      const pdfBuffer = await pdfService.generateSalesConfirmation(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="sales-confirmation-${sale.saleNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -352,74 +322,64 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/sales-record/:saleId',
     async ({ params, set }) => {
-      try {
-        const sale = await db.sale.findUnique({
-          where: { id: params.saleId },
-          include: {
-            customer: true,
-            stock: {
-              include: {
-                vehicleModel: true,
-              },
+      const sale = await db.sale.findUnique({
+        where: { id: params.saleId },
+        include: {
+          customer: true,
+          stock: {
+            include: {
+              vehicleModel: true,
             },
-            createdBy: true,
           },
-        });
+          createdBy: true,
+        },
+      });
 
-        if (!sale) {
-          set.status = 404;
-          return { success: false, error: 'Sale not found' };
-        }
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: SalesRecordData = {
-          header,
-          customer: transformCustomer(sale.customer),
-          car: transformCar(sale.stock),
-          pricing: {
-            sellingPrice: sale.totalAmount?.toString() || '0',
-            remaining: sale.remainingAmount?.toString() || '0',
-            downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
-            downPaymentDiscount: '0',
-            insurance: '0', // Not in schema
-            actInsurance: '0', // Not in schema
-            registrationFee: '0', // Not in schema
-            totalDelivery: sale.paidAmount?.toString() || '0',
-            financeAmount: sale.financeAmount?.toString() || '0',
-            deductDeposit: sale.paidAmount?.toString() || '0',
-            deliveryAmount: sale.paidAmount?.toString() || '0',
-            outstandingBalance: sale.remainingAmount?.toString() || '0',
-            paymentDueDate: sale.expirationDate ? formatThaiDate(sale.expirationDate, 'short') : '-',
-            financeCompany: sale.financeProvider || '-',
-            interestRate: '0', // Not in Sale schema
-            installmentMonths: '0', // Not in schema
-            monthlyPayment: '0', // Not in schema
-          },
-          gifts: [], // TODO: Parse from freebiesSnapshot if available
-          staff: {
-            salesConsultant: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
-            salesManager: '-',
-            auditor: '-',
-          },
-        };
-
-        const pdfBuffer = await pdfService.generateSalesRecord(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="sales-record-${sale.saleNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!sale) {
+        set.status = 404;
+        return { success: false, error: 'Sale not found' };
       }
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: SalesRecordData = {
+        header,
+        customer: transformCustomer(sale.customer),
+        car: transformCar(sale.stock),
+        pricing: {
+          sellingPrice: sale.totalAmount?.toString() || '0',
+          remaining: sale.remainingAmount?.toString() || '0',
+          downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
+          downPaymentDiscount: '0',
+          insurance: '0', // Not in schema
+          actInsurance: '0', // Not in schema
+          registrationFee: '0', // Not in schema
+          totalDelivery: sale.paidAmount?.toString() || '0',
+          financeAmount: sale.financeAmount?.toString() || '0',
+          deductDeposit: sale.paidAmount?.toString() || '0',
+          deliveryAmount: sale.paidAmount?.toString() || '0',
+          outstandingBalance: sale.remainingAmount?.toString() || '0',
+          paymentDueDate: sale.expirationDate ? formatThaiDate(sale.expirationDate, 'short') : '-',
+          financeCompany: sale.financeProvider || '-',
+          interestRate: '0', // Not in Sale schema
+          installmentMonths: '0', // Not in schema
+          monthlyPayment: '0', // Not in schema
+        },
+        gifts: [], // TODO: Parse from freebiesSnapshot if available
+        staff: {
+          salesConsultant: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
+          salesManager: '-',
+          auditor: '-',
+        },
+      };
+
+      const pdfBuffer = await pdfService.generateSalesRecord(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="sales-record-${sale.saleNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_SALES_RECORD')],
@@ -440,129 +400,119 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/contract/:saleId',
     async ({ params, set }) => {
-      try {
-        const sale = await db.sale.findUnique({
-          where: { id: params.saleId },
-          include: {
-            customer: true,
-            vehicleModel: true,
-            stock: {
-              include: {
-                vehicleModel: true,
-              },
+      const sale = await db.sale.findUnique({
+        where: { id: params.saleId },
+        include: {
+          customer: true,
+          vehicleModel: true,
+          stock: {
+            include: {
+              vehicleModel: true,
             },
-            payments: {
-              orderBy: {
-                paymentDate: 'asc',
-              },
-              take: 1, // Get the first payment as reservation/deposit
+          },
+          payments: {
+            orderBy: {
+              paymentDate: 'asc',
             },
-            createdBy: true,
+            take: 1, // Get the first payment as reservation/deposit
+          },
+          createdBy: true,
+        },
+      });
+
+      console.log(sale);
+
+      if (!sale) {
+        set.status = 404;
+        return { success: false, error: 'Sale not found' };
+      }
+
+      const car = transformCar(sale.stock);
+
+      // Get reservation payment (first payment)
+      const reservationPayment = sale.payments && sale.payments.length > 0 ? sale.payments[0] : null;
+
+      // Get or generate contract number (เล่มที่ and เลขที่)
+      // If the Sale already has a contract number, use it; otherwise generate a new one and save it
+      let contractNumber: { volumeNumber: string; documentNumber: string };
+
+      if (sale.contractVolumeNumber && sale.contractDocumentNumber) {
+        // Use existing contract number
+        contractNumber = {
+          volumeNumber: sale.contractVolumeNumber,
+          documentNumber: sale.contractDocumentNumber,
+        };
+      } else {
+        // Generate new contract number and save to Sale
+        contractNumber = await generateContractNumber();
+        await db.sale.update({
+          where: { id: sale.id },
+          data: {
+            contractVolumeNumber: contractNumber.volumeNumber,
+            contractDocumentNumber: contractNumber.documentNumber,
           },
         });
-
-        console.log(sale);
-
-        if (!sale) {
-          set.status = 404;
-          return { success: false, error: 'Sale not found' };
-        }
-
-        const car = transformCar(sale.stock);
-
-        // Get reservation payment (first payment)
-        const reservationPayment = sale.payments && sale.payments.length > 0 ? sale.payments[0] : null;
-
-        // Get or generate contract number (เล่มที่ and เลขที่)
-        // If the Sale already has a contract number, use it; otherwise generate a new one and save it
-        let contractNumber: { volumeNumber: string; documentNumber: string };
-        
-        if (sale.contractVolumeNumber && sale.contractDocumentNumber) {
-          // Use existing contract number
-          contractNumber = {
-            volumeNumber: sale.contractVolumeNumber,
-            documentNumber: sale.contractDocumentNumber,
-          };
-        } else {
-          // Generate new contract number and save to Sale
-          contractNumber = await generateContractNumber();
-          await db.sale.update({
-            where: { id: sale.id },
-            data: {
-              contractVolumeNumber: contractNumber.volumeNumber,
-              contractDocumentNumber: contractNumber.documentNumber,
-            },
-          });
-        }
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: any = { // Using any to bypass strict type check for now to support the template
-          copyTypes: [
-            { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
-            { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
-            { thai: 'สำเนาคู่ฉบับ', english: 'COPY' },
-          ],
-          header,
-          documentInfo: {
-            volumeNumber: contractNumber.volumeNumber, // เล่มที่ e.g., "01/2568"
-            documentNumber: contractNumber.documentNumber, // เลขที่ e.g., "68010001"
-            contractLocation: header.companyName,
-            salesManagerName: '', // Placeholder, no data available on sale object
-            salesManagerPhone: '',
-            salesStaffName: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
-            salesStaffPhone: sale.createdBy?.phone || '-',
-          },
-          reservationNumber: sale.saleNumber,
-          date: {
-            day: new Date().getDate().toString(),
-            month: (new Date().getMonth() + 1).toString(),
-            year: (new Date().getFullYear() + 543).toString(),
-          },
-          customer: transformCustomer(sale.customer),
-          vehicleModel: sale.stock?.vehicleModel || sale.vehicleModel,
-          financial: {
-            totalPrice: sale.totalAmount?.toString() || '0',
-            depositAmount: sale.depositAmount?.toString() || '0',
-            refundPolicy: 'ตามข้อตกลง',
-          },
-          reservationFee: reservationPayment ? {
-            amount: reservationPayment.amount.toString(),
-            isCash: reservationPayment.paymentMethod === 'CASH',
-            isBankTransfer: reservationPayment.paymentMethod === 'BANK_TRANSFER',
-            isCreditCard: reservationPayment.paymentMethod === 'CREDIT_CARD',
-            isCheque: reservationPayment.paymentMethod === 'CHEQUE',
-            bank: reservationPayment.receivingBank || '',
-            accountNo: '', // Not available in Payment model
-            chequeNo: reservationPayment.referenceNumber || '',
-            chequeDate: reservationPayment.paymentDate ? formatThaiDate(reservationPayment.paymentDate) : '',
-          } : {
-            amount: '0',
-            isCash: false,
-            isBankTransfer: false,
-            isCreditCard: false,
-            isCheque: false,
-          }
-        };
-
-        console.log(data);
-
-        const pdfBuffer = await pdfService.generateContract(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="contract-${sale.saleNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
       }
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: any = { // Using any to bypass strict type check for now to support the template
+        copyTypes: [
+          { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
+          { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
+          { thai: 'สำเนาคู่ฉบับ', english: 'COPY' },
+        ],
+        header,
+        documentInfo: {
+          volumeNumber: contractNumber.volumeNumber, // เล่มที่ e.g., "01/2568"
+          documentNumber: contractNumber.documentNumber, // เลขที่ e.g., "68010001"
+          contractLocation: header.companyName,
+          salesManagerName: '', // Placeholder, no data available on sale object
+          salesManagerPhone: '',
+          salesStaffName: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
+          salesStaffPhone: sale.createdBy?.phone || '-',
+        },
+        reservationNumber: sale.saleNumber,
+        date: {
+          day: new Date().getDate().toString(),
+          month: (new Date().getMonth() + 1).toString(),
+          year: (new Date().getFullYear() + 543).toString(),
+        },
+        customer: transformCustomer(sale.customer),
+        vehicleModel: sale.stock?.vehicleModel || sale.vehicleModel,
+        financial: {
+          totalPrice: sale.totalAmount?.toString() || '0',
+          depositAmount: sale.depositAmount?.toString() || '0',
+          refundPolicy: 'ตามข้อตกลง',
+        },
+        reservationFee: reservationPayment ? {
+          amount: reservationPayment.amount.toString(),
+          isCash: reservationPayment.paymentMethod === 'CASH',
+          isBankTransfer: reservationPayment.paymentMethod === 'BANK_TRANSFER',
+          isCreditCard: reservationPayment.paymentMethod === 'CREDIT_CARD',
+          isCheque: reservationPayment.paymentMethod === 'CHEQUE',
+          bank: reservationPayment.receivingBank || '',
+          accountNo: '', // Not available in Payment model
+          chequeNo: reservationPayment.referenceNumber || '',
+          chequeDate: reservationPayment.paymentDate ? formatThaiDate(reservationPayment.paymentDate) : '',
+        } : {
+          amount: '0',
+          isCash: false,
+          isBankTransfer: false,
+          isCreditCard: false,
+          isCheque: false,
+        }
+      };
+
+      console.log(data);
+
+      const pdfBuffer = await pdfService.generateContract(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="contract-${sale.saleNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -583,91 +533,81 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/deposit-receipt/:paymentId',
     async ({ params, set }) => {
-      try {
-        const payment = await db.payment.findUnique({
-          where: { id: params.paymentId },
-          include: {
-            sale: {
-              include: {
-                customer: true,
-                stock: {
-                  include: {
-                    vehicleModel: true,
-                  },
+      const payment = await db.payment.findUnique({
+        where: { id: params.paymentId },
+        include: {
+          sale: {
+            include: {
+              customer: true,
+              stock: {
+                include: {
+                  vehicleModel: true,
                 },
               },
             },
           },
-        });
+        },
+      });
 
-        if (!payment) {
-          set.status = 404;
-          return { success: false, error: 'Payment not found' };
-        }
-
-        const sale = payment.sale;
-        const customer = sale?.customer;
-
-        // Build items array from payment description or default
-        const items = [
-          {
-            description: payment.notes || `ค่ามัดจำ ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
-            amount: payment.amount.toString(),
-          },
-        ];
-
-        // Determine payment method
-        const paymentMethodData = {
-          isCash: payment.paymentMethod === 'CASH',
-          isCheque: payment.paymentMethod === 'CHEQUE',
-          isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-          bankName: payment.receivingBank || '',
-          branchName: '',
-          accountNumber: '',
-          transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-        };
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-        // Additional fax field check for this specific template type if needed
-        // Assuming getCompanyHeader includes fax in phone field or we might need to adjust CompanyHeader type
-
-        const data: TemporaryReceiptData = {
-          header: {
-            ...header,
-            fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
-          },
-          customerCode: customer?.code || '',
-          receiptNumber: payment.receiptNumber,
-          date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
-          contractNumber: sale?.saleNumber || '',
-          customer: transformCustomer(customer),
-          items,
-          // Totals section
-          paymentAmount: payment.amount.toString(),
-          lateFee: '0',
-          discount: '0',
-          totalAmount: payment.amount.toString(),
-          totalAmountText: '', // Will be calculated by helper
-          paymentMethod: paymentMethodData,
-          note: payment.notes || undefined,
-        };
-
-        const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="deposit-receipt-${payment.receiptNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!payment) {
+        set.status = 404;
+        return { success: false, error: 'Payment not found' };
       }
+
+      const sale = payment.sale;
+      const customer = sale?.customer;
+
+      // Build items array from payment description or default
+      const items = [
+        {
+          description: payment.notes || `ค่ามัดจำ ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
+          amount: payment.amount.toString(),
+        },
+      ];
+
+      // Determine payment method
+      const paymentMethodData = {
+        isCash: payment.paymentMethod === 'CASH',
+        isCheque: payment.paymentMethod === 'CHEQUE',
+        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+        bankName: payment.receivingBank || '',
+        branchName: '',
+        accountNumber: '',
+        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+      };
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+      // Additional fax field check for this specific template type if needed
+      // Assuming getCompanyHeader includes fax in phone field or we might need to adjust CompanyHeader type
+
+      const data: TemporaryReceiptData = {
+        header: {
+          ...header,
+          fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
+        },
+        customerCode: customer?.code || '',
+        receiptNumber: payment.receiptNumber,
+        date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+        contractNumber: sale?.saleNumber || '',
+        customer: transformCustomer(customer),
+        items,
+        // Totals section
+        paymentAmount: payment.amount.toString(),
+        lateFee: '0',
+        discount: '0',
+        totalAmount: payment.amount.toString(),
+        totalAmountText: '', // Will be calculated by helper
+        paymentMethod: paymentMethodData,
+        note: payment.notes || undefined,
+      };
+
+      const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="deposit-receipt-${payment.receiptNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -688,60 +628,50 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/payment-receipt/:paymentId',
     async ({ params, set }) => {
-      try {
-        const payment = await db.payment.findUnique({
-          where: { id: params.paymentId },
-          include: {
-            sale: {
-              include: {
-                customer: true,
-                stock: {
-                  include: {
-                    vehicleModel: true,
-                  },
+      const payment = await db.payment.findUnique({
+        where: { id: params.paymentId },
+        include: {
+          sale: {
+            include: {
+              customer: true,
+              stock: {
+                include: {
+                  vehicleModel: true,
                 },
               },
             },
           },
-        });
+        },
+      });
 
-        if (!payment) {
-          set.status = 404;
-          return { success: false, error: 'Payment not found' };
-        }
-
-        const sale = payment.sale;
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: PaymentReceiptData = {
-          header,
-          receiptNumber: payment.receiptNumber,
-          date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
-          customer: transformCustomer(sale?.customer),
-          car: transformCar(sale?.stock),
-          amount: payment.amount.toString(),
-          amountText: '', // Will be calculated by the template helper
-          paymentMethod: payment.paymentMethod || 'CASH',
-          note: payment.notes || undefined,
-        };
-
-        const pdfBuffer = await pdfService.generatePaymentReceipt(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="payment-receipt-${payment.receiptNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!payment) {
+        set.status = 404;
+        return { success: false, error: 'Payment not found' };
       }
+
+      const sale = payment.sale;
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: PaymentReceiptData = {
+        header,
+        receiptNumber: payment.receiptNumber,
+        date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+        customer: transformCustomer(sale?.customer),
+        car: transformCar(sale?.stock),
+        amount: payment.amount.toString(),
+        amountText: '', // Will be calculated by the template helper
+        paymentMethod: payment.paymentMethod || 'CASH',
+        note: payment.notes || undefined,
+      };
+
+      const pdfBuffer = await pdfService.generatePaymentReceipt(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="payment-receipt-${payment.receiptNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -762,78 +692,68 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/vehicle-card/:stockId',
     async ({ params, set }) => {
-      try {
-        const stock = await db.stock.findUnique({
-          where: { id: params.stockId },
-          include: {
-            vehicleModel: true,
-            interestPeriods: {
-              select: {
-                startDate: true,
-                endDate: true,
-                annualRate: true,
-                principalAmount: true,
-                calculatedInterest: true,
-              },
+      const stock = await db.stock.findUnique({
+        where: { id: params.stockId },
+        include: {
+          vehicleModel: true,
+          interestPeriods: {
+            select: {
+              startDate: true,
+              endDate: true,
+              annualRate: true,
+              principalAmount: true,
+              calculatedInterest: true,
             },
           },
-        });
+        },
+      });
 
-        if (!stock) {
-          set.status = 404;
-          return { success: false, error: 'Stock not found' };
-        }
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const accumulatedInterest = calculateAccumulatedInterest(stock);
-        const baseCost = Number(stock.baseCost || 0);
-        const transportCost = Number(stock.transportCost || 0);
-        const accessoryCost = Number(stock.accessoryCost || 0);
-        const otherCosts = Number(stock.otherCosts || 0);
-        const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
-
-        const data: VehicleCardData = {
-          header,
-          stockNumber: stock.vin || '-',
-          date: formatThaiDate(new Date()),
-          car: {
-            brand: stock.vehicleModel?.brand || '-',
-            model: stock.vehicleModel?.model || '-',
-            variant: stock.vehicleModel?.variant || '',
-            year: stock.vehicleModel?.year?.toString() || '-',
-            color: stock.exteriorColor || '-',
-            interiorColor: stock.interiorColor || '-',
-            engineNo: stock.engineNumber || '-',
-            chassisNo: stock.vin || '-',
-            ccOrKw: '-', // Not in stock model
-          },
-          costs: {
-            baseCost: baseCost.toString(),
-            transportCost: transportCost.toString(),
-            accessoryCost: accessoryCost.toString(),
-            otherCosts: otherCosts.toString(),
-            totalCost: totalCost.toString(),
-          },
-          location: stock.parkingSlot || '-',
-        };
-
-        const pdfBuffer = await pdfService.generateVehicleCard(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="vehicle-card-${stock.vin}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!stock) {
+        set.status = 404;
+        return { success: false, error: 'Stock not found' };
       }
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const accumulatedInterest = calculateAccumulatedInterest(stock);
+      const baseCost = Number(stock.baseCost || 0);
+      const transportCost = Number(stock.transportCost || 0);
+      const accessoryCost = Number(stock.accessoryCost || 0);
+      const otherCosts = Number(stock.otherCosts || 0);
+      const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
+
+      const data: VehicleCardData = {
+        header,
+        stockNumber: stock.vin || '-',
+        date: formatThaiDate(new Date()),
+        car: {
+          brand: stock.vehicleModel?.brand || '-',
+          model: stock.vehicleModel?.model || '-',
+          variant: stock.vehicleModel?.variant || '',
+          year: stock.vehicleModel?.year?.toString() || '-',
+          color: stock.exteriorColor || '-',
+          interiorColor: stock.interiorColor || '-',
+          engineNo: stock.engineNumber || '-',
+          chassisNo: stock.vin || '-',
+          ccOrKw: '-', // Not in stock model
+        },
+        costs: {
+          baseCost: baseCost.toString(),
+          transportCost: transportCost.toString(),
+          accessoryCost: accessoryCost.toString(),
+          otherCosts: otherCosts.toString(),
+          totalCost: totalCost.toString(),
+        },
+        location: stock.parkingSlot || '-',
+      };
+
+      const pdfBuffer = await pdfService.generateVehicleCard(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="vehicle-card-${stock.vin}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
@@ -854,78 +774,68 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/vehicle-card-template/:stockId',
     async ({ params, set }) => {
-      try {
-        const stock = await db.stock.findUnique({
-          where: { id: params.stockId },
-          include: {
-            vehicleModel: true,
-            interestPeriods: {
-              select: {
-                startDate: true,
-                endDate: true,
-                annualRate: true,
-                principalAmount: true,
-                calculatedInterest: true,
-              },
+      const stock = await db.stock.findUnique({
+        where: { id: params.stockId },
+        include: {
+          vehicleModel: true,
+          interestPeriods: {
+            select: {
+              startDate: true,
+              endDate: true,
+              annualRate: true,
+              principalAmount: true,
+              calculatedInterest: true,
             },
           },
-        });
+        },
+      });
 
-        if (!stock) {
-          set.status = 404;
-          return { success: false, error: 'Stock not found' };
-        }
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const accumulatedInterest = calculateAccumulatedInterest(stock);
-        const baseCost = Number(stock.baseCost || 0);
-        const transportCost = Number(stock.transportCost || 0);
-        const accessoryCost = Number(stock.accessoryCost || 0);
-        const otherCosts = Number(stock.otherCosts || 0);
-        const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
-
-        const data: VehicleCardData = {
-          header,
-          stockNumber: stock.vin || '-',
-          date: formatThaiDate(new Date()),
-          car: {
-            brand: stock.vehicleModel?.brand || '-',
-            model: stock.vehicleModel?.model || '-',
-            variant: stock.vehicleModel?.variant || '',
-            year: stock.vehicleModel?.year?.toString() || '-',
-            color: stock.exteriorColor || '-',
-            interiorColor: stock.interiorColor || '-',
-            engineNo: stock.engineNumber || '-',
-            chassisNo: stock.vin || '-',
-            ccOrKw: '-', // Not in stock model
-          },
-          costs: {
-            baseCost: baseCost.toString(),
-            transportCost: transportCost.toString(),
-            accessoryCost: accessoryCost.toString(),
-            otherCosts: otherCosts.toString(),
-            totalCost: totalCost.toString(),
-          },
-          location: stock.parkingSlot || '-',
-        };
-
-        const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="vehicle-card-template-${stock.vin}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!stock) {
+        set.status = 404;
+        return { success: false, error: 'Stock not found' };
       }
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const accumulatedInterest = calculateAccumulatedInterest(stock);
+      const baseCost = Number(stock.baseCost || 0);
+      const transportCost = Number(stock.transportCost || 0);
+      const accessoryCost = Number(stock.accessoryCost || 0);
+      const otherCosts = Number(stock.otherCosts || 0);
+      const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
+
+      const data: VehicleCardData = {
+        header,
+        stockNumber: stock.vin || '-',
+        date: formatThaiDate(new Date()),
+        car: {
+          brand: stock.vehicleModel?.brand || '-',
+          model: stock.vehicleModel?.model || '-',
+          variant: stock.vehicleModel?.variant || '',
+          year: stock.vehicleModel?.year?.toString() || '-',
+          color: stock.exteriorColor || '-',
+          interiorColor: stock.interiorColor || '-',
+          engineNo: stock.engineNumber || '-',
+          chassisNo: stock.vin || '-',
+          ccOrKw: '-', // Not in stock model
+        },
+        costs: {
+          baseCost: baseCost.toString(),
+          transportCost: transportCost.toString(),
+          accessoryCost: accessoryCost.toString(),
+          otherCosts: otherCosts.toString(),
+          totalCost: totalCost.toString(),
+        },
+        location: stock.parkingSlot || '-',
+      };
+
+      const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="vehicle-card-template-${stock.vin}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
@@ -946,89 +856,79 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/temporary-receipt/:paymentId',
     async ({ params, set }) => {
-      try {
-        const payment = await db.payment.findUnique({
-          where: { id: params.paymentId },
-          include: {
-            sale: {
-              include: {
-                customer: true,
-                stock: {
-                  include: {
-                    vehicleModel: true,
-                  },
+      const payment = await db.payment.findUnique({
+        where: { id: params.paymentId },
+        include: {
+          sale: {
+            include: {
+              customer: true,
+              stock: {
+                include: {
+                  vehicleModel: true,
                 },
               },
             },
           },
-        });
+        },
+      });
 
-        if (!payment) {
-          set.status = 404;
-          return { success: false, error: 'Payment not found' };
-        }
-
-        const sale = payment.sale;
-        const customer = sale?.customer;
-
-        // Build items array from payment description or default
-        const items = [
-          {
-            description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
-            amount: payment.amount.toString(),
-          },
-        ];
-
-        // Determine payment method
-        const paymentMethodData = {
-          isCash: payment.paymentMethod === 'CASH',
-          isCheque: payment.paymentMethod === 'CHEQUE',
-          isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-          bankName: payment.receivingBank || '',
-          branchName: '',
-          accountNumber: '',
-          transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-        };
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-
-        const data: TemporaryReceiptData = {
-          header: {
-            ...header,
-            fax: '',
-          },
-          customerCode: customer?.code || '',
-          receiptNumber: payment.receiptNumber,
-          date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
-          contractNumber: sale?.saleNumber || '',
-          customer: transformCustomer(customer),
-          items,
-          // Totals section
-          paymentAmount: payment.amount.toString(),
-          lateFee: '0',
-          discount: '0',
-          totalAmount: payment.amount.toString(),
-          totalAmountText: '', // Will be calculated by helper
-          paymentMethod: paymentMethodData,
-          note: payment.notes || undefined,
-        };
-
-        const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-${payment.receiptNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!payment) {
+        set.status = 404;
+        return { success: false, error: 'Payment not found' };
       }
+
+      const sale = payment.sale;
+      const customer = sale?.customer;
+
+      // Build items array from payment description or default
+      const items = [
+        {
+          description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
+          amount: payment.amount.toString(),
+        },
+      ];
+
+      // Determine payment method
+      const paymentMethodData = {
+        isCash: payment.paymentMethod === 'CASH',
+        isCheque: payment.paymentMethod === 'CHEQUE',
+        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+        bankName: payment.receivingBank || '',
+        branchName: '',
+        accountNumber: '',
+        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+      };
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: TemporaryReceiptData = {
+        header: {
+          ...header,
+          fax: '',
+        },
+        customerCode: customer?.code || '',
+        receiptNumber: payment.receiptNumber,
+        date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+        contractNumber: sale?.saleNumber || '',
+        customer: transformCustomer(customer),
+        items,
+        // Totals section
+        paymentAmount: payment.amount.toString(),
+        lateFee: '0',
+        discount: '0',
+        totalAmount: payment.amount.toString(),
+        totalAmountText: '', // Will be calculated by helper
+        paymentMethod: paymentMethodData,
+        note: payment.notes || undefined,
+      };
+
+      const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-${payment.receiptNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
@@ -1049,89 +949,80 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/temporary-receipt-bg/:paymentId',
     async ({ params, set }) => {
-      try {
-        const payment = await db.payment.findUnique({
-          where: { id: params.paymentId },
-          include: {
-            sale: {
-              include: {
-                customer: true,
-                stock: {
-                  include: {
-                    vehicleModel: true,
-                  },
+      const payment = await db.payment.findUnique({
+        where: { id: params.paymentId },
+        include: {
+          sale: {
+            include: {
+              customer: true,
+              stock: {
+                include: {
+                  vehicleModel: true,
                 },
               },
             },
           },
-        });
+        },
+      });
 
-        if (!payment) {
-          set.status = 404;
-          return { success: false, error: 'Payment not found' };
-        }
-
-        const sale = payment.sale;
-        const customer = sale?.customer;
-
-        // Build items array from payment description or default
-        const items = [
-          {
-            description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
-            amount: payment.amount.toString(),
-          },
-        ];
-
-        // Determine payment method
-        const paymentMethodData = {
-          isCash: payment.paymentMethod === 'CASH',
-          isCheque: payment.paymentMethod === 'CHEQUE',
-          isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-          bankName: payment.receivingBank || '',
-          branchName: '',
-          accountNumber: '',
-          transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-        };
-
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-        // Additional fax field check for this specific template type if needed
-
-        const data: TemporaryReceiptData = {
-          header: {
-            ...header,
-            fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
-          },
-          customerCode: customer?.code || '',
-          receiptNumber: payment.receiptNumber,
-          date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
-          contractNumber: sale?.saleNumber || '',
-          customer: transformCustomer(customer),
-          items,
-          // Totals section
-          paymentAmount: payment.amount.toString(),
-          lateFee: '0',
-          discount: '0',
-          totalAmount: payment.amount.toString(),
-          totalAmountText: '', // Will be calculated by helper
-          paymentMethod: paymentMethodData,
-          note: payment.notes || undefined,
-        };
-
-        const pdfBuffer = await pdfService.generateTemporaryReceiptBg(data);
-
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-bg-${payment.receiptNumber}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
+      if (!payment) {
+        set.status = 404;
+        return { success: false, error: 'Payment not found' };
       }
+
+      const sale = payment.sale;
+      const customer = sale?.customer;
+
+      // Build items array from payment description or default
+      const items = [
+        {
+          description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
+          amount: payment.amount.toString(),
+        },
+      ];
+
+      // Determine payment method
+      const paymentMethodData = {
+        isCash: payment.paymentMethod === 'CASH',
+        isCheque: payment.paymentMethod === 'CHEQUE',
+        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+        bankName: payment.receivingBank || '',
+        branchName: '',
+        accountNumber: '',
+        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+      };
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+      // Additional fax field check for this specific template type if needed
+
+      const data: TemporaryReceiptData = {
+        header: {
+          ...header,
+          fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
+        },
+        customerCode: customer?.code || '',
+        receiptNumber: payment.receiptNumber,
+        date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+        contractNumber: sale?.saleNumber || '',
+        customer: transformCustomer(customer),
+        items,
+        // Totals section
+        paymentAmount: payment.amount.toString(),
+        lateFee: '0',
+        discount: '0',
+        totalAmount: payment.amount.toString(),
+        totalAmountText: '', // Will be calculated by helper
+        paymentMethod: paymentMethodData,
+        note: payment.notes || undefined,
+      };
+
+      const pdfBuffer = await pdfService.generateTemporaryReceiptBg(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-bg-${payment.receiptNumber}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       detail: {
@@ -1148,78 +1039,68 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/daily-payment-report/:date',
     async ({ params, set }) => {
-      try {
-        const date = new Date(params.date);
-        const dailyPaymentReport = await db.payment.findMany({
-          where: {
-            paymentDate: {
-              gte: new Date(date.getTime() - 86400000),
-              lte: new Date(date.getTime() + 86400000),
-            },
+      const date = new Date(params.date);
+      const dailyPaymentReport = await db.payment.findMany({
+        where: {
+          paymentDate: {
+            gte: new Date(date.getTime() - 86400000),
+            lte: new Date(date.getTime() + 86400000),
           },
-          include: {
-            customer: true,
-            sale: {
-              include: {
-                customer: true,
-                stock: {
-                  include: {
-                    vehicleModel: true,
-                  },
+        },
+        include: {
+          customer: true,
+          sale: {
+            include: {
+              customer: true,
+              stock: {
+                include: {
+                  vehicleModel: true,
                 },
               },
             },
           },
-          orderBy: {
-            paymentDate: 'asc',
-          },
-        });
+        },
+        orderBy: {
+          paymentDate: 'asc',
+        },
+      });
 
-        // Calculate summary
-        const totalAmount = dailyPaymentReport.reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalCount = dailyPaymentReport.length;
+      // Calculate summary
+      const totalAmount = dailyPaymentReport.reduce((sum, p) => sum + Number(p.amount), 0);
+      const totalCount = dailyPaymentReport.length;
 
-        // Map payments
-        const mappedPayments = dailyPaymentReport.map((p) => ({
-          paymentDate: p.paymentDate,
-          receiptNumber: p.receiptNumber,
-          invoiceNumber: p.receiptNumber, // Often matches document number
-          customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
-          amount: Number(p.amount),
-          paymentType: p.paymentType,
-          paymentMethod: p.paymentMethod,
-        }));
+      // Map payments
+      const mappedPayments = dailyPaymentReport.map((p) => ({
+        paymentDate: p.paymentDate,
+        receiptNumber: p.receiptNumber,
+        invoiceNumber: p.receiptNumber, // Often matches document number
+        customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
+        amount: Number(p.amount),
+        paymentType: p.paymentType,
+        paymentMethod: p.paymentMethod,
+      }));
 
-        const header = await getCompanyHeader();
-        if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
-        const data: DailyPaymentReportData = {
-          header,
-          dateRange: `${formatThaiDate(date)} ถึง ${formatThaiDate(date)}`,
-          payments: mappedPayments,
-          summary: {
-            totalAmount: totalAmount,
-            totalCount: totalCount,
-            byMethod: [],
-            byType: [],
-          },
-        };
+      const data: DailyPaymentReportData = {
+        header,
+        dateRange: `${formatThaiDate(date)} ถึง ${formatThaiDate(date)}`,
+        payments: mappedPayments,
+        summary: {
+          totalAmount: totalAmount,
+          totalCount: totalCount,
+          byMethod: [],
+          byType: [],
+        },
+      };
 
-        const pdfBuffer = await pdfService.generateDailyPaymentReport(data);
+      const pdfBuffer = await pdfService.generateDailyPaymentReport(data);
 
-        set.headers['Content-Type'] = 'application/pdf';
-        set.headers['Content-Disposition'] = `inline; filename="daily-payment-report-${date.toISOString().slice(0, 10)}.pdf"`;
-        
-        return pdfBuffer;
-      } catch (error) {
-        console.error('PDF generation error:', error);
-        set.status = 500;
-        return {
-          success: false,
-          error: 'Failed to generate PDF',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `inline; filename="daily-payment-report-${date.toISOString().slice(0, 10)}.pdf"`;
+
+      return pdfBuffer;
     },
     {
       params: t.Object({
