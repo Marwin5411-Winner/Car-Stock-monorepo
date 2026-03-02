@@ -15,6 +15,7 @@ import {
   Eye,
   Printer
 } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 import {
   Table,
   TableHeader,
@@ -57,6 +58,7 @@ const STATUS_LABELS: Record<PaymentStatus, string> = {
 export default function PaymentsListPage() {
   const { hasPermission } = usePermission();
   const canCreatePayment = hasPermission('PAYMENT_CREATE');
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,36 +73,27 @@ export default function PaymentsListPage() {
   const saleIdFilter = searchParams.get('saleId');
 
   const fetchPayments = async () => {
-    try {
-      setLoading(true);
-      const filters: PaymentFilters = { page, limit };
-      if (searchTerm) filters.search = searchTerm;
-      if (statusFilter !== 'ALL') filters.status = statusFilter;
-      if (typeFilter !== 'ALL') filters.paymentType = typeFilter;
-      if (saleIdFilter) filters.saleId = saleIdFilter;
+    setLoading(true);
+    const filters: PaymentFilters = { page, limit };
+    if (searchTerm) filters.search = searchTerm;
+    if (statusFilter !== 'ALL') filters.status = statusFilter;
+    if (typeFilter !== 'ALL') filters.paymentType = typeFilter;
+    if (saleIdFilter) filters.saleId = saleIdFilter;
 
-      const response = await paymentService.getAll(filters);
-
-      setPayments(response?.data || []);
-      setTotalPages(response?.meta?.totalPages || 1);
-      setTotal(response?.meta?.total || 0);
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-      setPayments([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+    await executeQuery(
+      paymentService.getAll(filters).then((response) => {
+        setPayments(response?.data || []);
+        setTotalPages(response?.meta?.totalPages || 1);
+        setTotal(response?.meta?.total || 0);
+      })
+    );
+    setLoading(false);
   };
 
   const fetchStats = async () => {
-    try {
-      const data = await paymentService.getStats();
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
+    await executeQuery(
+      paymentService.getStats().then(data => setStats(data))
+    );
   };
 
   useEffect(() => {
@@ -136,12 +129,7 @@ export default function PaymentsListPage() {
   const handlePrint = async (e: React.MouseEvent, paymentId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      await paymentService.downloadReceipt(paymentId);
-    } catch (error) {
-      console.error('Error downloading receipt:', error);
-      alert('ไม่สามารถดาวน์โหลดใบเสร็จได้');
-    }
+    await executeQuery(paymentService.downloadReceipt(paymentId));
   };
 
   return (

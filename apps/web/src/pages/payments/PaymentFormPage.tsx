@@ -15,6 +15,8 @@ import {
   Receipt
 } from 'lucide-react';
 import { AsyncSearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 // Payment types for sale-related payments
 const SALE_PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
@@ -85,6 +87,8 @@ export default function PaymentFormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preSelectedSaleId = searchParams.get('saleId');
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -150,33 +154,32 @@ export default function PaymentFormPage() {
   }, [paymentMode]);
 
   const fetchSaleById = async (saleId: string) => {
-    try {
-      setLoading(true);
-      const sale = await salesService.getById(saleId);
-      const info: SaleInfo = {
-        id: sale.id,
-        saleNumber: sale.saleNumber,
-        totalAmount: sale.totalAmount,
-        paidAmount: sale.paidAmount,
-        remainingAmount: sale.remainingAmount,
-        status: sale.status,
-        customer: sale.customer,
-        stock: sale.stock,
-      };
-      setSaleInfo(info);
-      setFormData(prev => ({
-        ...prev,
-        saleId: sale.id,
-        customerId: sale.customer.id,
-        amount: sale.remainingAmount > 0 ? sale.remainingAmount : 0,
-      }));
-    } catch (error) {
-      console.error('Error fetching sale:', error);
-      alert('ไม่สามารถโหลดข้อมูลการขายได้');
+    setLoading(true);
+    const result = await executeQuery(
+      salesService.getById(saleId).then(sale => {
+        const info: SaleInfo = {
+          id: sale.id,
+          saleNumber: sale.saleNumber,
+          totalAmount: sale.totalAmount,
+          paidAmount: sale.paidAmount,
+          remainingAmount: sale.remainingAmount,
+          status: sale.status,
+          customer: sale.customer,
+          stock: sale.stock,
+        };
+        setSaleInfo(info);
+        setFormData(prev => ({
+          ...prev,
+          saleId: sale.id,
+          customerId: sale.customer.id,
+          amount: sale.remainingAmount > 0 ? sale.remainingAmount : 0,
+        }));
+      })
+    );
+    if (!result) {
       navigate('/payments');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   // Async sale search for SearchSelect
@@ -310,41 +313,37 @@ export default function PaymentFormPage() {
       return;
     }
 
-    try {
-      setSaving(true);
-      const createData: CreatePaymentData = {
-        customerId: formData.customerId,
-        amount: formData.amount,
-        paymentDate: formData.paymentDate,
-        paymentType: formData.paymentType,
-        paymentMethod: formData.paymentMethod,
-        referenceNumber: formData.referenceNumber || undefined,
-        description: formData.description || undefined,
-        receivingBank: formData.receivingBank || undefined,
-        actualReceivedDate: formData.actualReceivedDate || undefined,
-        netReceivedAmount: formData.netReceivedAmount || undefined,
-      };
+    setSaving(true);
+    const createData: CreatePaymentData = {
+      customerId: formData.customerId,
+      amount: formData.amount,
+      paymentDate: formData.paymentDate,
+      paymentType: formData.paymentType,
+      paymentMethod: formData.paymentMethod,
+      referenceNumber: formData.referenceNumber || undefined,
+      description: formData.description || undefined,
+      receivingBank: formData.receivingBank || undefined,
+      actualReceivedDate: formData.actualReceivedDate || undefined,
+      netReceivedAmount: formData.netReceivedAmount || undefined,
+    };
 
-      // Only include saleId for sale-linked payments
-      if (paymentMode === 'sale' && formData.saleId) {
-        createData.saleId = formData.saleId;
-      }
-
-      const payment = await paymentService.create(createData);
-      alert('บันทึกการชำระเงินสำเร็จ');
-
-      // Navigate to payment detail or back to sale
-      if (preSelectedSaleId) {
-        navigate(`/sales/${preSelectedSaleId}`);
-      } else {
-        navigate(`/payments/${payment.id}`);
-      }
-    } catch (error) {
-      console.error('Error creating payment:', error);
-      alert('ไม่สามารถบันทึกการชำระเงินได้');
-    } finally {
-      setSaving(false);
+    // Only include saleId for sale-linked payments
+    if (paymentMode === 'sale' && formData.saleId) {
+      createData.saleId = formData.saleId;
     }
+
+    await executeQuery(
+      paymentService.create(createData).then((payment) => {
+        addToast('บันทึกการชำระเงินสำเร็จ', 'success');
+        // Navigate to payment detail or back to sale
+        if (preSelectedSaleId) {
+          navigate(`/sales/${preSelectedSaleId}`);
+        } else {
+          navigate(`/payments/${payment.id}`);
+        }
+      })
+    );
+    setSaving(false);
   };
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {

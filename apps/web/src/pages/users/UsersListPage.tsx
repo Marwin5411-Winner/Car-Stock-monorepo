@@ -6,6 +6,8 @@ import { MainLayout } from '../../components/layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
 import { Plus, Search, Edit, Trash2, Eye, UserCog, Shield } from 'lucide-react';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 import {
   Table,
   TableHeader,
@@ -46,6 +48,9 @@ export default function UsersListPage() {
   const canCreate = hasPermission('USER_CREATE');
   const canUpdate = hasPermission('USER_UPDATE');
   const canDelete = hasPermission('USER_DELETE');
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler();
+  const { execute: executeDelete } = useMutationHandler('ปิดใช้งานผู้ใช้สำเร็จ');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,29 +67,24 @@ export default function UsersListPage() {
   }, [currentUser, navigate]);
 
   const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const filters: Record<string, string | number> = {
-        page,
-        limit,
-      };
+    setLoading(true);
+    const filters: Record<string, string | number> = {
+      page,
+      limit,
+    };
 
-      if (searchTerm) {
-        filters.search = searchTerm;
-      }
-
-      const response = await userService.getAll(filters);
-      setUsers(response?.data ?? []);
-      setTotalPages(response?.meta?.totalPages ?? 1);
-      setTotal(response?.meta?.total ?? 0);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      setUsers([]);
-      setTotalPages(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
+    if (searchTerm) {
+      filters.search = searchTerm;
     }
+
+    await executeQuery(
+      userService.getAll(filters).then((response) => {
+        setUsers(response?.data ?? []);
+        setTotalPages(response?.meta?.totalPages ?? 1);
+        setTotal(response?.meta?.total ?? 0);
+      })
+    );
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function UsersListPage() {
 
   const handleDelete = async (id: string, username: string) => {
     if (id === currentUser?.id) {
-      alert('ไม่สามารถลบบัญชีของตัวเองได้');
+      addToast('ไม่สามารถลบบัญชีของตัวเองได้', 'error');
       return;
     }
 
@@ -114,13 +114,8 @@ export default function UsersListPage() {
       return;
     }
 
-    try {
-      await userService.delete(id);
-      fetchUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('ไม่สามารถลบผู้ใช้ได้');
-    }
+    const result = await executeDelete(userService.delete(id));
+    if (result) fetchUsers();
   };
 
   if (currentUser?.role !== 'ADMIN') {

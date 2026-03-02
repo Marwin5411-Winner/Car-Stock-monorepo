@@ -18,6 +18,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { ROLE_LABELS } from '@car-stock/shared/constants';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 const statusLabels: Record<string, string> = {
   ACTIVE: 'ใช้งาน',
@@ -36,6 +38,10 @@ export default function UserDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useAuth();
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+  const { execute: executeDelete } = useMutationHandler('ปิดใช้งานผู้ใช้สำเร็จ');
+  const { execute: executeReset } = useMutationHandler('รีเซ็ตรหัสผ่านสำเร็จ');
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,25 +68,25 @@ export default function UserDetailPage() {
   }, [id]);
 
   const fetchUser = async (userId: string) => {
-    try {
-      setLoading(true);
-      const response = await userService.getById(userId);
-      if (response.success && response.data) {
-        setUser(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
+    setLoading(true);
+    const result = await executeQuery(
+      userService.getById(userId).then(response => {
+        if (response.success && response.data) {
+          setUser(response.data);
+        }
+      })
+    );
+    if (!result) {
       setError('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const handleDelete = async () => {
     if (!user) return;
 
     if (user.id === currentUser?.id) {
-      alert('ไม่สามารถลบบัญชีของตัวเองได้');
+      addToast('ไม่สามารถลบบัญชีของตัวเองได้', 'error');
       return;
     }
 
@@ -88,13 +94,8 @@ export default function UserDetailPage() {
       return;
     }
 
-    try {
-      await userService.delete(user.id);
-      navigate('/users');
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('ไม่สามารถลบผู้ใช้ได้');
-    }
+    const result = await executeDelete(userService.delete(user.id));
+    if (result) navigate('/users');
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -111,19 +112,14 @@ export default function UserDetailPage() {
       return;
     }
 
-    try {
-      setResetting(true);
-      await userService.resetPassword(user!.id, newPassword);
+    setResetting(true);
+    const result = await executeReset(userService.resetPassword(user!.id, newPassword));
+    if (result) {
       setShowResetModal(false);
       setNewPassword('');
       setConfirmPassword('');
-      alert('รีเซ็ตรหัสผ่านสำเร็จ');
-    } catch (error) {
-      console.error('Error resetting password:', error);
-      setResetError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
-    } finally {
-      setResetting(false);
     }
+    setResetting(false);
   };
 
   const formatDate = (dateString: string) => {
