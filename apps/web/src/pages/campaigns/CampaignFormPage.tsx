@@ -7,12 +7,14 @@ import type { CreateCampaignData, UpdateCampaignData } from '../../services/camp
 import { vehicleService } from '../../services/vehicle.service';
 import type { VehicleModel } from '../../services/vehicle.service';
 import { ArrowLeft, Save, X } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 
 export const CampaignFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const isEdit = Boolean(id);
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
 
   const [formData, setFormData] = useState({
     name: '',
@@ -102,15 +104,11 @@ export const CampaignFormPage: React.FC = () => {
       ...(isEdit && { status: formData.status }),
     };
 
-    try {
-      if (isEdit) {
-        await updateMutation.mutateAsync(data);
-      } else {
-        await createMutation.mutateAsync(data);
-      }
-    } catch {
-      alert('เกิดข้อผิดพลาดในการบันทึก');
-    }
+    await executeQuery(
+      isEdit
+        ? updateMutation.mutateAsync(data)
+        : createMutation.mutateAsync(data)
+    );
   };
 
   const toggleVehicleModel = (modelId: string) => {

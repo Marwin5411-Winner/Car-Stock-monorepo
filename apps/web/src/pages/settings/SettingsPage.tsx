@@ -3,8 +3,13 @@ import { MainLayout } from '../../components/layout';
 import { Save, Upload, Building } from 'lucide-react';
 import { settingsService } from '../../services/settings.service';
 import SystemUpdateSection from './SystemUpdateSection';
+import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 export default function SettingsPage() {
+    const { addToast } = useToast();
+    const { execute: executeQuery } = useErrorHandler();
+    const { execute: executeSave } = useMutationHandler('บันทึกการตั้งค่าสำเร็จ');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -27,30 +32,27 @@ export default function SettingsPage() {
     }, []);
 
     const fetchSettings = async () => {
-        try {
-            setLoading(true);
-            const response = await settingsService.getSettings();
-            if (response.success && response.data) {
-                setFormData({
-                    companyNameTh: response.data.companyNameTh || '',
-                    companyNameEn: response.data.companyNameEn || '',
-                    taxId: response.data.taxId || '',
-                    addressTh: response.data.addressTh || '',
-                    addressEn: response.data.addressEn || '',
-                    phone: response.data.phone || '',
-                    mobile: response.data.mobile || '',
-                    fax: response.data.fax || '',
-                    email: response.data.email || '',
-                    website: response.data.website || '',
-                    logo: response.data.logo || '',
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-            // Don't alert on first load if empty, just stay empty
-        } finally {
-            setLoading(false);
-        }
+        setLoading(true);
+        await executeQuery(
+            settingsService.getSettings().then(response => {
+                if (response.success && response.data) {
+                    setFormData({
+                        companyNameTh: response.data.companyNameTh || '',
+                        companyNameEn: response.data.companyNameEn || '',
+                        taxId: response.data.taxId || '',
+                        addressTh: response.data.addressTh || '',
+                        addressEn: response.data.addressEn || '',
+                        phone: response.data.phone || '',
+                        mobile: response.data.mobile || '',
+                        fax: response.data.fax || '',
+                        email: response.data.email || '',
+                        website: response.data.website || '',
+                        logo: response.data.logo || '',
+                    });
+                }
+            })
+        );
+        setLoading(false);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -62,7 +64,7 @@ export default function SettingsPage() {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                alert('File size too large. Max 5MB.');
+                addToast('File size too large. Max 5MB.', 'error');
                 return;
             }
 
@@ -77,15 +79,8 @@ export default function SettingsPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        try {
-            await settingsService.updateSettings(formData);
-            alert('บันทึกการตั้งค่าสำเร็จ / Settings saved successfully');
-        } catch (error) {
-            console.error('Error saving settings:', error);
-            alert('เกิดข้อผิดพลาดในการบันทึก / Error saving settings');
-        } finally {
-            setSaving(false);
-        }
+        await executeSave(settingsService.updateSettings(formData));
+        setSaving(false);
     };
 
     if (loading) {

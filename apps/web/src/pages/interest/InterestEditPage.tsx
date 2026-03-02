@@ -12,12 +12,16 @@ import {
   AlertCircle,
   Info,
 } from 'lucide-react';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 
 export default function InterestEditPage() {
   const { stockId } = useParams<{ stockId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+  const { addToast } = useToast();
+  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+
   const isResume = searchParams.get('resume') === 'true';
   const isInitialize = searchParams.get('initialize') === 'true';
 
@@ -39,27 +43,27 @@ export default function InterestEditPage() {
   }, [stockId]);
 
   const fetchDetail = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await interestService.getById(stockId!);
-      setDetail(data);
+    setLoading(true);
+    setError(null);
+    const result = await executeQuery(
+      interestService.getById(stockId!).then(data => {
+        setDetail(data);
 
-      // Pre-fill form
-      if (data.summary.currentRate > 0) {
-        setAnnualRate(data.summary.currentRate.toString());
-      }
-      setPrincipalBase(data.stock.interestPrincipalBase);
-      
-      // Set effective date to today
-      const today = new Date().toISOString().split('T')[0];
-      setEffectiveDate(today);
-    } catch (err) {
-      console.error('Error fetching interest detail:', err);
+        // Pre-fill form
+        if (data.summary.currentRate > 0) {
+          setAnnualRate(data.summary.currentRate.toString());
+        }
+        setPrincipalBase(data.stock.interestPrincipalBase);
+
+        // Set effective date to today
+        const today = new Date().toISOString().split('T')[0];
+        setEffectiveDate(today);
+      })
+    );
+    if (!result) {
       setError('ไม่สามารถโหลดข้อมูลได้');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,45 +71,40 @@ export default function InterestEditPage() {
 
     const rate = parseFloat(annualRate);
     if (isNaN(rate) || rate < 0 || rate > 100) {
-      alert('กรุณากรอกอัตราดอกเบี้ยให้ถูกต้อง (0-100%)');
+      addToast('กรุณากรอกอัตราดอกเบี้ยให้ถูกต้อง (0-100%)', 'error');
       return;
     }
 
-    try {
-      setSubmitting(true);
+    setSubmitting(true);
 
-      if (isInitialize) {
-        // Initialize new interest period
-        await interestService.initialize(stockId!, {
-          annualRate: rate,
-          principalBase,
-          startDate: effectiveDate || undefined,
-          notes: notes || undefined,
-        });
-      } else if (isResume) {
-        // Resume interest calculation
-        await interestService.resumeCalculation(stockId!, {
-          annualRate: rate,
-          principalBase,
-          notes: notes || undefined,
-        });
-      } else {
-        // Update interest rate
-        await interestService.updateRate(stockId!, {
-          annualRate: rate,
-          principalBase,
-          effectiveDate: effectiveDate || undefined,
-          notes: notes || undefined,
-        });
-      }
-
-      navigate(`/interest/${stockId}`);
-    } catch (err) {
-      console.error('Error updating interest:', err);
-      alert('ไม่สามารถบันทึกข้อมูลได้');
-    } finally {
-      setSubmitting(false);
+    let promise: Promise<unknown>;
+    if (isInitialize) {
+      promise = interestService.initialize(stockId!, {
+        annualRate: rate,
+        principalBase,
+        startDate: effectiveDate || undefined,
+        notes: notes || undefined,
+      });
+    } else if (isResume) {
+      promise = interestService.resumeCalculation(stockId!, {
+        annualRate: rate,
+        principalBase,
+        notes: notes || undefined,
+      });
+    } else {
+      promise = interestService.updateRate(stockId!, {
+        annualRate: rate,
+        principalBase,
+        effectiveDate: effectiveDate || undefined,
+        notes: notes || undefined,
+      });
     }
+
+    const result = await executeQuery(promise);
+    if (result) {
+      navigate(`/interest/${stockId}`);
+    }
+    setSubmitting(false);
   };
 
   const formatCurrency = (amount: number) => {

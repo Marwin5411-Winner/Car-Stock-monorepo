@@ -1,6 +1,7 @@
 import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { useToast } from '../toast';
 
 interface ExportHeader {
   key: string;
@@ -29,9 +30,11 @@ export function ExportButton<T extends object>({
   headers,
   loading = false,
 }: ExportButtonProps<T>) {
+  const { addToast } = useToast();
+
   const handleExport = () => {
     if (data?.length === 0) {
-      alert('ไม่มีข้อมูลสำหรับ Export');
+      addToast('ไม่มีข้อมูลสำหรับ Export', 'error');
       return;
     }
 
