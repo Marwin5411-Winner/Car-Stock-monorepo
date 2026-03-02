@@ -13,6 +13,7 @@ import {
   Save
 } from 'lucide-react';
 import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
+import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
 
 // Note: This form is now for Direct Sales only
 // Reservation Sales should be created via Quotation conversion
@@ -53,6 +54,8 @@ export default function SalesFormPage() {
   const [availableStocks, setAvailableStocks] = useState<Stock[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [pendingStock, setPendingStock] = useState<Stock | null>(null);
   
   // Simplified form data for Direct Sale
   const [formData, setFormData] = useState<FormData>({
@@ -179,19 +182,48 @@ export default function SalesFormPage() {
   const handleStockSelect = (value: string, option?: SearchSelectOption<Stock>) => {
     const stock = option?.data || null;
     setSelectedStock(stock);
-    
+
     if (stock) {
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         stockId: value,
-        totalAmount: stock.expectedSalePrice || formData.totalAmount,
-      });
+      }));
+
+      // Open price source modal if both VehicleModel price and Stock expectedSalePrice exist
+      if (stock.vehicleModel?.price != null) {
+        setPendingStock(stock);
+        setPriceModalOpen(true);
+      } else {
+        // Fallback: auto-fill from stock expectedSalePrice
+        setFormData((prev) => ({
+          ...prev,
+          stockId: value,
+          totalAmount: stock.expectedSalePrice || prev.totalAmount,
+        }));
+      }
     } else {
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         stockId: '',
-      });
+      }));
     }
+  };
+
+  const handlePriceSourceSelect = (source: PriceSource) => {
+    if (!pendingStock) return;
+
+    if (source === 'model') {
+      setFormData((prev) => ({
+        ...prev,
+        totalAmount: Number(pendingStock.vehicleModel.price) || prev.totalAmount,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        totalAmount: pendingStock.expectedSalePrice || prev.totalAmount,
+      }));
+    }
+    setPendingStock(null);
   };
 
   // Removed handleVehicleModelSelect - not needed for Direct Sale
@@ -644,6 +676,30 @@ export default function SalesFormPage() {
           </div>
         </form>
       </div>
+
+      {/* Price Source Selection Modal */}
+      {pendingStock && pendingStock.vehicleModel && (
+        <PriceSourceModal
+          open={priceModalOpen}
+          onClose={() => {
+            setPriceModalOpen(false);
+            setPendingStock(null);
+          }}
+          vehicleModel={{
+            brand: pendingStock.vehicleModel.brand,
+            model: pendingStock.vehicleModel.model,
+            variant: pendingStock.vehicleModel.variant,
+            year: pendingStock.vehicleModel.year,
+            price: Number(pendingStock.vehicleModel.price),
+          }}
+          stock={{
+            exteriorColor: pendingStock.exteriorColor,
+            vin: pendingStock.vin,
+            expectedSalePrice: pendingStock.expectedSalePrice,
+          }}
+          onSelect={handlePriceSourceSelect}
+        />
+      )}
     </MainLayout>
   );
 }

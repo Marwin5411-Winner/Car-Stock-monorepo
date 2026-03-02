@@ -5,6 +5,7 @@ import { vehicleService } from '../../services/vehicle.service';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft } from 'lucide-react';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
+import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
 
 interface VehicleModel {
   id: string;
@@ -25,6 +26,8 @@ export default function StockFormPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [vehicles, setVehicles] = useState<VehicleModel[]>([]);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [pendingVehicle, setPendingVehicle] = useState<VehicleModel | null>(null);
 
   const [formData, setFormData] = useState({
     vin: '',
@@ -126,26 +129,44 @@ export default function StockFormPage() {
         vehicleModelId: value,
       };
 
-      // Auto-fill fields from vehicle model (only if creating new or current value is empty/zero)
-      if (selectedVehicle) {
-        // Set baseCost from standardCost if current value is 0 or empty
-        if (!prev.baseCost || prev.baseCost === 0) {
-          updates.baseCost = Number(selectedVehicle.standardCost) || 0;
-        }
-
-        // Set expectedSalePrice from price if current value is undefined or empty
-        if (prev.expectedSalePrice === undefined || prev.expectedSalePrice === 0) {
-          updates.expectedSalePrice = Number(selectedVehicle.price) || undefined;
-        }
-
-        // Set exteriorColor from primaryColor if current value is empty
-        if (!prev.exteriorColor && selectedVehicle.primaryColor) {
-          updates.exteriorColor = selectedVehicle.primaryColor;
-        }
+      // Set exteriorColor from primaryColor if current value is empty
+      if (selectedVehicle && !prev.exteriorColor && selectedVehicle.primaryColor) {
+        updates.exteriorColor = selectedVehicle.primaryColor;
       }
 
       return { ...prev, ...updates };
     });
+
+    if (!selectedVehicle) return;
+
+    // Edit mode: existing stock has prices → open modal to let user choose
+    if (isEdit && (formData.baseCost || formData.expectedSalePrice)) {
+      setPendingVehicle(selectedVehicle);
+      setPriceModalOpen(true);
+    } else {
+      // Create mode or no existing prices: auto-fill from VehicleModel
+      setFormData((prev) => ({
+        ...prev,
+        baseCost: !prev.baseCost || prev.baseCost === 0 ? Number(selectedVehicle.standardCost) || 0 : prev.baseCost,
+        expectedSalePrice: prev.expectedSalePrice === undefined || prev.expectedSalePrice === 0 || prev.expectedSalePrice === ''
+          ? Number(selectedVehicle.price) || ''
+          : prev.expectedSalePrice,
+      }));
+    }
+  };
+
+  const handlePriceSourceSelect = (source: PriceSource) => {
+    if (!pendingVehicle) return;
+
+    if (source === 'model') {
+      setFormData((prev) => ({
+        ...prev,
+        baseCost: Number(pendingVehicle.standardCost) || 0,
+        expectedSalePrice: Number(pendingVehicle.price) || '',
+      }));
+    }
+    // source === 'stock': keep existing form values (no changes needed)
+    setPendingVehicle(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -604,6 +625,30 @@ export default function StockFormPage() {
           </section>
         </div>
       </form>
+
+      {/* Price Source Selection Modal (edit mode - when changing VehicleModel) */}
+      {pendingVehicle && (
+        <PriceSourceModal
+          open={priceModalOpen}
+          onClose={() => {
+            setPriceModalOpen(false);
+            setPendingVehicle(null);
+          }}
+          vehicleModel={{
+            brand: pendingVehicle.brand,
+            model: pendingVehicle.model,
+            variant: pendingVehicle.variant,
+            year: pendingVehicle.year,
+            price: Number(pendingVehicle.price),
+          }}
+          stock={{
+            exteriorColor: formData.exteriorColor || '-',
+            vin: formData.vin || '-',
+            expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
+          }}
+          onSelect={handlePriceSourceSelect}
+        />
+      )}
     </MainLayout>
   );
 }

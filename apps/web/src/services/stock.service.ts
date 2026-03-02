@@ -13,6 +13,7 @@ export interface Stock {
     variant?: string;
     year: number;
     type: string;
+    price?: number;
   };
   exteriorColor: string;
   interiorColor?: string;
