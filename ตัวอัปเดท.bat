@@ -20,7 +20,7 @@ echo.
 
 :: Step 2: Rebuild containers
 echo [2/3] Rebuilding Docker containers...
-docker compose --env-file .env.docker build api web
+docker compose build api web
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Docker build failed!
     pause
@@ -31,7 +31,7 @@ echo.
 
 :: Step 3: Restart services
 echo [3/3] Restarting services...
-docker compose --env-file .env.docker up -d api web
+docker compose up -d api web
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to start containers!
     pause
