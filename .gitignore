@@ -47,3 +47,6 @@ bun.lockb
 
 
 .env.docker
+
+# Worktrees
+.worktrees/
