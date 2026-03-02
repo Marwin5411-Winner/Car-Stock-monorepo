@@ -42,7 +42,19 @@ export const ERROR_MESSAGES: Record<string, string> = {
   'USERNAME_ALREADY_EXISTS': 'ชื่อผู้ใช้งานนี้มีอยู่แล้วในระบบ',
   'EMAIL_ALREADY_EXISTS': 'อีเมลนี้มีอยู่แล้วในระบบ',
   'VEHICLE_MODEL_ALREADY_EXISTS': 'รุ่นรถนี้มีอยู่แล้วในระบบ',
-  
+  'MOTOR_NUMBER_ALREADY_EXISTS': 'เลขมอเตอร์นี้มีอยู่แล้วในระบบ',
+  'STOCK_ALREADY_IN_SALE': 'รถคันนี้มีรายการขายอยู่แล้ว',
+  'CONTRACT_NUMBER_ALREADY_EXISTS': 'เลขสัญญานี้มีอยู่แล้วในระบบ',
+
+  // Sale-specific errors
+  'STOCK_NOT_AVAILABLE': 'รถไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)',
+  'SALE_ALREADY_COMPLETED': 'รายการขายนี้เสร็จสิ้นแล้ว',
+  'SALE_ALREADY_CANCELLED': 'รายการขายนี้ถูกยกเลิกแล้ว',
+
+  // Payment errors
+  'PAYMENT_ALREADY_VOIDED': 'รายการชำระเงินนี้ถูกยกเลิกแล้ว',
+  'OVERPAYMENT': 'จำนวนเงินเกินยอดที่ต้องชำระ',
+
   // Permission Errors
   'INSUFFICIENT_PERMISSIONS': 'คุณไม่มีสิทธิ์ทำรายการนี้',
   'UNAUTHORIZED': 'กรุณาเข้าสู่ระบบใหม่',
