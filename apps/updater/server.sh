@@ -41,13 +41,21 @@ handle_request() {
   local content_length=0
   local body=""
 
-  # Read the request line
-  read -r request_line
+  # Read the request line (5s timeout for dead connections)
+  if ! read -r -t 5 request_line; then
+    return
+  fi
+  request_line=$(echo "$request_line" | tr -d '\r')
   method=$(echo "$request_line" | awk '{print $1}')
   path=$(echo "$request_line" | awk '{print $2}')
 
+  # Bail out if we got an empty or malformed request
+  if [ -z "$method" ] || [ -z "$path" ]; then
+    return
+  fi
+
   # Read headers
-  while IFS= read -r header; do
+  while IFS= read -r -t 5 header; do
     header=$(echo "$header" | tr -d '\r\n')
     [ -z "$header" ] && break
 
@@ -267,6 +275,10 @@ log "Auth: $([ -n "$UPDATE_SECRET" ] && echo "enabled" || echo "disabled (no UPD
 
 mkdir -p "$STATUS_DIR" "$BACKUP_DIR" /app/logs
 
+# Clean shutdown on SIGTERM (container stop)
+trap 'log "Shutting down updater server"; exit 0' TERM INT
+
 # Use socat to handle HTTP connections
 # Each connection forks a new process calling this script with __handle
-exec socat TCP-LISTEN:$PORT,reuseaddr,fork SYSTEM:"bash /app/server.sh __handle"
+# -d0 suppresses noisy warnings (connection reset by peer, signal 15)
+exec socat -d0 TCP-LISTEN:$PORT,reuseaddr,fork SYSTEM:"bash /app/server.sh __handle"
