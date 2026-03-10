@@ -44,7 +44,7 @@ export default function StockFormPage() {
     vehicleModelId: '',
     exteriorColor: '',
     interiorColor: '',
-    arrivalDate: new Date().toISOString().split('T')[0],
+    arrivalDate: '',
     orderDate: '',
     parkingSlot: '',
     status: 'AVAILABLE' as 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO',
@@ -86,7 +86,7 @@ export default function StockFormPage() {
           vehicleModelId: stock.vehicleModel.id,
           exteriorColor: stock.exteriorColor,
           interiorColor: stock.interiorColor || '',
-          arrivalDate: new Date(stock.arrivalDate).toISOString().split('T')[0],
+          arrivalDate: stock.arrivalDate ? new Date(stock.arrivalDate).toISOString().split('T')[0] : '',
           orderDate: stock.orderDate ? new Date(stock.orderDate).toISOString().split('T')[0] : '',
           parkingSlot: stock.parkingSlot || '',
           status: stock.status,
@@ -186,7 +186,7 @@ export default function StockFormPage() {
       interestRate: formData.interestRate === '' ? 0 : Number(formData.interestRate) / 100,
       expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
       orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
-      arrivalDate: new Date(formData.arrivalDate),
+      arrivalDate: formData.arrivalDate ? new Date(formData.arrivalDate) : null,
     };
 
     await executeMutation(
@@ -262,7 +262,7 @@ export default function StockFormPage() {
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="arrivalDate" className="block text-sm font-medium text-gray-700">
-                      วันที่เข้าสต็อก <span className="text-red-500">*</span>
+                      วันที่เข้าสต็อก
                     </label>
                     <input
                       type="date"
@@ -270,7 +270,6 @@ export default function StockFormPage() {
                       name="arrivalDate"
                       value={formData.arrivalDate}
                       onChange={handleChange}
-                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     />
                   </div>

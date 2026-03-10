@@ -831,7 +831,9 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       completedCount: data.completed,
       canceledCount: data.canceled,
       totalAmount: data.amount,
-      commission: Math.round(data.amount * 0.01), // Example 1% commission
+      commission: Math.round(data.amount * 0.01),
+      commissionVat: Math.round(Math.round(data.amount * 0.01) * 0.07),
+      commissionWithVat: Math.round(Math.round(data.amount * 0.01) * 1.07),
     }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
 

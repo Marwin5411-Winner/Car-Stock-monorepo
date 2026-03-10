@@ -146,7 +146,7 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
         vehicleModelId: t.String({ minLength: 1 }),
         exteriorColor: t.String({ minLength: 1 }),
         interiorColor: t.Optional(t.String()),
-        arrivalDate: t.Date(),
+        arrivalDate: t.Optional(t.Union([t.Date(), t.Null()])),
         orderDate: t.Optional(t.Date()),
         parkingSlot: t.Optional(t.String()),
         baseCost: t.Union([t.String(), t.Number()]),

@@ -308,6 +308,9 @@ export class SalesService {
         throw new NotFoundError('Stock');
       }
 
+      if (stock.status === 'DEMO') {
+        throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
+      }
       if (stock.status !== 'AVAILABLE') {
         throw new BadRequestError('Stock is not available');
       }
@@ -687,6 +690,9 @@ export class SalesService {
       throw new NotFoundError('Stock');
     }
 
+    if (newStock.status === 'DEMO') {
+      throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
+    }
     if (newStock.status !== 'AVAILABLE') {
       throw new BadRequestError('Stock is not available');
     }

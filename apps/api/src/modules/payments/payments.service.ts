@@ -66,8 +66,9 @@ export class PaymentsService {
     if (validated.search) {
       where.OR = [
         { receiptNumber: { contains: validated.search, mode: 'insensitive' } },
-        { customer: { name: { contains: validated.search, mode: 'insensitive' } } },
-        { sale: { saleNumber: { contains: validated.search, mode: 'insensitive' } } },
+        { customer: { is: { name: { contains: validated.search, mode: 'insensitive' } } } },
+        { customer: { is: { code: { contains: validated.search, mode: 'insensitive' } } } },
+        { sale: { is: { saleNumber: { contains: validated.search, mode: 'insensitive' } } } },
       ];
     }
 

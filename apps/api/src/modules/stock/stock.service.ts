@@ -34,7 +34,8 @@ export class StockService {
   /**
    * Calculate days in stock
    */
-  private calculateDaysInStock(arrivalDate: Date): number {
+  private calculateDaysInStock(arrivalDate: Date | null): number {
+    if (!arrivalDate) return 0;
     const today = new Date();
     const diffTime = Math.abs(today.getTime() - arrivalDate.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -49,7 +50,7 @@ export class StockService {
     accessoryCost: number,
     otherCosts: number,
     interestRate: number,
-    arrivalDate: Date,
+    arrivalDate: Date | null,
     orderDate: Date | null,
     interestPrincipalBase: string,
     stopInterestCalc: boolean,
@@ -64,11 +65,12 @@ export class StockService {
       calculatedInterest: number | Decimal;
     }>
   ): number {
+    if (!arrivalDate && !orderDate) return 0;
     const totalCost = baseCost + transportCost + accessoryCost + otherCosts;
     const principalAmount = interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
     const today = new Date();
     const activeEndDate = soldDate || today;
-    const interestStartDate = orderDate || arrivalDate;
+    const interestStartDate = orderDate || arrivalDate!;
     const hasStopDate = stopInterestCalc && interestStoppedAt;
     const endDate = hasStopDate
       ? new Date(Math.min(activeEndDate.getTime(), interestStoppedAt!.getTime()))

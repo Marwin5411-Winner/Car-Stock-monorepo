@@ -243,7 +243,7 @@ export default function StockListPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-gray-900">
-                        {new Date(stock.arrivalDate).toLocaleDateString('th-TH')}
+                        {stock.arrivalDate ? new Date(stock.arrivalDate).toLocaleDateString('th-TH') : '-'}
                       </TableCell>
                       {canViewCost && (
                         <>

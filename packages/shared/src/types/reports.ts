@@ -217,6 +217,8 @@ export interface SalesBySalesperson {
   canceledCount: number;
   totalAmount: number;
   commission: number;
+  commissionVat: number;
+  commissionWithVat: number;
 }
 
 export interface SalesSummaryReportSummary {

@@ -100,7 +100,7 @@ model Stock {
   vehicleModelId        String             @map("vehicle_model_id")
   exteriorColor         String             @map("exterior_color")
   interiorColor         String?            @map("interior_color")
-  arrivalDate           DateTime           @map("arrival_date")
+  arrivalDate           DateTime?          @map("arrival_date")
   orderDate             DateTime?          @map("order_date")
   status                StockStatus        @default(AVAILABLE)
   parkingSlot           String?            @map("parking_slot")

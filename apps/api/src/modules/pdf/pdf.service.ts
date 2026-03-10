@@ -85,8 +85,8 @@ export class PdfService {
   private logoBase64: string = '';
   private receiptBgBase64: string = '';
   
-  // Use environment variable or default to the provided user URL
-  private readonly gotenbergUrl: string = process.env.GOTENBERG_URL || 'http://45.136.237.71:7090';
+  // Use environment variable or default to Docker service URL
+  private readonly gotenbergUrl: string = process.env.GOTENBERG_URL || 'http://gotenberg:3000';
 
   private constructor() {
     this.templatesDir = path.join(__dirname, 'templates');
@@ -588,18 +588,31 @@ export class PdfService {
       }
 
       console.log(`🚀 Sending PDF request to Gotenberg: ${this.gotenbergUrl}`);
-      
-      const response = await fetch(`${this.gotenbergUrl}/forms/chromium/convert/html`, {
-        method: 'POST',
-        body: formData,
-      });
 
-      if (!response.ok) {
-        throw new Error(`Gotenberg API failed: ${response.status} ${response.statusText}`);
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch(`${this.gotenbergUrl}/forms/chromium/convert/html`, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Gotenberg API failed: ${response.status} ${response.statusText}`);
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          return Buffer.from(arrayBuffer);
+        } catch (err) {
+          lastError = err as Error;
+          if (attempt < maxRetries) {
+            console.warn(`⚠️ Gotenberg attempt ${attempt} failed, retrying...`);
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+          }
+        }
       }
-
-      const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      throw lastError!;
     } catch (error) {
       console.error('❌ PDF Generation failed:', error);
       throw error;

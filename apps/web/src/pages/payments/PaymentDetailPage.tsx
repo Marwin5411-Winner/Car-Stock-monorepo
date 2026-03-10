@@ -69,10 +69,10 @@ export default function PaymentDetailPage() {
 
   const fetchPayment = async (paymentId: string) => {
     setLoading(true);
-    const result = await executeQuery(
-      paymentService.getById(paymentId).then(data => setPayment(data))
-    );
-    if (!result) {
+    const result = await executeQuery(paymentService.getById(paymentId));
+    if (result) {
+      setPayment(result);
+    } else {
       navigate('/payments');
     }
     setLoading(false);

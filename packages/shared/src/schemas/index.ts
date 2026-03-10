@@ -281,7 +281,7 @@ export const StockSchema = z.object({
   exteriorColor: z.string(),
   interiorColor: z.string().nullable(),
   
-  arrivalDate: z.coerce.date(),
+  arrivalDate: z.coerce.date().optional().nullable(),
   orderDate: z.coerce.date().nullable(),
   status: StockStatusSchema,
   parkingSlot: z.string().nullable(),
@@ -320,7 +320,7 @@ export const CreateStockSchema = z.object({
   exteriorColor: z.string().min(1, 'Exterior color is required'),
   interiorColor: z.string().optional(),
   
-  arrivalDate: z.coerce.date(),
+  arrivalDate: z.coerce.date().optional().nullable(),
   orderDate: z.coerce.date().optional(),
   parkingSlot: z.string().optional(),
   

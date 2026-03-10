@@ -115,10 +115,26 @@ export default function SalesSummaryReportPage() {
     },
     {
       key: 'commission',
-      label: 'ค่าคอมมิชชั่น',
+      label: 'ค่าคอม',
       align: 'right' as const,
       render: (value: number) => (
         <span className="text-blue-600 font-medium">{formatCurrency(value)}</span>
+      ),
+    },
+    {
+      key: 'commissionVat',
+      label: 'VAT 7%',
+      align: 'right' as const,
+      render: (value: number) => (
+        <span className="text-orange-600 font-medium">{formatCurrency(value)}</span>
+      ),
+    },
+    {
+      key: 'commissionWithVat',
+      label: 'ค่าคอมรวม VAT',
+      align: 'right' as const,
+      render: (value: number) => (
+        <span className="text-green-600 font-medium">{formatCurrency(value)}</span>
       ),
     },
   ];
@@ -130,7 +146,9 @@ export default function SalesSummaryReportPage() {
     { key: 'completedCount', label: 'สำเร็จ' },
     { key: 'canceledCount', label: 'ยกเลิก' },
     { key: 'totalAmount', label: 'ยอดขาย' },
-    { key: 'commission', label: 'ค่าคอมมิชชั่น' },
+    { key: 'commission', label: 'ค่าคอม' },
+    { key: 'commissionVat', label: 'VAT 7%' },
+    { key: 'commissionWithVat', label: 'ค่าคอมรวม VAT' },
   ];
 
   const handleExportPdf = async () => {
