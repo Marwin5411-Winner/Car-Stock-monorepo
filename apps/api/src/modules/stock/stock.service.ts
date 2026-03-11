@@ -70,7 +70,8 @@ export class StockService {
     const principalAmount = interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
     const today = new Date();
     const activeEndDate = soldDate || today;
-    const interestStartDate = orderDate || arrivalDate!;
+    const interestStartDate = orderDate ?? arrivalDate;
+    if (!interestStartDate) return 0;
     const hasStopDate = stopInterestCalc && interestStoppedAt;
     const endDate = hasStopDate
       ? new Date(Math.min(activeEndDate.getTime(), interestStoppedAt!.getTime()))

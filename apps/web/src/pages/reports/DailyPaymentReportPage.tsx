@@ -28,7 +28,8 @@ const METHOD_COLORS: Record<string, string> = {
 
 /** Format a number with Thai conventions: 2 decimals, comma grouping. Returns empty string for 0/null. */
 function fmtAmount(val: number | null | undefined): string {
-  if (!val) return '';
+  if (val == null) return '';
+  if (val === 0) return '';
   return val.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 

@@ -833,7 +833,7 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       totalAmount: data.amount,
       commission: Math.round(data.amount * 0.01),
       commissionVat: Math.round(Math.round(data.amount * 0.01) * 0.07),
-      commissionWithVat: Math.round(Math.round(data.amount * 0.01) * 1.07),
+      commissionWithVat: Math.round(data.amount * 0.01) + Math.round(Math.round(data.amount * 0.01) * 0.07),
     }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
 
