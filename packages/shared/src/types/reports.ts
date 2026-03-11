@@ -19,7 +19,9 @@ export interface DailyPaymentItem {
   customerName: string;
   customerCode: string;
   paymentType: string;
+  paymentTypeLabel: string;
   paymentMethod: string;
+  paymentMethodLabel: string;
   amount: number;
   saleNumber?: string;
   notes?: string;

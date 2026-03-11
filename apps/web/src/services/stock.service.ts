@@ -52,7 +52,7 @@ export interface CreateStockData {
   vehicleModelId: string;
   exteriorColor: string;
   interiorColor?: string;
-  arrivalDate: Date;
+  arrivalDate?: Date | null;
   orderDate?: Date;
   parkingSlot?: string;
   baseCost: number;
@@ -72,7 +72,7 @@ export interface UpdateStockData {
   motorNumber2?: string;
   exteriorColor?: string;
   interiorColor?: string;
-  arrivalDate?: Date;
+  arrivalDate?: Date | null;
   orderDate?: Date;
   parkingSlot?: string;
   baseCost?: number;

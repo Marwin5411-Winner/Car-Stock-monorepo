@@ -50,7 +50,7 @@ export default function PaymentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { execute: executeQuery } = useErrorHandler({ showToast: true });
+  const { execute: executeQuery } = useErrorHandler<Payment>({ showToast: true });
   const { execute: executeVoid } = useMutationHandler('ยกเลิกการชำระเงินสำเร็จ');
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
