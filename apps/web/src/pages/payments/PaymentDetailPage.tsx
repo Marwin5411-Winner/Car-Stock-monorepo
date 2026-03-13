@@ -51,6 +51,7 @@ export default function PaymentDetailPage() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { execute: executeQuery } = useErrorHandler<Payment>({ showToast: true });
+  const { execute: executeDownload } = useErrorHandler<void>({ showToast: true });
   const { execute: executeVoid } = useMutationHandler('ยกเลิกการชำระเงินสำเร็จ');
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,14 +129,14 @@ export default function PaymentDetailPage() {
   const handlePrint = async () => {
     if (!payment) return;
     setDownloading(true);
-    await executeQuery(paymentService.downloadReceipt(payment.id));
+    await executeDownload(paymentService.downloadReceipt(payment.id));
     setDownloading(false);
   };
 
   const handlePrintBg = async () => {
     if (!payment) return;
     setDownloadingBg(true);
-    await executeQuery(paymentService.downloadReceiptBg(payment.id));
+    await executeDownload(paymentService.downloadReceiptBg(payment.id));
     setDownloadingBg(false);
   };
 
