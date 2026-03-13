@@ -94,7 +94,7 @@ rollback() {
     log "Rebuilding containers from rolled-back source..."
     cd "$PROJECT_DIR"
     $COMPOSE_CMD build api web 2>>"$LOG_FILE" || true
-    $COMPOSE_CMD up -d api web 2>>"$LOG_FILE" || true
+    $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE" || true
   fi
 
   write_status 0 9 "Rollback complete" "rollback_complete" "Rolled back due to: $reason"
@@ -218,9 +218,9 @@ main() {
 
   # Step 7: Restart services
   write_status 7 9 "Restarting services" "running" "Starting updated containers..."
-  log "Step 7/9: Restarting services (api, web)"
+  log "Step 7/9: Restarting services (api, web, gotenberg)"
 
-  if ! $COMPOSE_CMD up -d api web 2>>"$LOG_FILE"; then
+  if ! $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE"; then
     rollback "Failed to restart services"
   fi
   log "Services restarted"

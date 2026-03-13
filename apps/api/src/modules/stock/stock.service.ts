@@ -161,6 +161,7 @@ export class StockService {
               model: true,
               variant: true,
               year: true,
+              price: true,
             },
           },
           exteriorColor: true,

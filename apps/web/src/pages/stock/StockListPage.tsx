@@ -208,6 +208,7 @@ export default function StockListPage() {
                     {canViewCost && (
                       <>
                         <TableHead>ราคาต้นทุน</TableHead>
+                        <TableHead>ราคาขาย</TableHead>
                         <TableHead>ดอกเบี้ยสะสม</TableHead>
                       </>
                     )}
@@ -252,6 +253,14 @@ export default function StockListPage() {
                               style: 'currency',
                               currency: 'THB',
                             }).format(stock.baseCost)}
+                          </TableCell>
+                          <TableCell className="text-gray-900">
+                            {(stock.expectedSalePrice || stock.vehicleModel.price)
+                              ? new Intl.NumberFormat('th-TH', {
+                                  style: 'currency',
+                                  currency: 'THB',
+                                }).format(stock.expectedSalePrice || stock.vehicleModel.price || 0)
+                              : '-'}
                           </TableCell>
                           <TableCell className="text-gray-900">
                             {new Intl.NumberFormat('th-TH', {

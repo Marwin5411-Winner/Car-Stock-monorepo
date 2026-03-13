@@ -112,7 +112,7 @@ main() {
 
   # Step 4: Restart services
   log "Step 4: Restarting services"
-  $COMPOSE_CMD up -d api web 2>>"$LOG_FILE" || {
+  $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE" || {
     log "ERROR: Failed to restart services"
     write_status "Rollback failed" "error" "Service restart failed"
     exit 1

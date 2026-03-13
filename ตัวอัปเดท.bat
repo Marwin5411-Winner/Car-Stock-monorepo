@@ -29,9 +29,9 @@ if %ERRORLEVEL% neq 0 (
 echo      Done.
 echo.
 
-:: Step 3: Restart services
+:: Step 3: Restart services (includes gotenberg for PDF generation)
 echo [3/3] Restarting services...
-docker compose up -d api web
+docker compose up -d api web gotenberg
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to start containers!
     pause
