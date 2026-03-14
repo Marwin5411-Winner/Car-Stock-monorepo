@@ -1039,7 +1039,7 @@ export default function SalesDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {canUpdate && (
+            {canUpdate && sale.status !== 'CANCELLED' && (
               <Link
                 to={`/sales/${sale.id}/edit`}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

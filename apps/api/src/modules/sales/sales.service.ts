@@ -421,22 +421,47 @@ export class SalesService {
       throw new NotFoundError('Sale');
     }
 
-    // Cannot update completed or cancelled sale
-    if (existingSale.status === 'COMPLETED' || existingSale.status === 'CANCELLED') {
-      throw new BadRequestError(`Cannot update ${existingSale.status.toLowerCase()} sale`);
+    // Cannot update cancelled sale
+    if (existingSale.status === 'CANCELLED') {
+      throw new BadRequestError('Cannot update cancelled sale');
+    }
+
+    // Only ADMIN and ACCOUNTANT can update completed sale
+    if (existingSale.status === 'COMPLETED' && !['ADMIN', 'ACCOUNTANT'].includes(currentUser.role)) {
+      throw new BadRequestError('Cannot update completed sale');
+    }
+
+    // ACCOUNTANT can only edit financial fields on completed sales
+    if (existingSale.status === 'COMPLETED' && currentUser.role === 'ACCOUNTANT') {
+      const allowedFields = [
+        'totalAmount', 'depositAmount', 'paymentMode', 'downPayment',
+        'financeAmount', 'financeProvider', 'carDiscount', 'downPaymentDiscount',
+        'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
+      ];
+      const disallowed = Object.keys(validated).filter(k => !allowedFields.includes(k));
+      if (disallowed.length > 0) {
+        throw new BadRequestError(
+          `Cannot modify these fields on a completed sale: ${disallowed.join(', ')}`
+        );
+      }
     }
 
     // Recalculate remaining amount if total or deposit changed
     if (validated.totalAmount !== undefined || validated.depositAmount !== undefined) {
       const currentSale = await db.sale.findUnique({
         where: { id },
-        select: { totalAmount: true, depositAmount: true },
+        select: { totalAmount: true, depositAmount: true, paidAmount: true },
       });
 
-      const newTotal = validated.totalAmount !== undefined ? validated.totalAmount : currentSale!.totalAmount;
-      const newDeposit = validated.depositAmount !== undefined ? validated.depositAmount : currentSale!.depositAmount;
+      const newTotal = validated.totalAmount !== undefined ? validated.totalAmount : toNumber(currentSale!.totalAmount);
+      const newDeposit = validated.depositAmount !== undefined ? validated.depositAmount : toNumber(currentSale!.depositAmount);
+      const paid = toNumber(currentSale!.paidAmount);
 
-      validated.remainingAmount = newTotal - newDeposit;
+      if (newDeposit > newTotal) {
+        throw new BadRequestError('Deposit amount cannot exceed total amount');
+      }
+
+      validated.remainingAmount = newTotal - newDeposit - paid;
     }
 
     // Update sale

@@ -14,7 +14,7 @@ export const settingsRoutes = new Elysia({ prefix: '/settings' })
       };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware],
     }
   )
   .put(

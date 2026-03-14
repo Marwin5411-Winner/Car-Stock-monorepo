@@ -48,8 +48,10 @@ export default function SalesFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
-  const { hasPermission } = usePermission();
+  const { hasPermission, user } = usePermission();
   const canDiscount = hasPermission('SALE_DISCOUNT');
+  const [saleStatus, setSaleStatus] = useState<string | null>(null);
+  const isCompletedAsAccountant = isEditing && saleStatus === 'COMPLETED' && user?.role === 'ACCOUNTANT';
 
   const { addToast } = useToast();
   const { execute: executeMutation, clearFieldErrors } = useMutationHandler(
@@ -119,6 +121,7 @@ export default function SalesFormPage() {
         }
 
         found = true;
+        setSaleStatus(sale.status);
         setFormData({
           customerId: sale.customer.id,
           stockId: sale.stock?.id || '',
@@ -266,9 +269,11 @@ export default function SalesFormPage() {
 
     // Direct Sale data - always DIRECT_SALE type
     const data: CreateSaleData | UpdateSaleData = {
-      type: 'DIRECT_SALE',
-      customerId: formData.customerId,
-      stockId: formData.stockId,
+      ...(isCompletedAsAccountant ? {} : {
+        type: 'DIRECT_SALE' as const,
+        customerId: formData.customerId,
+        stockId: formData.stockId,
+      }),
       totalAmount: formData.totalAmount,
       depositAmount: formData.depositAmount || undefined,
       paymentMode: formData.paymentMode,
@@ -349,6 +354,7 @@ export default function SalesFormPage() {
               error={errors.customerId}
               emptyMessage="ไม่พบลูกค้า"
               minSearchLength={2}
+              disabled={isCompletedAsAccountant}
             />
 
             {/* Selected Customer Info */}
@@ -384,6 +390,7 @@ export default function SalesFormPage() {
                   placeholder="-- เลือก Stock --"
                   error={errors.stockId}
                   emptyMessage="ไม่มี Stock ที่พร้อมขาย"
+                  disabled={isCompletedAsAccountant}
                 />
                 {availableStocks.length === 0 && (
                   <p className="text-yellow-600 text-sm mt-1">ไม่มี Stock ที่พร้อมขาย กรุณาเพิ่ม Stock ก่อน</p>

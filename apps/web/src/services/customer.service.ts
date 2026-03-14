@@ -22,7 +22,6 @@ export interface Customer {
   contactEmail?: string;
   creditTermDays?: number;
   creditLimit?: number;
-  status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
   updatedAt: string;
 }
@@ -70,7 +69,6 @@ export interface UpdateCustomerData {
   contactEmail?: string;
   creditTermDays?: number;
   creditLimit?: number;
-  status?: 'ACTIVE' | 'INACTIVE';
   notes?: string;
 }
 
@@ -78,7 +76,6 @@ export interface CustomerFilters {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface PaginatedResponse<T> {
@@ -99,7 +96,6 @@ class CustomerService {
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.search) params.append('search', filters.search);
-    if (filters.status) params.append('status', filters.status);
 
     const response = await api.get<{ success: boolean; data: Customer[]; meta: PaginatedResponse<Customer>['meta'] }>(`/api/customers?${params.toString()}`);
     return {
