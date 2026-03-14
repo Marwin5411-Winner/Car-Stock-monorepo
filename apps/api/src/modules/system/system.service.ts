@@ -183,6 +183,46 @@ export class SystemService {
   }
 
   /**
+   * List recent update/rollback log files
+   */
+  async listLogs(): Promise<{ logs: Array<{ filename: string; size: string; lines: number; lastEntry: string }> }> {
+    const response = await fetch(`${UPDATER_URL}/logs`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to list logs');
+    }
+
+    return response.json() as Promise<{ logs: Array<{ filename: string; size: string; lines: number; lastEntry: string }> }>;
+  }
+
+  /**
+   * Get contents of a specific log file (last 100 lines)
+   */
+  async getLogFile(filename: string): Promise<{ filename: string; lines: string[] }> {
+    // Validate filename to prevent path traversal
+    if (filename.includes('..') || filename.includes('/')) {
+      throw new Error('Invalid log filename');
+    }
+
+    const response = await fetch(`${UPDATER_URL}/logs/${filename}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(
+        (error as { error?: string }).error || 'Failed to get log file'
+      );
+    }
+
+    return response.json() as Promise<{ filename: string; lines: string[] }>;
+  }
+
+  /**
    * Get current version info
    */
   async getVersion(): Promise<VersionInfo> {

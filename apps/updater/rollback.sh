@@ -47,6 +47,10 @@ EOF
 
 main() {
   mkdir -p "$STATUS_DIR" "$(dirname "$LOG_FILE")"
+
+  # Rotate old log files (keep last 10)
+  ls -1t /app/logs/rollback_*.log 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
+
   cd "$PROJECT_DIR"
 
   log "=========================================="

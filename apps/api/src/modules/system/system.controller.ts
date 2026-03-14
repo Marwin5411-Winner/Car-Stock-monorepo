@@ -79,4 +79,29 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
     {
       beforeHandle: [authMiddleware, requireRole('ADMIN')],
     }
+  )
+  // List update/rollback logs
+  .get(
+    '/logs',
+    async () => {
+      const result = await systemService.listLogs();
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+    }
+  )
+  // Get specific log file contents
+  .get(
+    '/logs/:filename',
+    async ({ params }) => {
+      const result = await systemService.getLogFile(params.filename);
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      params: t.Object({
+        filename: t.String(),
+      }),
+    }
   );

@@ -2,13 +2,15 @@
 
 # Lightweight HTTP API Server for the Updater Sidecar
 # Endpoints:
-#   GET  /check    - Check for available updates
-#   POST /update   - Trigger update pipeline
-#   GET  /status   - Get current update status
-#   POST /rollback - Trigger manual rollback
-#   GET  /backups  - List available backups
-#   GET  /version  - Get current version info
-#   GET  /health   - Health check for the updater itself
+#   GET  /check      - Check for available updates
+#   POST /update     - Trigger update pipeline
+#   GET  /status     - Get current update status (includes last 50 log lines)
+#   POST /rollback   - Trigger manual rollback
+#   GET  /backups    - List available backups
+#   GET  /version    - Get current version info
+#   GET  /logs       - List recent log files
+#   GET  /logs/:file - View last 100 lines of a specific log file
+#   GET  /health     - Health check for the updater itself
 
 PORT="${UPDATER_PORT:-9000}"
 UPDATE_SECRET="${UPDATE_SECRET:-}"
@@ -113,8 +115,16 @@ handle_request() {
       handle_version
       ;;
 
+    "GET /logs")
+      handle_logs
+      ;;
+
+    "GET /logs/"*)
+      handle_log_file "${path#/logs/}"
+      ;;
+
     *)
-      send_response 404 '{"error": "Not Found", "message": "Unknown endpoint"}'
+      send_response 404 '{"error": "Not Found", "message": "Unknown endpoint. Available: GET /check, POST /update, GET /status, POST /rollback, GET /backups, GET /version, GET /logs, GET /health"}'
       ;;
   esac
 }
@@ -144,12 +154,17 @@ send_response() {
 handle_check() {
   log "Checking for updates..."
   local result
-  result=$(/app/check.sh 2>/dev/null)
-  if [ $? -eq 0 ]; then
+  local error_output
+  error_output=$(mktemp)
+  if result=$(/app/check.sh 2>"$error_output"); then
     send_response 200 "$result"
   else
-    send_response 500 '{"error": "Failed to check for updates"}'
+    local err_msg
+    err_msg=$(tail -5 "$error_output" | tr '\n' ' ' | sed 's/"/\\"/g')
+    log "Check failed: $err_msg"
+    send_response 500 "{\"error\": \"Failed to check for updates\", \"details\": \"$err_msg\"}"
   fi
+  rm -f "$error_output"
 }
 
 handle_update() {
@@ -171,11 +186,15 @@ handle_update() {
   log "Starting update pipeline..."
   (
     echo $BASHPID > "$UPDATE_LOCK"
-    /app/update.sh
+    /app/update.sh 2>&1
+    exit_code=$?
     rm -f "$UPDATE_LOCK"
+    if [ $exit_code -ne 0 ]; then
+      log "Update pipeline exited with code $exit_code"
+    fi
   ) &
 
-  send_response 202 '{"message": "Update started", "status": "running"}'
+  send_response 202 '{"message": "Update started", "status": "running", "hint": "Use GET /status to monitor progress, GET /logs to see detailed output"}'
 }
 
 handle_status() {
@@ -184,7 +203,15 @@ handle_status() {
     status_content=$(cat "$STATUS_FILE")
     send_response 200 "$status_content"
   else
-    send_response 200 '{"step": 0, "totalSteps": 0, "stepName": "idle", "status": "idle", "message": "No update in progress"}'
+    # Check if there are any past logs to hint at
+    local latest_log
+    latest_log=$(ls -1t /app/logs/*.log 2>/dev/null | head -1 || echo "")
+    if [ -n "$latest_log" ]; then
+      local log_name=$(basename "$latest_log")
+      send_response 200 "{\"step\": 0, \"totalSteps\": 0, \"stepName\": \"idle\", \"status\": \"idle\", \"message\": \"No update in progress\", \"lastLog\": \"$log_name\", \"hint\": \"Use GET /logs/$log_name to see the last update log\"}"
+    else
+      send_response 200 '{"step": 0, "totalSteps": 0, "stepName": "idle", "status": "idle", "message": "No update in progress"}'
+    fi
   fi
 }
 
@@ -256,6 +283,45 @@ handle_version() {
   json=$(printf '{"version":"%s","commit":"%s","fullCommit":"%s","tag":"%s","date":"%s"}' \
     "$version" "$commit" "$full_commit" "$tag" "$date")
   send_response 200 "$json"
+}
+
+handle_logs() {
+  local log_dir="/app/logs"
+  if [ ! -d "$log_dir" ]; then
+    send_response 200 '{"logs": []}'
+    return
+  fi
+
+  local logs
+  logs=$(ls -1t "$log_dir"/*.log 2>/dev/null | head -20 | while read -r f; do
+    local filename=$(basename "$f")
+    local size=$(du -h "$f" | cut -f1)
+    local lines=$(wc -l < "$f" 2>/dev/null || echo "0")
+    local last_line=$(tail -1 "$f" 2>/dev/null | sed 's/"/\\"/g' | head -c 200)
+    printf '{"filename":"%s","size":"%s","lines":%s,"lastEntry":"%s"}' "$filename" "$size" "$lines" "$last_line"
+  done | jq -s '.' 2>/dev/null || echo "[]")
+
+  send_response 200 "{\"logs\": $logs}"
+}
+
+handle_log_file() {
+  local filename="$1"
+  local log_path="/app/logs/$filename"
+
+  # Defense-in-depth: prevent path traversal
+  case "$filename" in
+    *..* | */* ) send_response 400 '{"error": "Invalid log filename"}'; return ;;
+  esac
+
+  if [ ! -f "$log_path" ]; then
+    send_response 404 '{"error": "Log file not found"}'
+    return
+  fi
+
+  # Return last 100 lines as JSON array
+  local content
+  content=$(tail -100 "$log_path" 2>/dev/null | jq -R -s 'split("\n") | map(select(. != ""))' 2>/dev/null || echo '[]')
+  send_response 200 "{\"filename\": \"$filename\", \"lines\": $content}"
 }
 
 # --- Entry Point ---

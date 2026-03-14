@@ -49,6 +49,18 @@ export interface BackupInfo {
   timestamp: number;
 }
 
+export interface LogFileInfo {
+  filename: string;
+  size: string;
+  lines: number;
+  lastEntry: string;
+}
+
+export interface LogFileContent {
+  filename: string;
+  lines: string[];
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -82,6 +94,14 @@ class SystemService {
 
   async listBackups(): Promise<ApiResponse<{ backups: BackupInfo[] }>> {
     return api.get<ApiResponse<{ backups: BackupInfo[] }>>('/api/system/backups');
+  }
+
+  async listLogs(): Promise<ApiResponse<{ logs: LogFileInfo[] }>> {
+    return api.get<ApiResponse<{ logs: LogFileInfo[] }>>('/api/system/logs');
+  }
+
+  async getLogFile(filename: string): Promise<ApiResponse<LogFileContent>> {
+    return api.get<ApiResponse<LogFileContent>>(`/api/system/logs/${filename}`);
   }
 }
 

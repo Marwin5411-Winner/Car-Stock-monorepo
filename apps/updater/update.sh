@@ -2,8 +2,12 @@
 set -eo pipefail
 
 # Update Pipeline Script
-# Performs: backup → git pull → build → db push → restart → health check
+# Performs: backup → git pull → self-update → build → db push → restart → health check
 # With full rollback on failure
+#
+# Self-update: If updater scripts changed in the new commits, the scripts are
+# hot-swapped and this script re-executes itself with --self-updated to prevent
+# infinite loops.
 
 PROJECT_DIR="${PROJECT_PATH:-/app/project}"
 BRANCH="${UPDATE_BRANCH:-main}"
@@ -29,6 +33,15 @@ ROLLBACK_COMMIT=""
 BACKUP_FILE=""
 DB_CHANGED=false
 IMAGES_BUILT=false
+
+# Self-update flag (prevents infinite re-exec loop)
+SELF_UPDATED=false
+if [ "${1:-}" = "--self-updated" ]; then
+  SELF_UPDATED=true
+fi
+
+# Total pipeline steps
+TOTAL_STEPS=10
 
 # --- Status Helpers ---
 
@@ -63,7 +76,7 @@ rollback() {
   trap - ERR  # Prevent recursive rollback on errors during rollback
   local reason="$1"
   log "🔄 ROLLBACK triggered: $reason"
-  write_status 0 9 "Rolling back" "rolling_back" "$reason"
+  write_status 0 $TOTAL_STEPS "Rolling back" "rolling_back" "$reason"
 
   cd "$PROJECT_DIR"
 
@@ -97,7 +110,7 @@ rollback() {
     $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE" || true
   fi
 
-  write_status 0 9 "Rollback complete" "rollback_complete" "Rolled back due to: $reason"
+  write_status 0 $TOTAL_STEPS "Rollback complete" "rollback_complete" "Rolled back due to: $reason"
   log "🔄 Rollback complete."
   exit 1
 }
@@ -107,6 +120,9 @@ rollback() {
 main() {
   UPDATE_STARTED_AT="$(date -Iseconds)"
   mkdir -p "$STATUS_DIR" "$BACKUP_DIR" "$(dirname "$LOG_FILE")"
+
+  # Rotate old log files (keep last 10)
+  ls -1t /app/logs/update_*.log 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
 
   # Concurrent update protection (guards against direct invocation via Makefile)
   if [ -f "$UPDATE_LOCK" ]; then
@@ -131,15 +147,25 @@ main() {
   # Trap unexpected errors to trigger rollback
   trap 'rollback "Unexpected error at line $LINENO"' ERR
 
-  log "=========================================="
-  log "🚀 Starting update pipeline"
-  log "=========================================="
-
   cd "$PROJECT_DIR"
 
+  # If re-exec'd after self-update, skip steps 1-4 (already completed)
+  if [ "$SELF_UPDATED" = true ]; then
+    log "=========================================="
+    log "🔄 Resuming update pipeline after self-update"
+    log "=========================================="
+  else
+    log "=========================================="
+    log "🚀 Starting update pipeline"
+    log "=========================================="
+  fi
+
+  # --- Steps 1-4 are skipped when SELF_UPDATED=true (already done before re-exec) ---
+  if [ "$SELF_UPDATED" = false ]; then
+
   # Step 1: Pre-flight checks
-  write_status 1 9 "Pre-flight checks" "running" "Checking system status..."
-  log "Step 1/9: Pre-flight checks"
+  write_status 1 $TOTAL_STEPS "Pre-flight checks" "running" "Checking system status..."
+  log "Step 1/$TOTAL_STEPS: Pre-flight checks"
 
   # Check git status
   if ! git diff --quiet 2>/dev/null; then
@@ -156,8 +182,8 @@ main() {
   log "Pre-flight checks passed"
 
   # Step 2: Backup database
-  write_status 2 9 "Backing up database" "running" "Creating database backup..."
-  log "Step 2/9: Backing up database"
+  write_status 2 $TOTAL_STEPS "Backing up database" "running" "Creating database backup..."
+  log "Step 2/$TOTAL_STEPS: Backing up database"
 
   BACKUP_FILE=$(/app/backup.sh pre-update 2>>"$LOG_FILE" | tail -1)
   if [ ! -f "$BACKUP_FILE" ]; then
@@ -166,16 +192,16 @@ main() {
   log "Backup created: $BACKUP_FILE"
 
   # Step 3: Save rollback point
-  write_status 3 9 "Saving rollback point" "running" "Recording current version..."
-  log "Step 3/9: Saving rollback point"
+  write_status 3 $TOTAL_STEPS "Saving rollback point" "running" "Recording current version..."
+  log "Step 3/$TOTAL_STEPS: Saving rollback point"
 
   ROLLBACK_COMMIT=$(git rev-parse HEAD)
   ROLLBACK_TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "none")
   log "Rollback point: $ROLLBACK_COMMIT (tag: $ROLLBACK_TAG)"
 
   # Step 4: Git pull
-  write_status 4 9 "Pulling latest code" "running" "Downloading updates from Git..."
-  log "Step 4/9: Git pull origin $BRANCH"
+  write_status 4 $TOTAL_STEPS "Pulling latest code" "running" "Downloading updates from Git..."
+  log "Step 4/$TOTAL_STEPS: Git pull origin $BRANCH"
 
   if ! git pull origin "$BRANCH" 2>>"$LOG_FILE"; then
     rollback "Git pull failed"
@@ -185,9 +211,60 @@ main() {
   NEW_TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "none")
   log "Updated to: $NEW_COMMIT (tag: $NEW_TAG)"
 
-  # Step 5: Build Docker images
-  write_status 5 9 "Building containers" "running" "Rebuilding API and Web containers..."
-  log "Step 5/9: Building Docker images (api, web)"
+  fi  # end of SELF_UPDATED=false block (steps 1-4)
+
+  # Step 5: Self-update check — if updater scripts changed, hot-swap and re-exec
+  write_status 5 $TOTAL_STEPS "Checking updater scripts" "running" "Checking if deploy scripts need updating..."
+  log "Step 5/$TOTAL_STEPS: Checking for updater script changes"
+
+  if [ "$SELF_UPDATED" = false ]; then
+    UPDATER_CHANGED=$(git diff --name-only "$ROLLBACK_COMMIT" HEAD -- apps/updater/ 2>/dev/null || echo "")
+    if [ -n "$UPDATER_CHANGED" ]; then
+      log "Updater scripts changed in new commits:"
+      log "$UPDATER_CHANGED"
+      log "Hot-swapping updater scripts before continuing..."
+
+      # Copy new scripts to /app/ (where they actually run from)
+      cp "$PROJECT_DIR/apps/updater/update.sh"   /app/update.sh
+      cp "$PROJECT_DIR/apps/updater/server.sh"    /app/server.sh
+      cp "$PROJECT_DIR/apps/updater/check.sh"     /app/check.sh
+      cp "$PROJECT_DIR/apps/updater/backup.sh"    /app/backup.sh
+      cp "$PROJECT_DIR/apps/updater/rollback.sh"  /app/rollback.sh
+      chmod +x /app/*.sh
+
+      log "Scripts updated. Re-executing update pipeline with new scripts..."
+
+      # Export state so the re-exec'd script can resume correctly
+      export SELF_UPDATE_ROLLBACK_COMMIT="$ROLLBACK_COMMIT"
+      export SELF_UPDATE_BACKUP_FILE="$BACKUP_FILE"
+      export SELF_UPDATE_NEW_COMMIT="$NEW_COMMIT"
+      export SELF_UPDATE_NEW_TAG="$NEW_TAG"
+      export SELF_UPDATE_ROLLBACK_TAG="$ROLLBACK_TAG"
+      export SELF_UPDATE_STARTED_AT="$UPDATE_STARTED_AT"
+      export SELF_UPDATE_LOG_FILE="$LOG_FILE"
+
+      # Re-exec with --self-updated flag (prevents infinite loop)
+      exec /app/update.sh --self-updated
+    else
+      log "No updater script changes detected, continuing with current scripts"
+    fi
+  else
+    log "Running with updated scripts (self-update already performed)"
+    # Restore state from the previous execution
+    if [ -n "${SELF_UPDATE_ROLLBACK_COMMIT:-}" ]; then
+      ROLLBACK_COMMIT="$SELF_UPDATE_ROLLBACK_COMMIT"
+      BACKUP_FILE="$SELF_UPDATE_BACKUP_FILE"
+      NEW_COMMIT="$SELF_UPDATE_NEW_COMMIT"
+      NEW_TAG="${SELF_UPDATE_NEW_TAG:-none}"
+      ROLLBACK_TAG="${SELF_UPDATE_ROLLBACK_TAG:-none}"
+      UPDATE_STARTED_AT="$SELF_UPDATE_STARTED_AT"
+      LOG_FILE="${SELF_UPDATE_LOG_FILE:-$LOG_FILE}"
+    fi
+  fi
+
+  # Step 6: Build Docker images
+  write_status 6 $TOTAL_STEPS "Building containers" "running" "Rebuilding API and Web containers..."
+  log "Step 6/$TOTAL_STEPS: Building Docker images (api, web)"
 
   if ! $COMPOSE_CMD build api web 2>>"$LOG_FILE"; then
     rollback "Docker build failed"
@@ -195,9 +272,9 @@ main() {
   IMAGES_BUILT=true
   log "Docker images built successfully"
 
-  # Step 6: Database schema sync (prisma db push)
-  write_status 6 9 "Updating database schema" "running" "Running prisma db push..."
-  log "Step 6/9: Running prisma db push"
+  # Step 7: Database schema sync (prisma db push)
+  write_status 7 $TOTAL_STEPS "Updating database schema" "running" "Running prisma db push..."
+  log "Step 7/$TOTAL_STEPS: Running prisma db push"
 
   # Run prisma db push inside a temporary API container
   # This uses the newly built API image which has the updated schema
@@ -216,18 +293,18 @@ main() {
   DB_CHANGED=true
   log "Database schema updated successfully"
 
-  # Step 7: Restart services
-  write_status 7 9 "Restarting services" "running" "Starting updated containers..."
-  log "Step 7/9: Restarting services (api, web, gotenberg)"
+  # Step 8: Restart services
+  write_status 8 $TOTAL_STEPS "Restarting services" "running" "Starting updated containers..."
+  log "Step 8/$TOTAL_STEPS: Restarting services (api, web, gotenberg)"
 
   if ! $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE"; then
     rollback "Failed to restart services"
   fi
   log "Services restarted"
 
-  # Step 8: Health check
-  write_status 8 9 "Health check" "running" "Verifying services are healthy..."
-  log "Step 8/9: Health check (30s timeout)"
+  # Step 9: Health check
+  write_status 9 $TOTAL_STEPS "Health check" "running" "Verifying services are healthy..."
+  log "Step 9/$TOTAL_STEPS: Health check (30s timeout)"
 
   HEALTH_OK=false
   for i in $(seq 1 15); do
@@ -247,9 +324,9 @@ main() {
     rollback "Health check failed after 30 seconds"
   fi
 
-  # Step 9: Done — clear ERR trap since update succeeded
+  # Step 10: Done — clear ERR trap since update succeeded
   trap - ERR
-  write_status 9 9 "Update complete" "success" "Successfully updated to $NEW_COMMIT"
+  write_status $TOTAL_STEPS $TOTAL_STEPS "Update complete" "success" "Successfully updated to $NEW_COMMIT"
   log "=========================================="
   log "✅ Update completed successfully!"
   log "   From: $ROLLBACK_COMMIT ($ROLLBACK_TAG)"
@@ -261,4 +338,4 @@ main() {
 }
 
 # Run main with output logging
-main 2>&1 | tee -a "$LOG_FILE"
+main "$@" 2>&1 | tee -a "$LOG_FILE"
