@@ -49,24 +49,28 @@ export default function InterestDetailPage() {
     setLoading(true);
     setError(null);
     const result = await executeQuery(
-      interestService.getById(stockId!).then(data => setDetail(data))
+      interestService.getById(stockId!)
     );
-    if (!result) {
+    if (result) {
+      setDetail(result);
+    } else {
       setError('ไม่สามารถโหลดข้อมูลได้');
     }
     setLoading(false);
   };
 
   const fetchDebtData = async () => {
-    await executeQuery(
+    const result = await executeQuery(
       Promise.all([
         interestService.getDebtSummary(stockId!),
         interestService.getDebtPayments(stockId!),
-      ]).then(([summary, payments]) => {
-        setDebtSummary(summary);
-        setDebtPayments(payments);
-      })
+      ])
     );
+    if (result) {
+      const [summary, payments] = result;
+      setDebtSummary(summary);
+      setDebtPayments(payments);
+    }
   };
 
   const handleDebtPayment = async (data: {
