@@ -720,12 +720,22 @@ export default function SalesDetailPage() {
             )}
 
             {/* Deposit */}
-            {sale.depositAmount > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-sm text-gray-700">เงินมัดจำ</dt>
-                <dd className="text-sm font-medium">{formatCurrency(sale.depositAmount)}</dd>
-              </div>
-            )}
+            {sale.depositAmount > 0 && (() => {
+              const depositPaid = (sale.payments || [])
+                .filter(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE')
+                .reduce((sum, p) => sum + p.amount, 0);
+              return (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-700">เงินมัดจำ</dt>
+                  <dd className="text-sm font-medium">
+                    {formatCurrency(sale.depositAmount)}
+                    {depositPaid > 0 && (
+                      <span className="ml-2 text-green-600 text-xs">(ชำระแล้ว {formatCurrency(depositPaid)})</span>
+                    )}
+                  </dd>
+                </div>
+              );
+            })()}
 
             {/* Finance details */}
             {sale.paymentMode !== 'CASH' && (
@@ -790,6 +800,52 @@ export default function SalesDetailPage() {
             </div>
           </dl>
         </div>
+
+        {/* Payment Breakdown Table */}
+        {sale.payments && sale.payments.filter(p => p.status === 'ACTIVE').length > 0 && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold flex items-center">
+                <CreditCard className="h-5 w-5 mr-2 text-green-600" />
+                รายการชำระเงินจากลูกค้า
+              </h3>
+            </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วันที่</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ประเภท</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วิธีชำระ</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">จำนวนเงิน</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {sale.payments
+                  .filter(p => p.status === 'ACTIVE')
+                  .map((payment) => (
+                    <tr key={payment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-sm text-gray-700">{formatDate(payment.paymentDate)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">{PAYMENT_TYPE_LABELS[payment.paymentType] || payment.paymentType}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">{PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}</td>
+                      <td className="px-6 py-3 text-sm font-medium text-right">{formatCurrency(payment.amount)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+              <tfoot className="bg-gray-50">
+                <tr>
+                  <td colSpan={3} className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">รวมชำระแล้ว</td>
+                  <td className="px-6 py-3 text-sm font-bold text-green-600 text-right">
+                    {formatCurrency(
+                      sale.payments
+                        .filter(p => p.status === 'ACTIVE')
+                        .reduce((sum, p) => sum + p.amount, 0)
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
 
         {/* Dates Info */}
         <div className="bg-white rounded-lg shadow p-6">
