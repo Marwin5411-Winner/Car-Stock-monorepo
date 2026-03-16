@@ -9,8 +9,8 @@ interface ErrorHandlerOptions {
   onError?: (error: Error) => void;
 }
 
-interface ErrorHandlerResult<T> {
-  execute: (promise: Promise<T>) => Promise<T | undefined>;
+interface ErrorHandlerResult {
+  execute: <T>(promise: Promise<T>) => Promise<T | undefined>;
   fieldErrors: Record<string, string>;
   clearFieldErrors: () => void;
 }
@@ -19,14 +19,14 @@ interface ErrorHandlerResult<T> {
  * Hook for handling errors in async operations
  * Shows toast notifications and extracts field-level errors
  */
-export function useErrorHandler<T = unknown>(options: ErrorHandlerOptions = {}): ErrorHandlerResult<T> {
+export function useErrorHandler(options: ErrorHandlerOptions = {}): ErrorHandlerResult {
   const { addToast } = useToast();
   const { showToast = true, successMessage, onSuccess, onError } = options;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const clearFieldErrors = useCallback(() => setFieldErrors({}), []);
 
-  const execute = async (promise: Promise<T>): Promise<T | undefined> => {
+  const execute = async <T>(promise: Promise<T>): Promise<T | undefined> => {
     // Clear previous field errors on new attempt
     setFieldErrors({});
 
@@ -75,11 +75,11 @@ export function useErrorHandler<T = unknown>(options: ErrorHandlerOptions = {}):
  * Hook specifically for mutation operations (create, update, delete)
  * Automatically shows success/error toasts and extracts field errors
  */
-export function useMutationHandler<T = unknown>(
+export function useMutationHandler(
   successMsg: string,
   options: Omit<ErrorHandlerOptions, 'successMessage' | 'showToast'> = {}
-): ErrorHandlerResult<T> {
-  return useErrorHandler<T>({
+): ErrorHandlerResult {
+  return useErrorHandler({
     showToast: true,
     successMessage: successMsg,
     ...options,
