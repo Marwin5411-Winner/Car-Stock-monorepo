@@ -266,7 +266,7 @@ main() {
   write_status 6 $TOTAL_STEPS "Building containers" "running" "Rebuilding API and Web containers..."
   log "Step 6/$TOTAL_STEPS: Building Docker images (api, web)"
 
-  if ! $COMPOSE_CMD build api web 2>>"$LOG_FILE"; then
+  if ! $COMPOSE_CMD build --no-cache api web 2>>"$LOG_FILE"; then
     rollback "Docker build failed"
   fi
   IMAGES_BUILT=true
@@ -297,7 +297,7 @@ main() {
   write_status 8 $TOTAL_STEPS "Restarting services" "running" "Starting updated containers..."
   log "Step 8/$TOTAL_STEPS: Restarting services (api, web, gotenberg)"
 
-  if ! $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE"; then
+  if ! $COMPOSE_CMD up -d --force-recreate api web gotenberg 2>>"$LOG_FILE"; then
     rollback "Failed to restart services"
   fi
   log "Services restarted"

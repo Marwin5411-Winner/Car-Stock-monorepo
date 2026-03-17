@@ -1,5 +1,6 @@
-import { db } from '../src/lib/db';
-import type { Role } from '@prisma/client';
+import { PrismaClient, type Role } from '@prisma/client';
+
+const db = new PrismaClient();
 import bcrypt from 'bcryptjs';
 
 async function seed() {
