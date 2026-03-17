@@ -772,11 +772,35 @@ export default function SalesDetailPage() {
                 {canDiscount && sale.financeAmount != null && sale.financeAmount > 0 && sale.interestRate != null && sale.interestRate > 0 && sale.numberOfTerms != null && sale.numberOfTerms > 0 && (() => {
                   const years = sale.numberOfTerms / 12;
                   const cappedYears = Math.min(years, 5);
-                  const commission = (sale.financeAmount / 1.07) * (sale.interestRate / 100) * cappedYears * 0.08;
+                  const beforeVat = sale.financeAmount / 1.07;
+                  const commission = beforeVat * (sale.interestRate / 100) * cappedYears * 0.08;
                   return (
-                    <div className="flex justify-between text-green-700 bg-green-50 px-2 py-1 rounded">
-                      <dt className="text-sm font-medium">ค่าคอมไฟแนนซ์ 8%</dt>
-                      <dd className="text-sm font-semibold">{formatCurrency(commission)}</dd>
+                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
+                      <div className="flex justify-between items-center">
+                        <dt className="text-sm font-semibold text-green-800">ค่าคอมไฟแนนซ์ 8%</dt>
+                        <dd className="text-base font-bold text-green-700">{formatCurrency(commission)}</dd>
+                      </div>
+                      <div className="pt-2 border-t border-green-200 space-y-1 text-xs text-green-700">
+                        <div className="flex justify-between">
+                          <span>ยอดจัดก่อน VAT (÷ 1.07)</span>
+                          <span className="font-medium">{formatCurrency(beforeVat)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>อัตราดอกเบี้ย</span>
+                          <span className="font-medium">{sale.interestRate}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>จำนวนปี {years > 5 ? `(${years.toFixed(1)} ปี → สูงสุด 5 ปี)` : `(${cappedYears.toFixed(1)} ปี)`}</span>
+                          <span className="font-medium">{cappedYears} ปี</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>อัตราคอม</span>
+                          <span className="font-medium">8%</span>
+                        </div>
+                        <div className="pt-1 border-t border-green-200 text-xs text-green-600 font-mono">
+                          = {formatCurrency(beforeVat)} × {sale.interestRate}% × {cappedYears} ปี × 8%
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}
