@@ -771,7 +771,7 @@ export default function SalesDetailPage() {
                 {/* Finance Commission - ADMIN/ACCOUNTANT only */}
                 {canDiscount && sale.financeAmount != null && sale.financeAmount > 0 && sale.interestRate != null && sale.interestRate > 0 && sale.numberOfTerms != null && sale.numberOfTerms > 0 && (() => {
                   const years = sale.numberOfTerms / 12;
-                  const cappedYears = Math.min(years, 5);
+                  const cappedYears = Math.min(years, 4);
                   const beforeVat = sale.financeAmount / 1.07;
                   const commission = beforeVat * (sale.interestRate / 100) * cappedYears * 0.08;
                   return (
@@ -790,7 +790,7 @@ export default function SalesDetailPage() {
                           <span className="font-medium">{sale.interestRate}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>จำนวนปี {years > 5 ? `(${years.toFixed(1)} ปี → สูงสุด 5 ปี)` : `(${cappedYears.toFixed(1)} ปี)`}</span>
+                          <span>จำนวนปี {years > 4 ? `(${years.toFixed(1)} ปี → สูงสุด 4 ปี)` : `(${cappedYears.toFixed(1)} ปี)`}</span>
                           <span className="font-medium">{cappedYears} ปี</span>
                         </div>
                         <div className="flex justify-between">
