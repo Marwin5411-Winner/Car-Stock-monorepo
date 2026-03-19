@@ -83,10 +83,12 @@ export default function DailyPaymentReportPage() {
     { key: 'paymentDate', label: 'วันที่' },
     { key: 'customerName', label: 'ชื่อลูกค้า' },
     { key: 'customerCode', label: 'รหัสลูกค้า' },
+    { key: 'description', label: 'รายการ' },
     { key: 'paymentTypeLabel', label: 'ประเภท' },
     { key: 'paymentMethodLabel', label: 'วิธีชำระ' },
     { key: 'amount', label: 'จำนวนเงิน' },
     { key: 'saleNumber', label: 'เลขที่การขาย' },
+    { key: 'issuedBy', label: 'ผู้รับ' },
     { key: 'notes', label: 'หมายเหตุ' },
   ];
 
@@ -261,6 +263,9 @@ export default function DailyPaymentReportPage() {
                         รหัส
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+                        รายการ
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
                         ประเภท
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
@@ -273,6 +278,9 @@ export default function DailyPaymentReportPage() {
                         เลขที่ขาย
                       </th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
+                        ผู้รับ
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">
                         หมายเหตุ
                       </th>
                     </tr>
@@ -280,7 +288,7 @@ export default function DailyPaymentReportPage() {
                   <tbody>
                     {grouped.size === 0 && (
                       <tr>
-                        <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                        <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
                           ไม่พบรายการรับเงินในช่วงเวลาที่เลือก
                         </td>
                       </tr>
@@ -301,7 +309,7 @@ export default function DailyPaymentReportPage() {
                     <tfoot>
                       <tr className="border-t-2 border-gray-800 bg-gray-50">
                         <td
-                          colSpan={5}
+                          colSpan={6}
                           className="px-4 py-3 text-right font-bold text-gray-900 text-sm"
                         >
                           รวมทั้งสิ้น
@@ -309,7 +317,7 @@ export default function DailyPaymentReportPage() {
                         <td className="px-4 py-3 text-right font-bold text-gray-900 text-sm border-t-2 border-b-4 border-double border-gray-800">
                           {fmtAmount(data.summary.totalAmount)}
                         </td>
-                        <td colSpan={2}></td>
+                        <td colSpan={3}></td>
                       </tr>
                     </tfoot>
                   )}
@@ -344,7 +352,7 @@ function GroupRows({
     <>
       {/* Date group header */}
       <tr className="bg-blue-50 border-t border-gray-300">
-        <td colSpan={8} className="px-4 py-2 font-semibold text-blue-800 text-sm">
+        <td colSpan={10} className="px-4 py-2 font-semibold text-blue-800 text-sm">
           {formatDate(dateKey)} ({payments.length} รายการ)
         </td>
       </tr>
@@ -354,24 +362,26 @@ function GroupRows({
           <td className="px-4 py-2 text-gray-900 whitespace-nowrap">{p.receiptNumber}</td>
           <td className="px-4 py-2 text-gray-900">{p.customerName}</td>
           <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{p.customerCode}</td>
+          <td className="px-4 py-2 text-gray-500">{p.description || ''}</td>
           <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{p.paymentTypeLabel}</td>
           <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{p.paymentMethodLabel}</td>
           <td className="px-4 py-2 text-right text-gray-900 font-medium tabular-nums whitespace-nowrap">
             {fmtAmount(p.amount)}
           </td>
           <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{p.saleNumber || ''}</td>
+          <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{p.issuedBy || ''}</td>
           <td className="px-4 py-2 text-gray-500 max-w-[200px] truncate">{p.notes || ''}</td>
         </tr>
       ))}
       {/* Daily subtotal */}
       <tr className="bg-gray-50 border-b-2 border-gray-300">
-        <td colSpan={5} className="px-4 py-2 text-right font-semibold text-gray-700 text-sm">
+        <td colSpan={6} className="px-4 py-2 text-right font-semibold text-gray-700 text-sm">
           รวมประจำวัน
         </td>
         <td className="px-4 py-2 text-right font-semibold text-gray-900 text-sm border-t border-gray-400 tabular-nums">
           {fmtAmount(dailyTotal)}
         </td>
-        <td colSpan={2}></td>
+        <td colSpan={3}></td>
       </tr>
     </>
   );

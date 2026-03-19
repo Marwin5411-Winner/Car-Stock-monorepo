@@ -18,12 +18,14 @@ export interface DailyPaymentItem {
   paymentDate: string;
   customerName: string;
   customerCode: string;
+  description?: string;
   paymentType: string;
   paymentTypeLabel: string;
   paymentMethod: string;
   paymentMethodLabel: string;
   amount: number;
   saleNumber?: string;
+  issuedBy?: string;
   notes?: string;
 }
 

@@ -25,11 +25,14 @@
   <table>
     <thead>
       <tr>
-        <th style="width: 15%">วันที่เอกสาร</th>
-        <th style="width: 20%">เลขที่เอกสาร</th>
-        <th style="width: 20%">เลขที่ใบกำกับ</th>
-        <th style="width: 30%">ชื่อลูกค้า</th>
-        <th style="width: 15%" class="text-right">จำนวนเงิน</th>
+        <th style="width: 10%">วันที่เอกสาร</th>
+        <th style="width: 12%">เลขที่เอกสาร</th>
+        <th style="width: 12%">เลขที่ใบกำกับ</th>
+        <th style="width: 16%">ชื่อลูกค้า</th>
+        <th style="width: 14%">รายการ</th>
+        <th style="width: 10%" class="text-right">จำนวนเงิน</th>
+        <th style="width: 12%">ผู้รับ</th>
+        <th style="width: 14%">หมายเหตุ</th>
       </tr>
     </thead>
     <tbody>
@@ -39,12 +42,16 @@
         <td>{{receiptNumber}}</td>
         <td>{{invoiceNumber}}</td>
         <td>{{customerName}}</td>
+        <td>{{description}}</td>
         <td class="text-right">{{formatCurrency amount}}</td>
+        <td>{{issuedBy}}</td>
+        <td>{{notes}}</td>
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
-        <td colspan="4" class="text-right">รวมทั้งสิ้น ({{summary.totalCount}} รายการ)</td>
+        <td colspan="5" class="text-right">รวมทั้งสิ้น ({{summary.totalCount}} รายการ)</td>
         <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+        <td colspan="2"></td>
       </tr>
     </tbody>
   </table>

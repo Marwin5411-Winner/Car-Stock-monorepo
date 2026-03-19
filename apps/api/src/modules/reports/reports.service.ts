@@ -78,12 +78,14 @@ export async function getDailyPaymentReport(params: DailyPaymentParams) {
     paymentDate: p.paymentDate.toISOString(),
     customerName: p.customer.name,
     customerCode: p.customer.code,
+    description: p.description || '',
     paymentType: p.paymentType,
     paymentTypeLabel: PAYMENT_TYPE_LABELS[p.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || p.paymentType,
     paymentMethod: p.paymentMethod,
     paymentMethodLabel: PAYMENT_METHOD_LABELS[p.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || p.paymentMethod,
     amount: toNumber(p.amount),
     saleNumber: p.sale?.saleNumber,
+    issuedBy: p.issuedBy,
     notes: p.notes,
   }));
 
