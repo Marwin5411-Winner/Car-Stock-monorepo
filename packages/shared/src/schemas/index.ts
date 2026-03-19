@@ -552,6 +552,7 @@ export const SaleFilterSchema = PaginationSchema.extend({
 });
 
 export const PaymentFilterSchema = PaginationSchema.extend({
+  search: z.string().optional(),
   saleId: z.string().optional(),
   customerId: z.string().optional(),
   status: PaymentStatusSchema.optional(),
