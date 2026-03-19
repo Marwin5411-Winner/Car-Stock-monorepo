@@ -37,7 +37,6 @@ services:
       PORT: 3001
       NODE_ENV: ${NODE_ENV:-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      GOTENBERG_URL: ${GOTENBERG_URL:-http://gotenberg:3000}
       UPDATER_URL: http://updater:9000
       UPDATE_SECRET: ${UPDATE_SECRET:-}
     volumes:
@@ -107,20 +106,20 @@ services:
       timeout: 10s
       retries: 3
 
-  gotenberg:
-    image: gotenberg/gotenberg:8
-    container_name: car-stock-gotenberg
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    networks:
-      - car-stock-network
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # gotenberg:
+  #   image: gotenberg/gotenberg:8
+  #   container_name: car-stock-gotenberg
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - car-stock-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
 
 networks:
   car-stock-network:

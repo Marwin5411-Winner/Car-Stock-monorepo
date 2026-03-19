@@ -1,44 +1,46 @@
+/** BACKUP: Original Gotenberg-based PDF Service */
+
 /**
  * PDF Generation Service
- * Uses Puppeteer (in-process Chromium) for HTML-to-PDF conversion with Handlebars templates
+ * Uses Gotenberg for HTML-to-PDF conversion with Handlebars templates
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import Handlebars from 'handlebars';
-import puppeteer, { type Browser } from 'puppeteer-core';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
-  formatCurrency,
-  formatIdCard,
-  formatPercentage,
-  formatPhoneNumber,
+  PdfOptions,
+  PdfTemplateType,
+  DeliveryReceiptData,
+  ThankYouLetterData,
+  SalesConfirmationData,
+  SalesRecordData,
+  ContractData,
+  CarReservationContractData,
+  DepositReceiptData,
+  PaymentReceiptData,
+  VehicleCardData,
+  TemporaryReceiptData,
+
+  CompanyHeader,
+  DailyPaymentReportData,
+  StockReportData,
+  ProfitLossReportData,
+  SalesSummaryReportData,
+  StockInterestReportData,
+  PurchaseRequirementReportData,
+} from './types';
+import {
   formatThaiDate,
   formatThaiDateWithDay,
-  getCurrentThaiDate,
+  formatCurrency,
   numberToThaiText,
+  formatPhoneNumber,
+  formatIdCard,
+  getCurrentThaiDate,
   safeString,
+  formatPercentage,
 } from './helpers';
-import {
-  type CarReservationContractData,
-  type CompanyHeader,
-  type ContractData,
-  type DailyPaymentReportData,
-  type DeliveryReceiptData,
-  type DepositReceiptData,
-  type PaymentReceiptData,
-  type PdfOptions,
-  PdfTemplateType,
-  type ProfitLossReportData,
-  type PurchaseRequirementReportData,
-  type SalesConfirmationData,
-  type SalesRecordData,
-  type SalesSummaryReportData,
-  type StockInterestReportData,
-  type StockReportData,
-  type TemporaryReceiptData,
-  type ThankYouLetterData,
-  type VehicleCardData,
-} from './types';
 
 // Register Handlebars helpers
 Handlebars.registerHelper('formatThaiDate', (date: string, format?: string) =>
@@ -56,12 +58,9 @@ Handlebars.registerHelper('safe', (value: string | null | undefined, defaultValu
   safeString(value, defaultValue)
 );
 Handlebars.registerHelper('formatPercentage', (value: number | string) => formatPercentage(value));
-Handlebars.registerHelper(
-  'ifEquals',
-  function (this: any, arg1: any, arg2: any, options: Handlebars.HelperOptions) {
-    return arg1 === arg2 ? options.fn(this) : options.inverse(this);
-  }
-);
+Handlebars.registerHelper('ifEquals', function (this: any, arg1: any, arg2: any, options: Handlebars.HelperOptions) {
+  return arg1 === arg2 ? options.fn(this) : options.inverse(this);
+});
 Handlebars.registerHelper('add', (a: number, b: number) => a + b);
 Handlebars.registerHelper('subtract', (a: number, b: number) => a - b);
 Handlebars.registerHelper('gt', (a: number, b: number) => a > b);
@@ -85,12 +84,11 @@ export class PdfService {
   private templateCache: Map<string, Handlebars.TemplateDelegate> = new Map();
   private templatesDir: string;
   private fontsDir: string;
-  private logoBase64 = '';
-  private receiptBgBase64 = '';
-
-  // Puppeteer browser management
-  private browser: Browser | null = null;
-  private browserLaunchPromise: Promise<Browser> | null = null;
+  private logoBase64: string = '';
+  private receiptBgBase64: string = '';
+  
+  // Use environment variable or default to Docker service URL
+  private readonly gotenbergUrl: string = process.env.GOTENBERG_URL || 'http://gotenberg:3000';
 
   private constructor() {
     this.templatesDir = path.join(__dirname, 'templates');
@@ -171,10 +169,10 @@ export class PdfService {
    */
   private registerPartials(): void {
     const partialsDir = path.join(this.templatesDir, 'partials');
-
+    
     if (fs.existsSync(partialsDir)) {
       const partialFiles = fs.readdirSync(partialsDir);
-
+      
       for (const file of partialFiles) {
         if (file.endsWith('.hbs')) {
           const partialName = file.replace('.hbs', '');
@@ -191,19 +189,19 @@ export class PdfService {
    */
   private getTemplate(templateType: PdfTemplateType): Handlebars.TemplateDelegate {
     const isDevelopment = process.env.NODE_ENV !== 'production';
-
+    
     // In development, always reload templates and partials
     if (isDevelopment) {
       this.templateCache.clear();
       this.registerPartials(); // Reload partials
     }
-
+    
     if (this.templateCache.has(templateType)) {
       return this.templateCache.get(templateType)!;
     }
 
     const templatePath = path.join(this.templatesDir, `${templateType}.hbs`);
-
+    
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template not found: ${templateType}`);
     }
@@ -211,7 +209,7 @@ export class PdfService {
     const templateContent = fs.readFileSync(templatePath, 'utf-8');
     const compiled = Handlebars.compile(templateContent);
     this.templateCache.set(templateType, compiled);
-
+    
     return compiled;
   }
 
@@ -258,13 +256,13 @@ export class PdfService {
    */
   private getBaseHtml(content: string, options: PdfOptions = {}): string {
     const fontCss = this.getFontCss();
-
+    
     // Default to A4 if no custom dimensions provided
     let width = options.width;
     if (!width) {
       width = options.landscape ? '297mm' : '210mm';
     }
-
+    
     // Padding (default 10mm)
     const padding = options.padding || '10mm';
 
@@ -501,76 +499,7 @@ export class PdfService {
   }
 
   /**
-   * Get Chromium executable path based on environment
-   */
-  private getChromiumPath(): string {
-    if (process.env.CHROMIUM_PATH) {
-      return process.env.CHROMIUM_PATH;
-    }
-    if (process.platform === 'darwin') {
-      return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-    }
-    return '/usr/bin/chromium';
-  }
-
-  /**
-   * Get or launch singleton browser instance
-   */
-  private async getBrowser(): Promise<Browser> {
-    if (this.browser?.connected) {
-      return this.browser;
-    }
-
-    // Prevent concurrent launches
-    if (this.browserLaunchPromise) {
-      return this.browserLaunchPromise;
-    }
-
-    this.browserLaunchPromise = this.launchBrowser();
-    try {
-      this.browser = await this.browserLaunchPromise;
-      // Reset state on disconnect so next call re-launches
-      this.browser.on('disconnected', () => {
-        this.browser = null;
-        this.browserLaunchPromise = null;
-      });
-      return this.browser;
-    } catch (error) {
-      this.browserLaunchPromise = null; // Only clear on failure to allow retry
-      throw error;
-    }
-  }
-
-  /**
-   * Launch Chromium with Docker-safe arguments
-   */
-  private async launchBrowser(): Promise<Browser> {
-    return puppeteer.launch({
-      executablePath: this.getChromiumPath(),
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--font-render-hinting=none',
-      ],
-    });
-  }
-
-  /**
-   * Gracefully close browser instance
-   */
-  public async closeBrowser(): Promise<void> {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-      this.browserLaunchPromise = null;
-    }
-  }
-
-  /**
-   * Generate PDF from template and data using Puppeteer
+   * Generate PDF from template and data using Gotenberg
    */
   public async generatePdf<T>(
     templateType: PdfTemplateType,
@@ -580,34 +509,36 @@ export class PdfService {
     try {
       // Get and compile template
       const template = this.getTemplate(templateType);
-
+      
       // Fetch company settings from DB
-      const dbSettings = await import('../settings/settings.service').then((m) =>
-        m.settingsService.getSettings()
-      );
-
+      const dbSettings = await import('../settings/settings.service').then(m => m.settingsService.getSettings());
+      
       // Add company header to data if not present
       const providedHeader = (data as any).header || {};
-
+      
       // Construct header from DB settings or fallback
-      const dbHeader = dbSettings
-        ? {
-            companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
-            address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
-            address2: '',
-            phone:
-              `โทร. ${dbSettings.phone} ${dbSettings.fax ? `โทรสาร. ${dbSettings.fax}` : ''}`.trim(),
-            logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
-          }
-        : DEFAULT_COMPANY_HEADER;
+      const dbHeader = dbSettings ? {
+        companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
+        address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
+        address2: '', // Address logic might need adjustment if DB splits address differently
+        phone: `โทร. ${dbSettings.phone} ${dbSettings.fax ? 'โทรสาร. ' + dbSettings.fax : ''}`.trim(),
+        logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
+      } : DEFAULT_COMPANY_HEADER;
 
+      // If DB has addressEn, maybe we want to use it? 
+      // For now, sticking to Thai as per default template usage.
+      // If address in DB is single string, we might need to split it if template expects address1/address2.
+      // But looking at template styles, it just dumps address.
+      
       const dataWithHeader = {
         ...data,
         header: {
           ...dbHeader,
-          ...providedHeader,
+          ...providedHeader, // Runtime overrides take precedence
+          // Ensure logo is available
           logoBase64: providedHeader.logoBase64 || dbHeader.logoBase64 || this.logoBase64,
         },
+        // Inject receipt background if needed
         receiptBgBase64: this.receiptBgBase64,
       };
 
@@ -615,40 +546,86 @@ export class PdfService {
       const content = template(dataWithHeader);
       const html = this.getBaseHtml(content, options);
 
-      // Generate PDF with Puppeteer
-      const browser = await this.getBrowser();
-      const page = await browser.newPage();
-      try {
-        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-        const margins = options.margin || {
-          top: '5mm',
-          right: '5mm',
-          bottom: '5mm',
-          left: '5mm',
-        };
-
-        const pdfOptions: Parameters<typeof page.pdf>[0] = {
-          printBackground: options.printBackground !== false,
-          preferCSSPageSize: true,
-          landscape: options.landscape || false,
-          margin: {
-            top: margins.top,
-            bottom: margins.bottom,
-            left: margins.left,
-            right: margins.right,
-          },
-          ...(options.width && options.height
-            ? { width: options.width, height: options.height }
-            : {}),
-          ...(options.scale ? { scale: options.scale } : {}),
-        };
-
-        const pdfBuffer = await page.pdf(pdfOptions);
-        return Buffer.from(pdfBuffer);
-      } finally {
-        await page.close();
+      // Create FormData for Gotenberg
+      // Bun provides native FormData and Blob support
+      const formData = new FormData();
+      formData.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
+      
+      // Configure options
+      if (options.landscape) {
+        formData.append('landscape', 'true');
       }
+
+      // Margins
+      const margins = options.margin || {
+        top: '5mm',
+        right: '5mm',
+        bottom: '5mm',
+        left: '5mm',
+      };
+      
+      formData.append('marginTop', margins.top);
+      formData.append('marginBottom', margins.bottom);
+      formData.append('marginLeft', margins.left);
+      formData.append('marginRight', margins.right);
+
+      // Page size
+      if (options.width && options.height) {
+        formData.append('paperWidth', options.width);
+        formData.append('paperHeight', options.height);
+      }
+      
+      // Prefer CSS page size
+      formData.append('preferCssPageSize', 'true');
+      
+      
+      // Print background
+      if (options.printBackground !== false) {
+        formData.append('printBackground', 'true');
+      }
+
+      // Scale
+      if (options.scale) {
+        formData.append('scale', options.scale.toString());
+      }
+
+      console.log(`🚀 Sending PDF request to Gotenberg: ${this.gotenbergUrl}`);
+
+      // Health check before generating PDF
+      try {
+        const healthRes = await fetch(`${this.gotenbergUrl}/health`, { signal: AbortSignal.timeout(5000) });
+        if (!healthRes.ok) {
+          throw new Error(`Gotenberg health check failed: ${healthRes.status}`);
+        }
+      } catch (healthErr) {
+        console.error('❌ Gotenberg service is not available:', healthErr);
+        throw new Error('บริการสร้าง PDF ไม่พร้อมใช้งาน (Gotenberg ไม่ตอบสนอง) กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ');
+      }
+
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch(`${this.gotenbergUrl}/forms/chromium/convert/html`, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Gotenberg API failed: ${response.status} ${response.statusText}`);
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          return Buffer.from(arrayBuffer);
+        } catch (err) {
+          lastError = err as Error;
+          if (attempt < maxRetries) {
+            console.warn(`⚠️ Gotenberg attempt ${attempt} failed, retrying...`);
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+          }
+        }
+      }
+      throw new Error(`สร้าง PDF ไม่สำเร็จหลังจากลอง ${maxRetries} ครั้ง: ${lastError?.message}`);
     } catch (error) {
       console.error('❌ PDF Generation failed:', error);
       throw error;
@@ -822,9 +799,7 @@ export class PdfService {
   /**
    * Generate Purchase Requirement Report PDF
    */
-  public async generatePurchaseRequirementReport(
-    data: PurchaseRequirementReportData
-  ): Promise<Buffer> {
+  public async generatePurchaseRequirementReport(data: PurchaseRequirementReportData): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.PURCHASE_REQUIREMENT_REPORT, data);
   }
 
@@ -839,11 +814,3 @@ export class PdfService {
 
 // Export singleton instance
 export const pdfService = PdfService.getInstance();
-
-// Graceful shutdown — close Chromium browser on process exit
-process.on('SIGTERM', async () => {
-  await pdfService.closeBrowser();
-});
-process.on('SIGINT', async () => {
-  await pdfService.closeBrowser();
-});

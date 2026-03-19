@@ -27,8 +27,16 @@ FROM oven/bun:1-slim AS production
 
 WORKDIR /app
 
-# Install OpenSSL and curl for Prisma and health checks
-RUN apt-get update -y && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL, curl, Chromium (for Puppeteer PDF generation), and Thai fonts
+RUN apt-get update -y && apt-get install -y \
+    openssl curl \
+    chromium \
+    fonts-thai-tlwg \
+    --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Copy package files
 COPY package.json bun.lock ./
