@@ -65,12 +65,19 @@ class ApiClient {
       headers,
     });
 
-    const data = await response.json();
+    // Parse response body safely — handle non-JSON responses
+    let data: any;
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { success: false, error: 'INVALID_RESPONSE', message: text || 'Server returned non-JSON response' };
+    }
 
     // Handle unauthorized - clear token but don't redirect (let React handle it)
     if (response.status === 401) {
       this.setToken(null);
-      // Throw ApiError with response data for proper handling
       throw new ApiError(
         data.error || 'UNAUTHORIZED',
         data.message || 'Unauthorized',

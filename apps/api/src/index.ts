@@ -177,6 +177,15 @@ const app = new Elysia()
       };
     }
 
+    if (code === 'PARSE') {
+      set.status = 400;
+      return {
+        success: false,
+        error: 'PARSE_ERROR',
+        message: 'ข้อมูลที่ส่งมาไม่ถูกต้อง',
+      };
+    }
+
     if (code === 'VALIDATION') {
       set.status = 400;
       return {
