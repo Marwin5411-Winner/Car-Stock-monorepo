@@ -54,6 +54,12 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/packages/shared ./packages/shared
 
+# Copy PDF assets (templates, fonts, images) for Puppeteer
+COPY --from=builder /app/apps/api/src/modules/pdf/templates ./apps/api/src/modules/pdf/templates
+COPY --from=builder /app/apps/api/src/modules/pdf/fonts ./apps/api/src/modules/pdf/fonts
+COPY --from=builder /app/apps/api/src/modules/pdf/images ./apps/api/src/modules/pdf/images
+COPY --from=builder /app/apps/api/public ./apps/api/public
+
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 

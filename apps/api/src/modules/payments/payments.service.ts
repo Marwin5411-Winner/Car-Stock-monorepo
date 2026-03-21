@@ -1,5 +1,5 @@
 import { db } from '../../lib/db';
-import { CreatePaymentSchema, VoidPaymentSchema, PaymentFilterSchema } from '@car-stock/shared/schemas';
+import { CreatePaymentSchema, UpdatePaymentSchema, VoidPaymentSchema, PaymentFilterSchema } from '@car-stock/shared/schemas';
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
 import { AppError, NotFoundError, ForbiddenError, BadRequestError } from '../../lib/errors';
@@ -266,6 +266,78 @@ export class PaymentsService {
           customerId: payment.customerId,
           paymentType: payment.paymentType,
           description: payment.description,
+        },
+      },
+    });
+
+    return payment;
+  }
+
+  /**
+   * Update payment (ADMIN/ACCOUNTANT only, ACTIVE payments only)
+   */
+  async updatePayment(id: string, data: any, currentUser: any) {
+    if (!authService.hasPermission(currentUser.role, 'PAYMENT_UPDATE' as any)) {
+      throw new ForbiddenError();
+    }
+
+    const validated = UpdatePaymentSchema.parse(data);
+
+    const existingPayment = await db.payment.findUnique({
+      where: { id },
+      select: { id: true, status: true, amount: true, saleId: true, paymentType: true },
+    });
+
+    if (!existingPayment) {
+      throw new NotFoundError('Payment');
+    }
+
+    if (existingPayment.status === 'VOIDED') {
+      throw new BadRequestError('ไม่สามารถแก้ไขใบเสร็จที่ยกเลิกแล้วได้');
+    }
+
+    const oldAmount = Number(existingPayment.amount);
+    const newAmount = validated.amount ?? oldAmount;
+    const amountDiff = newAmount - oldAmount;
+
+    const payment = await db.payment.update({
+      where: { id },
+      data: validated,
+    });
+
+    // Update sale paidAmount/remainingAmount if amount changed
+    const paymentType = validated.paymentType ?? existingPayment.paymentType;
+    const isCarPayment = CAR_PAYMENT_TYPES.includes(paymentType as typeof CAR_PAYMENT_TYPES[number]);
+
+    if (existingPayment.saleId && isCarPayment && amountDiff !== 0) {
+      const sale = await db.sale.findUnique({
+        where: { id: existingPayment.saleId },
+        select: { paidAmount: true, totalAmount: true },
+      });
+
+      if (sale) {
+        const newPaidAmount = Number(sale.paidAmount) + amountDiff;
+        const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+
+        await db.sale.update({
+          where: { id: existingPayment.saleId },
+          data: {
+            paidAmount: newPaidAmount,
+            remainingAmount: newRemainingAmount,
+          },
+        });
+      }
+    }
+
+    await db.activityLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'UPDATE_PAYMENT',
+        entity: 'PAYMENT',
+        entityId: payment.id,
+        details: {
+          receiptNumber: payment.receiptNumber,
+          changes: validated,
         },
       },
     });

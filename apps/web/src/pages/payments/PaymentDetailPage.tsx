@@ -11,10 +11,12 @@ import {
   Ban,
   Printer,
   CheckCircle,
-  XCircle
+  XCircle,
+  Pencil
 } from 'lucide-react';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   DEPOSIT: 'เงินจอง',
@@ -50,6 +52,8 @@ export default function PaymentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('PAYMENT_UPDATE');
   const { execute: executeQuery } = useErrorHandler({ showToast: true });
   const { execute: executeDownload } = useErrorHandler({ showToast: true });
   const { execute: executeVoid } = useMutationHandler('ยกเลิกการชำระเงินสำเร็จ');
@@ -192,6 +196,15 @@ export default function PaymentDetailPage() {
 
               {payment.status === 'ACTIVE' && (
                 <>
+                  {canEdit && (
+                    <button
+                      onClick={() => navigate(`/payments/${id}/edit`)}
+                      className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50"
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      แก้ไข
+                    </button>
+                  )}
                   <button
                     onClick={handlePrintBg}
                     disabled={downloadingBg}

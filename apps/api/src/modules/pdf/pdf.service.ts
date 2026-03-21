@@ -93,8 +93,9 @@ export class PdfService {
   private browserLaunchPromise: Promise<Browser> | null = null;
 
   private constructor() {
-    this.templatesDir = path.join(__dirname, 'templates');
-    this.fontsDir = path.join(__dirname, 'fonts');
+    const baseDir = process.env.PDF_ASSETS_DIR || path.join(process.cwd(), 'src', 'modules', 'pdf');
+    this.templatesDir = path.join(baseDir, 'templates');
+    this.fontsDir = path.join(baseDir, 'fonts');
     this.loadLogo();
     this.loadReceiptBg();
     this.registerPartials();
@@ -117,8 +118,8 @@ export class PdfService {
     try {
       // Try multiple locations for the logo
       const possiblePaths = [
-        path.join(__dirname, 'images', 'Logo_150x150.png'),
-        path.join(__dirname, '..', '..', 'public', 'images', 'Logo_150x150.png'),
+        path.join(this.templatesDir, '..', 'images', 'Logo_150x150.png'),
+        path.join(process.cwd(), 'public', 'images', 'Logo_150x150.png'),
       ];
 
       for (const logoPath of possiblePaths) {
@@ -140,10 +141,7 @@ export class PdfService {
    */
   private loadReceiptBg(): void {
     try {
-      const possiblePaths = [
-        path.join(__dirname, '..', '..', '..', 'public', 'receipt-bg.jpg'),
-        path.join(__dirname, '..', '..', 'public', 'receipt-bg.jpg'),
-      ];
+      const possiblePaths = [path.join(process.cwd(), 'public', 'receipt-bg.jpg')];
 
       for (const bgPath of possiblePaths) {
         if (fs.existsSync(bgPath)) {

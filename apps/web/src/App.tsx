@@ -24,7 +24,7 @@ import SalesDetailPage from './pages/sales/SalesDetailPage';
 import QuotationListPage from './pages/quotations/QuotationListPage';
 import QuotationFormPage from './pages/quotations/QuotationFormPage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
-import { PaymentsListPage, PaymentFormPage, PaymentDetailPage } from './pages/payments';
+import { PaymentsListPage, PaymentFormPage, PaymentDetailPage, PaymentEditPage } from './pages/payments';
 import { UsersListPage, UserFormPage, UserDetailPage } from './pages/users';
 import { CampaignsListPage, CampaignFormPage, CampaignDetailPage, CampaignAnalyticsPage, CampaignReportPage } from './pages/campaigns';
 import {
@@ -276,6 +276,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={P.PAYMENT_CREATE}>
                   <PaymentFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payments/:id/edit"
+              element={
+                <ProtectedRoute allowedRoles={P.PAYMENT_UPDATE}>
+                  <PaymentEditPage />
                 </ProtectedRoute>
               }
             />

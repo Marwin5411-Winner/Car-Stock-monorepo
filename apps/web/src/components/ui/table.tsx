@@ -1,49 +1,39 @@
-import * as React from 'react';
 import { cn } from '@/lib/utils';
+import * as React from 'react';
 
 // Table Container with overflow support
-const TableContainer = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      'bg-white rounded-lg shadow-sm border border-gray-200',
-      className
-    )}
-    {...props}
-  />
-));
+const TableContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn('bg-white rounded-lg border border-gray-200 overflow-hidden', className)}
+      {...props}
+    />
+  )
+);
 TableContainer.displayName = 'TableContainer';
 
 // Wrapper for horizontal scroll
-const TableWrapper = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      'overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100',
-      className
-    )}
-    {...props}
-  />
-));
+const TableWrapper = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        'overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100',
+        className
+      )}
+      {...props}
+    />
+  )
+);
 TableWrapper.displayName = 'TableWrapper';
 
 // Main Table
-const Table = React.forwardRef<
-  HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <table
-    ref={ref}
-    className={cn('min-w-full divide-y divide-gray-200', className)}
-    {...props}
-  />
-));
+const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
+  ({ className, ...props }, ref) => (
+    <table ref={ref} className={cn('min-w-full divide-y divide-gray-200', className)} {...props} />
+  )
+);
 Table.displayName = 'Table';
 
 // Table Header
@@ -51,11 +41,7 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead
-    ref={ref}
-    className={cn('bg-gray-50', className)}
-    {...props}
-  />
+  <thead ref={ref} className={cn('bg-gray-50/80 sticky top-0 z-10', className)} {...props} />
 ));
 TableHeader.displayName = 'TableHeader';
 
@@ -64,11 +50,7 @@ const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <tbody
-    ref={ref}
-    className={cn('bg-white divide-y divide-gray-200', className)}
-    {...props}
-  />
+  <tbody ref={ref} className={cn('bg-white divide-y divide-gray-200', className)} {...props} />
 ));
 TableBody.displayName = 'TableBody';
 
@@ -79,29 +61,22 @@ const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn(
-      'border-t border-gray-200 bg-gray-50 font-medium text-gray-900',
-      className
-    )}
+    className={cn('border-t border-gray-200 bg-gray-50 font-medium text-gray-900', className)}
     {...props}
   />
 ));
 TableFooter.displayName = 'TableFooter';
 
 // Table Row
-const TableRow = React.forwardRef<
-  HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={cn(
-      'transition-colors hover:bg-gray-50/80',
-      className
-    )}
-    {...props}
-  />
-));
+const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
+  ({ className, ...props }, ref) => (
+    <tr
+      ref={ref}
+      className={cn('transition-colors hover:bg-blue-50/50 even:bg-gray-50/50', className)}
+      {...props}
+    />
+  )
+);
 TableRow.displayName = 'TableRow';
 
 // Table Head Cell
@@ -112,7 +87,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      'px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap',
+      'px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap border-b border-gray-200',
       'first:pl-6 last:pr-6',
       className
     )}
@@ -143,11 +118,7 @@ const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
 >(({ className, ...props }, ref) => (
-  <caption
-    ref={ref}
-    className={cn('mt-4 text-sm text-gray-500', className)}
-    {...props}
-  />
+  <caption ref={ref} className={cn('mt-4 text-sm text-gray-500', className)} {...props} />
 ));
 TableCaption.displayName = 'TableCaption';
 
@@ -163,22 +134,13 @@ const TableEmpty = React.forwardRef<HTMLDivElement, TableEmptyProps>(
   ({ className, icon, title = 'ไม่พบข้อมูล', description, action, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn(
-        'flex flex-col items-center justify-center py-12 px-4 text-center',
-        className
-      )}
+      className={cn('flex flex-col items-center justify-center py-12 px-4 text-center', className)}
       {...props}
     >
-      {icon && (
-        <div className="mb-4 text-gray-300">{icon}</div>
-      )}
+      {icon && <div className="mb-4 text-gray-300">{icon}</div>}
       <h3 className="text-sm font-medium text-gray-900">{title}</h3>
-      {description && (
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
-      )}
-      {action && (
-        <div className="mt-4">{action}</div>
-      )}
+      {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   )
 );
@@ -193,15 +155,12 @@ const TableLoading = React.forwardRef<HTMLDivElement, TableLoadingProps>(
   ({ className, text = 'กำลังโหลด...', ...props }, ref) => (
     <div
       ref={ref}
-      className={cn(
-        'flex flex-col items-center justify-center py-12 px-4',
-        className
-      )}
+      className={cn('flex flex-col items-center justify-center py-12 px-4', className)}
       {...props}
     >
       <div className="relative">
-        <div className="h-10 w-10 rounded-full border-2 border-gray-200"></div>
-        <div className="absolute top-0 h-10 w-10 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
+        <div className="h-10 w-10 rounded-full border-2 border-gray-200" />
+        <div className="absolute top-0 h-10 w-10 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
       </div>
       <p className="mt-4 text-sm text-gray-600">{text}</p>
     </div>

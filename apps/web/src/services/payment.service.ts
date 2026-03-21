@@ -202,6 +202,14 @@ class PaymentService {
   }
 
   /**
+   * Update payment
+   */
+  async update(id: string, data: Partial<CreatePaymentData>): Promise<Payment> {
+    const response = await api.patch<ApiResponse<Payment>>(`${this.baseUrl}/${id}`, data);
+    return response.data;
+  }
+
+  /**
    * Void a payment
    */
   async void(id: string, data: VoidPaymentData): Promise<Payment> {

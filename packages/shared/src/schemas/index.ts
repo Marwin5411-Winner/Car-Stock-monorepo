@@ -464,6 +464,16 @@ export const CreatePaymentSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const UpdatePaymentSchema = z.object({
+  description: z.string().optional(),
+  paymentDate: z.coerce.date().optional(),
+  paymentType: PaymentTypeSchema.optional(),
+  amount: z.number().positive('Amount must be positive').optional(),
+  paymentMethod: PaymentMethodSchema.optional(),
+  referenceNumber: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export const VoidPaymentSchema = z.object({
   voidReason: z.string().min(1, 'Void reason is required'),
 });

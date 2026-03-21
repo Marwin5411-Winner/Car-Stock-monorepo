@@ -144,6 +144,47 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
       },
     }
   )
+  // Update payment
+  .patch(
+    '/:id',
+    async ({ params, body, set, requester }) => {
+      const payment = await paymentsService.updatePayment(params.id, body, requester);
+      set.status = 200;
+      return {
+        success: true,
+        data: payment,
+        message: 'Payment updated successfully',
+      };
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('PAYMENT_UPDATE')],
+      body: t.Object({
+        description: t.Optional(t.String()),
+        paymentDate: t.Optional(t.Date()),
+        paymentType: t.Optional(t.Union([
+          t.Literal('DEPOSIT'),
+          t.Literal('DOWN_PAYMENT'),
+          t.Literal('FINANCE_PAYMENT'),
+          t.Literal('OTHER_EXPENSE'),
+          t.Literal('MISCELLANEOUS'),
+        ])),
+        amount: t.Optional(t.Number()),
+        paymentMethod: t.Optional(t.Union([
+          t.Literal('CASH'),
+          t.Literal('BANK_TRANSFER'),
+          t.Literal('CHEQUE'),
+          t.Literal('CREDIT_CARD'),
+        ])),
+        referenceNumber: t.Optional(t.String()),
+        notes: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['Payments'],
+        summary: 'Update payment',
+        description: 'Update an existing payment (ADMIN/ACCOUNTANT only)',
+      },
+    }
+  )
   // Void payment
   .post(
     '/:id/void',
