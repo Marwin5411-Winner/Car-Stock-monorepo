@@ -298,48 +298,59 @@ export class PaymentsService {
 
     const oldAmount = Number(existingPayment.amount);
     const newAmount = validated.amount ?? oldAmount;
-    const amountDiff = newAmount - oldAmount;
 
-    const payment = await db.payment.update({
-      where: { id },
-      data: validated,
-    });
+    const oldType = existingPayment.paymentType;
+    const newType = validated.paymentType ?? oldType;
+    const wasCarPayment = CAR_PAYMENT_TYPES.includes(oldType as typeof CAR_PAYMENT_TYPES[number]);
+    const isCarPayment = CAR_PAYMENT_TYPES.includes(newType as typeof CAR_PAYMENT_TYPES[number]);
 
-    // Update sale paidAmount/remainingAmount if amount changed
-    const paymentType = validated.paymentType ?? existingPayment.paymentType;
-    const isCarPayment = CAR_PAYMENT_TYPES.includes(paymentType as typeof CAR_PAYMENT_TYPES[number]);
+    // Calculate net effect on sale paidAmount
+    // Subtract old car-payment amount, add new car-payment amount
+    const oldContribution = wasCarPayment ? oldAmount : 0;
+    const newContribution = isCarPayment ? newAmount : 0;
+    const saleDiff = newContribution - oldContribution;
 
-    if (existingPayment.saleId && isCarPayment && amountDiff !== 0) {
-      const sale = await db.sale.findUnique({
-        where: { id: existingPayment.saleId },
-        select: { paidAmount: true, totalAmount: true },
+    const payment = await db.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id },
+        data: validated,
       });
 
-      if (sale) {
-        const newPaidAmount = Number(sale.paidAmount) + amountDiff;
-        const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
-
-        await db.sale.update({
+      // Update sale paidAmount/remainingAmount if contribution changed
+      if (existingPayment.saleId && saleDiff !== 0) {
+        const sale = await tx.sale.findUnique({
           where: { id: existingPayment.saleId },
-          data: {
-            paidAmount: newPaidAmount,
-            remainingAmount: newRemainingAmount,
-          },
+          select: { paidAmount: true, totalAmount: true },
         });
-      }
-    }
 
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'UPDATE_PAYMENT',
-        entity: 'PAYMENT',
-        entityId: payment.id,
-        details: {
-          receiptNumber: payment.receiptNumber,
-          changes: validated,
+        if (sale) {
+          const newPaidAmount = Number(sale.paidAmount) + saleDiff;
+          const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+
+          await tx.sale.update({
+            where: { id: existingPayment.saleId },
+            data: {
+              paidAmount: newPaidAmount,
+              remainingAmount: newRemainingAmount,
+            },
+          });
+        }
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'UPDATE_PAYMENT',
+          entity: 'PAYMENT',
+          entityId: updated.id,
+          details: {
+            receiptNumber: updated.receiptNumber,
+            changes: validated,
+          },
         },
-      },
+      });
+
+      return updated;
     });
 
     return payment;

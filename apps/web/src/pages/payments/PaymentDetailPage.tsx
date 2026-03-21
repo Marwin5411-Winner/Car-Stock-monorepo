@@ -1,22 +1,27 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { paymentService } from '../../services/payment.service';
-import type { Payment, PaymentType, PaymentMethod, PaymentStatus } from '../../services/payment.service';
-import { MainLayout } from '../../components/layout';
 import {
   ArrowLeft,
-  CreditCard,
-  User,
-  FileText,
   Ban,
-  Printer,
   CheckCircle,
+  CreditCard,
+  FileText,
+  Pencil,
+  Printer,
+  User,
   XCircle,
-  Pencil
 } from 'lucide-react';
-import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { MainLayout } from '../../components/layout';
 import { useToast } from '../../components/toast';
-import { useAuth } from '../../contexts/AuthContext';
+import { useErrorHandler, useMutationHandler } from '../../hooks/useErrorHandler';
+import { usePermission } from '../../hooks/usePermission';
+import { paymentService } from '../../services/payment.service';
+import type {
+  Payment,
+  PaymentMethod,
+  PaymentStatus,
+  PaymentType,
+} from '../../services/payment.service';
 
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   DEPOSIT: 'เงินจอง',
@@ -52,7 +57,7 @@ export default function PaymentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { hasPermission } = useAuth();
+  const { hasPermission } = usePermission();
   const canEdit = hasPermission('PAYMENT_UPDATE');
   const { execute: executeQuery } = useErrorHandler({ showToast: true });
   const { execute: executeDownload } = useErrorHandler({ showToast: true });
@@ -183,13 +188,13 @@ export default function PaymentDetailPage() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{payment.receiptNumber}</h1>
-              <p className="text-gray-500 mt-1">
-                บันทึกเมื่อ {formatDateTime(payment.createdAt)}
-              </p>
+              <p className="text-gray-500 mt-1">บันทึกเมื่อ {formatDateTime(payment.createdAt)}</p>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${STATUS_COLORS[payment.status]}`}>
+              <span
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${STATUS_COLORS[payment.status]}`}
+              >
                 {STATUS_ICONS[payment.status]}
                 {STATUS_LABELS[payment.status]}
               </span>
@@ -241,9 +246,7 @@ export default function PaymentDetailPage() {
               <XCircle className="h-5 w-5 text-red-500 mt-0.5 mr-3" />
               <div>
                 <h3 className="font-medium text-red-800">ใบเสร็จนี้ถูกยกเลิกแล้ว</h3>
-                <p className="text-sm text-red-700 mt-1">
-                  เหตุผล: {payment.voidReason || '-'}
-                </p>
+                <p className="text-sm text-red-700 mt-1">เหตุผล: {payment.voidReason || '-'}</p>
                 <p className="text-sm text-red-600 mt-1">
                   ยกเลิกเมื่อ: {formatDateTime(payment.voidedAt)}
                 </p>
@@ -263,7 +266,9 @@ export default function PaymentDetailPage() {
             <dl className="space-y-3">
               <div className="flex justify-between">
                 <dt className="text-sm text-gray-500">จำนวนเงิน</dt>
-                <dd className="text-lg font-bold text-green-600">{formatCurrency(payment.amount)}</dd>
+                <dd className="text-lg font-bold text-green-600">
+                  {formatCurrency(payment.amount)}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-sm text-gray-500">วันที่ชำระ</dt>
@@ -275,7 +280,9 @@ export default function PaymentDetailPage() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-sm text-gray-500">วิธีชำระ</dt>
-                <dd className="text-sm font-medium">{PAYMENT_METHOD_LABELS[payment.paymentMethod]}</dd>
+                <dd className="text-sm font-medium">
+                  {PAYMENT_METHOD_LABELS[payment.paymentMethod]}
+                </dd>
               </div>
               {payment.referenceNumber && (
                 <div className="flex justify-between">
@@ -327,7 +334,10 @@ export default function PaymentDetailPage() {
                 <div>
                   <dt className="text-sm text-gray-500">เลขที่ขาย</dt>
                   <dd className="text-sm font-medium">
-                    <Link to={`/sales/${payment.sale.id}`} className="text-blue-600 hover:underline">
+                    <Link
+                      to={`/sales/${payment.sale.id}`}
+                      className="text-blue-600 hover:underline"
+                    >
                       {payment.sale.saleNumber}
                     </Link>
                   </dd>
@@ -335,13 +345,17 @@ export default function PaymentDetailPage() {
                 {payment.sale.totalAmount !== undefined && (
                   <div>
                     <dt className="text-sm text-gray-500">ยอดรวมการขาย</dt>
-                    <dd className="text-sm font-medium">{formatCurrency(payment.sale.totalAmount)}</dd>
+                    <dd className="text-sm font-medium">
+                      {formatCurrency(payment.sale.totalAmount)}
+                    </dd>
                   </div>
                 )}
                 {payment.sale.remainingAmount !== undefined && (
                   <div>
                     <dt className="text-sm text-gray-500">ยอดค้างชำระ (หลังรายการนี้)</dt>
-                    <dd className={`text-sm font-medium ${payment.sale.remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <dd
+                      className={`text-sm font-medium ${payment.sale.remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}
+                    >
                       {formatCurrency(payment.sale.remainingAmount)}
                     </dd>
                   </div>
@@ -356,9 +370,7 @@ export default function PaymentDetailPage() {
               </h2>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-yellow-800 font-medium">รายการทั่วไป (ไม่เชื่อมกับการขาย)</p>
-                {payment.description && (
-                  <p className="text-gray-700 mt-2">{payment.description}</p>
-                )}
+                {payment.description && <p className="text-gray-700 mt-2">{payment.description}</p>}
               </div>
             </div>
           )}
@@ -375,7 +387,8 @@ export default function PaymentDetailPage() {
         {/* Created By */}
         {payment.createdBy && (
           <div className="mt-4 text-sm text-gray-500">
-            สร้างโดย: {payment.createdBy.firstName} {payment.createdBy.lastName} ({payment.createdBy.username})
+            สร้างโดย: {payment.createdBy.firstName} {payment.createdBy.lastName} (
+            {payment.createdBy.username})
           </div>
         )}
       </div>
@@ -394,8 +407,7 @@ export default function PaymentDetailPage() {
             <p className="text-sm text-gray-500 mb-4">
               {payment.sale
                 ? `การยกเลิกจะทำให้ยอดชำระแล้วของการขายลดลง ${formatCurrency(payment.amount)}`
-                : 'การยกเลิกจะทำให้รายการนี้ถูกยกเลิก'
-              }
+                : 'การยกเลิกจะทำให้รายการนี้ถูกยกเลิก'}
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">

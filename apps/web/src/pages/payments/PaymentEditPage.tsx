@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { paymentService } from '../../services/payment.service';
-import type { Payment, PaymentType, PaymentMethod } from '../../services/payment.service';
-import { MainLayout } from '../../components/layout';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { MainLayout } from '../../components/layout';
 import { useErrorHandler, useMutationHandler } from '../../hooks/useErrorHandler';
+import { paymentService } from '../../services/payment.service';
+import type { Payment, PaymentMethod, PaymentType } from '../../services/payment.service';
 
 const PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
   { value: 'DEPOSIT', label: 'เงินจอง' },
@@ -66,7 +66,7 @@ export default function PaymentEditPage() {
         amount: result.amount,
         paymentMethod: result.paymentMethod,
         referenceNumber: result.referenceNumber || '',
-        notes: (result as any).notes || '',
+        notes: result.notes || '',
       });
     } else {
       navigate('/payments');
@@ -91,7 +91,8 @@ export default function PaymentEditPage() {
     setSaving(false);
   };
 
-  const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+  const inputClass =
+    'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
   const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
 
   if (loading) {
@@ -110,7 +111,10 @@ export default function PaymentEditPage() {
     <MainLayout>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(`/payments/${id}`)} className="p-2 hover:bg-gray-100 rounded-lg">
+          <button
+            onClick={() => navigate(`/payments/${id}`)}
+            className="p-2 hover:bg-gray-100 rounded-lg"
+          >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
@@ -119,14 +123,17 @@ export default function PaymentEditPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-xl shadow-sm border p-6 space-y-5"
+        >
           <div>
             <label className={labelClass}>รายการ</label>
             <input
               type="text"
               className={inputClass}
               value={formData.description}
-              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="รายละเอียดการชำระเงิน"
             />
           </div>
@@ -138,7 +145,7 @@ export default function PaymentEditPage() {
                 type="date"
                 className={inputClass}
                 value={formData.paymentDate}
-                onChange={e => setFormData(prev => ({ ...prev, paymentDate: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, paymentDate: e.target.value }))}
               />
             </div>
             <div>
@@ -147,7 +154,12 @@ export default function PaymentEditPage() {
                 type="number"
                 className={inputClass}
                 value={formData.amount || ''}
-                onChange={e => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    amount: Number.parseFloat(e.target.value) || 0,
+                  }))
+                }
                 min="0"
                 step="0.01"
               />
@@ -160,10 +172,14 @@ export default function PaymentEditPage() {
               <select
                 className={inputClass}
                 value={formData.paymentType}
-                onChange={e => setFormData(prev => ({ ...prev, paymentType: e.target.value as PaymentType }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, paymentType: e.target.value as PaymentType }))
+                }
               >
-                {PAYMENT_TYPE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {PAYMENT_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -172,10 +188,17 @@ export default function PaymentEditPage() {
               <select
                 className={inputClass}
                 value={formData.paymentMethod}
-                onChange={e => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as PaymentMethod }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    paymentMethod: e.target.value as PaymentMethod,
+                  }))
+                }
               >
-                {PAYMENT_METHOD_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -187,7 +210,9 @@ export default function PaymentEditPage() {
               type="text"
               className={inputClass}
               value={formData.referenceNumber}
-              onChange={e => setFormData(prev => ({ ...prev, referenceNumber: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, referenceNumber: e.target.value }))
+              }
               placeholder="เลขที่เช็ค, เลขอ้างอิงโอนเงิน"
             />
           </div>
@@ -198,7 +223,7 @@ export default function PaymentEditPage() {
               className={inputClass}
               rows={3}
               value={formData.notes}
-              onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
             />
           </div>
 

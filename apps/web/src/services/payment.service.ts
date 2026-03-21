@@ -1,7 +1,12 @@
 import { api } from '../lib/api';
 
 // Types
-export type PaymentType = 'DEPOSIT' | 'DOWN_PAYMENT' | 'FINANCE_PAYMENT' | 'OTHER_EXPENSE' | 'MISCELLANEOUS';
+export type PaymentType =
+  | 'DEPOSIT'
+  | 'DOWN_PAYMENT'
+  | 'FINANCE_PAYMENT'
+  | 'OTHER_EXPENSE'
+  | 'MISCELLANEOUS';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT_CARD';
 export type PaymentStatus = 'ACTIVE' | 'VOIDED';
 
@@ -18,6 +23,7 @@ export interface Payment {
   voidReason?: string;
   voidedAt?: string;
   issuedBy?: string;
+  notes?: string;
   customer: {
     id: string;
     code: string;
@@ -150,7 +156,7 @@ class PaymentService {
    */
   async getAll(filters: PaymentFilters = {}): Promise<PaginatedResponse<PaymentListItem>> {
     const params = new URLSearchParams();
-    
+
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.search) params.append('search', filters.search);
@@ -158,10 +164,10 @@ class PaymentService {
     if (filters.customerId) params.append('customerId', filters.customerId);
     if (filters.status) params.append('status', filters.status);
     if (filters.paymentType) params.append('paymentType', filters.paymentType);
-    
+
     const queryString = params.toString();
     const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl;
-    
+
     const response = await api.get<ApiListResponse<PaymentListItem>>(url);
     return {
       data: response.data,
@@ -189,7 +195,9 @@ class PaymentService {
    * Get outstanding payments (sales with remaining balance)
    */
   async getOutstanding(): Promise<OutstandingPayment[]> {
-    const response = await api.get<ApiResponse<OutstandingPayment[]>>(`${this.baseUrl}/outstanding`);
+    const response = await api.get<ApiResponse<OutstandingPayment[]>>(
+      `${this.baseUrl}/outstanding`
+    );
     return response.data;
   }
 
