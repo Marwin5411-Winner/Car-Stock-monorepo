@@ -12,7 +12,7 @@ STATUS_FILE="$STATUS_DIR/update-status.json"
 BACKUP_DIR="/app/backups"
 LOG_FILE="/app/logs/rollback_$(date +%Y%m%d_%H%M%S).log"
 
-COMPOSE_CMD="docker compose -f $PROJECT_DIR/docker-compose.yml"
+COMPOSE_CMD="docker compose -f $PROJECT_DIR/docker-compose.yml -p car-stock-monorepo"
 
 DB_HOST="${POSTGRES_HOST:-postgres}"
 DB_PORT="${POSTGRES_PORT:-5432}"
@@ -116,7 +116,7 @@ main() {
 
   # Step 4: Restart services
   log "Step 4: Restarting services"
-  $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE" || {
+  $COMPOSE_CMD up -d api web 2>>"$LOG_FILE" || {
     log "ERROR: Failed to restart services"
     write_status "Rollback failed" "error" "Service restart failed"
     exit 1

@@ -16,8 +16,8 @@ STATUS_FILE="$STATUS_DIR/update-status.json"
 BACKUP_DIR="/app/backups"
 LOG_FILE="/app/logs/update_$(date +%Y%m%d_%H%M%S).log"
 
-# Compose command (use the project directory as context)
-COMPOSE_CMD="docker compose -f $PROJECT_DIR/docker-compose.yml"
+# Compose command — use project name matching the host to control existing containers
+COMPOSE_CMD="docker compose -f $PROJECT_DIR/docker-compose.yml -p car-stock-monorepo"
 
 # Database connection
 DB_HOST="${POSTGRES_HOST:-postgres}"
@@ -107,7 +107,7 @@ rollback() {
     log "Rebuilding containers from rolled-back source..."
     cd "$PROJECT_DIR"
     $COMPOSE_CMD build api web 2>>"$LOG_FILE" || true
-    $COMPOSE_CMD up -d api web gotenberg 2>>"$LOG_FILE" || true
+    $COMPOSE_CMD up -d api web 2>>"$LOG_FILE" || true
   fi
 
   write_status 0 $TOTAL_STEPS "Rollback complete" "rollback_complete" "Rolled back due to: $reason"
@@ -295,9 +295,9 @@ main() {
 
   # Step 8: Restart services
   write_status 8 $TOTAL_STEPS "Restarting services" "running" "Starting updated containers..."
-  log "Step 8/$TOTAL_STEPS: Restarting services (api, web, gotenberg)"
+  log "Step 8/$TOTAL_STEPS: Restarting services (api, web)"
 
-  if ! $COMPOSE_CMD up -d --force-recreate api web gotenberg 2>>"$LOG_FILE"; then
+  if ! $COMPOSE_CMD up -d --force-recreate api web 2>>"$LOG_FILE"; then
     rollback "Failed to restart services"
   fi
   log "Services restarted"
