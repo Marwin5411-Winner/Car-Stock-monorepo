@@ -4,7 +4,7 @@ title Car Stock - Quick Update
 color 0F
 
 echo ==========================================
-echo   Car Stock - Quick Update Script v1.0.10
+echo   Car Stock - Quick Update Script v1.0.11
 echo ==========================================
 echo.
 
@@ -48,9 +48,9 @@ if "%CURRENT_COMMIT%"=="%NEW_COMMIT%" (
     exit /b 0
 )
 
-:: Step 3: Rebuild containers
-echo [3/5] Rebuilding Docker containers...
-docker compose build api web
+:: Step 3: Rebuild containers (including updater so web UI update works next time)
+echo [3/6] Rebuilding Docker containers...
+docker compose build api web updater
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Docker build failed!
     echo Rolling back to %CURRENT_COMMIT%...
@@ -62,14 +62,14 @@ echo      Done.
 echo.
 
 :: Step 4: Database schema sync
-echo [4/5] Updating database schema...
+echo [4/6] Updating database schema...
 docker compose run --rm --no-deps -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/car_stock?schema=public api bunx prisma db push --skip-generate 2>&1
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Database schema update failed!
     echo Rolling back to %CURRENT_COMMIT%...
     git reset --hard %CURRENT_COMMIT%
-    docker compose build api web
-    docker compose up -d api web
+    docker compose build api web updater
+    docker compose up -d api web updater
     echo Restoring database from backup...
     docker compose exec -T postgres pg_restore -U postgres -d car_stock --clean --if-exists < "%BACKUP_FILE%" 2>nul
     pause
@@ -78,9 +78,9 @@ if %ERRORLEVEL% neq 0 (
 echo      Done.
 echo.
 
-:: Step 5: Restart services
-echo [5/5] Restarting services...
-docker compose up -d api web
+:: Step 5: Restart services (api + web + updater)
+echo [5/6] Restarting services...
+docker compose up -d api web updater
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to start containers!
     pause
@@ -89,26 +89,47 @@ if %ERRORLEVEL% neq 0 (
 echo      Done.
 echo.
 
-echo ==========================================
-echo   Update complete!  %CURRENT_COMMIT% -^> %NEW_COMMIT%
-echo ==========================================
-echo.
-echo Waiting for services to be ready...
+:: Step 6: Health check
+echo [6/6] Checking services...
 timeout /t 10 /nobreak >nul
 
-:: Health check
+set ALL_OK=1
+
 curl -sf http://localhost:3001/health >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo   API:  OK
+    echo   API:      OK
 ) else (
-    echo   API:  Not ready yet ^(may need a few more seconds^)
+    echo   API:      Not ready yet
+    set ALL_OK=0
 )
 
 curl -sf http://localhost/health >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo   Web:  OK
+    echo   Web:      OK
 ) else (
-    echo   Web:  Not ready yet ^(may need a few more seconds^)
+    echo   Web:      Not ready yet
+    set ALL_OK=0
+)
+
+docker compose exec -T updater curl -sf http://localhost:9000/health >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    echo   Updater:  OK
+) else (
+    echo   Updater:  Not ready yet
+    set ALL_OK=0
+)
+
+echo.
+if "%ALL_OK%"=="1" (
+    echo ==========================================
+    echo   Update complete!  %CURRENT_COMMIT% -^> %NEW_COMMIT%
+    echo ==========================================
+) else (
+    echo ==========================================
+    echo   Update done, some services still starting
+    echo   %CURRENT_COMMIT% -^> %NEW_COMMIT%
+    echo ==========================================
+    echo   Wait a moment and try: docker compose ps
 )
 
 echo.
