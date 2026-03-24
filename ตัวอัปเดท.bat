@@ -3,15 +3,54 @@ chcp 65001 >nul
 title Car Stock - Quick Update
 color 0F
 
+:: ──────────────────────────────────────────────
+:: Self-update: git pull first, then re-launch
+:: this script from disk so the NEW version runs.
+:: ──────────────────────────────────────────────
+if "%~1"=="--run" goto :MAIN
+
 echo ==========================================
-echo   Car Stock - Quick Update Script v1.0.11
+echo   Car Stock - Preparing update...
 echo ==========================================
 echo.
 
-:: Save current commit for rollback
-for /f "delims=" %%i in ('git rev-parse --short HEAD') do set CURRENT_COMMIT=%%i
-echo   Current version: %CURRENT_COMMIT%
+:: Save commit before pull (for "already up to date" check later)
+for /f "delims=" %%i in ('git rev-parse --short HEAD') do set BEFORE_COMMIT=%%i
+
+echo   Pulling latest code...
+git pull origin main
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: git pull failed!
+    pause
+    exit /b 1
+)
+
+:: Re-launch ourselves — Windows reads the NEW file from disk
+call "%~f0" --run %BEFORE_COMMIT%
+exit /b %ERRORLEVEL%
+
+:: ──────────────────────────────────────────────
+:: Main update logic (runs as the LATEST version)
+:: ──────────────────────────────────────────────
+:MAIN
+set CURRENT_COMMIT=%~2
+
+echo ==========================================
+echo   Car Stock - Quick Update Script v1.0.12
+echo ==========================================
 echo.
+
+for /f "delims=" %%i in ('git rev-parse --short HEAD') do set NEW_COMMIT=%%i
+echo   Version: %CURRENT_COMMIT% -^> %NEW_COMMIT%
+echo.
+
+:: Check if anything changed
+if "%CURRENT_COMMIT%"=="%NEW_COMMIT%" (
+    echo   Already up to date. No rebuild needed.
+    echo.
+    pause
+    exit /b 0
+)
 
 :: Step 1: Backup database
 echo [1/5] Backing up database...
@@ -28,28 +67,8 @@ if %ERRORLEVEL% neq 0 (
 echo      Backup saved: %BACKUP_FILE%
 echo.
 
-:: Step 2: Git pull
-echo [2/5] Pulling latest code...
-git pull origin main
-if %ERRORLEVEL% neq 0 (
-    echo ERROR: git pull failed!
-    pause
-    exit /b 1
-)
-for /f "delims=" %%i in ('git rev-parse --short HEAD') do set NEW_COMMIT=%%i
-echo      Updated to: %NEW_COMMIT%
-echo.
-
-:: Check if anything changed
-if "%CURRENT_COMMIT%"=="%NEW_COMMIT%" (
-    echo   Already up to date. No rebuild needed.
-    echo.
-    pause
-    exit /b 0
-)
-
-:: Step 3: Rebuild containers (including updater so web UI update works next time)
-echo [3/6] Rebuilding Docker containers...
+:: Step 2: Rebuild all containers (api + web + updater)
+echo [2/5] Rebuilding Docker containers...
 docker compose build api web updater
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Docker build failed!
@@ -61,8 +80,8 @@ if %ERRORLEVEL% neq 0 (
 echo      Done.
 echo.
 
-:: Step 4: Database schema sync
-echo [4/6] Updating database schema...
+:: Step 3: Database schema sync
+echo [3/5] Updating database schema...
 docker compose run --rm --no-deps -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/car_stock?schema=public api bunx prisma db push --skip-generate 2>&1
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Database schema update failed!
@@ -78,8 +97,8 @@ if %ERRORLEVEL% neq 0 (
 echo      Done.
 echo.
 
-:: Step 5: Restart services (api + web + updater)
-echo [5/6] Restarting services...
+:: Step 4: Restart all services
+echo [4/5] Restarting services...
 docker compose up -d api web updater
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to start containers!
@@ -89,8 +108,8 @@ if %ERRORLEVEL% neq 0 (
 echo      Done.
 echo.
 
-:: Step 6: Health check
-echo [6/6] Checking services...
+:: Step 5: Health check
+echo [5/5] Checking services...
 timeout /t 10 /nobreak >nul
 
 set ALL_OK=1
@@ -134,6 +153,5 @@ if "%ALL_OK%"=="1" (
 
 echo.
 echo   Backup: %BACKUP_FILE%
-echo   Rollback: git reset --hard %CURRENT_COMMIT%
 echo.
 pause
