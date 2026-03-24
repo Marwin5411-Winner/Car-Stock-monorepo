@@ -127,7 +127,7 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
           t.Literal('OTHER_EXPENSE'),
           t.Literal('MISCELLANEOUS'),
         ]),
-        amount: t.Number(),
+        amount: t.Number({ minimum: 0.01 }),
         paymentMethod: t.Union([
           t.Literal('CASH'),
           t.Literal('BANK_TRANSFER'),

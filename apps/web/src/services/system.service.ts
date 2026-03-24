@@ -92,6 +92,10 @@ class SystemService {
     });
   }
 
+  async triggerBackup(): Promise<ApiResponse<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>> {
+    return api.post<ApiResponse<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>>('/api/system/backup');
+  }
+
   async listBackups(): Promise<ApiResponse<{ backups: BackupInfo[] }>> {
     return api.get<ApiResponse<{ backups: BackupInfo[] }>>('/api/system/backups');
   }

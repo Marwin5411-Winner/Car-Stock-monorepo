@@ -13,6 +13,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Database,
 } from 'lucide-react';
 import { systemService } from '../../services/system.service';
 import type {
@@ -71,6 +72,8 @@ export default function SystemUpdateSection() {
   const [updating, setUpdating] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   const [loadingBackups, setLoadingBackups] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupResult, setBackupResult] = useState<string | null>(null);
 
   const [showChangelog, setShowChangelog] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
@@ -214,6 +217,32 @@ export default function SystemUpdateSection() {
       } finally {
         setLoadingBackups(false);
       }
+    }
+  };
+
+  const handleManualBackup = async () => {
+    setBackingUp(true);
+    setBackupResult(null);
+    try {
+      const res = await systemService.triggerBackup();
+      if (res.success && res.data) {
+        setBackupResult(
+          `สำเร็จ! .dump (${res.data.dumpSize}) + .sql (${res.data.sqlSize})`
+        );
+        // Refresh backup list if it's open
+        if (showBackups) {
+          const listRes = await systemService.listBackups();
+          if (listRes.success && listRes.data) {
+            setBackups(listRes.data.backups || []);
+          }
+        }
+      } else {
+        setBackupResult('Backup ล้มเหลว');
+      }
+    } catch (e) {
+      setBackupResult(e instanceof Error ? e.message : 'Backup ล้มเหลว');
+    } finally {
+      setBackingUp(false);
     }
   };
 
@@ -524,7 +553,39 @@ export default function SystemUpdateSection() {
           <HardDrive className="w-4 h-4" />
           {showBackups ? 'ซ่อน Backups' : 'ดู Backups'}
         </button>
+
+        {/* Manual Backup Button */}
+        <button
+          onClick={handleManualBackup}
+          disabled={isProcessing || backingUp}
+          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
+        >
+          {backingUp ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Database className="w-4 h-4" />
+          )}
+          {backingUp ? 'กำลัง Backup...' : 'Backup ตอนนี้'}
+        </button>
       </div>
+
+      {/* Backup Result */}
+      {backupResult && (
+        <div
+          className={`rounded-lg p-3 flex items-center gap-2 text-sm ${
+            backupResult.startsWith('สำเร็จ')
+              ? 'bg-green-50 border border-green-200 text-green-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
+          }`}
+        >
+          {backupResult.startsWith('สำเร็จ') ? (
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <XCircle className="w-4 h-4 flex-shrink-0" />
+          )}
+          {backupResult}
+        </div>
+      )}
 
       {/* Backups List */}
       {showBackups && (

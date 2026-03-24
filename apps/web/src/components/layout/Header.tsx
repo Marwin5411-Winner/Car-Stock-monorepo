@@ -1,7 +1,6 @@
 import { ROLE_LABELS } from '@car-stock/shared/constants';
 import type React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCompany } from '../../contexts/CompanyContext';
 import { Button } from '../ui/button';
 
 export const Header: React.FC = () => {
@@ -11,11 +10,9 @@ export const Header: React.FC = () => {
     await logout();
   };
 
-  const { companyName } = useCompany();
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-      <div className="px-4 lg:px-6 py-2.5 flex justify-between items-center">
-        <h1 className="text-lg font-semibold text-gray-900">{companyName || '...'}</h1>
+    <header className="bg-white border-b border-gray-200 shrink-0">
+      <div className="px-4 lg:px-6 h-14 flex justify-end items-center">
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-sm font-medium text-gray-700">

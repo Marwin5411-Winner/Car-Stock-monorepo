@@ -297,10 +297,10 @@ export class SalesService {
       throw new NotFoundError('Customer');
     }
 
-    // Check if stock exists (if provided)
+    // Check if stock exists (if provided) — filter soft-deleted
     if (validated.stockId) {
-      const stock = await db.stock.findUnique({
-        where: { id: validated.stockId },
+      const stock = await db.stock.findFirst({
+        where: { id: validated.stockId, deletedAt: null },
         select: { id: true, status: true },
       });
 
@@ -350,51 +350,51 @@ export class SalesService {
     // Calculate remaining amount
     const remainingAmount = validated.totalAmount - (validated.depositAmount || 0);
 
-    // Create sale
-    const sale = await db.sale.create({
-      data: {
-        ...validated,
-        saleNumber,
-        remainingAmount,
-        createdById: currentUser.id,
-      },
-    });
-
-    // If stock is provided, reserve it
-    if (validated.stockId) {
-      await db.stock.update({
-        where: { id: validated.stockId },
+    // Create sale + reserve stock + history + activity log in transaction
+    const sale = await db.$transaction(async (tx) => {
+      const created = await tx.sale.create({
         data: {
-          status: 'RESERVED',
+          ...validated,
+          saleNumber,
+          remainingAmount,
+          createdById: currentUser.id,
         },
       });
-    }
 
-    // Create history record
-    await db.saleHistory.create({
-      data: {
-        saleId: sale.id,
-        action: 'CREATE_SALE',
-        fromStatus: null,
-        toStatus: sale.status,
-        notes: 'Sale created',
-        createdById: currentUser.id,
-      },
-    });
+      // If stock is provided, reserve it
+      if (validated.stockId) {
+        await tx.stock.update({
+          where: { id: validated.stockId },
+          data: { status: 'RESERVED' },
+        });
+      }
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'CREATE_SALE',
-        entity: 'SALE',
-        entityId: sale.id,
-        details: {
-          saleNumber: sale.saleNumber,
-          customerId: sale.customerId,
-          totalAmount: sale.totalAmount,
+      await tx.saleHistory.create({
+        data: {
+          saleId: created.id,
+          action: 'CREATE_SALE',
+          fromStatus: null,
+          toStatus: created.status,
+          notes: 'Sale created',
+          createdById: currentUser.id,
         },
-      },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'CREATE_SALE',
+          entity: 'SALE',
+          entityId: created.id,
+          details: {
+            saleNumber: created.saleNumber,
+            customerId: created.customerId,
+            totalAmount: created.totalAmount,
+          },
+        },
+      });
+
+      return created;
     });
 
     return sale;

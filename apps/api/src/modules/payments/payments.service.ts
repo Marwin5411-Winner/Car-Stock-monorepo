@@ -213,61 +213,78 @@ export class PaymentsService {
       }
     }
 
+    // Validate amount is positive
+    if (validated.amount <= 0) {
+      throw new BadRequestError('จำนวนเงินต้องมากกว่า 0');
+    }
+
+    // Validate overpayment for car-related payments
+    const isCarPayment = CAR_PAYMENT_TYPES.includes(validated.paymentType as typeof CAR_PAYMENT_TYPES[number]);
+
+    if (sale && isCarPayment) {
+      const remaining = Number(sale.remainingAmount);
+      if (validated.amount > remaining) {
+        throw new BadRequestError(
+          `จำนวนเงินเกินยอดค้างชำระ (คงเหลือ ${remaining.toLocaleString()} บาท)`
+        );
+      }
+    }
+
     // Generate receipt number
     const receiptNumber = await this.generateReceiptNumber();
 
-    // Create payment
-    const payment = await db.payment.create({
-      data: {
-        customerId: validated.customerId,
-        saleId: validated.saleId || null,
-        description: validated.description || null,
-        paymentDate: validated.paymentDate,
-        paymentType: validated.paymentType,
-        amount: validated.amount,
-        paymentMethod: validated.paymentMethod,
-        referenceNumber: validated.referenceNumber || null,
-        notes: validated.notes || null,
-        receiptNumber,
-        createdById: currentUser.id,
-        issuedBy: `${currentUser.firstName} ${currentUser.lastName}`,
-      },
-    });
-
-    // Update sale paid amount and remaining amount
-    // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
-    // OTHER_EXPENSE and MISCELLANEOUS should NOT affect the car price remaining
-    const isCarPayment = CAR_PAYMENT_TYPES.includes(validated.paymentType as typeof CAR_PAYMENT_TYPES[number]);
-    
-    if (sale && validated.saleId && isCarPayment) {
-      const newPaidAmount = Number(sale.paidAmount) + validated.amount;
-      const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
-
-      await db.sale.update({
-        where: { id: validated.saleId },
+    // Create payment + update sale balance in a single transaction
+    const payment = await db.$transaction(async (tx) => {
+      const created = await tx.payment.create({
         data: {
-          paidAmount: newPaidAmount,
-          remainingAmount: newRemainingAmount,
+          customerId: validated.customerId,
+          saleId: validated.saleId || null,
+          description: validated.description || null,
+          paymentDate: validated.paymentDate,
+          paymentType: validated.paymentType,
+          amount: validated.amount,
+          paymentMethod: validated.paymentMethod,
+          referenceNumber: validated.referenceNumber || null,
+          notes: validated.notes || null,
+          receiptNumber,
+          createdById: currentUser.id,
+          issuedBy: `${currentUser.firstName} ${currentUser.lastName}`,
         },
       });
-    }
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'CREATE_PAYMENT',
-        entity: 'PAYMENT',
-        entityId: payment.id,
-        details: {
-          receiptNumber: payment.receiptNumber,
-          amount: payment.amount,
-          saleId: payment.saleId,
-          customerId: payment.customerId,
-          paymentType: payment.paymentType,
-          description: payment.description,
+      // Update sale paid amount and remaining amount
+      // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
+      if (sale && validated.saleId && isCarPayment) {
+        const newPaidAmount = Number(sale.paidAmount) + validated.amount;
+        const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+
+        await tx.sale.update({
+          where: { id: validated.saleId },
+          data: {
+            paidAmount: newPaidAmount,
+            remainingAmount: newRemainingAmount,
+          },
+        });
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'CREATE_PAYMENT',
+          entity: 'PAYMENT',
+          entityId: created.id,
+          details: {
+            receiptNumber: created.receiptNumber,
+            amount: created.amount,
+            saleId: created.saleId,
+            customerId: created.customerId,
+            paymentType: created.paymentType,
+            description: created.description,
+          },
         },
-      },
+      });
+
+      return created;
     });
 
     return payment;

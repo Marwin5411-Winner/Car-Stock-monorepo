@@ -20,6 +20,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePermission } from '../../hooks/usePermission';
+import { useCompany } from '../../contexts/CompanyContext';
 
 interface NavItem {
   to: string;
@@ -96,6 +97,7 @@ const navItems: NavItem[] = [
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = usePermission();
+  const { companyName } = useCompany();
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('sidebar-collapsed') === 'true'
   );
@@ -115,14 +117,29 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className={cn('shrink-0 transition-all duration-200', collapsed ? 'w-16' : 'w-60')}>
-      <nav className="bg-slate-900 text-white rounded-lg sticky top-20 p-2 flex flex-col h-[calc(100vh-6rem)]">
+    <aside
+      className={cn(
+        'shrink-0 bg-slate-900 text-white flex flex-col h-screen transition-all duration-200',
+        collapsed ? 'w-16' : 'w-60'
+      )}
+    >
+      {/* Brand */}
+      <div className="flex items-center h-14 px-3 border-b border-slate-700/50 shrink-0">
+        {!collapsed ? (
+          <h1 className="text-sm font-semibold text-white truncate">{companyName || '...'}</h1>
+        ) : (
+          <span className="mx-auto text-lg font-bold text-white">V</span>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto p-2">
         {!collapsed && (
-          <h2 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-2">
+          <h2 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-2 mt-1">
             เมนูหลัก
           </h2>
         )}
-        <ul className="space-y-1 flex-1 overflow-y-auto">
+        <ul className="space-y-1">
           {navItems
             .filter((item) => !item.permission || hasPermission(item.permission))
             .map((item) => (
@@ -144,14 +161,18 @@ export const Sidebar: React.FC = () => {
               </li>
             ))}
         </ul>
+      </nav>
+
+      {/* Collapse toggle */}
+      <div className="p-2 border-t border-slate-700/50 shrink-0">
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="mt-2 flex items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          className="flex items-center justify-center w-full rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
-      </nav>
+      </div>
     </aside>
   );
 };

@@ -21,7 +21,7 @@ PROJECT_DIR="${PROJECT_PATH:-/app/project}"
 UPDATE_LOCK="/tmp/update.lock"
 
 log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [server] $1"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [server] $1" >&2
 }
 
 # Verify shared secret (if configured)
@@ -109,6 +109,10 @@ handle_request() {
 
     "GET /backups")
       handle_backups
+      ;;
+
+    "POST /backup")
+      handle_manual_backup
       ;;
 
     "GET /version")
@@ -322,6 +326,37 @@ handle_log_file() {
   local content
   content=$(tail -100 "$log_path" 2>/dev/null | jq -R -s 'split("\n") | map(select(. != ""))' 2>/dev/null || echo '[]')
   send_response 200 "{\"filename\": \"$filename\", \"lines\": $content}"
+}
+
+handle_manual_backup() {
+  # Prevent backup during active update
+  if [ -f "$UPDATE_LOCK" ]; then
+    local lock_pid=$(cat "$UPDATE_LOCK" 2>/dev/null)
+    if kill -0 "$lock_pid" 2>/dev/null; then
+      send_response 409 '{"error": "Cannot backup while update is in progress"}'
+      return
+    fi
+  fi
+
+  log "Starting manual backup..."
+  local result
+  local error_output
+  error_output=$(mktemp)
+  if result=$(/app/backup.sh manual 2>"$error_output"); then
+    # Get the latest backup files to return info
+    local latest_dump latest_sql dump_size sql_size
+    latest_dump=$(ls -1t "$BACKUP_DIR"/car-stock_*_manual.dump 2>/dev/null | head -1)
+    latest_sql=$(ls -1t "$BACKUP_DIR"/car-stock_*_manual.sql 2>/dev/null | head -1)
+    dump_size=$(du -h "$latest_dump" 2>/dev/null | cut -f1 || echo "0")
+    sql_size=$(du -h "$latest_sql" 2>/dev/null | cut -f1 || echo "0")
+    send_response 200 "{\"message\": \"Backup completed\", \"dump\": \"$(basename "$latest_dump" 2>/dev/null)\", \"dumpSize\": \"$dump_size\", \"sql\": \"$(basename "$latest_sql" 2>/dev/null)\", \"sqlSize\": \"$sql_size\"}"
+  else
+    local err_msg
+    err_msg=$(tail -5 "$error_output" | tr '\n' ' ' | sed 's/"/\\"/g')
+    log "Manual backup failed: $err_msg"
+    send_response 500 "{\"error\": \"Backup failed\", \"details\": \"$err_msg\"}"
+  fi
+  rm -f "$error_output"
 }
 
 # --- Entry Point ---

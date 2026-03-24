@@ -310,9 +310,9 @@ export default function StockFormPage() {
                   value={formData.engineNumber}
                   onChange={(e) => { handleChange(e); clearFieldErrors(); }}
                   placeholder="1GD-FTV-0123456"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${fieldErrors.enginenumber ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${fieldErrors.enginenumber || fieldErrors.engineNumber ? 'border-red-500' : 'border-gray-300'}`}
                 />
-                {fieldErrors.enginenumber && <p className="text-sm text-red-500 mt-1">{fieldErrors.enginenumber}</p>}
+                {(fieldErrors.enginenumber || fieldErrors.engineNumber) && <p className="text-sm text-red-500 mt-1">{fieldErrors.enginenumber || fieldErrors.engineNumber}</p>}
               </div>
             </div>
 

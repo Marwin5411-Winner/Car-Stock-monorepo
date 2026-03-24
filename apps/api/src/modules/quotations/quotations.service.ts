@@ -601,138 +601,141 @@ export class QuotationsService {
     const totalAmount = carPrice + depositAmount;
     const remainingAmount = carPrice;
 
-    // Create the sale
-    const sale = await db.sale.create({
-      data: {
-        saleNumber,
-        type: saleType,
-        status: saleType === 'DIRECT_SALE' ? 'PREPARING' : 'RESERVED',
-        customerId: quotation.customerId,
-        stockId: data.stockId || null,
-        vehicleModelId: quotation.vehicleModelId,
-        preferredExtColor: quotation.preferredExtColor,
-        preferredIntColor: quotation.preferredIntColor,
-        totalAmount,
-        depositAmount,
-        paidAmount: depositAmount, // Deposit is recorded as paid amount
-        remainingAmount,
-        reservedDate: new Date(),
-        discountSnapshot: quotation.discountAmount,
-        paymentMode: data.paymentMode || 'CASH',
-        notes: quotation.notes,
-        createdById: currentUser.id,
-      },
-    });
-
-    // If deposit amount is provided, create a payment record
+    // Pre-generate receipt number outside transaction (uses its own sequence)
+    let receiptNumber: string | null = null;
     if (depositAmount > 0) {
-      const receiptNumber = await this.generateReceiptNumber();
-      
-      await db.payment.create({
+      receiptNumber = await this.generateReceiptNumber();
+    }
+
+    // All mutations in a single transaction
+    const result = await db.$transaction(async (tx) => {
+      const sale = await tx.sale.create({
         data: {
-          receiptNumber,
+          saleNumber,
+          type: saleType,
+          status: saleType === 'DIRECT_SALE' ? 'PREPARING' : 'RESERVED',
           customerId: quotation.customerId,
-          saleId: sale.id,
-          paymentDate: new Date(),
-          paymentType: 'DEPOSIT',
-          amount: depositAmount,
-          paymentMethod: data.paymentMethod || 'CASH',
-          referenceNumber: data.paymentReferenceNumber || null,
-          notes: `เงินมัดจำจากใบเสนอราคา ${quotation.quotationNumber}`,
-          description: `เงินมัดจำ - ${saleNumber}`,
+          stockId: data.stockId || null,
+          vehicleModelId: quotation.vehicleModelId,
+          preferredExtColor: quotation.preferredExtColor,
+          preferredIntColor: quotation.preferredIntColor,
+          totalAmount,
+          depositAmount,
+          paidAmount: depositAmount,
+          remainingAmount,
+          reservedDate: new Date(),
+          discountSnapshot: quotation.discountAmount,
+          paymentMode: data.paymentMode || 'CASH',
+          notes: quotation.notes,
           createdById: currentUser.id,
-          issuedBy: `${currentUser.firstName} ${currentUser.lastName}`,
         },
       });
 
-      // Log payment activity
-      await db.activityLog.create({
+      // Create deposit payment if provided
+      if (depositAmount > 0 && receiptNumber) {
+        await tx.payment.create({
+          data: {
+            receiptNumber,
+            customerId: quotation.customerId,
+            saleId: sale.id,
+            paymentDate: new Date(),
+            paymentType: 'DEPOSIT',
+            amount: depositAmount,
+            paymentMethod: data.paymentMethod || 'CASH',
+            referenceNumber: data.paymentReferenceNumber || null,
+            notes: `เงินมัดจำจากใบเสนอราคา ${quotation.quotationNumber}`,
+            description: `เงินมัดจำ - ${saleNumber}`,
+            createdById: currentUser.id,
+            issuedBy: `${currentUser.firstName} ${currentUser.lastName}`,
+          },
+        });
+
+        await tx.activityLog.create({
+          data: {
+            userId: currentUser.id,
+            action: 'CREATE_DEPOSIT_PAYMENT',
+            entity: 'PAYMENT',
+            entityId: sale.id,
+            details: {
+              saleNumber: sale.saleNumber,
+              quotationNumber: quotation.quotationNumber,
+              depositAmount,
+              paymentMethod: data.paymentMethod || 'CASH',
+            },
+          },
+        });
+      }
+
+      // Update quotation status to CONVERTED and link to sale
+      const updatedQuotation = await tx.quotation.update({
+        where: { id },
+        data: {
+          status: 'CONVERTED',
+          saleId: sale.id,
+        },
+        include: {
+          customer: true,
+          vehicleModel: true,
+          sale: {
+            select: {
+              id: true,
+              saleNumber: true,
+              status: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      // If stock is assigned, reserve it
+      if (data.stockId) {
+        await tx.stock.update({
+          where: { id: data.stockId },
+          data: { status: 'RESERVED' },
+        });
+      }
+
+      await tx.saleHistory.create({
+        data: {
+          saleId: sale.id,
+          action: 'CONVERT_FROM_QUOTATION',
+          fromStatus: null,
+          toStatus: sale.status,
+          notes: `Converted from quotation ${quotation.quotationNumber}`,
+          createdById: currentUser.id,
+        },
+      });
+
+      await tx.activityLog.create({
         data: {
           userId: currentUser.id,
-          action: 'CREATE_DEPOSIT_PAYMENT',
-          entity: 'PAYMENT',
-          entityId: sale.id,
+          action: 'CONVERT_QUOTATION_TO_SALE',
+          entity: 'QUOTATION',
+          entityId: quotation.id,
           details: {
-            saleNumber: sale.saleNumber,
             quotationNumber: quotation.quotationNumber,
-            depositAmount: depositAmount,
-            paymentMethod: data.paymentMethod || 'CASH',
+            saleNumber: sale.saleNumber,
+            saleId: sale.id,
           },
         },
       });
-    }
 
-    // Update quotation status to CONVERTED and link to sale
-    const updatedQuotation = await db.quotation.update({
-      where: { id },
-      data: {
-        status: 'CONVERTED',
-        saleId: sale.id,
-      },
-      include: {
-        customer: true,
-        vehicleModel: true,
-        sale: {
-          select: {
-            id: true,
-            saleNumber: true,
-            status: true,
-          },
-        },
-        createdBy: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    });
-
-    // If stock is assigned, update its status
-    if (data.stockId) {
-      await db.stock.update({
-        where: { id: data.stockId },
-        data: {
-          status: 'RESERVED',
-        },
-      });
-    }
-
-    // Create sale history record
-    await db.saleHistory.create({
-      data: {
-        saleId: sale.id,
-        action: 'CONVERT_FROM_QUOTATION',
-        fromStatus: null,
-        toStatus: sale.status,
-        notes: `Converted from quotation ${quotation.quotationNumber}`,
-        createdById: currentUser.id,
-      },
-    });
-
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'CONVERT_QUOTATION_TO_SALE',
-        entity: 'QUOTATION',
-        entityId: quotation.id,
-        details: {
-          quotationNumber: quotation.quotationNumber,
-          saleNumber: sale.saleNumber,
-          saleId: sale.id,
-        },
-      },
+      return { updatedQuotation, sale };
     });
 
     return {
-      quotation: updatedQuotation,
+      quotation: result.updatedQuotation,
       sale: {
-        id: sale.id,
-        saleNumber: sale.saleNumber,
-        status: sale.status,
+        id: result.sale.id,
+        saleNumber: result.sale.saleNumber,
+        status: result.sale.status,
       },
     };
   }

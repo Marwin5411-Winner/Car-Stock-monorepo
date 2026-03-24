@@ -69,6 +69,17 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       ),
     }
   )
+  // Trigger manual backup
+  .post(
+    '/backup',
+    async () => {
+      const result = await systemService.triggerBackup();
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+    }
+  )
   // List available backups
   .get(
     '/backups',

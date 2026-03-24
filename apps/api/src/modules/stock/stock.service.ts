@@ -372,22 +372,29 @@ export class StockService {
 
     const validated = CreateStockSchema.parse(data);
 
-    // Check if VIN exists
-    const existingStock = await db.stock.findUnique({
-      where: { vin: validated.vin },
-    });
+    // Sanitize empty strings to null for unique optional fields
+    const engineNumber = validated.engineNumber?.trim() || null;
+    const motorNumber1 = validated.motorNumber1?.trim() || null;
+    const motorNumber2 = validated.motorNumber2?.trim() || null;
 
-    // Check if Engine Number exists
-    const existingEngineNumber = await db.stock.findUnique({
-      where: { engineNumber: validated.engineNumber },
+    // Check if VIN exists (exclude soft-deleted records)
+    const existingStock = await db.stock.findFirst({
+      where: { vin: validated.vin, deletedAt: null },
     });
-
-    if (existingEngineNumber) {
-      throw new ConflictError('Engine Number');
-    }
 
     if (existingStock) {
       throw new ConflictError('VIN');
+    }
+
+    // Check if Engine Number exists (only when provided, exclude soft-deleted)
+    if (engineNumber) {
+      const existingEngineNumber = await db.stock.findFirst({
+        where: { engineNumber, deletedAt: null },
+      });
+
+      if (existingEngineNumber) {
+        throw new ConflictError('Engine Number');
+      }
     }
 
     // Check if vehicle model exists
@@ -400,31 +407,31 @@ export class StockService {
       throw new NotFoundError('Vehicle model');
     }
 
-    // Create stock - sanitize empty strings to null for unique optional fields
-    const stockData = {
-      ...validated,
-      // Convert empty strings to null for unique fields to avoid constraint violations
-      engineNumber: validated.engineNumber?.trim() || null,
-      motorNumber1: validated.motorNumber1?.trim() || null,
-      motorNumber2: validated.motorNumber2?.trim() || null,
-    };
-
-    const stock = await db.stock.create({
-      data: stockData,
-    });
-
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'CREATE_STOCK',
-        entity: 'STOCK',
-        entityId: stock.id,
-        details: {
-          vin: stock.vin,
-          vehicleModel: validated.vehicleModelId,
+    // Create stock + activity log in a transaction
+    const stock = await db.$transaction(async (tx) => {
+      const created = await tx.stock.create({
+        data: {
+          ...validated,
+          engineNumber,
+          motorNumber1,
+          motorNumber2,
         },
-      },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'CREATE_STOCK',
+          entity: 'STOCK',
+          entityId: created.id,
+          details: {
+            vin: created.vin,
+            vehicleModel: validated.vehicleModelId,
+          },
+        },
+      });
+
+      return created;
     });
 
     return stock;

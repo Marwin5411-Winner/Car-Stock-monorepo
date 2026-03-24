@@ -167,6 +167,25 @@ export class SystemService {
   }
 
   /**
+   * Trigger manual backup
+   */
+  async triggerBackup(): Promise<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }> {
+    const response = await fetch(`${UPDATER_URL}/backup`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(
+        (error as { error?: string }).error || 'Failed to trigger backup'
+      );
+    }
+
+    return response.json() as Promise<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>;
+  }
+
+  /**
    * List available backups
    */
   async listBackups(): Promise<{ backups: BackupInfo[] }> {
