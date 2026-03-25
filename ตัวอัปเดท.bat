@@ -70,13 +70,23 @@ if %ERRORLEVEL% neq 0 (
     timeout /t 10 /nobreak >nul
 )
 
+:: Read DB config from running container
+set DB_USER=postgres
+set DB_NAME=car_stock
+for /f "delims=" %%i in ('docker compose exec -T postgres printenv POSTGRES_USER 2^>nul') do set DB_USER=%%i
+for /f "delims=" %%i in ('docker compose exec -T postgres printenv POSTGRES_DB 2^>nul') do set DB_NAME=%%i
+:: Trim trailing carriage return from docker output
+set DB_USER=%DB_USER: =%
+set DB_NAME=%DB_NAME: =%
+echo   Database: %DB_NAME% (user: %DB_USER%)
+
 :: Step 1: Backup database
 echo [1/4] Backing up database...
 for /f "tokens=1-3 delims=/ " %%a in ('date /t') do set DATESTAMP=%%c%%a%%b
 for /f "tokens=1-2 delims=: " %%a in ('time /t') do set TIMESTAMP=%%a%%b
 set BACKUP_FILE=backups\car-stock_%DATESTAMP%_%TIMESTAMP%_pre-update.dump
 if not exist backups mkdir backups
-docker compose exec -T postgres pg_dump -U postgres -Fc car_stock > "%BACKUP_FILE%"
+docker compose exec -T postgres pg_dump -U %DB_USER% -Fc %DB_NAME% > "%BACKUP_FILE%"
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Database backup failed!
     echo   Check: Is the database running? Try: docker compose ps
@@ -104,7 +114,7 @@ if %ERRORLEVEL% neq 0 (
     git reset --hard %CURRENT_COMMIT%
     docker compose up -d --build --force-recreate api web updater
     echo Restoring database from backup...
-    docker compose exec -T postgres pg_restore -U postgres -d car_stock --clean --if-exists < "%BACKUP_FILE%" 2>nul
+    docker compose exec -T postgres pg_restore -U %DB_USER% -d %DB_NAME% --clean --if-exists < "%BACKUP_FILE%" 2>nul
     pause
     exit /b 1
 )
