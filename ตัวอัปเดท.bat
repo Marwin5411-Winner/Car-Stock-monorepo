@@ -82,7 +82,7 @@ echo.
 
 :: Step 3: Database schema sync
 echo [3/5] Updating database schema...
-docker compose run --rm --no-deps -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/car_stock?schema=public api bunx prisma db push --skip-generate 2>&1
+docker compose run --rm --no-deps --entrypoint "" -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/car_stock?schema=public api bunx prisma db push --skip-generate 2>&1
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Database schema update failed!
     echo Rolling back to %CURRENT_COMMIT%...

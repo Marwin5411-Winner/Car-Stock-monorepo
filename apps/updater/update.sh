@@ -278,7 +278,7 @@ main() {
 
   # Run prisma db push inside a temporary API container
   # This uses the newly built API image which has the updated schema
-  DB_PUSH_OUTPUT=$($COMPOSE_CMD run --rm --no-deps \
+  DB_PUSH_OUTPUT=$($COMPOSE_CMD run --rm --no-deps --entrypoint "" \
     -e DATABASE_URL="postgresql://${DB_USER}:${POSTGRES_PASSWORD:-postgres}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public" \
     api bunx prisma db push --skip-generate 2>&1) || {
     log "prisma db push output: $DB_PUSH_OUTPUT"
