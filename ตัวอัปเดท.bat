@@ -52,15 +52,41 @@ if "%CURRENT_COMMIT%"=="%NEW_COMMIT%" (
     exit /b 0
 )
 
+:: Pre-flight: check Docker is running
+echo   Checking Docker...
+docker info >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: Docker is not running! Please start Docker Desktop first.
+    pause
+    exit /b 1
+)
+
+:: Pre-flight: check postgres container is up
+docker compose ps --status running --format "{{.Name}}" 2>nul | findstr /i "postgres db" >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo   Starting containers...
+    docker compose up -d postgres
+    echo   Waiting for database to be ready...
+    timeout /t 10 /nobreak >nul
+)
+
 :: Step 1: Backup database
 echo [1/4] Backing up database...
 for /f "tokens=1-3 delims=/ " %%a in ('date /t') do set DATESTAMP=%%c%%a%%b
 for /f "tokens=1-2 delims=: " %%a in ('time /t') do set TIMESTAMP=%%a%%b
 set BACKUP_FILE=backups\car-stock_%DATESTAMP%_%TIMESTAMP%_pre-update.dump
 if not exist backups mkdir backups
-docker compose exec -T postgres pg_dump -U postgres -Fc car_stock > "%BACKUP_FILE%" 2>nul
+docker compose exec -T postgres pg_dump -U postgres -Fc car_stock > "%BACKUP_FILE%"
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Database backup failed!
+    echo   Check: Is the database running? Try: docker compose ps
+    pause
+    exit /b 1
+)
+:: Verify backup file is not empty
+for %%F in ("%BACKUP_FILE%") do if %%~zF==0 (
+    echo ERROR: Backup file is empty!
+    del "%BACKUP_FILE%"
     pause
     exit /b 1
 )
