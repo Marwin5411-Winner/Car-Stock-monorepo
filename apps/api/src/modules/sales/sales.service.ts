@@ -436,6 +436,7 @@ export class SalesService {
       const allowedFields = [
         'totalAmount', 'depositAmount', 'paymentMode', 'downPayment',
         'financeAmount', 'financeProvider', 'carDiscount', 'downPaymentDiscount',
+        'discountSnapshot', 'freebiesSnapshot',
         'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
       ];
       const disallowed = Object.keys(validated).filter(k => !allowedFields.includes(k));

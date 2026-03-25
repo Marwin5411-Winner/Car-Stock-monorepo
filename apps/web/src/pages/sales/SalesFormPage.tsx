@@ -529,41 +529,6 @@ export default function SalesFormPage() {
                   </div>
                 </div>
 
-                {/* Discount fields - ADMIN/ACCOUNTANT only */}
-                {canDiscount && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="md:col-span-2">
-                      <p className="text-xs font-medium text-yellow-700 mb-2">ส่วนลด (สำหรับบัญชี/กรรมการ)</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-1">
-                        ส่วนลดตัวรถ (บาท)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.carDiscount}
-                        onChange={(e) => setFormData({ ...formData, carDiscount: parseFloat(e.target.value) || 0 })}
-                        min="0"
-                        step="0.01"
-                        className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-1">
-                        ส่วนลดเงินดาวน์ (บาท)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.downPaymentDiscount}
-                        onChange={(e) => setFormData({ ...formData, downPaymentDiscount: parseFloat(e.target.value) || 0 })}
-                        min="0"
-                        step="0.01"
-                        className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Interest rate and installment */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -633,6 +598,41 @@ export default function SalesFormPage() {
                     />
                     <p className="text-xs text-gray-500 mt-1">คำนวณอัตโนมัติจากยอดจัด × ดอกเบี้ย × ปี ÷ งวด</p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Discount fields - visible for all payment modes */}
+            {canDiscount && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
+                <div className="md:col-span-2">
+                  <p className="text-xs font-medium text-yellow-700 mb-2">ส่วนลด (สำหรับบัญชี/กรรมการ)</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">
+                    ส่วนลดตัวรถ (บาท)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.carDiscount}
+                    onChange={(e) => setFormData({ ...formData, carDiscount: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">
+                    ส่วนลดเงินดาวน์ (บาท)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.downPaymentDiscount}
+                    onChange={(e) => setFormData({ ...formData, downPaymentDiscount: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
                 </div>
               </div>
             )}
