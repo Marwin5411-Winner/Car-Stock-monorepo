@@ -38,7 +38,7 @@ export class StockService {
     if (!arrivalDate) return 0;
     const today = new Date();
     const diffTime = Math.abs(today.getTime() - arrivalDate.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   }
 
   /**
@@ -715,13 +715,13 @@ export class StockService {
       soldStock,
       availableStocks,
     ] = await Promise.all([
-      db.stock.count(),
-      db.stock.count({ where: { status: 'AVAILABLE' } }),
-      db.stock.count({ where: { status: 'RESERVED' } }),
-      db.stock.count({ where: { status: 'PREPARING' } }),
-      db.stock.count({ where: { status: 'SOLD' } }),
+      db.stock.count({ where: { deletedAt: null } }),
+      db.stock.count({ where: { status: 'AVAILABLE', deletedAt: null } }),
+      db.stock.count({ where: { status: 'RESERVED', deletedAt: null } }),
+      db.stock.count({ where: { status: 'PREPARING', deletedAt: null } }),
+      db.stock.count({ where: { status: 'SOLD', deletedAt: null } }),
       db.stock.findMany({
-        where: { status: 'AVAILABLE' },
+        where: { status: 'AVAILABLE', deletedAt: null },
         select: {
           baseCost: true,
           transportCost: true,

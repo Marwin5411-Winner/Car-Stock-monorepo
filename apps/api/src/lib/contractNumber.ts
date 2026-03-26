@@ -41,42 +41,27 @@ function getBuddhistDateTime(): { year: number; month: number; yearShort: string
 export async function generateContractNumber(): Promise<ContractNumber> {
   const { year, month, yearShort, monthPadded } = getBuddhistDateTime();
   
-  // Use a transaction to ensure atomic increment
-  const result = await db.$transaction(async (tx) => {
-    // Find or create the sequence for this month
-    let sequence = await tx.numberSequence.findUnique({
-      where: {
-        prefix_year_month: {
-          prefix: CONTRACT_PREFIX,
-          year,
-          month,
-        },
+  // Atomic upsert + increment — prevents race condition
+  const sequence = await db.numberSequence.upsert({
+    where: {
+      prefix_year_month: {
+        prefix: CONTRACT_PREFIX,
+        year,
+        month,
       },
-    });
-
-    if (!sequence) {
-      // Create new sequence for this month, starting at 0
-      sequence = await tx.numberSequence.create({
-        data: {
-          prefix: CONTRACT_PREFIX,
-          year,
-          month,
-          lastNumber: 0,
-        },
-      });
-    }
-
-    // Increment and get the next number
-    const nextNumber = sequence.lastNumber + 1;
-    
-    // Update the sequence
-    await tx.numberSequence.update({
-      where: { id: sequence.id },
-      data: { lastNumber: nextNumber },
-    });
-
-    return nextNumber;
+    },
+    create: {
+      prefix: CONTRACT_PREFIX,
+      year,
+      month,
+      lastNumber: 1,
+    },
+    update: {
+      lastNumber: { increment: 1 },
+    },
   });
+
+  const result = sequence.lastNumber;
 
   // Format the numbers
   const runningNumber = String(result).padStart(4, '0'); // e.g., "0001"

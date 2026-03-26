@@ -155,6 +155,10 @@ class CampaignsService {
   async create(data: CreateCampaignData) {
     const { vehicleModelIds, ...campaignData } = data;
 
+    if (campaignData.startDate && campaignData.endDate && campaignData.startDate > campaignData.endDate) {
+      throw new BadRequestError('วันเริ่มต้นต้องอยู่ก่อนวันสิ้นสุด');
+    }
+
     const campaign = await db.$transaction(async (tx) => {
       const created = await tx.campaign.create({
         data: {
@@ -219,49 +223,53 @@ class CampaignsService {
   async update(id: string, data: UpdateCampaignData) {
     const { vehicleModelIds, ...campaignData } = data;
 
-    // If vehicleModelIds provided, update the relations
-    if (vehicleModelIds !== undefined) {
-      // Delete existing relations
-      await db.campaignVehicleModel.deleteMany({
-        where: { campaignId: id },
-      });
-
-      // Create new relations
-      if (vehicleModelIds.length > 0) {
-        await db.campaignVehicleModel.createMany({
-          data: vehicleModelIds.map((vehicleModelId) => ({
-            campaignId: id,
-            vehicleModelId,
-          })),
-        });
-      }
+    if (campaignData.startDate && campaignData.endDate && campaignData.startDate > campaignData.endDate) {
+      throw new BadRequestError('วันเริ่มต้นต้องอยู่ก่อนวันสิ้นสุด');
     }
 
-    const campaign = await db.campaign.update({
-      where: { id },
-      data: campaignData,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
+    const campaign = await db.$transaction(async (tx) => {
+      // If vehicleModelIds provided, update the relations atomically
+      if (vehicleModelIds !== undefined) {
+        await tx.campaignVehicleModel.deleteMany({
+          where: { campaignId: id },
+        });
+
+        if (vehicleModelIds.length > 0) {
+          await tx.campaignVehicleModel.createMany({
+            data: vehicleModelIds.map((vehicleModelId) => ({
+              campaignId: id,
+              vehicleModelId,
+            })),
+          });
+        }
+      }
+
+      return tx.campaign.update({
+        where: { id },
+        data: campaignData,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
           },
-        },
-        vehicleModels: {
-          include: {
-            vehicleModel: {
-              select: {
-                id: true,
-                brand: true,
-                model: true,
-                variant: true,
-                year: true,
+          vehicleModels: {
+            include: {
+              vehicleModel: {
+                select: {
+                  id: true,
+                  brand: true,
+                  model: true,
+                  variant: true,
+                  year: true,
+                },
               },
             },
           },
         },
-      },
+      });
     });
 
     return {

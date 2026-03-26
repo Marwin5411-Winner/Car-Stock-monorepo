@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import type { UserWithoutPassword } from '@car-stock/shared/types';
+
+const TOKEN_REFRESH_INTERVAL = 20 * 60 * 60 * 1000; // 20 hours (token expires in 24h)
 
 interface AuthContextType {
   user: UserWithoutPassword | null;
@@ -15,6 +17,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserWithoutPassword | null>(null);
   const [loading, setLoading] = useState(true);
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshToken = useCallback(async () => {
+    try {
+      const response = await api.post<{ success: boolean; data?: { token: string } }>('/api/auth/refresh');
+      if (response.success && response.data?.token) {
+        api.setToken(response.data.token);
+      }
+    } catch {
+      // Token expired or invalid — force logout
+      api.setToken(null);
+      setUser(null);
+    }
+  }, []);
+
+  const startRefreshTimer = useCallback(() => {
+    if (refreshTimer.current) clearInterval(refreshTimer.current);
+    refreshTimer.current = setInterval(refreshToken, TOKEN_REFRESH_INTERVAL);
+  }, [refreshToken]);
+
+  const stopRefreshTimer = useCallback(() => {
+    if (refreshTimer.current) {
+      clearInterval(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+  }, []);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -23,33 +51,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const response = await api.getProfile();
         if (response.success && response.data) {
           setUser(response.data);
+          startRefreshTimer();
         } else {
-          // Profile request succeeded but response is invalid
           setUser(null);
+          stopRefreshTimer();
         }
       } else {
-        // No token stored
         setUser(null);
+        stopRefreshTimer();
       }
     } catch (error) {
-      // API call failed (network error, 401, etc.)
       console.error('Auth check failed:', error);
       setUser(null);
+      stopRefreshTimer();
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Check if user is logged in on mount
     checkAuth();
-  }, [checkAuth]);
+    return () => stopRefreshTimer();
+  }, [checkAuth, stopRefreshTimer]);
 
   const login = async (username: string, password: string) => {
     try {
       const response = await api.login(username, password);
       if (response.success && response.data) {
         setUser(response.data.user);
+        startRefreshTimer();
       } else {
         throw new Error(response.message || 'Login failed');
       }
@@ -59,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    stopRefreshTimer();
     await api.logout();
     setUser(null);
   };

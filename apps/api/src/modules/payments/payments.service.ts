@@ -16,37 +16,30 @@ export class PaymentsService {
     const currentMonth = new Date().getMonth() + 1;
     const prefix = NUMBER_PREFIXES.RECEIPT;
 
-    // Get or create number sequence
-    let sequence = await db.numberSequence.findFirst({
+    // Atomic upsert + increment — prevents race condition on concurrent payments
+    const sequence = await db.numberSequence.upsert({
       where: {
-        prefix: prefix,
-        year: currentYear,
-        month: currentMonth,
-      },
-    });
-
-    if (!sequence) {
-      sequence = await db.numberSequence.create({
-        data: {
-          prefix: prefix,
+        prefix_year_month: {
+          prefix,
           year: currentYear,
           month: currentMonth,
-          lastNumber: 0,
         },
-      });
-    }
-
-    // Increment and get next number
-    const nextNumber = sequence.lastNumber + 1;
-    await db.numberSequence.update({
-      where: { id: sequence.id },
-      data: { lastNumber: nextNumber },
+      },
+      create: {
+        prefix,
+        year: currentYear,
+        month: currentMonth,
+        lastNumber: 1,
+      },
+      update: {
+        lastNumber: { increment: 1 },
+      },
     });
 
     // Format: RCPT-YYMM-XXXX
     const yearStr = currentYear.toString().slice(-2);
     const monthStr = currentMonth.toString().padStart(2, '0');
-    return `${prefix}-${yearStr}${monthStr}-${nextNumber.toString().padStart(4, '0')}`;
+    return `${prefix}-${yearStr}${monthStr}-${sequence.lastNumber.toString().padStart(4, '0')}`;
   }
 
   /**

@@ -138,6 +138,32 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       },
     }
   )
+  // Refresh token — issue a new token if current one is still valid
+  .post(
+    '/refresh',
+    async ({ jwt, requester, set }) => {
+      try {
+        const token = await jwt.sign({
+          id: requester.id,
+          username: requester.username,
+          role: requester.role,
+        });
+        return {
+          success: true,
+          data: { token },
+        };
+      } catch (error) {
+        set.status = 401;
+        return {
+          success: false,
+          error: 'Token refresh failed',
+        };
+      }
+    },
+    {
+      beforeHandle: authMiddleware,
+    }
+  )
   // Check permission
   .get(
     '/check-permission/:permission',
