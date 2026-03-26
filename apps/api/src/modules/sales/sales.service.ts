@@ -50,11 +50,13 @@ function serializeSale(sale: any): any {
         amount: toNumber(p.amount),
       })),
     }),
-    ...(sale.quotation && Array.isArray(sale.quotation) && {
-      quotation: sale.quotation.map((q: any) => ({
-        ...q,
-        quotedPrice: toNumber(q.quotedPrice),
-      })),
+    ...(sale.quotation && {
+      quotation: {
+        ...sale.quotation,
+        quotedPrice: toNumber(sale.quotation.quotedPrice),
+        finalPrice: toNumber(sale.quotation.finalPrice),
+        discountAmount: toNumberOrNull(sale.quotation.discountAmount),
+      },
     }),
   };
 }
@@ -514,102 +516,115 @@ export class SalesService {
       throw new NotFoundError('Sale');
     }
 
-    // Cannot change status of cancelled sale
+    // Cannot change status of cancelled or completed sale
     if (existingSale.status === 'CANCELLED') {
       throw new BadRequestError('Cannot change status of cancelled sale');
     }
+    if (existingSale.status === 'COMPLETED') {
+      throw new BadRequestError('Cannot change status of completed sale');
+    }
 
-    // Validate stock assignment when moving from PREPARING to DELIVERED
-    if (existingSale.status === 'PREPARING' && status === 'DELIVERED') {
+    // Enforce valid status transitions
+    const validTransitions: Record<string, string[]> = {
+      RESERVED: ['PREPARING', 'CANCELLED'],
+      PREPARING: ['DELIVERED', 'CANCELLED'],
+      DELIVERED: ['COMPLETED', 'CANCELLED'],
+      COMPLETED: [],
+      CANCELLED: [],
+    };
+
+    const allowed = validTransitions[existingSale.status] || [];
+    if (!allowed.includes(status)) {
+      throw new BadRequestError(
+        `ไม่สามารถเปลี่ยนสถานะจาก ${existingSale.status} เป็น ${status} ได้`
+      );
+    }
+
+    // Validate stock assignment when moving to DELIVERED
+    if (status === 'DELIVERED') {
       if (!existingSale.stockId) {
         throw new BadRequestError('Cannot deliver sale without assigned stock car. Please assign a stock vehicle before marking as delivered.');
       }
     }
 
-    // Handle status transitions
+    // Build update data
     const updateData: any = {
       status,
       notes: notes || undefined,
     };
 
-    // Set specific dates based on status
     if (status === 'RESERVED' && !existingSale.reservedDate) {
       updateData.reservedDate = new Date();
     }
-
     if (status === 'DELIVERED') {
       updateData.deliveryDate = new Date();
     }
-
     if (status === 'COMPLETED') {
       updateData.completedDate = new Date();
     }
 
-    // Update sale
-    const sale = await db.sale.update({
-      where: { id },
-      data: updateData,
-    });
+    // All mutations in a single transaction
+    const sale = await db.$transaction(async (tx) => {
+      const updated = await tx.sale.update({
+        where: { id },
+        data: updateData,
+      });
 
-    // Handle stock status changes
-    if (existingSale.stockId) {
-      if (status === 'PREPARING') {
-        await db.stock.update({
-          where: { id: existingSale.stockId },
-          data: {
-            status: 'PREPARING',
-          },
-        });
-      } else if (status === 'DELIVERED' || status === 'COMPLETED') {
-        await db.stock.update({
-          where: { id: existingSale.stockId },
-          data: {
-            status: 'SOLD',
-            soldDate: new Date(),
-            actualSalePrice: sale.totalAmount,
-          },
-        });
-      } else if (status === 'CANCELLED') {
-        await db.stock.update({
-          where: { id: existingSale.stockId },
-          data: {
-            status: 'AVAILABLE',
-          },
-        });
-        // Release stock from cancelled sale so it can be assigned to a new sale
-        await db.sale.update({
-          where: { id },
-          data: { stockId: null },
-        });
+      // Handle stock status changes
+      if (existingSale.stockId) {
+        if (status === 'PREPARING') {
+          await tx.stock.update({
+            where: { id: existingSale.stockId },
+            data: { status: 'PREPARING' },
+          });
+        } else if (status === 'DELIVERED' || status === 'COMPLETED') {
+          await tx.stock.update({
+            where: { id: existingSale.stockId },
+            data: {
+              status: 'SOLD',
+              soldDate: new Date(),
+              actualSalePrice: updated.totalAmount,
+            },
+          });
+        } else if (status === 'CANCELLED') {
+          await tx.stock.update({
+            where: { id: existingSale.stockId },
+            data: { status: 'AVAILABLE' },
+          });
+          await tx.sale.update({
+            where: { id },
+            data: { stockId: null },
+          });
+        }
       }
-    }
 
-    // Create history record
-    await db.saleHistory.create({
-      data: {
-        saleId: sale.id,
-        action: 'UPDATE_STATUS',
-        fromStatus: existingSale.status,
-        toStatus: status,
-        notes: notes,
-        createdById: currentUser.id,
-      },
-    });
-
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'UPDATE_SALE_STATUS',
-        entity: 'SALE',
-        entityId: sale.id,
-        details: {
-          saleNumber: sale.saleNumber,
+      await tx.saleHistory.create({
+        data: {
+          saleId: updated.id,
+          action: 'UPDATE_STATUS',
           fromStatus: existingSale.status,
           toStatus: status,
           notes,
+          createdById: currentUser.id,
         },
-      },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'UPDATE_SALE_STATUS',
+          entity: 'SALE',
+          entityId: updated.id,
+          details: {
+            saleNumber: updated.saleNumber,
+            fromStatus: existingSale.status,
+            toStatus: status,
+            notes,
+          },
+        },
+      });
+
+      return updated;
     });
 
     return sale;
@@ -706,9 +721,9 @@ export class SalesService {
       throw new BadRequestError(`Cannot assign stock to ${existingSale.status.toLowerCase()} sale`);
     }
 
-    // Check if new stock exists and is available
-    const newStock = await db.stock.findUnique({
-      where: { id: stockId },
+    // Check if new stock exists and is available (exclude soft-deleted)
+    const newStock = await db.stock.findFirst({
+      where: { id: stockId, deletedAt: null },
       select: { id: true, status: true, vehicleModelId: true },
     });
 

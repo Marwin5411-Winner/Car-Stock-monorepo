@@ -327,6 +327,23 @@ export class PaymentsService {
     const newContribution = isCarPayment ? newAmount : 0;
     const saleDiff = newContribution - oldContribution;
 
+    // Validate overpayment when amount increases for car-related payments
+    if (existingPayment.saleId && saleDiff > 0 && isCarPayment) {
+      const sale = await db.sale.findUnique({
+        where: { id: existingPayment.saleId },
+        select: { remainingAmount: true },
+      });
+
+      if (sale) {
+        const remaining = Number(sale.remainingAmount);
+        if (saleDiff > remaining) {
+          throw new BadRequestError(
+            `จำนวนเงินเกินยอดค้างชำระ (คงเหลือ ${remaining.toLocaleString()} บาท)`
+          );
+        }
+      }
+    }
+
     const payment = await db.$transaction(async (tx) => {
       const updated = await tx.payment.update({
         where: { id },
@@ -398,54 +415,55 @@ export class PaymentsService {
       throw new BadRequestError('Cannot void already voided payment');
     }
 
-    // Void payment
-    const payment = await db.payment.update({
-      where: { id },
-      data: {
-        status: 'VOIDED',
-        voidReason: validated.voidReason,
-        voidedAt: new Date(),
-      },
-    });
-
-    // Update sale paid amount and remaining amount
-    // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
-    // OTHER_EXPENSE and MISCELLANEOUS should NOT affect the car price remaining
     const isCarPayment = CAR_PAYMENT_TYPES.includes(existingPayment.paymentType as typeof CAR_PAYMENT_TYPES[number]);
-    
-    if (existingPayment.saleId && isCarPayment) {
-      const sale = await db.sale.findUnique({
-        where: { id: existingPayment.saleId },
-        select: { paidAmount: true, totalAmount: true },
+
+    // Void payment + reverse sale balance + log in a single transaction
+    const payment = await db.$transaction(async (tx) => {
+      const voided = await tx.payment.update({
+        where: { id },
+        data: {
+          status: 'VOIDED',
+          voidReason: validated.voidReason,
+          voidedAt: new Date(),
+        },
       });
 
-      if (sale) {
-        const newPaidAmount = Number(sale.paidAmount) - Number(existingPayment.amount);
-        const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
-
-        await db.sale.update({
+      // Reverse sale balance for car-related payment types
+      if (existingPayment.saleId && isCarPayment) {
+        const sale = await tx.sale.findUnique({
           where: { id: existingPayment.saleId },
-          data: {
-            paidAmount: newPaidAmount,
-            remainingAmount: newRemainingAmount,
-          },
+          select: { paidAmount: true, totalAmount: true },
         });
-      }
-    }
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'VOID_PAYMENT',
-        entity: 'PAYMENT',
-        entityId: payment.id,
-        details: {
-          receiptNumber: payment.receiptNumber,
-          amount: payment.amount,
-          voidReason: validated.voidReason,
+        if (sale) {
+          const newPaidAmount = Number(sale.paidAmount) - Number(existingPayment.amount);
+          const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+
+          await tx.sale.update({
+            where: { id: existingPayment.saleId },
+            data: {
+              paidAmount: newPaidAmount,
+              remainingAmount: newRemainingAmount,
+            },
+          });
+        }
+      }
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'VOID_PAYMENT',
+          entity: 'PAYMENT',
+          entityId: voided.id,
+          details: {
+            receiptNumber: voided.receiptNumber,
+            amount: voided.amount,
+            voidReason: validated.voidReason,
+          },
         },
-      },
+      });
+
+      return voided;
     });
 
     return payment;
