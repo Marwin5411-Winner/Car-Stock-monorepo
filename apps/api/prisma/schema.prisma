@@ -429,11 +429,17 @@ enum SalesType {
 }
 
 enum VehicleType {
-  SUV
   SEDAN
-  PICKUP
+  SUV
   HATCHBACK
+  PICKUP
   MPV
+  COUPE
+  CONVERTIBLE
+  WAGON
+  VAN
+  TRUCK
+  CROSSOVER
   EV
 }
 

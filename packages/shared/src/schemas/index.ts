@@ -19,11 +19,17 @@ export const CustomerTypeSchema = z.enum(['INDIVIDUAL', 'COMPANY']);
 export const SalesTypeSchema = z.enum(['NORMAL_SALES', 'FLEET_SALES']);
 
 export const VehicleTypeSchema = z.enum([
-  'SUV',
   'SEDAN',
-  'PICKUP',
+  'SUV',
   'HATCHBACK',
+  'PICKUP',
   'MPV',
+  'COUPE',
+  'CONVERTIBLE',
+  'WAGON',
+  'VAN',
+  'TRUCK',
+  'CROSSOVER',
   'EV',
 ]);
 
