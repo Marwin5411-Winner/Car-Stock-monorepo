@@ -114,25 +114,28 @@ export class VehiclesService {
       throw new ConflictError('Vehicle model');
     }
 
-    // Create vehicle model
-    const vehicle = await db.vehicleModel.create({
-      data: validated,
-    });
+    // Create vehicle model + activity log in transaction
+    const vehicle = await db.$transaction(async (tx) => {
+      const created = await tx.vehicleModel.create({
+        data: validated,
+      });
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'CREATE_VEHICLE_MODEL',
-        entity: 'VEHICLE_MODEL',
-        entityId: vehicle.id,
-        details: {
-          brand: vehicle.brand,
-          model: vehicle.model,
-          variant: vehicle.variant,
-          year: vehicle.year,
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'CREATE_VEHICLE_MODEL',
+          entity: 'VEHICLE_MODEL',
+          entityId: created.id,
+          details: {
+            brand: created.brand,
+            model: created.model,
+            variant: created.variant,
+            year: created.year,
+          },
         },
-      },
+      });
+
+      return created;
     });
 
     return vehicle;

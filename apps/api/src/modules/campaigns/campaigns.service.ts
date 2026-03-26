@@ -155,39 +155,56 @@ class CampaignsService {
   async create(data: CreateCampaignData) {
     const { vehicleModelIds, ...campaignData } = data;
 
-    const campaign = await db.campaign.create({
-      data: {
-        ...campaignData,
-        vehicleModels: vehicleModelIds?.length
-          ? {
-              create: vehicleModelIds.map((vehicleModelId) => ({
-                vehicleModelId,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
+    const campaign = await db.$transaction(async (tx) => {
+      const created = await tx.campaign.create({
+        data: {
+          ...campaignData,
+          vehicleModels: vehicleModelIds?.length
+            ? {
+                create: vehicleModelIds.map((vehicleModelId) => ({
+                  vehicleModelId,
+                })),
+              }
+            : undefined,
         },
-        vehicleModels: {
-          include: {
-            vehicleModel: {
-              select: {
-                id: true,
-                brand: true,
-                model: true,
-                variant: true,
-                year: true,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          vehicleModels: {
+            include: {
+              vehicleModel: {
+                select: {
+                  id: true,
+                  brand: true,
+                  model: true,
+                  variant: true,
+                  year: true,
+                },
               },
             },
           },
         },
-      },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          userId: campaignData.createdById,
+          action: 'CREATE_CAMPAIGN',
+          entity: 'CAMPAIGN',
+          entityId: created.id,
+          details: {
+            campaignName: created.name,
+            vehicleModelCount: vehicleModelIds?.length || 0,
+          },
+        },
+      });
+
+      return created;
     });
 
     return {

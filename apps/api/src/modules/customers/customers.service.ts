@@ -177,26 +177,29 @@ export class CustomersService {
     // Generate customer code
     const code = await this.generateCustomerCode();
 
-    // Create customer
-    const customer = await db.customer.create({
-      data: {
-        ...validated,
-        code,
-      },
-    });
-
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'CREATE_CUSTOMER',
-        entity: 'CUSTOMER',
-        entityId: customer.id,
-        details: {
-          customerCode: customer.code,
-          customerName: customer.name,
+    // Create customer + activity log in transaction
+    const customer = await db.$transaction(async (tx) => {
+      const created = await tx.customer.create({
+        data: {
+          ...validated,
+          code,
         },
-      },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'CREATE_CUSTOMER',
+          entity: 'CUSTOMER',
+          entityId: created.id,
+          details: {
+            customerCode: created.code,
+            customerName: created.name,
+          },
+        },
+      });
+
+      return created;
     });
 
     return customer;

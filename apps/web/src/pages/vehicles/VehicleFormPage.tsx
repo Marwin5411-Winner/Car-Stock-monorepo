@@ -221,12 +221,8 @@ export default function VehicleFormPage() {
                   <option value="SEDAN">Sedan</option>
                   <option value="SUV">SUV</option>
                   <option value="HATCHBACK">Hatchback</option>
-                  <option value="COUPE">Coupe</option>
-                  <option value="CONVERTIBLE">Convertible</option>
-                  <option value="WAGON">Wagon</option>
                   <option value="PICKUP">Pickup</option>
-                  <option value="VAN">Van</option>
-                  <option value="TRUCK">Truck</option>
+                  <option value="MPV">MPV</option>
                 </select>
               </div>
             </div>

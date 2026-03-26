@@ -247,7 +247,10 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
   .get(
     '/profit-loss/pdf',
     async ({ query, set, requester }) => {
-      if (!authService.hasPermission(requester!.role, 'REPORT_SALES')) {
+      if (
+        !authService.hasPermission(requester!.role, 'REPORT_SALES') ||
+        !authService.hasPermission(requester!.role, 'SALE_VIEW_PROFIT')
+      ) {
         set.status = 403;
         return 'Forbidden';
       }

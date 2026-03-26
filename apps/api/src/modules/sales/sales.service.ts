@@ -464,7 +464,14 @@ export class SalesService {
         throw new BadRequestError('Deposit amount cannot exceed total amount');
       }
 
-      validated.remainingAmount = newTotal - newDeposit - paid;
+      const newRemaining = newTotal - newDeposit - paid;
+      if (newRemaining < 0) {
+        throw new BadRequestError(
+          `ยอดค้างชำระติดลบ — ไม่สามารถลดยอดได้ (ชำระแล้ว ${paid.toLocaleString()} บาท)`
+        );
+      }
+
+      validated.remainingAmount = newRemaining;
     }
 
     // Update sale

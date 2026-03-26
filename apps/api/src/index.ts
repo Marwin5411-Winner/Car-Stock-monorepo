@@ -63,7 +63,16 @@ const app = new Elysia()
   .use(
     jwt({
       name: 'jwt',
-      secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      secret: (() => {
+        const secret = process.env.JWT_SECRET;
+        if (!secret || secret === 'your-secret-key-change-in-production') {
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error('JWT_SECRET must be set in production');
+          }
+          return 'dev-only-secret-do-not-use-in-production';
+        }
+        return secret;
+      })(),
       exp: '24h',
     })
   )
