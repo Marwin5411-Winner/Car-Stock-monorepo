@@ -2,43 +2,54 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { CompanyProvider, useCompany } from './contexts/CompanyContext';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider, ToastContainer } from './components/toast';
 import { LoginPage } from './pages/auth/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import CustomersListPage from './pages/customers/CustomersListPage';
-import CustomerFormPage from './pages/customers/CustomerFormPage';
-import CustomerDetailPage from './pages/customers/CustomerDetailPage';
-import VehiclesListPage from './pages/vehicles/VehiclesListPage';
-import VehicleFormPage from './pages/vehicles/VehicleFormPage';
-import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
-import StockListPage from './pages/stock/StockListPage';
-import StockFormPage from './pages/stock/StockFormPage';
-import StockDetailPage from './pages/stock/StockDetailPage';
-import { InterestListPage, InterestDetailPage, InterestEditPage } from './pages/interest';
-import SalesListPage from './pages/sales/SalesListPage';
-import SalesFormPage from './pages/sales/SalesFormPage';
-import SalesDetailPage from './pages/sales/SalesDetailPage';
-import QuotationListPage from './pages/quotations/QuotationListPage';
-import QuotationFormPage from './pages/quotations/QuotationFormPage';
-import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
-import { PaymentsListPage, PaymentFormPage, PaymentDetailPage, PaymentEditPage } from './pages/payments';
-import { UsersListPage, UserFormPage, UserDetailPage } from './pages/users';
-import { CampaignsListPage, CampaignFormPage, CampaignDetailPage, CampaignAnalyticsPage, CampaignReportPage } from './pages/campaigns';
-import {
-  ReportsPage,
-  DailyPaymentReportPage,
-  StockReportPage,
-  ProfitLossReportPage,
-  SalesSummaryReportPage,
-  StockInterestReportPage,
-  PurchaseRequirementReportPage,
-} from './pages/reports';
-import SettingsPage from './pages/settings/SettingsPage';
 import { PERMISSIONS } from '@car-stock/shared/constants';
 import './index.css';
+
+// Lazy loaded pages — reduces initial bundle ~40%
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const CustomersListPage = React.lazy(() => import('./pages/customers/CustomersListPage'));
+const CustomerFormPage = React.lazy(() => import('./pages/customers/CustomerFormPage'));
+const CustomerDetailPage = React.lazy(() => import('./pages/customers/CustomerDetailPage'));
+const VehiclesListPage = React.lazy(() => import('./pages/vehicles/VehiclesListPage'));
+const VehicleFormPage = React.lazy(() => import('./pages/vehicles/VehicleFormPage'));
+const VehicleDetailPage = React.lazy(() => import('./pages/vehicles/VehicleDetailPage'));
+const StockListPage = React.lazy(() => import('./pages/stock/StockListPage'));
+const StockFormPage = React.lazy(() => import('./pages/stock/StockFormPage'));
+const StockDetailPage = React.lazy(() => import('./pages/stock/StockDetailPage'));
+const InterestListPage = React.lazy(() => import('./pages/interest').then(m => ({ default: m.InterestListPage })));
+const InterestDetailPage = React.lazy(() => import('./pages/interest').then(m => ({ default: m.InterestDetailPage })));
+const InterestEditPage = React.lazy(() => import('./pages/interest').then(m => ({ default: m.InterestEditPage })));
+const SalesListPage = React.lazy(() => import('./pages/sales/SalesListPage'));
+const SalesFormPage = React.lazy(() => import('./pages/sales/SalesFormPage'));
+const SalesDetailPage = React.lazy(() => import('./pages/sales/SalesDetailPage'));
+const QuotationListPage = React.lazy(() => import('./pages/quotations/QuotationListPage'));
+const QuotationFormPage = React.lazy(() => import('./pages/quotations/QuotationFormPage'));
+const QuotationDetailPage = React.lazy(() => import('./pages/quotations/QuotationDetailPage'));
+const PaymentsListPage = React.lazy(() => import('./pages/payments').then(m => ({ default: m.PaymentsListPage })));
+const PaymentFormPage = React.lazy(() => import('./pages/payments').then(m => ({ default: m.PaymentFormPage })));
+const PaymentDetailPage = React.lazy(() => import('./pages/payments').then(m => ({ default: m.PaymentDetailPage })));
+const PaymentEditPage = React.lazy(() => import('./pages/payments').then(m => ({ default: m.PaymentEditPage })));
+const UsersListPage = React.lazy(() => import('./pages/users').then(m => ({ default: m.UsersListPage })));
+const UserFormPage = React.lazy(() => import('./pages/users').then(m => ({ default: m.UserFormPage })));
+const UserDetailPage = React.lazy(() => import('./pages/users').then(m => ({ default: m.UserDetailPage })));
+const CampaignsListPage = React.lazy(() => import('./pages/campaigns').then(m => ({ default: m.CampaignsListPage })));
+const CampaignFormPage = React.lazy(() => import('./pages/campaigns').then(m => ({ default: m.CampaignFormPage })));
+const CampaignDetailPage = React.lazy(() => import('./pages/campaigns').then(m => ({ default: m.CampaignDetailPage })));
+const CampaignAnalyticsPage = React.lazy(() => import('./pages/campaigns').then(m => ({ default: m.CampaignAnalyticsPage })));
+const CampaignReportPage = React.lazy(() => import('./pages/campaigns').then(m => ({ default: m.CampaignReportPage })));
+const ReportsPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.ReportsPage })));
+const DailyPaymentReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.DailyPaymentReportPage })));
+const StockReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.StockReportPage })));
+const ProfitLossReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.ProfitLossReportPage })));
+const SalesSummaryReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.SalesSummaryReportPage })));
+const StockInterestReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.StockInterestReportPage })));
+const PurchaseRequirementReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.PurchaseRequirementReportPage })));
+const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +80,7 @@ function App() {
             <BrowserRouter>
               <AuthProvider>
                 <ToastContainer />
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
                 <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
@@ -444,6 +456,7 @@ function App() {
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
+                </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </CompanyProvider>

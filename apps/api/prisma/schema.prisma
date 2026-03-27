@@ -135,6 +135,10 @@ model Stock {
   interestPeriods       InterestPeriod[]
   debtPayments          StockDebtPayment[]
 
+  @@index([status])
+  @@index([vehicleModelId])
+  @@index([deletedAt])
+  @@index([createdAt])
   @@map("stocks")
 }
 
@@ -246,6 +250,10 @@ model Sale {
   stock                  Stock?        @relation(fields: [stockId], references: [id])
   vehicleModel           VehicleModel? @relation(fields: [vehicleModelId], references: [id])
 
+  @@index([status])
+  @@index([customerId])
+  @@index([createdById])
+  @@index([createdAt])
   @@map("sales")
 }
 
@@ -301,6 +309,11 @@ model Payment {
   customer           Customer      @relation(fields: [customerId], references: [id])
   sale               Sale?         @relation(fields: [saleId], references: [id])
 
+  @@index([customerId])
+  @@index([saleId])
+  @@index([paymentDate])
+  @@index([status])
+  @@index([createdAt])
   @@map("payments")
 }
 
@@ -360,7 +373,7 @@ model Document {
   generatedAt   DateTime     @default(now()) @map("generated_at")
   generatedById String       @map("generated_by_id")
   generatedBy   User         @relation(fields: [generatedById], references: [id])
-  sale          Sale         @relation(fields: [saleId], references: [id])
+  sale          Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@map("documents")
 }
@@ -375,8 +388,9 @@ model SaleHistory {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   User     @relation(fields: [createdById], references: [id])
-  sale        Sale     @relation(fields: [saleId], references: [id])
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
+  @@index([saleId])
   @@map("sale_history")
 }
 
@@ -390,6 +404,9 @@ model ActivityLog {
   createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id])
 
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
   @@map("activity_logs")
 }
 

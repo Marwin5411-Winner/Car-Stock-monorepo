@@ -624,7 +624,7 @@ export class StockService {
     // Check if stock exists
     const existingStock = await db.stock.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, vin: true, engineNumber: true },
     });
 
     if (!existingStock) {
@@ -636,16 +636,18 @@ export class StockService {
       throw new BadRequestError('Cannot delete sold stock');
     }
 
-    // Get stock for logging
-    const stock = await db.stock.findUnique({
-      where: { id },
-      select: { vin: true },
-    });
+    const stock = existingStock;
 
-    // Soft delete stock (set deletedAt)
+    // Soft delete stock — append timestamp to VIN/engineNumber to free unique constraint
+    const deletedAt = new Date();
+    const suffix = `_DEL_${deletedAt.getTime()}`;
     await db.stock.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: {
+        deletedAt,
+        vin: existingStock.vin + suffix,
+        ...(existingStock.engineNumber ? { engineNumber: existingStock.engineNumber + suffix } : {}),
+      },
     });
 
     // Log activity
