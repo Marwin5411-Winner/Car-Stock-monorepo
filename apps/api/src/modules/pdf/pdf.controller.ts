@@ -536,6 +536,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
+          customer: true,
           sale: {
             include: {
               customer: true,
@@ -555,7 +556,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
 
       const sale = payment.sale;
-      const customer = sale?.customer;
+      const customer = payment.customer || sale?.customer;
 
       // Build items array from payment description or default
       const items = [
@@ -631,6 +632,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
+          customer: true,
           sale: {
             include: {
               customer: true,
@@ -650,6 +652,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
 
       const sale = payment.sale;
+      const customer = payment.customer || sale?.customer;
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -658,7 +661,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         header,
         receiptNumber: payment.receiptNumber,
         date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
-        customer: transformCustomer(sale?.customer),
+        customer: transformCustomer(customer),
         car: transformCar(sale?.stock),
         amount: payment.amount.toString(),
         amountText: '', // Will be calculated by the template helper
@@ -859,6 +862,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
+          customer: true,
           sale: {
             include: {
               customer: true,
@@ -878,7 +882,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
 
       const sale = payment.sale;
-      const customer = sale?.customer;
+      const customer = payment.customer || sale?.customer;
 
       // Build items array from payment description or default
       const items = [
@@ -952,6 +956,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
+          customer: true,
           sale: {
             include: {
               customer: true,
@@ -971,7 +976,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
 
       const sale = payment.sale;
-      const customer = sale?.customer;
+      const customer = payment.customer || sale?.customer;
 
       // Build items array from payment description or default
       const items = [
