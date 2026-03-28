@@ -17,69 +17,51 @@ export class AnalyticsService {
    * Get aggregated dashboard statistics
    */
   async getDashboardStats(): Promise<DashboardStats> {
-    // 1. Stock Stats
-    const totalStock = await db.stock.count();
-    const availableStock = await db.stock.count({ where: { status: 'AVAILABLE' } });
-    const reservedStock = await db.stock.count({ where: { status: 'RESERVED' } });
-    const soldStock = await db.stock.count({ where: { status: 'SOLD' } });
-
-    // Calculate Today In-Stock
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayInStock = await db.stock.count({
-      where: {
-        createdAt: {
-          gte: startOfToday
-        }
-      }
-    });
-
-    // 2. Sales Stats
-    const totalSalesObj = await db.sale.aggregate({
-      _count: { id: true },
-      _sum: { totalAmount: true },
-    });
-
-    const activeDeals = await db.sale.count({
-      where: {
-        status: { in: ['RESERVED', 'PREPARING'] }
-      }
-    });
-
-    const completedDeals = await db.sale.count({
-      where: { status: { in: ['DELIVERED', 'COMPLETED'] } }
-    });
-
-    // 3. Monthly Revenue (Current Month)
-    // now is already declared above
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    // Calculate revenue based on actual payments received in this month
-    const monthlyRevenueObj = await db.payment.aggregate({
-      _sum: { amount: true },
-      where: {
-        paymentDate: {
-          gte: startOfMonth,
-          lte: endOfMonth
-        },
-        status: 'ACTIVE'
-      }
-    });
+    // Run all independent queries in parallel — was 8+ sequential queries, now 4 parallel
+    const [stockByStatus, todayInStock, salesAgg, activeDeals, completedDeals, monthlyRevenueObj, recentSales, recentPayments] = await Promise.all([
+      // 1. Stock counts by status in single query (replaces 4 separate counts)
+      db.stock.groupBy({
+        by: ['status'],
+        _count: true,
+        where: { deletedAt: null },
+      }),
+      db.stock.count({ where: { createdAt: { gte: startOfToday }, deletedAt: null } }),
+      // 2. Sales aggregate
+      db.sale.aggregate({ _count: { id: true }, _sum: { totalAmount: true } }),
+      db.sale.count({ where: { status: { in: ['RESERVED', 'PREPARING'] } } }),
+      db.sale.count({ where: { status: { in: ['DELIVERED', 'COMPLETED'] } } }),
+      // 3. Monthly revenue
+      db.payment.aggregate({
+        _sum: { amount: true },
+        where: { paymentDate: { gte: startOfMonth, lte: endOfMonth }, status: 'ACTIVE' },
+      }),
+      // 4. Recent activity (fetched in parallel)
+      db.sale.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { customer: true, stock: { include: { vehicleModel: true } } },
+      }),
+      db.payment.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        where: { status: 'ACTIVE' },
+        include: { customer: true },
+      }),
+    ]);
 
-    // 4. Recent Activity (Combine latest Sales and Payments)
-    const recentSales = await db.sale.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: { customer: true, stock: { include: { vehicleModel: true } } }
-    });
+    // Parse stock counts from groupBy result
+    const stockCounts = Object.fromEntries(stockByStatus.map(s => [s.status, s._count]));
+    const totalStock = Object.values(stockCounts).reduce((a, b) => a + b, 0);
+    const availableStock = stockCounts['AVAILABLE'] || 0;
+    const reservedStock = stockCounts['RESERVED'] || 0;
+    const soldStock = stockCounts['SOLD'] || 0;
 
-    const recentPayments = await db.payment.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      where: { status: 'ACTIVE' },
-      include: { customer: true }
-    });
+    const totalSalesObj = salesAgg;
 
     // Transform and sort activities
     const activities: ActivityItem[] = [

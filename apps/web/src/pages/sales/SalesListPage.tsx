@@ -16,6 +16,7 @@ import {
   DollarSign,
   TrendingUp
 } from 'lucide-react';
+import { ExportButton } from '../../components/reports';
 import {
   Table,
   TableHeader,
@@ -141,20 +142,37 @@ export default function SalesListPage() {
     <MainLayout>
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">จัดการการขาย</h1>
-          {canCreate && (
-            <Link
-              to="/sales/new"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              สร้างการขายใหม่
-            </Link>
-          )}
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">จัดการการขาย</h1>
+          <div className="flex gap-2 flex-shrink-0">
+            <ExportButton
+              data={sales.map(s => ({
+                เลขที่: s.saleNumber,
+                ลูกค้า: s.customer?.name || '-',
+                สถานะ: s.status,
+                ยอดรวม: Number(s.totalAmount || 0),
+                ชำระแล้ว: Number(s.paidAmount || 0),
+                คงเหลือ: Number(s.remainingAmount || 0),
+                วิธีชำระ: s.paymentMode || '-',
+                วันที่สร้าง: s.createdAt ? new Date(s.createdAt).toLocaleDateString('th-TH') : '-',
+              }))}
+              filename="sales-list"
+              sheetName="Sales"
+              loading={loading}
+            />
+            {canCreate && (
+              <Link
+                to="/sales/new"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                สร้างการขายใหม่
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards - Updated for new flow without INQUIRY/QUOTED */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-4">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -237,7 +255,7 @@ export default function SalesListPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <input

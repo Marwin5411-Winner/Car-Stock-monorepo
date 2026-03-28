@@ -5,6 +5,7 @@ import type { Stock, StockStats } from '../../services/stock.service';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, Package, Car, Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import { ExportButton } from '../../components/reports';
 import {
   Table,
   TableHeader,
@@ -93,18 +94,34 @@ export default function StockListPage() {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900">จัดการ Stock</h1>
-          {canCreate && (
-            <Link
-              to="/stock/new"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              เพิ่ม Stock ใหม่
-            </Link>
-          )}
+          <div className="flex gap-2">
+            <ExportButton
+              data={stocks.map(s => ({
+                VIN: s.vin,
+                ยี่ห้อ: s.vehicleModel?.brand || '-',
+                รุ่น: s.vehicleModel?.model || '-',
+                สี: s.exteriorColor || '-',
+                สถานะ: s.status,
+                ต้นทุน: Number(s.baseCost || 0),
+                ราคาขาย: Number(s.expectedSalePrice || 0),
+              }))}
+              filename="stock-list"
+              sheetName="Stock"
+              loading={loading}
+            />
+            {canCreate && (
+              <Link
+                to="/stock/new"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                เพิ่ม Stock ใหม่
+              </Link>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -164,7 +181,7 @@ export default function StockListPage() {
           )}
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <input

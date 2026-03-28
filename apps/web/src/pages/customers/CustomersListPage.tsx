@@ -6,6 +6,7 @@ import type { Customer } from '../../services/customer.service';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { MainLayout } from '../../components/layout';
 import { Plus, Search, Edit, Trash2, User, Phone, Mail } from 'lucide-react';
+import { ExportButton } from '../../components/reports';
 import {
   Table,
   TableHeader,
@@ -89,15 +90,30 @@ export default function CustomersListPage() {
     <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900">จัดการลูกค้า</h1>
-          {canCreate && (
-            <Link
-              to="/customers/new"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              เพิ่มลูกค้าใหม่
-            </Link>
-          )}
+          <div className="flex gap-2">
+            <ExportButton
+              data={customers.map(c => ({
+                รหัส: c.code || '-',
+                ชื่อ: c.name,
+                โทรศัพท์: c.phone || '-',
+                อีเมล: c.email || '-',
+                ที่อยู่: [c.houseNumber, c.street, c.subdistrict, c.district, c.province, c.postalCode].filter(Boolean).join(' '),
+                เลขผู้เสียภาษี: c.taxId || '-',
+              }))}
+              filename="customers-list"
+              sheetName="Customers"
+              loading={loading}
+            />
+            {canCreate && (
+              <Link
+                to="/customers/new"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                เพิ่มลูกค้าใหม่
+              </Link>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-4">
