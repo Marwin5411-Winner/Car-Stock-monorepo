@@ -67,6 +67,28 @@
       </table>
     </div>
     
+    {{#if items}}
+    <div style="margin: 15px 0;">
+      <h4 style="margin-bottom: 5px; font-size: 14px;">รายการ</h4>
+      <table style="width: 100%; margin: 0;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 4px 8px;">รายละเอียด</th>
+            <th style="text-align: right; padding: 4px 8px; width: 120px;">จำนวนเงิน</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each items}}
+          <tr>
+            <td style="padding: 4px 8px;">{{this.description}}</td>
+            <td style="text-align: right; padding: 4px 8px;">{{#if this.amount}}{{formatCurrency this.amount}}{{/if}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
+
     <div style="margin: 15px 0; padding: 10px; border: 2px solid #000; background: #fff;">
       <table style="border: none; width: 100%; margin: 0;">
         <tr style="background: transparent;">
@@ -100,7 +122,7 @@
     <div class="signature-box">
       <div class="signature-line" style="margin-top: 20px;"></div>
       <div class="signature-label">ผู้รับเงิน</div>
-      <div style="margin-top: 5px; font-size: 12px;">(บริษัท วีบียอนด์ อินโนเวชั่น จำกัด)</div>
+      <div style="margin-top: 5px; font-size: 12px;">({{header.companyName}})</div>
     </div>
   </div>
 </div>

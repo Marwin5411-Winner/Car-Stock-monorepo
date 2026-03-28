@@ -10,7 +10,7 @@
   
   <div class="content" style="margin-top: 30px; line-height: 1.6;">
     <p class="indent">
-      ทางบริษัท วีบียอนด์ อินโนเวชั่น จำกัด เป็นผู้แทนจำหน่ายรถยนต์ไฟฟ้า 
+      ทาง{{header.companyName}} เป็นผู้แทนจำหน่ายรถยนต์ไฟฟ้า 
       ขอยืนยันว่าได้ทำการขาย {{safe car.type "รถยนต์ไฟฟ้า"}} ยี่ห้อ <strong>{{car.brand}}</strong> 
       เลขเครื่องยนต์ {{safe car.engineNo "-"}} 
       เลขตัวรถ {{safe car.chassisNo "-"}} 
@@ -47,6 +47,6 @@
     {{else}}
     <div class="signature-line" style="margin-top: 60px;"></div>
     {{/if}}
-    <p>( บริษัท วีบียอนด์ อินโนเวชั่น จำกัด )</p>
+    <p>( {{header.companyName}} )</p>
   </div>
 </div>

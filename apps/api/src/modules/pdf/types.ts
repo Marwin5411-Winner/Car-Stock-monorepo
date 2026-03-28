@@ -364,6 +364,7 @@ export interface PaymentReceiptData {
   date: string;
   customer: CustomerInfo;
   car: CarInfo;
+  items?: { description: string; amount: string }[];
   amount: string;
   amountText: string;
   paymentMethod: string;

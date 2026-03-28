@@ -241,7 +241,7 @@ export class PaymentsService {
           notes: validated.notes || null,
           receiptNumber,
           createdById: currentUser.id,
-          issuedBy: `${currentUser.firstName} ${currentUser.lastName}`,
+          issuedBy: [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ') || currentUser.username,
         },
       });
 

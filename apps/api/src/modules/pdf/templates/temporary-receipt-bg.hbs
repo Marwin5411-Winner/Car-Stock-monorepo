@@ -35,12 +35,23 @@
         </div>
     </div>
 
-    <div style="position: absolute; top: 8.5cm; right: 2.5cm; width: 5cm; text-align: right; line-height: 2;">
-        <div style="height: 1cm;">{{ paymentAmount }}</div> 
-        <div style="height: 1cm;">{{ lateFee }}</div>
-        <div style="height: 1cm;">{{ discount }}</div>
+    <!-- Items list -->
+    <div style="position: absolute; top: 7.5cm; left: 2cm; width: 18cm; line-height: 1.8;">
+        {{#each items}}
+        <div style="display: flex; justify-content: space-between;">
+            <span>{{this.description}}</span>
+            <span>{{formatCurrency this.amount}}</span>
+        </div>
+        {{/each}}
+    </div>
+
+    <!-- Totals -->
+    <div style="position: absolute; top: 11cm; right: 2.5cm; width: 5cm; text-align: right; line-height: 2;">
+        <div style="height: 1cm;">{{formatCurrency paymentAmount}}</div>
+        <div style="height: 1cm;">{{formatCurrency lateFee}}</div>
+        <div style="height: 1cm;">{{formatCurrency discount}}</div>
         <div style="height: 1cm; font-weight: bold; font-size: 16pt; margin-top: 0.5cm;">
-            {{ totalAmount }}
+            {{formatCurrency totalAmount}}
         </div>
     </div>
 

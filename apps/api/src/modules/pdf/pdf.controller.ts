@@ -55,20 +55,31 @@ async function getCompanyHeader(): Promise<any> {
   const settings = await db.companySettings.findFirst();
   if (settings) {
     return {
-      logoBase64: settings.logo || '', // Assuming logo is stored as base64 in settings
+      logoBase64: settings.logo || '',
       companyName: settings.companyNameTh,
+      companyNameEn: settings.companyNameEn,
       address1: settings.addressTh,
-      address2: '', // Address might be split or single field in settings
-      phone: `โทร. ${settings.phone} ${settings.fax ? `โทรสาร. ${settings.fax}` : ''}`,
+      address2: '',
+      phone: `โทร. ${settings.phone}${settings.fax ? ` โทรสาร. ${settings.fax}` : ''}`,
+      taxId: settings.taxId,
+      fax: settings.fax || '',
+      mobile: settings.mobile,
+      email: settings.email,
     };
   }
 
+  // Fallback — should not reach here if settings are configured
   return {
     logoBase64: '',
-    companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-    address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-    address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-    phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+    companyName: '(กรุณาตั้งค่าข้อมูลบริษัทใน Settings)',
+    companyNameEn: '',
+    address1: '',
+    address2: '',
+    phone: '',
+    taxId: '',
+    fax: '',
+    mobile: '',
+    email: '',
   };
 }
 
@@ -657,14 +668,38 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
+      // Build items from payment notes/description
+      const items = [];
+      if (payment.notes) {
+        // Split notes by newline to create multiple items
+        const lines = payment.notes.split('\n').filter((l: string) => l.trim());
+        for (const line of lines) {
+          items.push({ description: line.trim(), amount: '' });
+        }
+      }
+      if (items.length === 0) {
+        // Default item based on payment type
+        const typeLabels: Record<string, string> = {
+          DEPOSIT: 'ค่ามัดจำ',
+          DOWN_PAYMENT: 'ค่าเงินดาวน์',
+          FINANCE_PAYMENT: 'ค่างวดไฟแนนซ์',
+          OTHER_EXPENSE: 'ค่าใช้จ่ายอื่นๆ',
+          MISCELLANEOUS: 'เบ็ดเตล็ด',
+        };
+        const label = typeLabels[payment.paymentType] || 'ค่าชำระเงิน';
+        const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
+        items.push({ description: `${label} ${carName}`.trim(), amount: payment.amount.toString() });
+      }
+
       const data: PaymentReceiptData = {
         header,
         receiptNumber: payment.receiptNumber,
         date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
         customer: transformCustomer(customer),
         car: transformCar(sale?.stock),
+        items,
         amount: payment.amount.toString(),
-        amountText: '', // Will be calculated by the template helper
+        amountText: '',
         paymentMethod: payment.paymentMethod || 'CASH',
         note: payment.notes || undefined,
       };
