@@ -39,6 +39,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       UPDATER_URL: http://updater:9000
       UPDATE_SECRET: ${UPDATE_SECRET:-}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
     volumes:
       - updater_status:/app/updater-status:ro
     networks:

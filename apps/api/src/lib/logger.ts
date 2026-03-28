@@ -1,11 +1,11 @@
 import pino from 'pino';
 import { join } from 'path';
+import { mkdirSync } from 'fs';
+import { sendErrorToDiscord } from './discord-notify';
 
 const isDev = process.env.NODE_ENV !== 'production';
 const logDir = join(import.meta.dir, '..', '..', 'logs');
 
-// Ensure log directory exists
-import { mkdirSync } from 'fs';
 try {
   mkdirSync(logDir, { recursive: true });
 } catch {}
@@ -48,7 +48,23 @@ if (isDev) {
   });
 }
 
-export const logger = pino({
+const baseLogger = pino({
   level: isDev ? 'debug' : 'info',
   transport: { targets },
+});
+
+// Wrap logger to intercept error+ calls and send to Discord
+export const logger = new Proxy(baseLogger, {
+  get(target, prop) {
+    if (prop === 'error' || prop === 'fatal') {
+      return (...args: any[]) => {
+        (target as any)[prop](...args);
+        // Extract message for Discord
+        const msg = typeof args[0] === 'string' ? args[0] : args[1] || args[0]?.msg || 'Unknown error';
+        const err = typeof args[0] === 'object' ? args[0] : undefined;
+        sendErrorToDiscord(String(msg), err);
+      };
+    }
+    return (target as any)[prop];
+  },
 });
