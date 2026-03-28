@@ -70,13 +70,13 @@ Handlebars.registerHelper('toLowerCase', (str: string) => {
   return str.toString().toLowerCase();
 });
 
-// Default company header
+// Default company header — used only as fallback when settings not configured
 const DEFAULT_COMPANY_HEADER: CompanyHeader = {
-  logoBase64: '', // Will be loaded from file
-  companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
-  address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
-  address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
-  phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+  logoBase64: '',
+  companyName: '(กรุณาตั้งค่าข้อมูลบริษัทใน Settings)',
+  address1: '',
+  address2: '',
+  phone: '',
 };
 
 export class PdfService {
