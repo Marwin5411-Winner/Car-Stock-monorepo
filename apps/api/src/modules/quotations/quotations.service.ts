@@ -559,32 +559,36 @@ export class QuotationsService {
       throw new BadRequestError('Can only convert accepted quotations');
     }
 
-    // Generate sale number
+    // Generate sale number atomically. Mirrors the fixed generator in
+    // `sales.service.ts#generateSaleNumber` — serializable transaction with an
+    // updateMany+create fallback so concurrent conversions cannot produce
+    // duplicate sale numbers. Pre-generated outside the main transaction so
+    // the sequence increment survives a rollback of the sale conversion
+    // (matches standard SEQUENCE semantics).
     const currentYear = new Date().getFullYear();
     const salePrefix = NUMBER_PREFIXES.SALE;
 
-    let saleSequence = await db.numberSequence.findFirst({
-      where: {
-        prefix: salePrefix,
-        year: currentYear,
+    const nextSaleNumber = await db.$transaction(
+      async (tx) => {
+        const updated = await tx.numberSequence.updateMany({
+          where: { prefix: salePrefix, year: currentYear, month: null },
+          data: { lastNumber: { increment: 1 } },
+        });
+        if (updated.count > 0) {
+          const seq = await tx.numberSequence.findFirst({
+            where: { prefix: salePrefix, year: currentYear, month: null },
+            select: { lastNumber: true },
+          });
+          return seq!.lastNumber;
+        }
+        const created = await tx.numberSequence.create({
+          data: { prefix: salePrefix, year: currentYear, lastNumber: 1 },
+          select: { lastNumber: true },
+        });
+        return created.lastNumber;
       },
-    });
-
-    if (!saleSequence) {
-      saleSequence = await db.numberSequence.create({
-        data: {
-          prefix: salePrefix,
-          year: currentYear,
-          lastNumber: 0,
-        },
-      });
-    }
-
-    const nextSaleNumber = saleSequence.lastNumber + 1;
-    await db.numberSequence.update({
-      where: { id: saleSequence.id },
-      data: { lastNumber: nextSaleNumber },
-    });
+      { isolationLevel: 'Serializable' }
+    );
 
     const saleNumber = `${salePrefix}-${currentYear}-${nextSaleNumber.toString().padStart(4, '0')}`;
 

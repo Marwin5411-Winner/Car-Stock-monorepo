@@ -25,6 +25,7 @@ export default function CustomersListPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -48,8 +49,8 @@ export default function CustomersListPage() {
       limit,
     };
 
-    if (searchTerm) {
-      filters.search = searchTerm;
+    if (debouncedSearchTerm) {
+      filters.search = debouncedSearchTerm;
     }
 
     await executeQuery(
@@ -62,21 +63,24 @@ export default function CustomersListPage() {
     setLoading(false);
     // executeQuery identity is stable per mount; omit to avoid unnecessary churn.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm]);
+  }, [page, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  // Debounce the raw search input into `debouncedSearchTerm`, which is what
+  // the fetch callback actually reads. Without this, the callback identity
+  // changes on every keystroke and the fetch effect fires immediately.
   useEffect(() => {
-    if (page === 1) return;
-    // Debounced search resets to page 1; the fetchCustomers effect above
-    // then re-runs because `page` (and therefore the memoized callback)
-    // changed. This effect triggers the initial reset only.
-    const delayedReset = setTimeout(() => setPage(1), 500);
-    return () => clearTimeout(delayedReset);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+    return () => clearTimeout(t);
   }, [searchTerm]);
+
+  // Reset to page 1 whenever the debounced search term changes.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm]);
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`คุณต้องการลบลูกค้า "${name}" หรือไม่?`)) {

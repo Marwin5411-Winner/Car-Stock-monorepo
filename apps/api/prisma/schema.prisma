@@ -93,6 +93,7 @@ model VehicleModel {
 
 model Stock {
   id                    String             @id @default(cuid())
+  stockNumber           String?            @unique @map("stock_number")
   vin                   String             @unique
   engineNumber          String?            @unique @map("engine_number")
   motorNumber1          String?            @map("motor_number_1")

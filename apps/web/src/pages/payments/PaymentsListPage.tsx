@@ -63,6 +63,7 @@ export default function PaymentsListPage() {
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | PaymentStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | PaymentType>('ALL');
   const [page, setPage] = useState(1);
@@ -78,7 +79,7 @@ export default function PaymentsListPage() {
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     const filters: PaymentFilters = { page, limit };
-    if (searchTerm) filters.search = searchTerm;
+    if (debouncedSearchTerm) filters.search = debouncedSearchTerm;
     if (statusFilter !== 'ALL') filters.status = statusFilter;
     if (typeFilter !== 'ALL') filters.paymentType = typeFilter;
     if (saleIdFilter) filters.saleId = saleIdFilter;
@@ -92,7 +93,7 @@ export default function PaymentsListPage() {
     );
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm, statusFilter, typeFilter, saleIdFilter]);
+  }, [page, debouncedSearchTerm, statusFilter, typeFilter, saleIdFilter]);
 
   const fetchStats = useCallback(async () => {
     await executeQuery(
@@ -109,14 +110,20 @@ export default function PaymentsListPage() {
     fetchStats();
   }, [fetchStats, statusFilter, typeFilter, saleIdFilter]);
 
+  // Debounce the raw search input — the fetch callback depends on
+  // `debouncedSearchTerm` rather than `searchTerm` so it only re-runs once
+  // the user stops typing for 500ms. Previous implementation had the fetch
+  // depending on `searchTerm` directly, firing on every keystroke.
   useEffect(() => {
-    // Debounced search resets to page 1; when page (or other deps) changes,
-    // the fetchPayments effect above re-runs automatically.
-    if (page === 1) return;
-    const t = setTimeout(() => setPage(1), 500);
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
+
+  // Reset to page 1 whenever the debounced search term changes (so users are
+  // not stranded on page 5 of their previous search).
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('th-TH', {

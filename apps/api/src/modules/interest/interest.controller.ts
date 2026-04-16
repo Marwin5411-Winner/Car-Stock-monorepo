@@ -197,7 +197,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           effectiveDate: body.effectiveDate ? new Date(body.effectiveDate) : undefined,
           notes: body.notes,
         },
-        requester!.userId
+        requester!.id
       );
 
       set.status = 200;

@@ -54,6 +54,7 @@ export default function UsersListPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -73,8 +74,8 @@ export default function UsersListPage() {
       limit,
     };
 
-    if (searchTerm) {
-      filters.search = searchTerm;
+    if (debouncedSearchTerm) {
+      filters.search = debouncedSearchTerm;
     }
 
     await executeQuery(
@@ -86,18 +87,22 @@ export default function UsersListPage() {
     );
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm]);
+  }, [page, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
   useEffect(() => {
-    if (page === 1) return;
-    const t = setTimeout(() => setPage(1), 500);
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
+
+  // Reset to page 1 whenever the debounced search term changes (but not on
+  // first mount where both are '').
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm]);
 
   const handleDelete = async (id: string, username: string) => {
     if (id === currentUser?.id) {

@@ -26,6 +26,7 @@ export default function StockListPage() {
   const [stats, setStats] = useState<StockStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO'>('ALL');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -44,7 +45,7 @@ export default function StockListPage() {
   const fetchStocks = useCallback(async () => {
     setLoading(true);
     const filters: any = { page, limit };
-    if (searchTerm) filters.search = searchTerm;
+    if (debouncedSearchTerm) filters.search = debouncedSearchTerm;
     if (statusFilter !== 'ALL') filters.status = statusFilter;
 
     await executeQuery(
@@ -56,7 +57,7 @@ export default function StockListPage() {
     );
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm, statusFilter]);
+  }, [page, debouncedSearchTerm, statusFilter]);
 
   const fetchStats = useCallback(async () => {
     await executeQuery(
@@ -77,11 +78,15 @@ export default function StockListPage() {
   }, [fetchStats, statusFilter]);
 
   useEffect(() => {
-    if (page === 1) return;
-    const t = setTimeout(() => setPage(1), 500);
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
+
+  // Reset to page 1 whenever the debounced search term changes (but not on
+  // first mount where both are '').
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm]);
 
   const handleDelete = async (id: string, vin: string) => {
     if (!window.confirm(`คุณต้องการลบ Stock VIN "${vin}" หรือไม่?`)) {

@@ -529,7 +529,7 @@ export class SalesService {
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id },
-      select: { id: true, status: true, stockId: true, remainingAmount: true },
+      select: { id: true, status: true, stockId: true, remainingAmount: true, reservedDate: true },
     });
 
     if (!existingSale) {

@@ -59,6 +59,7 @@ export default function SalesListPage() {
   const [stats, setStats] = useState<SalesStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | SaleStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | SaleType>('ALL');
   const [page, setPage] = useState(1);
@@ -75,7 +76,7 @@ export default function SalesListPage() {
   const fetchSales = useCallback(async () => {
     setLoading(true);
     const filters: SaleFilters = { page, limit };
-    if (searchTerm) filters.search = searchTerm;
+    if (debouncedSearchTerm) filters.search = debouncedSearchTerm;
     if (statusFilter !== 'ALL') filters.status = statusFilter;
     if (typeFilter !== 'ALL') filters.type = typeFilter;
 
@@ -88,7 +89,7 @@ export default function SalesListPage() {
     );
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm, statusFilter, typeFilter]);
+  }, [page, debouncedSearchTerm, statusFilter, typeFilter]);
 
   const fetchStats = useCallback(async () => {
     await executeQuery(
@@ -106,11 +107,15 @@ export default function SalesListPage() {
   }, [fetchStats, statusFilter, typeFilter]);
 
   useEffect(() => {
-    if (page === 1) return;
-    const t = setTimeout(() => setPage(1), 500);
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
+
+  // Reset to page 1 whenever the debounced search term changes (but not on
+  // first mount where both are '').
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchTerm]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('th-TH', {
