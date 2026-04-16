@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { salesService } from '../../services/sales.service';
 import type { Sale, SalesStats, SaleStatus, SaleType, SaleFilters } from '../../services/sales.service';
@@ -71,7 +71,8 @@ export default function SalesListPage() {
   const { hasPermission } = usePermission();
   const canCreate = hasPermission('SALE_CREATE');
 
-  const fetchSales = async () => {
+  // Memoize on real inputs so effects observe the current filter/search state.
+  const fetchSales = useCallback(async () => {
     setLoading(true);
     const filters: SaleFilters = { page, limit };
     if (searchTerm) filters.search = searchTerm;
@@ -86,27 +87,28 @@ export default function SalesListPage() {
       })
     );
     setLoading(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchTerm, statusFilter, typeFilter]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     await executeQuery(
       salesService.getStats().then((data) => { setStats(data); })
     );
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchSales();
-    fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, typeFilter]);
+  }, [fetchSales]);
 
   useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      setPage(1);
-      fetchSales();
-    }, 500);
+    fetchStats();
+  }, [fetchStats, statusFilter, typeFilter]);
 
-    return () => clearTimeout(delayedSearch);
+  useEffect(() => {
+    if (page === 1) return;
+    const t = setTimeout(() => setPage(1), 500);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 

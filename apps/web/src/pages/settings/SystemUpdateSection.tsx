@@ -84,11 +84,17 @@ export default function SystemUpdateSection() {
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartRef = useRef<number>(0);
+  // Track mount status so the polling interval (which can outlive a navigation
+  // away from /settings during an update) does not call state setters on an
+  // unmounted component.
+  const mountedRef = useRef(true);
 
   // Fetch version on mount
   useEffect(() => {
+    mountedRef.current = true;
     fetchVersion();
     return () => {
+      mountedRef.current = false;
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
@@ -128,6 +134,13 @@ export default function SystemUpdateSection() {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollStartRef.current = Date.now();
     pollingRef.current = setInterval(async () => {
+      // If the component was unmounted while the interval was queued (e.g.
+      // user navigated away mid-update), stop the timer and skip state writes.
+      if (!mountedRef.current) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        return;
+      }
       // Timeout protection — stop polling after 10 minutes
       if (Date.now() - pollStartRef.current > MAX_POLL_DURATION) {
         if (pollingRef.current) clearInterval(pollingRef.current);
@@ -139,6 +152,9 @@ export default function SystemUpdateSection() {
       }
       try {
         const res = await systemService.getUpdateStatus();
+        // Re-check after the await — the component may have unmounted during
+        // the network round-trip.
+        if (!mountedRef.current) return;
         if (res.success && res.data) {
           setUpdateStatus(res.data);
           // Stop polling when done

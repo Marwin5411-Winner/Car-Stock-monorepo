@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { userService } from '../../services/user.service';
 import type { User } from '../../services/user.service';
@@ -66,7 +66,7 @@ export default function UsersListPage() {
     }
   }, [currentUser, navigate]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     const filters: Record<string, string | number> = {
       page,
@@ -85,22 +85,17 @@ export default function UsersListPage() {
       })
     );
     setLoading(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchTerm]);
 
   useEffect(() => {
     fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [fetchUsers]);
 
   useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      if (searchTerm !== undefined) {
-        setPage(1);
-        fetchUsers();
-      }
-    }, 500);
-
-    return () => clearTimeout(delayedSearch);
+    if (page === 1) return;
+    const t = setTimeout(() => setPage(1), 500);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 

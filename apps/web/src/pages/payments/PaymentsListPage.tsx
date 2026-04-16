@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { usePermission } from '../../hooks/usePermission';
 import { paymentService } from '../../services/payment.service';
@@ -72,7 +72,10 @@ export default function PaymentsListPage() {
   const [searchParams] = useSearchParams();
   const saleIdFilter = searchParams.get('saleId');
 
-  const fetchPayments = async () => {
+  // Memoize on real inputs so the main fetch effect observes current search/
+  // filter state. The previous free-floating function captured state via
+  // closure, so the debounced search effect could fire with a stale `page`.
+  const fetchPayments = useCallback(async () => {
     setLoading(true);
     const filters: PaymentFilters = { page, limit };
     if (searchTerm) filters.search = searchTerm;
@@ -88,27 +91,30 @@ export default function PaymentsListPage() {
       })
     );
     setLoading(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchTerm, statusFilter, typeFilter, saleIdFilter]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     await executeQuery(
       paymentService.getStats().then(data => setStats(data))
     );
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchPayments();
-    fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, typeFilter, saleIdFilter]);
+  }, [fetchPayments]);
 
   useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      setPage(1);
-      fetchPayments();
-    }, 500);
+    fetchStats();
+  }, [fetchStats, statusFilter, typeFilter, saleIdFilter]);
 
-    return () => clearTimeout(delayedSearch);
+  useEffect(() => {
+    // Debounced search resets to page 1; when page (or other deps) changes,
+    // the fetchPayments effect above re-runs automatically.
+    if (page === 1) return;
+    const t = setTimeout(() => setPage(1), 500);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 

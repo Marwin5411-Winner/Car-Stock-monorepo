@@ -89,6 +89,11 @@ export default function UserFormPage() {
     try {
       setSaving(true);
 
+      // Capture the API envelope so we can detect failures the service did
+      // not throw (e.g. `{ success: false, message }` payloads). Previously
+      // this code awaited the call without inspecting the response, so a
+      // soft failure would silently navigate away with no error feedback.
+      let response;
       if (isEditing && id) {
         const updateData: UpdateUserData = {
           email,
@@ -98,7 +103,7 @@ export default function UserFormPage() {
           role,
           status,
         };
-        await userService.update(id, updateData);
+        response = await userService.update(id, updateData);
       } else {
         const createData: CreateUserData = {
           username,
@@ -109,7 +114,12 @@ export default function UserFormPage() {
           phone: phone || undefined,
           role,
         };
-        await userService.create(createData);
+        response = await userService.create(createData);
+      }
+
+      if (!response?.success) {
+        setError(response?.message || response?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        return;
       }
 
       navigate('/users');

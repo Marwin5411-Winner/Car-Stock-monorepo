@@ -163,10 +163,10 @@ export default function SalesFormPage() {
   const handleCustomerSelect = (value: string, option?: SearchSelectOption<Customer>) => {
     if (option?.data) {
       setSelectedCustomer(option.data);
-      setFormData({ ...formData, customerId: value });
+      setFormData(prev => ({ ...prev, customerId: value }));
     } else {
       setSelectedCustomer(null);
-      setFormData({ ...formData, customerId: '' });
+      setFormData(prev => ({ ...prev, customerId: '' }));
     }
   };
 
@@ -429,7 +429,7 @@ export default function SalesFormPage() {
                 <input
                   type="number"
                   value={formData.totalAmount}
-                  onChange={(e) => setFormData({ ...formData, totalAmount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, totalAmount: parseFloat(e.target.value) || 0 }))}
                   min="0"
                   step="0.01"
                   className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
@@ -448,7 +448,7 @@ export default function SalesFormPage() {
                 <input
                   type="number"
                   value={formData.depositAmount}
-                  onChange={(e) => setFormData({ ...formData, depositAmount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, depositAmount: parseFloat(e.target.value) || 0 }))}
                   min="0"
                   step="0.01"
                   className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
@@ -466,7 +466,7 @@ export default function SalesFormPage() {
                 </label>
                 <select
                   value={formData.paymentMode}
-                  onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as PaymentMode })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, paymentMode: e.target.value as PaymentMode }))}
                   className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                 >
                   {PAYMENT_MODE_OPTIONS.map((option) => (
@@ -489,7 +489,7 @@ export default function SalesFormPage() {
                     <input
                       type="number"
                       value={formData.downPayment}
-                      onChange={(e) => setFormData({ ...formData, downPayment: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, downPayment: parseFloat(e.target.value) || 0 }))}
                       min="0"
                       step="0.01"
                       className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -503,7 +503,7 @@ export default function SalesFormPage() {
                     <input
                       type="number"
                       value={formData.financeAmount}
-                      onChange={(e) => setFormData({ ...formData, financeAmount: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, financeAmount: parseFloat(e.target.value) || 0 }))}
                       min="0"
                       step="0.01"
                       className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -517,7 +517,7 @@ export default function SalesFormPage() {
                     <input
                       type="text"
                       value={formData.financeProvider}
-                      onChange={(e) => setFormData({ ...formData, financeProvider: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, financeProvider: e.target.value }))}
                       placeholder="ชื่อบริษัทไฟแนนซ์"
                       className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
                         errors.financeProvider ? 'border-red-500' : 'border-gray-300'
@@ -548,7 +548,7 @@ export default function SalesFormPage() {
                           const totalInterest = finance * (rate / 100) * years;
                           installment = Math.round((finance + totalInterest) / terms);
                         }
-                        setFormData({ ...formData, interestRate: rate, monthlyInstallment: installment });
+                        setFormData(prev => ({ ...prev, interestRate: rate, monthlyInstallment: installment }));
                       }}
                       min="0"
                       step="0.01"
@@ -574,7 +574,7 @@ export default function SalesFormPage() {
                           const totalInterest = finance * (rate / 100) * years;
                           installment = Math.round((finance + totalInterest) / terms);
                         }
-                        setFormData({ ...formData, numberOfTerms: terms, monthlyInstallment: installment });
+                        setFormData(prev => ({ ...prev, numberOfTerms: terms, monthlyInstallment: installment }));
                       }}
                       min="0"
                       step="1"
@@ -590,7 +590,7 @@ export default function SalesFormPage() {
                     <input
                       type="number"
                       value={formData.monthlyInstallment}
-                      onChange={(e) => setFormData({ ...formData, monthlyInstallment: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, monthlyInstallment: parseFloat(e.target.value) || 0 }))}
                       min="0"
                       step="0.01"
                       placeholder="คำนวณอัตโนมัติ"
@@ -615,7 +615,7 @@ export default function SalesFormPage() {
                   <input
                     type="number"
                     value={formData.carDiscount}
-                    onChange={(e) => setFormData({ ...formData, carDiscount: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, carDiscount: parseFloat(e.target.value) || 0 }))}
                     min="0"
                     step="0.01"
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -628,7 +628,7 @@ export default function SalesFormPage() {
                   <input
                     type="number"
                     value={formData.downPaymentDiscount}
-                    onChange={(e) => setFormData({ ...formData, downPaymentDiscount: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, downPaymentDiscount: parseFloat(e.target.value) || 0 }))}
                     min="0"
                     step="0.01"
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -643,7 +643,7 @@ export default function SalesFormPage() {
             <h2 className="text-lg font-semibold mb-4 text-black">หมายเหตุ</h2>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
               placeholder="หมายเหตุเพิ่มเติม..."
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"

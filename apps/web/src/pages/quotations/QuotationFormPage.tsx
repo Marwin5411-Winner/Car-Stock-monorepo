@@ -124,10 +124,10 @@ export default function QuotationFormPage() {
   const handleCustomerSelect = (value: string, option?: SearchSelectOption<Customer>) => {
     if (option?.data) {
       setSelectedCustomer(option.data);
-      setFormData({ ...formData, customerId: value });
+      setFormData(prev => ({ ...prev, customerId: value }));
     } else {
       setSelectedCustomer(null);
-      setFormData({ ...formData, customerId: '' });
+      setFormData(prev => ({ ...prev, customerId: '' }));
     }
   };
 
@@ -144,11 +144,8 @@ export default function QuotationFormPage() {
   const handleVehicleModelSelect = (value: string, option?: SearchSelectOption<VehicleModel>) => {
     const vehicle = option?.data || null;
     setSelectedVehicle(vehicle);
-    setFormData({
-      ...formData,
-      vehicleModelId: value,
-      quotedPrice: Number(vehicle?.price) || formData.quotedPrice,
-    });
+    setFormData(prev => ({ ...prev, vehicleModelId: value,
+      quotedPrice: Number(vehicle?.price) || formData.quotedPrice, }));
   };
 
   const validateForm = (): boolean => {
@@ -309,7 +306,7 @@ export default function QuotationFormPage() {
                   <input
                     type="text"
                     value={formData.preferredExtColor}
-                    onChange={(e) => setFormData({ ...formData, preferredExtColor: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, preferredExtColor: e.target.value }))}
                     placeholder="เช่น ดำ, ขาว, เงิน"
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                   />
@@ -321,7 +318,7 @@ export default function QuotationFormPage() {
                   <input
                     type="text"
                     value={formData.preferredIntColor}
-                    onChange={(e) => setFormData({ ...formData, preferredIntColor: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, preferredIntColor: e.target.value }))}
                     placeholder="เช่น ดำ, น้ำตาล"
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                   />
@@ -359,7 +356,7 @@ export default function QuotationFormPage() {
                 <input
                   type="number"
                   value={formData.quotedPrice}
-                  onChange={(e) => setFormData({ ...formData, quotedPrice: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quotedPrice: parseFloat(e.target.value) || 0 }))}
                   min="0"
                   step="0.01"
                   className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
@@ -378,7 +375,7 @@ export default function QuotationFormPage() {
                 <input
                   type="number"
                   value={formData.discountAmount}
-                  onChange={(e) => setFormData({ ...formData, discountAmount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, discountAmount: parseFloat(e.target.value) || 0 }))}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -411,7 +408,7 @@ export default function QuotationFormPage() {
                 <input
                   type="date"
                   value={formData.validUntil}
-                  onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, validUntil: e.target.value }))}
                   min={new Date().toISOString().split('T')[0]}
                   className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
                     errors.validUntil ? 'border-red-500' : 'border-gray-300'
@@ -433,7 +430,7 @@ export default function QuotationFormPage() {
             
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={4}
               placeholder="หมายเหตุเพิ่มเติม เช่น เงื่อนไขพิเศษ, ของแถม..."
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"

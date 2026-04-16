@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { stockService } from '../../services/stock.service';
 import type { Stock, StockStats } from '../../services/stock.service';
@@ -41,21 +41,7 @@ export default function StockListPage() {
   const canDelete = hasPermission('STOCK_DELETE');
   const canViewCost = hasPermission('STOCK_VIEW_COST');
 
-  useEffect(() => {
-    fetchStocks();
-    fetchStats();
-  }, [page, statusFilter]);
-
-  useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      setPage(1);
-      fetchStocks();
-    }, 500);
-
-    return () => clearTimeout(delayedSearch);
-  }, [searchTerm]);
-
-  const fetchStocks = async () => {
+  const fetchStocks = useCallback(async () => {
     setLoading(true);
     const filters: any = { page, limit };
     if (searchTerm) filters.search = searchTerm;
@@ -69,13 +55,33 @@ export default function StockListPage() {
       })
     );
     setLoading(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchTerm, statusFilter]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     await executeQuery(
       stockService.getStats().then((data) => { setStats(data); })
     );
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchStocks();
+  }, [fetchStocks]);
+
+  // Stats refresh on filter change — previously they only refreshed on
+  // page/statusFilter swap via a combined effect, and never after a search
+  // narrowed the list.
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats, statusFilter]);
+
+  useEffect(() => {
+    if (page === 1) return;
+    const t = setTimeout(() => setPage(1), 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
   const handleDelete = async (id: string, vin: string) => {
     if (!window.confirm(`คุณต้องการลบ Stock VIN "${vin}" หรือไม่?`)) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MainLayout } from '../../components/layout';
 import { Save, Upload, Building } from 'lucide-react';
 import { settingsService } from '../../services/settings.service';
@@ -26,6 +26,16 @@ export default function SettingsPage() {
         website: '',
         logo: '',
     });
+
+    // Track mount status so async callbacks (FileReader.onloadend) cannot
+    // touch state after the component unmounts.
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         fetchSettings();
@@ -70,6 +80,9 @@ export default function SettingsPage() {
 
             const reader = new FileReader();
             reader.onloadend = () => {
+                // FileReader can resolve after the user navigates away; bail
+                // out instead of triggering a state update on unmounted state.
+                if (!mountedRef.current) return;
                 setFormData(prev => ({ ...prev, logo: reader.result as string }));
             };
             reader.readAsDataURL(file);
