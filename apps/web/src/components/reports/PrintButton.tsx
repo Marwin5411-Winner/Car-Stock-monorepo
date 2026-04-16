@@ -5,94 +5,107 @@ interface PrintButtonProps {
   title?: string;
 }
 
+const PRINT_STYLE_RULES = `
+  body {
+    font-family: 'Sarabun', sans-serif;
+    margin: 20px;
+    color: #333;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+  }
+  tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  .summary-card {
+    display: inline-block;
+    margin: 10px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    min-width: 150px;
+  }
+  .summary-title {
+    font-size: 12px;
+    color: #666;
+  }
+  .summary-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+  }
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .print-header h1 {
+    margin: 0;
+    font-size: 24px;
+  }
+  .print-header p {
+    margin: 5px 0;
+    color: #666;
+  }
+  @media print {
+    body { margin: 0; }
+    .no-print { display: none; }
+  }
+`;
+
 export function PrintButton({ contentId, title }: PrintButtonProps) {
   const handlePrint = () => {
-    // Store current page title
     const originalTitle = document.title;
-    
+
     if (title) {
       document.title = title;
     }
 
     if (contentId) {
-      // Print specific content
       const content = document.getElementById(contentId);
       if (content) {
         const printWindow = window.open('', '_blank');
         if (printWindow) {
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>${title || 'รายงาน'}</title>
-              <style>
-                body {
-                  font-family: 'Sarabun', sans-serif;
-                  margin: 20px;
-                  color: #333;
-                }
-                table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-top: 20px;
-                }
-                th, td {
-                  border: 1px solid #ddd;
-                  padding: 8px;
-                  text-align: left;
-                }
-                th {
-                  background-color: #f5f5f5;
-                  font-weight: bold;
-                }
-                tr:nth-child(even) {
-                  background-color: #f9f9f9;
-                }
-                .summary-card {
-                  display: inline-block;
-                  margin: 10px;
-                  padding: 15px;
-                  border: 1px solid #ddd;
-                  border-radius: 8px;
-                  min-width: 150px;
-                }
-                .summary-title {
-                  font-size: 12px;
-                  color: #666;
-                }
-                .summary-value {
-                  font-size: 20px;
-                  font-weight: bold;
-                  color: #333;
-                }
-                .print-header {
-                  text-align: center;
-                  margin-bottom: 20px;
-                }
-                .print-header h1 {
-                  margin: 0;
-                  font-size: 24px;
-                }
-                .print-header p {
-                  margin: 5px 0;
-                  color: #666;
-                }
-                @media print {
-                  body { margin: 0; }
-                  .no-print { display: none; }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="print-header">
-                <h1>${title || 'รายงาน'}</h1>
-                <p>วันที่พิมพ์: ${formatThaiDate(new Date())}</p>
-              </div>
-              ${content.innerHTML}
-            </body>
-            </html>
-          `);
-          printWindow.document.close();
+          const doc = printWindow.document;
+          const headerTitle = title || 'รายงาน';
+
+          // Build the print document with DOM APIs rather than string
+          // concatenation. This keeps any user-controlled data (report rows,
+          // customer names, etc.) as text nodes — no HTML injection surface.
+          doc.title = headerTitle;
+
+          const style = doc.createElement('style');
+          style.textContent = PRINT_STYLE_RULES;
+          doc.head.appendChild(style);
+
+          const headerDiv = doc.createElement('div');
+          headerDiv.className = 'print-header';
+
+          const h1 = doc.createElement('h1');
+          h1.textContent = headerTitle;
+          headerDiv.appendChild(h1);
+
+          const dateP = doc.createElement('p');
+          dateP.textContent = `วันที่พิมพ์: ${formatThaiDate(new Date())}`;
+          headerDiv.appendChild(dateP);
+
+          doc.body.appendChild(headerDiv);
+
+          // Deep-clone the live report node into the print window. The clone
+          // carries over attributes and text nodes exactly but bypasses the
+          // XSS risk of innerHTML concatenation.
+          doc.body.appendChild(doc.importNode(content, true));
+
           printWindow.focus();
           setTimeout(() => {
             printWindow.print();
@@ -101,11 +114,9 @@ export function PrintButton({ contentId, title }: PrintButtonProps) {
         }
       }
     } else {
-      // Print entire page
       window.print();
     }
 
-    // Restore original title
     document.title = originalTitle;
   };
 
@@ -126,11 +137,11 @@ function formatThaiDate(date: Date): string {
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
   ];
-  
+
   const day = date.getDate();
   const month = thaiMonths[date.getMonth()];
   const year = date.getFullYear() + 543; // Convert to Buddhist Era
-  
+
   return `${day} ${month} ${year}`;
 }
 
@@ -140,24 +151,24 @@ export const printStyles = `
     .no-print {
       display: none !important;
     }
-    
+
     .print-only {
       display: block !important;
     }
-    
+
     body {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    
+
     .page-break {
       page-break-before: always;
     }
-    
+
     table {
       page-break-inside: auto;
     }
-    
+
     tr {
       page-break-inside: avoid;
       page-break-after: auto;

@@ -109,6 +109,8 @@ export default function StockDetailPage() {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        // Release the blob so it does not leak for the session lifetime.
+        window.URL.revokeObjectURL(url);
       })
     );
   };
@@ -124,6 +126,7 @@ export default function StockDetailPage() {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.URL.revokeObjectURL(url);
       })
     );
   };

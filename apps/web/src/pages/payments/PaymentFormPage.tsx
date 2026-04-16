@@ -94,7 +94,7 @@ export default function PaymentFormPage() {
   const [saving, setSaving] = useState(false);
 
   // Payment mode: linked to sale or standalone miscellaneous
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>(preSelectedSaleId ? 'sale' : 'sale');
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>(preSelectedSaleId ? 'sale' : 'miscellaneous');
 
   // Sale-related state
   const [saleInfo, setSaleInfo] = useState<SaleInfo | null>(null);

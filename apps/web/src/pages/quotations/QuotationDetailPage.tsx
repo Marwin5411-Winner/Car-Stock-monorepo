@@ -81,10 +81,10 @@ export default function QuotationDetailPage() {
 
   const fetchQuotation = async (quotationId: string) => {
     setLoading(true);
-    const result = await executeQuery(
-      quotationService.getById(quotationId).then(data => setQuotation(data))
-    );
-    if (!result) {
+    const result = await executeQuery(quotationService.getById(quotationId));
+    if (result) {
+      setQuotation(result);
+    } else {
       navigate('/quotations');
     }
     setLoading(false);
@@ -108,21 +108,31 @@ export default function QuotationDetailPage() {
 
   const handleConvertToSale = async () => {
     if (!quotation) return;
+    // Guard against re-entry: button is disabled while `updating`, but rapid
+    // programmatic triggers (Enter key, repeated clicks before the state has
+    // flushed) can still fire. An early return prevents a second API call.
+    if (updating) return;
 
     setUpdating(true);
-    await executeQuery(
-      quotationService.convertToSale(quotation.id, {
-        saleType: 'RESERVATION_SALE',
-        depositAmount: convertData.depositAmount,
-        paymentMethod: convertData.depositAmount > 0 ? convertData.paymentMethod : undefined,
-        paymentReferenceNumber: convertData.depositAmount > 0 ? convertData.paymentReferenceNumber : undefined,
-      }).then((result) => {
-        setShowConvertModal(false);
-        addToast(`แปลงเป็นการขายสำเร็จ! เลขที่การขาย: ${result.sale.saleNumber}`, 'success');
-        navigate(`/sales/${result.sale.id}`);
-      })
-    );
-    setUpdating(false);
+    try {
+      await executeQuery(
+        quotationService.convertToSale(quotation.id, {
+          saleType: 'RESERVATION_SALE',
+          depositAmount: convertData.depositAmount,
+          paymentMethod: convertData.depositAmount > 0 ? convertData.paymentMethod : undefined,
+          paymentReferenceNumber: convertData.depositAmount > 0 ? convertData.paymentReferenceNumber : undefined,
+        }).then((result) => {
+          setShowConvertModal(false);
+          addToast(`แปลงเป็นการขายสำเร็จ! เลขที่การขาย: ${result.sale.saleNumber}`, 'success');
+          navigate(`/sales/${result.sale.id}`);
+        })
+      );
+    } finally {
+      // Always clear the in-flight flag, even on error. Previously the naked
+      // `setUpdating(false)` after the await could be skipped on unhandled
+      // rejection, leaving the modal stuck.
+      setUpdating(false);
+    }
   };
 
   const handleCreateNewVersion = async () => {

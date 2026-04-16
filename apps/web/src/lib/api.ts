@@ -66,10 +66,18 @@ class ApiClient {
     });
 
     // Parse response body safely — handle non-JSON responses
-    let data: any;
+    type RawApiResponse = {
+      success?: boolean;
+      error?: string;
+      message?: string;
+      details?: Record<string, unknown>;
+      data?: unknown;
+      meta?: unknown;
+    };
+    let data: RawApiResponse;
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
-      data = await response.json();
+      data = (await response.json()) as RawApiResponse;
     } else {
       const text = await response.text();
       data = { success: false, error: 'INVALID_RESPONSE', message: text || 'Server returned non-JSON response' };
@@ -95,7 +103,9 @@ class ApiClient {
       );
     }
 
-    return data;
+    // The API contract returns an envelope shaped like `RawApiResponse`; the
+    // generic `T` is the caller's declared view of it.
+    return data as unknown as T;
   }
 
   async get<T>(endpoint: string, params?: RequestOptions['params']): Promise<T> {

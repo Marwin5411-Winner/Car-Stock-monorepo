@@ -394,7 +394,12 @@ export function AsyncSearchSelect<T = unknown>({
 }: AsyncSearchSelectProps<T>) {
   const [options, setOptions] = React.useState<SearchSelectOption<T>[]>(defaultOptions);
   const [loading, setLoading] = React.useState(false);
-  const [cache, setCache] = React.useState<Map<string, SearchSelectOption<T>[]>>(new Map());
+  // Keep the query -> results cache in a ref so mutating it does NOT trigger a
+  // render or reallocate `handleSearch`. Previously the cache lived in state
+  // and was a `useCallback` dep, so each successful search rebuilt the
+  // callback, which in turn re-ran the parent's debounce effect — potentially
+  // cascading into extra searches for large option sets.
+  const cacheRef = React.useRef<Map<string, SearchSelectOption<T>[]>>(new Map());
 
   const handleSearch = React.useCallback(async (query: string) => {
     if (query.length < minSearchLength) {
@@ -402,8 +407,8 @@ export function AsyncSearchSelect<T = unknown>({
       return;
     }
 
-    if (cacheOptions && cache.has(query)) {
-      setOptions(cache.get(query) || []);
+    if (cacheOptions && cacheRef.current.has(query)) {
+      setOptions(cacheRef.current.get(query) || []);
       return;
     }
 
@@ -411,9 +416,10 @@ export function AsyncSearchSelect<T = unknown>({
       setLoading(true);
       const results = await loadOptions(query);
       setOptions(results);
-      
+
       if (cacheOptions) {
-        setCache((prev) => new Map(prev).set(query, results));
+        // Mutate the ref in place — no render, no callback churn.
+        cacheRef.current.set(query, results);
       }
     } catch (error) {
       console.error('Error loading options:', error);
@@ -421,7 +427,7 @@ export function AsyncSearchSelect<T = unknown>({
     } finally {
       setLoading(false);
     }
-  }, [loadOptions, minSearchLength, defaultOptions, cacheOptions, cache]);
+  }, [loadOptions, minSearchLength, defaultOptions, cacheOptions]);
 
   return (
     <SearchSelect

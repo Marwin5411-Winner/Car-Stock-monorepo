@@ -3,6 +3,15 @@ import * as path from 'path';
 
 const UPDATER_URL = process.env.UPDATER_URL || 'http://updater:9000';
 const UPDATE_SECRET = process.env.UPDATE_SECRET || '';
+
+// In production, an empty UPDATE_SECRET means the updater runs unauthenticated
+// — reject at boot instead of silently exposing triggerUpdate/Rollback/Backup.
+if (process.env.NODE_ENV === 'production' && !UPDATE_SECRET) {
+  throw new Error(
+    'UPDATE_SECRET environment variable must be set in production. ' +
+      'Destructive updater operations cannot run unauthenticated.'
+  );
+}
 const STATUS_FILE_PATH = '/app/updater-status/update-status.json';
 
 interface UpdateCheckResult {
@@ -221,12 +230,14 @@ export class SystemService {
    * Get contents of a specific log file (last 100 lines)
    */
   async getLogFile(filename: string): Promise<{ filename: string; lines: string[] }> {
-    // Validate filename to prevent path traversal
-    if (filename.includes('..') || filename.includes('/')) {
+    // Strict allowlist: alphanumerics, hyphens, underscores, and dots only.
+    // Blocks path traversal sequences (../), URL-encoded variants (%2F, %2e),
+    // backslashes, and any other separator characters.
+    if (!/^[\w\-.]+$/.test(filename)) {
       throw new Error('Invalid log filename');
     }
 
-    const response = await fetch(`${UPDATER_URL}/logs/${filename}`, {
+    const response = await fetch(`${UPDATER_URL}/logs/${encodeURIComponent(filename)}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });

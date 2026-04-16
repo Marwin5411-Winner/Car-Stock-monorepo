@@ -40,9 +40,14 @@
         {{#each items}}
         <div style="display: flex; justify-content: space-between;">
             <span>{{this.description}}</span>
-            <span>{{formatCurrency this.amount}}</span>
+            <span>{{#if this.amount}}{{formatCurrency this.amount}}{{/if}}</span>
         </div>
         {{/each}}
+        {{#if paymentMethodLabel}}
+        <div style="font-weight: bold; margin-top: 0.2cm;">
+            ชำระโดย: {{paymentMethodLabel}}
+        </div>
+        {{/if}}
     </div>
 
     <!-- Totals -->

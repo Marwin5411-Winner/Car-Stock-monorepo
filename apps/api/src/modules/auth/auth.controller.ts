@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authService } from './auth.service';
-import { authMiddleware } from './auth.middleware';
+import { authMiddleware, requirePermission } from './auth.middleware';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   // Login endpoint
@@ -58,6 +58,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       }
     },
     {
+      beforeHandle: [authMiddleware, requirePermission('USER_CREATE')],
       body: t.Object({
         username: t.String({ minLength: 3, maxLength: 50 }),
         email: t.String({ format: 'email' }),
@@ -144,7 +145,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     async ({ jwt, requester, set }) => {
       try {
         const token = await jwt.sign({
-          id: requester.id,
+          sub: requester.id,
           username: requester.username,
           role: requester.role,
         });

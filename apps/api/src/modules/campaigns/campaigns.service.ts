@@ -711,8 +711,10 @@ class CampaignsService {
         saleNumber: sale.saleNumber,
         saleType: sale.type,
         saleStatus: sale.status,
-        customerName: sale.customer.name,
-        salesperson: `${sale.createdBy.firstName} ${sale.createdBy.lastName}`,
+        customerName: sale.customer?.name ?? '-',
+        salesperson: sale.createdBy
+          ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
+          : '-',
         vin: sale.stock?.vin || '-',
         engineNumber: sale.stock?.engineNumber || '-',
         exteriorColor: sale.stock?.exteriorColor || '-',

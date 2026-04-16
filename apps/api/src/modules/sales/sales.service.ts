@@ -69,30 +69,34 @@ export class SalesService {
     const currentYear = new Date().getFullYear();
     const prefix = NUMBER_PREFIXES.SALE;
 
-    // Get or create number sequence
-    let sequence = await db.numberSequence.findFirst({
-      where: {
-        prefix: prefix,
-        year: currentYear,
+    // Atomic read-modify-write inside a serializable transaction prevents the
+    // concurrent-find-then-update race that produces duplicate sale numbers.
+    // We can't use Prisma's compound-key upsert here because the existing year-
+    // only sequences have `month: null`, which isn't addressable via the
+    // `prefix_year_month` unique selector.
+    const nextNumber = await db.$transaction(
+      async (tx) => {
+        const updated = await tx.numberSequence.updateMany({
+          where: { prefix, year: currentYear, month: null },
+          data: { lastNumber: { increment: 1 } },
+        });
+
+        if (updated.count > 0) {
+          const sequence = await tx.numberSequence.findFirst({
+            where: { prefix, year: currentYear, month: null },
+            select: { lastNumber: true },
+          });
+          return sequence!.lastNumber;
+        }
+
+        const created = await tx.numberSequence.create({
+          data: { prefix, year: currentYear, lastNumber: 1 },
+          select: { lastNumber: true },
+        });
+        return created.lastNumber;
       },
-    });
-
-    if (!sequence) {
-      sequence = await db.numberSequence.create({
-        data: {
-          prefix: prefix,
-          year: currentYear,
-          lastNumber: 0,
-        },
-      });
-    }
-
-    // Increment and get next number
-    const nextNumber = sequence.lastNumber + 1;
-    await db.numberSequence.update({
-      where: { id: sequence.id },
-      data: { lastNumber: nextNumber },
-    });
+      { isolationLevel: 'Serializable' }
+    );
 
     // Format: SL-YYYY-XXXX
     return `${prefix}-${currentYear}-${nextNumber.toString().padStart(4, '0')}`;
@@ -449,7 +453,15 @@ export class SalesService {
       }
     }
 
-    // Recalculate remaining amount if total or deposit changed
+    // Recalculate remaining amount if total or deposit changed.
+    //
+    // Invariant: `remainingAmount = totalAmount - max(depositAmount, paidAmount)`.
+    // This matches both call sites without double-counting:
+    //  - At creation (sales create): no payments yet → remaining = total - deposit
+    //  - At payment (createPayment): once a deposit payment is recorded
+    //    paidAmount >= depositAmount, so remaining = total - paid
+    // Subtracting deposit AND paid (the previous formula) double-counted the
+    // deposit whenever it had been recorded as a DEPOSIT-type payment.
     if (validated.totalAmount !== undefined || validated.depositAmount !== undefined) {
       const currentSale = await db.sale.findUnique({
         where: { id },
@@ -464,7 +476,8 @@ export class SalesService {
         throw new BadRequestError('Deposit amount cannot exceed total amount');
       }
 
-      const newRemaining = newTotal - newDeposit - paid;
+      const settled = Math.max(newDeposit, paid);
+      const newRemaining = newTotal - settled;
       if (newRemaining < 0) {
         throw new BadRequestError(
           `ยอดค้างชำระติดลบ — ไม่สามารถลดยอดได้ (ชำระแล้ว ${paid.toLocaleString()} บาท)`
@@ -516,7 +529,7 @@ export class SalesService {
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id },
-      select: { id: true, status: true, stockId: true },
+      select: { id: true, status: true, stockId: true, remainingAmount: true },
     });
 
     if (!existingSale) {
@@ -529,6 +542,16 @@ export class SalesService {
     }
     if (existingSale.status === 'COMPLETED') {
       throw new BadRequestError('Cannot change status of completed sale');
+    }
+
+    // Validate full payment before marking as COMPLETED
+    if (status === 'COMPLETED') {
+      const remaining = Number(existingSale.remainingAmount);
+      if (remaining > 0) {
+        throw new BadRequestError(
+          `ไม่สามารถปิดการขายได้ ยังมียอดค้างชำระ ${remaining.toLocaleString()} บาท`
+        );
+      }
     }
 
     // Enforce valid status transitions
@@ -584,12 +607,28 @@ export class SalesService {
             where: { id: existingSale.stockId },
             data: { status: 'PREPARING' },
           });
-        } else if (status === 'DELIVERED' || status === 'COMPLETED') {
+        } else if (status === 'DELIVERED') {
+          // Mark SOLD with the actual delivery date as soldDate.
           await tx.stock.update({
             where: { id: existingSale.stockId },
             data: {
               status: 'SOLD',
               soldDate: new Date(),
+              actualSalePrice: updated.totalAmount,
+            },
+          });
+        } else if (status === 'COMPLETED') {
+          // Confirm SOLD but preserve soldDate (set at DELIVERED). Only set it
+          // if delivery was skipped or soldDate was never recorded.
+          const stockSnapshot = await tx.stock.findUnique({
+            where: { id: existingSale.stockId },
+            select: { soldDate: true },
+          });
+          await tx.stock.update({
+            where: { id: existingSale.stockId },
+            data: {
+              status: 'SOLD',
+              ...(stockSnapshot?.soldDate ? {} : { soldDate: new Date() }),
               actualSalePrice: updated.totalAmount,
             },
           });
@@ -667,32 +706,33 @@ export class SalesService {
       select: { saleNumber: true },
     });
 
-    // Release stock if reserved
-    if (existingSale.stockId) {
-      await db.stock.update({
-        where: { id: existingSale.stockId },
+    // Release stock + delete sale + log activity atomically — partial failures
+    // here would leave stock released but the sale still referencing it.
+    await db.$transaction(async (tx) => {
+      if (existingSale.stockId) {
+        await tx.stock.update({
+          where: { id: existingSale.stockId },
+          data: {
+            status: 'AVAILABLE',
+          },
+        });
+      }
+
+      await tx.sale.delete({
+        where: { id },
+      });
+
+      await tx.activityLog.create({
         data: {
-          status: 'AVAILABLE',
+          userId: currentUser.id,
+          action: 'DELETE_SALE',
+          entity: 'SALE',
+          entityId: id,
+          details: {
+            saleNumber: sale?.saleNumber,
+          },
         },
       });
-    }
-
-    // Delete sale
-    await db.sale.delete({
-      where: { id },
-    });
-
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'DELETE_SALE',
-        entity: 'SALE',
-        entityId: id,
-        details: {
-          saleNumber: sale?.saleNumber,
-        },
-      },
     });
 
     return { success: true, message: 'Sale deleted successfully' };

@@ -48,16 +48,16 @@
         <td class="text-right">{{formatCurrency principalAmount}}</td>
         <td class="text-center">{{interestRate}}%</td>
         <td class="text-center">{{daysCount}}</td>
-        <td class="text-right">{{formatCurrency totalAccumulatedInterest}}</td>
+        <td class="text-right">{{formatCurrency accumulatedInterest}}</td>
         <td class="text-right">{{formatCurrency paidInterest}}</td>
         <td class="text-right" style="color: {{#if (gt pendingInterest 0)}}red{{else}}black{{/if}}">{{formatCurrency pendingInterest}}</td>
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
         <td colspan="7" class="text-right">รวมทั้งสิ้น</td>
-        <td class="text-right">{{formatCurrency summary.totalAccumulatedInterest}}</td>
-        <td class="text-right">{{formatCurrency summary.totalPaidInterest}}</td>
-        <td class="text-right">{{formatCurrency summary.totalPendingInterest}}</td>
+        <td class="text-right">{{formatCurrency summary.totalInterest}}</td>
+        <td class="text-right">{{formatCurrency summary.paidInterest}}</td>
+        <td class="text-right">{{formatCurrency summary.pendingInterest}}</td>
       </tr>
     </tbody>
   </table>

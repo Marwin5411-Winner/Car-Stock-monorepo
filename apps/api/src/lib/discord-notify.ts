@@ -3,8 +3,7 @@
  * Sends error logs to Discord webhook with rate limiting.
  */
 
-const WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL
-  || 'https://discord.com/api/webhooks/1487313296993288193/pT6GOgi6d0txaKugYIngyhzjYxgJQ7zQrcPkRRvf6LRHelgrar1rRadbdf0p325iT2HS';
+const WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 
 const RATE_LIMIT_MS = 5_000;
 let lastSentAt = 0;
@@ -12,6 +11,7 @@ let pending: string[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 async function flush() {
+  if (!WEBHOOK_URL) return;
   if (pending.length === 0) return;
 
   const now = Date.now();

@@ -67,10 +67,13 @@ export class AnalyticsService {
     const activities: ActivityItem[] = [
       ...recentSales.map(sale => {
         const amount = Number(sale.totalAmount);
-        const description = sale.stock 
-          ? `${sale.customer.name} - ${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}`
-          : `${sale.customer.name} - (No Car Assigned)`;
-          
+        const customerName = sale.customer?.name ?? '-';
+        const vehicleBrand = sale.stock?.vehicleModel?.brand ?? '';
+        const vehicleModel = sale.stock?.vehicleModel?.model ?? '';
+        const description = sale.stock
+          ? `${customerName} - ${vehicleBrand} ${vehicleModel}`.trim()
+          : `${customerName} - (No Car Assigned)`;
+
         return {
           id: sale.id,
           type: 'SALE' as const,
@@ -83,11 +86,12 @@ export class AnalyticsService {
       }),
       ...recentPayments.map(payment => {
         const amount = Number(payment.amount);
+        const customerName = payment.customer?.name ?? '-';
         return {
           id: payment.id,
           type: 'PAYMENT' as const,
           title: `ได้รับชำระเงิน: ${payment.receiptNumber}`,
-          description: `${payment.customer.name} (${payment.paymentType})`,
+          description: `${customerName} (${payment.paymentType})`,
           amount,
           timestamp: payment.createdAt,
           metadata: { paymentId: payment.id }

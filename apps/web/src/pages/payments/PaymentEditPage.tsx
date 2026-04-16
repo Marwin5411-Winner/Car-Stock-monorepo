@@ -2,9 +2,11 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
+import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 import { useErrorHandler, useMutationHandler } from '../../hooks/useErrorHandler';
 import { paymentService } from '../../services/payment.service';
 import type { Payment, PaymentMethod, PaymentType } from '../../services/payment.service';
+import { userService, type User } from '../../services/user.service';
 
 const PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
   { value: 'DEPOSIT', label: 'เงินจอง' },
@@ -29,6 +31,7 @@ interface FormData {
   paymentMethod: PaymentMethod;
   referenceNumber: string;
   notes: string;
+  issuedBy: string;
 }
 
 export default function PaymentEditPage() {
@@ -40,6 +43,7 @@ export default function PaymentEditPage() {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [staffOptions, setStaffOptions] = useState<SearchSelectOption[]>([]);
   const [formData, setFormData] = useState<FormData>({
     description: '',
     paymentDate: '',
@@ -48,11 +52,32 @@ export default function PaymentEditPage() {
     paymentMethod: 'CASH',
     referenceNumber: '',
     notes: '',
+    issuedBy: '',
   });
 
   useEffect(() => {
     if (id) fetchPayment(id);
+    fetchStaff();
   }, [id]);
+
+  const fetchStaff = async () => {
+    try {
+      const response = await userService.getAll({ limit: 100 });
+      const options = response.data
+        .filter((u: User) => u.status === 'ACTIVE')
+        .map((u: User) => {
+          const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username;
+          return {
+            value: fullName,
+            label: fullName,
+            description: u.role,
+          };
+        });
+      setStaffOptions(options);
+    } catch {
+      // fallback: leave empty, user can still type
+    }
+  };
 
   const fetchPayment = async (paymentId: string) => {
     setLoading(true);
@@ -67,6 +92,7 @@ export default function PaymentEditPage() {
         paymentMethod: result.paymentMethod,
         referenceNumber: result.referenceNumber || '',
         notes: result.notes || '',
+        issuedBy: result.issuedBy || '',
       });
     } else {
       navigate('/payments');
@@ -82,6 +108,7 @@ export default function PaymentEditPage() {
     const result = await executeSave(
       paymentService.update(id, {
         ...formData,
+        amount: Number(formData.amount),
         paymentDate: formData.paymentDate,
       })
     );
@@ -216,6 +243,15 @@ export default function PaymentEditPage() {
               placeholder="เลขที่เช็ค, เลขอ้างอิงโอนเงิน"
             />
           </div>
+
+          <SearchSelect
+            label="ออกโดย"
+            value={formData.issuedBy}
+            onChange={(value) => setFormData((prev) => ({ ...prev, issuedBy: value }))}
+            options={staffOptions}
+            placeholder="เลือกพนักงาน..."
+            clearable
+          />
 
           <div>
             <label className={labelClass}>หมายเหตุ</label>

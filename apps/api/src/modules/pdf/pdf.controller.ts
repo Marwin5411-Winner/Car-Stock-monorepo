@@ -6,6 +6,7 @@
 import { Elysia, t } from 'elysia';
 import { pdfService } from './pdf.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
+import { PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from '@car-stock/shared/constants';
 import { db } from '../../lib/db';
 import {
   DeliveryReceiptData,
@@ -20,7 +21,7 @@ import {
   CustomerInfo,
   CarInfo,
 } from './types';
-import { formatThaiDate } from './helpers';
+import { formatThaiDate, numberToThaiText } from './helpers';
 import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
 
 // Helper function to transform customer data
@@ -431,8 +432,6 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         },
       });
 
-      console.log(sale);
-
       if (!sale) {
         set.status = 404;
         return { success: false, error: 'Sale not found' };
@@ -516,8 +515,6 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         }
       };
 
-      console.log(data);
-
       const pdfBuffer = await pdfService.generateContract(data);
 
       set.headers['Content-Type'] = 'application/pdf';
@@ -569,13 +566,17 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const sale = payment.sale;
       const customer = payment.customer || sale?.customer;
 
-      // Build items array from payment description or default
-      const items = [
-        {
-          description: payment.notes || `ค่ามัดจำ ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
-          amount: payment.amount.toString(),
-        },
+      // Build items: payment type label as main item, description as sub-item
+      const typeLabel = PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
+      const methodLabel = PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
+      const items: { description: string; amount: string }[] = [
+        { description: mainItem, amount: payment.amount.toString() },
       ];
+      if (payment.description) {
+        items.push({ description: payment.description, amount: '' });
+      }
 
       // Determine payment method
       const paymentMethodData = {
@@ -590,13 +591,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-      // Additional fax field check for this specific template type if needed
-      // Assuming getCompanyHeader includes fax in phone field or we might need to adjust CompanyHeader type
 
       const data: TemporaryReceiptData = {
         header: {
           ...header,
-          fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
+          fax: '',
         },
         customerCode: customer?.code || '',
         receiptNumber: payment.receiptNumber,
@@ -604,13 +603,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         contractNumber: sale?.saleNumber || '',
         customer: transformCustomer(customer),
         items,
-        // Totals section
         paymentAmount: payment.amount.toString(),
         lateFee: '0',
         discount: '0',
         totalAmount: payment.amount.toString(),
-        totalAmountText: '', // Will be calculated by helper
+        totalAmountText: numberToThaiText(Number(payment.amount)),
         paymentMethod: paymentMethodData,
+        paymentMethodLabel: methodLabel,
         note: payment.notes || undefined,
       };
 
@@ -699,7 +698,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         car: transformCar(sale?.stock),
         items,
         amount: payment.amount.toString(),
-        amountText: '',
+        amountText: numberToThaiText(Number(payment.amount)),
         paymentMethod: payment.paymentMethod || 'CASH',
         note: payment.notes || undefined,
       };
@@ -761,9 +760,27 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const otherCosts = Number(stock.otherCosts || 0);
       const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
 
+      // VAT calculations (baseCost includes VAT)
+      const beforeVat = baseCost / 1.07;
+      const vatAmount = baseCost - beforeVat;
+
+      const splitAmount = (amount: number) => {
+        const fixed = amount.toFixed(2);
+        const [intPart, decPart] = fixed.split('.');
+        return {
+          full: Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          int: Number(intPart).toLocaleString('en-US'),
+          dec: decPart,
+        };
+      };
+
+      const beforeVatParts = splitAmount(beforeVat);
+      const vatParts = splitAmount(vatAmount);
+      const totalVatParts = splitAmount(baseCost);
+
       const data: VehicleCardData = {
         header,
-        stockNumber: stock.vin || '-',
+        stockNumber: stock.stockNumber || '-',
         date: formatThaiDate(new Date()),
         car: {
           brand: stock.vehicleModel?.brand || '-',
@@ -774,10 +791,19 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           interiorColor: stock.interiorColor || '-',
           engineNo: stock.engineNumber || '-',
           chassisNo: stock.vin || '-',
-          ccOrKw: '-', // Not in stock model
+          ccOrKw: '-',
         },
         costs: {
           baseCost: baseCost.toString(),
+          beforeVat: beforeVatParts.full,
+          beforeVatInt: beforeVatParts.int,
+          beforeVatDec: beforeVatParts.dec,
+          vatAmount: vatParts.full,
+          vatAmountInt: vatParts.int,
+          vatAmountDec: vatParts.dec,
+          totalWithVat: totalVatParts.full,
+          totalWithVatInt: totalVatParts.int,
+          totalWithVatDec: totalVatParts.dec,
           transportCost: transportCost.toString(),
           accessoryCost: accessoryCost.toString(),
           otherCosts: otherCosts.toString(),
@@ -843,9 +869,27 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const otherCosts = Number(stock.otherCosts || 0);
       const totalCost = baseCost + transportCost + accessoryCost + otherCosts + accumulatedInterest;
 
+      // VAT calculations (baseCost includes VAT)
+      const beforeVat = baseCost / 1.07;
+      const vatAmount = baseCost - beforeVat;
+
+      const splitAmount = (amount: number) => {
+        const fixed = amount.toFixed(2);
+        const [intPart, decPart] = fixed.split('.');
+        return {
+          full: Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          int: Number(intPart).toLocaleString('en-US'),
+          dec: decPart,
+        };
+      };
+
+      const beforeVatParts = splitAmount(beforeVat);
+      const vatParts = splitAmount(vatAmount);
+      const totalVatParts = splitAmount(baseCost);
+
       const data: VehicleCardData = {
         header,
-        stockNumber: stock.vin || '-',
+        stockNumber: stock.stockNumber || '-',
         date: formatThaiDate(new Date()),
         car: {
           brand: stock.vehicleModel?.brand || '-',
@@ -856,10 +900,19 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           interiorColor: stock.interiorColor || '-',
           engineNo: stock.engineNumber || '-',
           chassisNo: stock.vin || '-',
-          ccOrKw: '-', // Not in stock model
+          ccOrKw: '-',
         },
         costs: {
           baseCost: baseCost.toString(),
+          beforeVat: beforeVatParts.full,
+          beforeVatInt: beforeVatParts.int,
+          beforeVatDec: beforeVatParts.dec,
+          vatAmount: vatParts.full,
+          vatAmountInt: vatParts.int,
+          vatAmountDec: vatParts.dec,
+          totalWithVat: totalVatParts.full,
+          totalWithVatInt: totalVatParts.int,
+          totalWithVatDec: totalVatParts.dec,
           transportCost: transportCost.toString(),
           accessoryCost: accessoryCost.toString(),
           otherCosts: otherCosts.toString(),
@@ -919,13 +972,17 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const sale = payment.sale;
       const customer = payment.customer || sale?.customer;
 
-      // Build items array from payment description or default
-      const items = [
-        {
-          description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
-          amount: payment.amount.toString(),
-        },
+      // Build items: payment type label as main item, description as sub-item
+      const typeLabel = PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
+      const methodLabel = PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
+      const items: { description: string; amount: string }[] = [
+        { description: mainItem, amount: payment.amount.toString() },
       ];
+      if (payment.description) {
+        items.push({ description: payment.description, amount: '' });
+      }
 
       // Determine payment method
       const paymentMethodData = {
@@ -952,13 +1009,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         contractNumber: sale?.saleNumber || '',
         customer: transformCustomer(customer),
         items,
-        // Totals section
         paymentAmount: payment.amount.toString(),
         lateFee: '0',
         discount: '0',
         totalAmount: payment.amount.toString(),
-        totalAmountText: '', // Will be calculated by helper
+        totalAmountText: numberToThaiText(Number(payment.amount)),
         paymentMethod: paymentMethodData,
+        paymentMethodLabel: methodLabel,
         note: payment.notes || undefined,
       };
 
@@ -1013,13 +1070,17 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const sale = payment.sale;
       const customer = payment.customer || sale?.customer;
 
-      // Build items array from payment description or default
-      const items = [
-        {
-          description: payment.notes || `ค่าจอง ${sale?.stock?.vehicleModel?.brand || ''} ${sale?.stock?.vehicleModel?.model || ''}`,
-          amount: payment.amount.toString(),
-        },
+      // Build items: payment type label as main item, description as sub-item
+      const typeLabel = PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
+      const methodLabel = PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
+      const items: { description: string; amount: string }[] = [
+        { description: mainItem, amount: payment.amount.toString() },
       ];
+      if (payment.description) {
+        items.push({ description: payment.description, amount: '' });
+      }
 
       // Determine payment method
       const paymentMethodData = {
@@ -1034,12 +1095,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
-      // Additional fax field check for this specific template type if needed
 
       const data: TemporaryReceiptData = {
         header: {
           ...header,
-          fax: '', // Add fax property if required by TemporaryReceiptData interface but missing from getCompanyHeader
+          fax: '',
         },
         customerCode: customer?.code || '',
         receiptNumber: payment.receiptNumber,
@@ -1047,13 +1107,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         contractNumber: sale?.saleNumber || '',
         customer: transformCustomer(customer),
         items,
-        // Totals section
         paymentAmount: payment.amount.toString(),
         lateFee: '0',
         discount: '0',
         totalAmount: payment.amount.toString(),
-        totalAmountText: '', // Will be calculated by helper
+        totalAmountText: numberToThaiText(Number(payment.amount)),
         paymentMethod: paymentMethodData,
+        paymentMethodLabel: methodLabel,
         note: payment.notes || undefined,
       };
 
@@ -1065,6 +1125,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       return pdfBuffer;
     },
     {
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
+      params: t.Object({
+        paymentId: t.String(),
+      }),
       detail: {
         tags: ['PDF'],
         summary: 'Generate Temporary Receipt PDF with Background',
@@ -1080,11 +1144,14 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
     '/daily-payment-report/:date',
     async ({ params, set }) => {
       const date = new Date(params.date);
+      // Single-day window: [start of day, start of next day)
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
       const dailyPaymentReport = await db.payment.findMany({
         where: {
           paymentDate: {
-            gte: new Date(date.getTime() - 86400000),
-            lte: new Date(date.getTime() + 86400000),
+            gte: dayStart,
+            lt: dayEnd,
           },
         },
         include: {
@@ -1143,6 +1210,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       return pdfBuffer;
     },
     {
+      beforeHandle: [authMiddleware, requirePermission('REPORT_FINANCE')],
       params: t.Object({
         date: t.String(),
       }),

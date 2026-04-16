@@ -323,9 +323,12 @@ export default function SalesDetailPage() {
     setDocumentLoading(config.id);
     await executeQuery(
       api.getBlob(endpoint).then((blob) => {
-        // Create blob URL and open in new window for printing
+        // Create blob URL and open in new window for printing. Revoke the URL
+        // shortly after the window loads so the blob is not pinned for the
+        // lifetime of the tab.
         const url = window.URL.createObjectURL(blob);
         const printWindow = window.open(url, '_blank');
+        const revokeLater = () => setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
 
         if (printWindow) {
           printWindow.onload = () => {
@@ -333,11 +336,13 @@ export default function SalesDetailPage() {
             // Give time for PDF to load before printing
             setTimeout(() => {
               printWindow.print();
+              revokeLater();
             }, 500);
           };
         } else {
-          // Fallback: if popup blocked, just open the URL
+          // Fallback: if popup blocked, just open the URL and schedule cleanup.
           window.open(url, '_blank');
+          revokeLater();
         }
       })
     );

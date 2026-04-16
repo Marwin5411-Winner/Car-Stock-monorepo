@@ -77,10 +77,13 @@ export const CampaignAnalyticsPage: React.FC = () => {
     ].join('\n');
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    link.href = url;
     link.download = `campaign-analytics-${id}-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+    // Revoke to avoid leaking the blob for the session lifetime.
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {

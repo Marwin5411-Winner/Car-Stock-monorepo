@@ -53,37 +53,34 @@ export class QuotationsService {
     const currentMonth = currentDate.getMonth() + 1;
     const prefix = NUMBER_PREFIXES.QUOTATION;
 
-    // Get or create number sequence for this month
+    // Use a composite per-month sequence key. Atomic via the prefix_year_month
+    // unique constraint — eliminates the race where two concurrent quotations
+    // would both read the same lastNumber and produce duplicate numbers.
     const sequenceKey = `${prefix}-${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
-    
-    let sequence = await db.numberSequence.findFirst({
-      where: {
-        prefix: sequenceKey,
-        year: currentYear,
-      },
-    });
 
-    if (!sequence) {
-      sequence = await db.numberSequence.create({
-        data: {
+    const sequence = await db.numberSequence.upsert({
+      where: {
+        prefix_year_month: {
           prefix: sequenceKey,
           year: currentYear,
-          lastNumber: 0,
+          month: currentMonth,
         },
-      });
-    }
-
-    // Increment and get next number
-    const nextNumber = sequence.lastNumber + 1;
-    await db.numberSequence.update({
-      where: { id: sequence.id },
-      data: { lastNumber: nextNumber },
+      },
+      create: {
+        prefix: sequenceKey,
+        year: currentYear,
+        month: currentMonth,
+        lastNumber: 1,
+      },
+      update: {
+        lastNumber: { increment: 1 },
+      },
     });
 
     // Format: QTN-YYMM-XXX
     const yearShort = currentYear.toString().slice(-2);
     const month = currentMonth.toString().padStart(2, '0');
-    return `${prefix}-${yearShort}${month}-${nextNumber.toString().padStart(3, '0')}`;
+    return `${prefix}-${yearShort}${month}-${sequence.lastNumber.toString().padStart(3, '0')}`;
   }
 
   /**
@@ -595,11 +592,11 @@ export class QuotationsService {
     const saleType = data.saleType || 'RESERVATION_SALE';
     const carPrice = Number(quotation.finalPrice);
     const depositAmount = Number(data.depositAmount || 0);
-    // Deposit is added ON TOP of the car price, not included in it
-    // Total = car price + deposit (customer pays car price + deposit)
-    // Remaining = car price (what's left to pay for the car)
-    const totalAmount = carPrice + depositAmount;
-    const remainingAmount = carPrice;
+    // Total = car price (the agreed sale price); deposit is an advance payment toward it.
+    // Remaining = total minus deposit, matching the standard sale creation formula
+    // (sales.service.ts: remainingAmount = totalAmount - depositAmount).
+    const totalAmount = carPrice;
+    const remainingAmount = carPrice - depositAmount;
 
     // Pre-generate receipt number outside transaction (uses its own sequence)
     let receiptNumber: string | null = null;

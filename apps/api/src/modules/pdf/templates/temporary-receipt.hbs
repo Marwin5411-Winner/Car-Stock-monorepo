@@ -47,9 +47,16 @@
             {{#each items}}
             <tr class="item-row">
                 <td class="item-desc" colspan="3">{{this.description}}</td>
-                <td class="item-amount" colspan="2">{{formatCurrency this.amount}}</td>
+                <td class="item-amount" colspan="2">{{#if this.amount}}{{formatCurrency this.amount}}{{/if}}</td>
             </tr>
             {{/each}}
+            <!-- Payment method row -->
+            {{#if paymentMethodLabel}}
+            <tr class="item-row">
+                <td class="item-desc" colspan="3" style="font-weight: bold;">ชำระโดย: {{paymentMethodLabel}}</td>
+                <td class="item-amount" colspan="2"></td>
+            </tr>
+            {{/if}}
             <!-- Empty space for more items -->
             <tr class="item-row spacer-row">
                 <td colspan="3">&nbsp;</td>
@@ -95,7 +102,7 @@
             </div>
              <!-- Suffix for first row -->
              <div class="sig-suffix-box">
-                <span class="sig-suffix">ชําระโดย</span>
+                <span class="sig-suffix">ชําระโดย {{paymentMethodLabel}}</span>
             </div>
         </div>
 

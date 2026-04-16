@@ -80,6 +80,9 @@ export default function VehicleFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Guard against double-submit: the submit button (outside the <form>) and
+    // the form's own onSubmit (Enter key inside fields) both call this handler.
+    if (saving) return;
     setSaving(true);
 
     const data = {
@@ -429,7 +432,7 @@ export default function VehicleFormPage() {
               ยกเลิก
             </button>
             <button
-              type="submit"
+              type="button"
               disabled={saving}
               onClick={handleSubmit}
               className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center"

@@ -198,10 +198,11 @@ function convertIntegerToThai(num: number): string {
  * @param phone - Phone number string
  * @returns Formatted phone number
  */
-export function formatPhoneNumber(phone: string): string {
+export function formatPhoneNumber(phone: string | null | undefined): string {
+  if (!phone) return '';
   // Remove all non-numeric characters
   const cleaned = phone.replace(/\D/g, '');
-  
+
   // Format based on length
   if (cleaned.length === 10) {
     // Mobile: 0XX-XXX-XXXX
@@ -210,7 +211,7 @@ export function formatPhoneNumber(phone: string): string {
     // Landline: 0XX-XXX-XXX
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
-  
+
   return phone;
 }
 
@@ -219,10 +220,11 @@ export function formatPhoneNumber(phone: string): string {
  * @param idCard - ID card number string
  * @returns Formatted ID card number (X-XXXX-XXXXX-XX-X)
  */
-export function formatIdCard(idCard: string): string {
+export function formatIdCard(idCard: string | null | undefined): string {
+  if (!idCard) return '';
   const cleaned = idCard.replace(/\D/g, '');
   if (cleaned.length !== 13) return idCard;
-  
+
   return `${cleaned[0]}-${cleaned.slice(1, 5)}-${cleaned.slice(5, 10)}-${cleaned.slice(10, 12)}-${cleaned[12]}`;
 }
 

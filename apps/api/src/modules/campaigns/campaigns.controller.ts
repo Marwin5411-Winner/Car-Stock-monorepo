@@ -143,14 +143,9 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   .post(
     '/',
     async ({ body, set, requester }) => {
-      if (requester.role !== 'ADMIN') {
-        set.status = 403;
-        return {
-          success: false,
-          error: 'Forbidden',
-          message: 'Only admins can create campaigns',
-        };
-      }
+      // Authorization is enforced by `requirePermission('CAMPAIGN_CREATE')` in
+      // `beforeHandle`. A redundant role-literal check here would block any
+      // non-ADMIN role that is legitimately granted CAMPAIGN_CREATE permission.
 
       const campaign = await campaignsService.create({
         ...body,

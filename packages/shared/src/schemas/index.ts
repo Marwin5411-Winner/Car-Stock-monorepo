@@ -478,6 +478,7 @@ export const UpdatePaymentSchema = z.object({
   paymentMethod: PaymentMethodSchema.optional(),
   referenceNumber: z.string().optional(),
   notes: z.string().optional(),
+  issuedBy: z.string().optional(),
 });
 
 export const VoidPaymentSchema = z.object({

@@ -391,6 +391,15 @@ export interface VehicleCardData {
   };
   costs: {
     baseCost: string;
+    beforeVat: string;
+    beforeVatInt: string;
+    beforeVatDec: string;
+    vatAmount: string;
+    vatAmountInt: string;
+    vatAmountDec: string;
+    totalWithVat: string;
+    totalWithVatInt: string;
+    totalWithVatDec: string;
     transportCost: string;
     accessoryCost: string;
     otherCosts: string;
@@ -440,6 +449,7 @@ export interface TemporaryReceiptData {
     transferDate?: string;
     transferAmount?: string;
   };
+  paymentMethodLabel?: string;
   note?: string;
 }
 

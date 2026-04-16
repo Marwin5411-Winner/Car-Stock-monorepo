@@ -100,7 +100,8 @@ export class InterestService {
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    // Exclude soft-deleted stocks from interest reports.
+    const where: any = { deletedAt: null };
 
     if (params.search) {
       where.OR = [
@@ -400,52 +401,56 @@ export class InterestService {
 
     // Close the current active period if exists
     const activePeriod = stock.interestPeriods[0];
-    
-    if (activePeriod) {
-      // Calculate and close the previous period
-      const periodEndDate = new Date(effectiveDate);
-      periodEndDate.setDate(periodEndDate.getDate() - 1);
-      
-      const days = this.calculateDays(activePeriod.startDate, periodEndDate);
-      const calculatedInterest = this.calculateInterestForPeriod(
-        Number(activePeriod.principalAmount),
-        Number(activePeriod.annualRate),
-        days
-      );
 
-      await db.interestPeriod.update({
-        where: { id: activePeriod.id },
+    // Atomic: closing the previous period, creating the new one, and updating
+    // the stock's rate must succeed or fail together — a partial apply leaves
+    // the interest history in an inconsistent state.
+    const newPeriod = await db.$transaction(async (tx) => {
+      if (activePeriod) {
+        const periodEndDate = new Date(effectiveDate);
+        periodEndDate.setDate(periodEndDate.getDate() - 1);
+
+        const days = this.calculateDays(activePeriod.startDate, periodEndDate);
+        const calculatedInterest = this.calculateInterestForPeriod(
+          Number(activePeriod.principalAmount),
+          Number(activePeriod.annualRate),
+          days
+        );
+
+        await tx.interestPeriod.update({
+          where: { id: activePeriod.id },
+          data: {
+            endDate: periodEndDate,
+            calculatedInterest: new Decimal(calculatedInterest),
+            daysCount: days,
+          },
+        });
+      }
+
+      const created = await tx.interestPeriod.create({
         data: {
-          endDate: periodEndDate,
-          calculatedInterest: new Decimal(calculatedInterest),
-          daysCount: days,
+          stockId,
+          startDate: effectiveDate,
+          endDate: null,
+          annualRate: new Decimal(input.annualRate),
+          principalBase,
+          principalAmount: new Decimal(principalAmount),
+          calculatedInterest: new Decimal(0),
+          daysCount: 0,
+          createdById: userId,
+          notes: input.notes,
         },
       });
-    }
 
-    // Create new period
-    const newPeriod = await db.interestPeriod.create({
-      data: {
-        stockId,
-        startDate: effectiveDate,
-        endDate: null,
-        annualRate: new Decimal(input.annualRate),
-        principalBase,
-        principalAmount: new Decimal(principalAmount),
-        calculatedInterest: new Decimal(0),
-        daysCount: 0,
-        createdById: userId,
-        notes: input.notes,
-      },
-    });
+      await tx.stock.update({
+        where: { id: stockId },
+        data: {
+          interestRate: new Decimal(input.annualRate / 100),
+          interestPrincipalBase: principalBase,
+        },
+      });
 
-    // Update stock's current interest rate
-    await db.stock.update({
-      where: { id: stockId },
-      data: {
-        interestRate: new Decimal(input.annualRate / 100),
-        interestPrincipalBase: principalBase,
-      },
+      return created;
     });
 
     return {
@@ -680,8 +685,9 @@ export class InterestService {
     totalAccumulatedInterest: number;
     averageRate: number;
   }> {
-    // Get all stocks with their interest periods
+    // Get all stocks with their interest periods (exclude soft-deleted)
     const allStocks = await db.stock.findMany({
+      where: { deletedAt: null },
       include: {
         interestPeriods: {
           orderBy: { startDate: 'desc' },
@@ -874,20 +880,13 @@ export class InterestService {
     let currentDebtAmount = Number(stock.debtAmount);
     let currentRemainingDebt = Number(stock.remainingDebt);
     
+    let needsDebtInit = false;
     if (stock.debtStatus === 'NO_DEBT' && stock.financeProvider) {
       const baseCost = Number(stock.baseCost);
       const totalCost = baseCost + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
       currentDebtAmount = stock.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
       currentRemainingDebt = currentDebtAmount;
-      
-      await db.stock.update({
-        where: { id: stockId },
-        data: {
-          debtAmount: new Decimal(currentDebtAmount),
-          remainingDebt: new Decimal(currentRemainingDebt),
-          debtStatus: 'ACTIVE',
-        },
-      });
+      needsDebtInit = true;
     } else if (stock.debtStatus === 'NO_DEBT' && !stock.financeProvider) {
       throw new BadRequestError('Stock has no debt to pay (no finance provider)');
     }
@@ -960,52 +959,123 @@ export class InterestService {
     const newPaidInterest = Number(stock.paidInterestAmount || 0) + interestPaid;
     const isFullPayment = principalAfter <= 0.01; // Allow for small rounding errors
 
-    // Create debt payment record with interest tracking
-    const payment = await db.stockDebtPayment.create({
-      data: {
-        stockId,
-        paymentDate,
-        amount: new Decimal(input.amount),
-        paymentMethod: input.paymentMethod,
-        referenceNumber: input.referenceNumber,
-        principalBefore: new Decimal(principalBefore),
-        principalAfter: new Decimal(Math.max(0, principalAfter)),
-        accruedInterestAtPayment: new Decimal(accruedInterestAtPayment),
-        interestPaid: new Decimal(interestPaid),
-        principalPaid: new Decimal(principalPaid),
-        notes: input.notes,
-        createdById: userId,
-      },
-    });
+    // All debt-payment mutations must commit together — a partial apply would
+    // leave stock totals, the payment record, and interest periods out of sync.
+    const { payment, interestAdjusted } = await db.$transaction(async (tx) => {
+      // Initialize debt if needed (for NO_DEBT stocks with a finance provider)
+      if (needsDebtInit) {
+        await tx.stock.update({
+          where: { id: stockId },
+          data: {
+            debtAmount: new Decimal(currentDebtAmount),
+            remainingDebt: new Decimal(currentRemainingDebt),
+            debtStatus: 'ACTIVE',
+          },
+        });
+      }
 
-    // Update stock debt tracking
-    const stockUpdateData: any = {
-      paidDebtAmount: new Decimal(newPaidPrincipal),
-      paidInterestAmount: new Decimal(newPaidInterest),
-      remainingDebt: new Decimal(Math.max(0, principalAfter)),
-    };
+      // Create debt payment record with interest tracking
+      const created = await tx.stockDebtPayment.create({
+        data: {
+          stockId,
+          paymentDate,
+          amount: new Decimal(input.amount),
+          paymentMethod: input.paymentMethod,
+          referenceNumber: input.referenceNumber,
+          principalBefore: new Decimal(principalBefore),
+          principalAfter: new Decimal(Math.max(0, principalAfter)),
+          accruedInterestAtPayment: new Decimal(accruedInterestAtPayment),
+          interestPaid: new Decimal(interestPaid),
+          principalPaid: new Decimal(principalPaid),
+          notes: input.notes,
+          createdById: userId,
+        },
+      });
 
-    if (isFullPayment) {
-      stockUpdateData.debtStatus = 'PAID_OFF';
-      stockUpdateData.debtPaidOffDate = paymentDate;
-    }
+      // Update stock debt tracking
+      const stockUpdateData: any = {
+        paidDebtAmount: new Decimal(newPaidPrincipal),
+        paidInterestAmount: new Decimal(newPaidInterest),
+        remainingDebt: new Decimal(Math.max(0, principalAfter)),
+      };
 
-    await db.stock.update({
-      where: { id: stockId },
-      data: stockUpdateData,
-    });
+      if (isFullPayment) {
+        stockUpdateData.debtStatus = 'PAID_OFF';
+        stockUpdateData.debtPaidOffDate = paymentDate;
+      }
 
-    let interestAdjusted = false;
+      await tx.stock.update({
+        where: { id: stockId },
+        data: stockUpdateData,
+      });
 
-    // ถ้าจ่ายบางส่วน (ลดเงินต้น) → ต้องปรับ InterestPeriod
-    if (!isFullPayment && principalPaid > 0 && principalAfter > 0) {
-      // Since we've already checked that debtStatus is not PAID_OFF, we only need to check stopInterestCalc
-      if (!stock.stopInterestCalc) {
-        const nextDay = new Date(paymentDate);
-        nextDay.setDate(nextDay.getDate() + 1);
+      let adjusted = false;
+
+      // ถ้าจ่ายบางส่วน (ลดเงินต้น) → ต้องปรับ InterestPeriod
+      if (!isFullPayment && principalPaid > 0 && principalAfter > 0) {
+        if (!stock.stopInterestCalc) {
+          const nextDay = new Date(paymentDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+
+          if (activePeriod) {
+            const days = this.calculateDays(activePeriod.startDate, paymentDate);
+            const calculatedInterest = this.calculateInterestForPeriod(
+              Number(activePeriod.principalAmount),
+              Number(activePeriod.annualRate),
+              days
+            );
+
+            await tx.interestPeriod.update({
+              where: { id: activePeriod.id },
+              data: {
+                endDate: paymentDate,
+                calculatedInterest: new Decimal(calculatedInterest),
+                daysCount: days,
+                notes: `${activePeriod.notes || ''}\n[Debt Payment] Interest ${interestPaid.toLocaleString()}, Principal ${principalPaid.toLocaleString()} - Remaining ${principalAfter.toLocaleString()}`.trim(),
+              },
+            });
+
+            await tx.interestPeriod.create({
+              data: {
+                stockId,
+                startDate: nextDay,
+                endDate: null,
+                annualRate: activePeriod.annualRate,
+                principalBase: activePeriod.principalBase,
+                principalAmount: new Decimal(principalAfter),
+                calculatedInterest: new Decimal(0),
+                daysCount: 0,
+                createdById: userId,
+                notes: `Principal adjusted after debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+              },
+            });
+          } else {
+            await tx.interestPeriod.create({
+              data: {
+                stockId,
+                startDate: nextDay,
+                endDate: null,
+                annualRate: new Decimal(currentInterestRate),
+                principalBase: stock.interestPrincipalBase,
+                principalAmount: new Decimal(principalAfter),
+                calculatedInterest: new Decimal(0),
+                daysCount: 0,
+                createdById: userId,
+                notes: `Initial period created from debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+              },
+            });
+          }
+
+          adjusted = true;
+        }
+      }
+
+      // If full payment, stop interest calculation inline (mirrors stopInterestCalculation
+      // but uses the current tx so the whole sequence stays atomic).
+      if (isFullPayment) {
+        const stopNotes = `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]} (Total paid: ${input.amount.toLocaleString()}, Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`;
 
         if (activePeriod) {
-          // Close current period and calculate interest up to payment date
           const days = this.calculateDays(activePeriod.startDate, paymentDate);
           const calculatedInterest = this.calculateInterestForPeriod(
             Number(activePeriod.principalAmount),
@@ -1013,63 +1083,28 @@ export class InterestService {
             days
           );
 
-          await db.interestPeriod.update({
+          await tx.interestPeriod.update({
             where: { id: activePeriod.id },
             data: {
               endDate: paymentDate,
               calculatedInterest: new Decimal(calculatedInterest),
               daysCount: days,
-              notes: `${activePeriod.notes || ''}\n[Debt Payment] Interest ${interestPaid.toLocaleString()}, Principal ${principalPaid.toLocaleString()} - Remaining ${principalAfter.toLocaleString()}`.trim(),
-            },
-          });
-
-          // Create new period with reduced principal (inherit rate from previous period)
-          await db.interestPeriod.create({
-            data: {
-              stockId,
-              startDate: nextDay,
-              endDate: null,
-              annualRate: activePeriod.annualRate,
-              principalBase: activePeriod.principalBase,
-              principalAmount: new Decimal(principalAfter),
-              calculatedInterest: new Decimal(0),
-              daysCount: 0,
-              createdById: userId,
-              notes: `Principal adjusted after debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
-            },
-          });
-        } else {
-          // ไม่มี activePeriod → สร้าง InterestPeriod ใหม่จาก stock defaults
-          // นี่คือ Bug Fix: ก่อนหน้านี้จะไม่สร้าง period ถ้าไม่มี activePeriod
-          await db.interestPeriod.create({
-            data: {
-              stockId,
-              startDate: nextDay,
-              endDate: null,
-              annualRate: new Decimal(currentInterestRate),
-              principalBase: stock.interestPrincipalBase,
-              principalAmount: new Decimal(principalAfter),
-              calculatedInterest: new Decimal(0),
-              daysCount: 0,
-              createdById: userId,
-              notes: `Initial period created from debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+              notes: `${activePeriod.notes || ''}\n[Stopped] ${stopNotes}`.trim(),
             },
           });
         }
 
-        interestAdjusted = true;
+        await tx.stock.update({
+          where: { id: stockId },
+          data: {
+            stopInterestCalc: true,
+            interestStoppedAt: paymentDate,
+          },
+        });
       }
-    }
 
-    // If full payment, stop interest calculation
-    if (isFullPayment) {
-      await this.stopInterestCalculation(
-        stockId,
-        userId,
-        `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]} (Total paid: ${input.amount.toLocaleString()}, Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
-        paymentDate
-      );
-    }
+      return { payment: created, interestAdjusted: adjusted };
+    });
 
     // Get updated stock
     const updatedStock = await db.stock.findUnique({

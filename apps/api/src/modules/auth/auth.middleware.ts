@@ -9,9 +9,10 @@ import { PERMISSIONS } from '@car-stock/shared/constants';
 export const authMiddleware = async (context: Context) => {
   const { request, jwt, set } = context;
 
-  // Get token from Authorization header
+  // Get token from Authorization header — match the prefix strictly at the
+  // start so a malformed header like "XBearer token" cannot be stripped.
   const authHeader = request.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
 
   if (!token) {
     set.status = 401;
@@ -123,7 +124,7 @@ export const optionalAuth = async (context: Context) => {
   const { request, jwt } = context;
 
   const authHeader = request.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
 
   if (!token) {
     return;

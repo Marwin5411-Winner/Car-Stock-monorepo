@@ -527,6 +527,11 @@ export class PdfService {
     this.browserLaunchPromise = this.launchBrowser();
     try {
       this.browser = await this.browserLaunchPromise;
+      // Clear the cached promise once the browser is attached. If we leave the
+      // resolved promise set and the browser later disconnects, the disconnect
+      // handler nulls `this.browser` but the next getBrowser call would return
+      // the stale resolved promise pointing at a closed instance.
+      this.browserLaunchPromise = null;
       // Reset state on disconnect so next call re-launches
       this.browser.on('disconnected', () => {
         this.browser = null;

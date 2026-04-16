@@ -6,8 +6,8 @@ export function usePermission() {
 
   const hasPermission = (permission: Permission): boolean => {
     if (!user) return false;
-    const allowedRoles = PERMISSIONS[permission];
-    return allowedRoles.includes(user.role as any);
+    const allowedRoles = PERMISSIONS[permission] as readonly string[];
+    return allowedRoles.includes(user.role);
   };
 
   const hasAnyPermission = (permissions: Permission[]): boolean => {

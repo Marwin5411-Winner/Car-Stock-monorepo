@@ -1,5 +1,6 @@
 import { db } from '../../lib/db';
 import { CreateStockSchema, UpdateStockSchema, StockFilterSchema } from '@car-stock/shared/schemas';
+import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
@@ -362,6 +363,25 @@ export class StockService {
   }
 
   /**
+   * Generate stock number (STK-YYYY-XXXX)
+   */
+  private async generateStockNumber(arrivalDate?: Date | null): Promise<string> {
+    const date = arrivalDate ? new Date(arrivalDate) : new Date();
+    const month = date.getMonth() + 1;
+    const buddhistYear = date.getFullYear() + 543;
+    const prefix = NUMBER_PREFIXES.STOCK;
+    const mm = month.toString().padStart(2, '0');
+
+    const sequence = await db.numberSequence.upsert({
+      where: { prefix_year_month: { prefix, year: buddhistYear, month } },
+      create: { prefix, year: buddhistYear, month, lastNumber: 1 },
+      update: { lastNumber: { increment: 1 } },
+    });
+
+    return `${prefix}${mm}${buddhistYear}${sequence.lastNumber.toString().padStart(4, '0')}`;
+  }
+
+  /**
    * Create new stock
    */
   async createStock(data: any, currentUser: any) {
@@ -407,11 +427,15 @@ export class StockService {
       throw new NotFoundError('Vehicle model');
     }
 
+    // Generate stock number based on arrival date
+    const stockNumber = await this.generateStockNumber(validated.arrivalDate);
+
     // Create stock + activity log in a transaction
     const stock = await db.$transaction(async (tx) => {
       const created = await tx.stock.create({
         data: {
           ...validated,
+          stockNumber,
           engineNumber,
           motorNumber1,
           motorNumber2,

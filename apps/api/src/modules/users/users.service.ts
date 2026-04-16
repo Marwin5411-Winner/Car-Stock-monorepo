@@ -183,6 +183,13 @@ export class UsersService {
 
     const validated = UpdateUserSchema.parse(data);
 
+    // Prevent privilege escalation: non-ADMIN users updating their own profile
+    // cannot change their role or status. Only ADMINs can modify these fields.
+    if (currentUser.id === id && currentUser.role !== 'ADMIN') {
+      delete validated.role;
+      delete validated.status;
+    }
+
     // Check if email exists (if updating email)
     if (validated.email) {
       const existingEmail = await db.user.findUnique({

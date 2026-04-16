@@ -75,9 +75,9 @@ export async function getDailyPaymentReport(params: DailyPaymentParams) {
   const paymentItems = payments.map((p) => ({
     id: p.id,
     receiptNumber: p.receiptNumber,
-    paymentDate: p.paymentDate.toISOString(),
-    customerName: p.customer.name,
-    customerCode: p.customer.code,
+    paymentDate: (p.paymentDate ?? p.createdAt).toISOString(),
+    customerName: p.customer?.name ?? '-',
+    customerCode: p.customer?.code ?? '-',
     description: p.description || '',
     paymentType: p.paymentType,
     paymentTypeLabel: PAYMENT_TYPE_LABELS[p.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || p.paymentType,
@@ -459,7 +459,9 @@ export async function getProfitLossReport(params: ProfitLossParams) {
       grossProfit,
       netProfit: Math.round(netProfit * 100) / 100,
       profitMargin: Math.round(profitMargin * 100) / 100,
-      salesperson: `${sale.createdBy.firstName} ${sale.createdBy.lastName}`,
+      salesperson: sale.createdBy
+        ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
+        : '-',
     };
   });
 
@@ -687,8 +689,10 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       remainingAmount: toNumber(sale.remainingAmount),
       status: sale.status,
       statusLabel: SALE_STATUS_LABELS[sale.status as keyof typeof SALE_STATUS_LABELS] || sale.status,
-      salesperson: `${sale.createdBy.firstName} ${sale.createdBy.lastName}`,
-      salespersonId: sale.createdBy.id,
+      salesperson: sale.createdBy
+        ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
+        : '-',
+      salespersonId: sale.createdBy?.id ?? '',
       
       // Cost & Profit fields
       baseCost,

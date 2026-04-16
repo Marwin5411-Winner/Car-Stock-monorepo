@@ -93,8 +93,8 @@ export class VehiclesService {
    * Create new vehicle model
    */
   async createVehicle(data: any, currentUser: any) {
-    // Check permission
-    if (!authService.hasPermission(currentUser.role, 'STOCK_VIEW' as any)) {
+    // Check permission (defence in depth — route-level guard is STOCK_CREATE)
+    if (!authService.hasPermission(currentUser.role, 'STOCK_CREATE' as any)) {
       throw new ForbiddenError();
     }
 
@@ -217,9 +217,10 @@ export class VehiclesService {
       throw new ForbiddenError();
     }
 
-    // Check if vehicle has associated stock or sales
+    // Check if vehicle has associated stock or sales (exclude soft-deleted stock —
+    // a model whose only stock has been soft-deleted should still be deletable).
     const [stockCount, salesCount] = await Promise.all([
-      db.stock.count({ where: { vehicleModelId: id } }),
+      db.stock.count({ where: { vehicleModelId: id, deletedAt: null } }),
       db.sale.count({ where: { vehicleModelId: id } }),
     ]);
 

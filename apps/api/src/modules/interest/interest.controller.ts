@@ -147,7 +147,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           startDate: body.startDate ? new Date(body.startDate) : undefined,
           notes: body.notes,
         },
-        requester!.userId
+        requester!.id
       );
 
       set.status = 201;

@@ -211,7 +211,11 @@ export class PaymentsService {
       throw new BadRequestError('จำนวนเงินต้องมากกว่า 0');
     }
 
-    // Validate overpayment for car-related payments
+    // Validate overpayment for car-related payments. The strict check must
+    // happen INSIDE the transaction (below) to avoid TOCTOU races where two
+    // concurrent payments both pass a stale check. This is a fast pre-check
+    // for friendly error messages only — the transactional re-check is
+    // authoritative.
     const isCarPayment = CAR_PAYMENT_TYPES.includes(validated.paymentType as typeof CAR_PAYMENT_TYPES[number]);
 
     if (sale && isCarPayment) {
@@ -226,59 +230,95 @@ export class PaymentsService {
     // Generate receipt number
     const receiptNumber = await this.generateReceiptNumber();
 
-    // Create payment + update sale balance in a single transaction
-    const payment = await db.$transaction(async (tx) => {
-      const created = await tx.payment.create({
-        data: {
-          customerId: validated.customerId,
-          saleId: validated.saleId || null,
-          description: validated.description || null,
-          paymentDate: validated.paymentDate,
-          paymentType: validated.paymentType,
-          amount: validated.amount,
-          paymentMethod: validated.paymentMethod,
-          referenceNumber: validated.referenceNumber || null,
-          notes: validated.notes || null,
-          receiptNumber,
-          createdById: currentUser.id,
-          issuedBy: [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ') || currentUser.username,
-        },
-      });
+    // Look up user's full name from DB
+    const user = await db.user.findUnique({
+      where: { id: currentUser.id },
+      select: { firstName: true, lastName: true, username: true },
+    });
+    const issuedByName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || currentUser.username;
 
-      // Update sale paid amount and remaining amount
-      // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
-      if (sale && validated.saleId && isCarPayment) {
-        const newPaidAmount = Number(sale.paidAmount) + validated.amount;
-        const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+    // Create payment + update sale balance in a single transaction.
+    // Serializable isolation ensures concurrent payments cannot both observe
+    // the same `remainingAmount` and overdraw the sale.
+    const payment = await db.$transaction(
+      async (tx) => {
+        // Re-fetch the sale inside the transaction to get a current snapshot,
+        // and re-validate overpayment against it. Under serializable isolation
+        // this prevents the race where two concurrent payments each see the
+        // pre-transaction balance and individually pass the check.
+        let txSale: { totalAmount: any; paidAmount: any; remainingAmount: any } | null = null;
+        if (validated.saleId) {
+          txSale = await tx.sale.findUnique({
+            where: { id: validated.saleId },
+            select: { totalAmount: true, paidAmount: true, remainingAmount: true },
+          });
+          if (!txSale) {
+            throw new NotFoundError('Sale');
+          }
 
-        await tx.sale.update({
-          where: { id: validated.saleId },
+          if (isCarPayment) {
+            const txRemaining = Number(txSale.remainingAmount);
+            if (validated.amount > txRemaining) {
+              throw new BadRequestError(
+                `จำนวนเงินเกินยอดค้างชำระ (คงเหลือ ${txRemaining.toLocaleString()} บาท)`
+              );
+            }
+          }
+        }
+
+        const created = await tx.payment.create({
           data: {
-            paidAmount: newPaidAmount,
-            remainingAmount: newRemainingAmount,
+            customerId: validated.customerId,
+            saleId: validated.saleId || null,
+            description: validated.description || null,
+            paymentDate: validated.paymentDate,
+            paymentType: validated.paymentType,
+            amount: validated.amount,
+            paymentMethod: validated.paymentMethod,
+            referenceNumber: validated.referenceNumber || null,
+            notes: validated.notes || null,
+            receiptNumber,
+            createdById: currentUser.id,
+            issuedBy: issuedByName,
           },
         });
-      }
 
-      await tx.activityLog.create({
-        data: {
-          userId: currentUser.id,
-          action: 'CREATE_PAYMENT',
-          entity: 'PAYMENT',
-          entityId: created.id,
-          details: {
-            receiptNumber: created.receiptNumber,
-            amount: created.amount,
-            saleId: created.saleId,
-            customerId: created.customerId,
-            paymentType: created.paymentType,
-            description: created.description,
+        // Update sale paid amount and remaining amount
+        // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
+        if (txSale && validated.saleId && isCarPayment) {
+          const newPaidAmount = Number(txSale.paidAmount) + validated.amount;
+          const newRemainingAmount = Number(txSale.totalAmount) - newPaidAmount;
+
+          await tx.sale.update({
+            where: { id: validated.saleId },
+            data: {
+              paidAmount: newPaidAmount,
+              remainingAmount: newRemainingAmount,
+            },
+          });
+        }
+
+        await tx.activityLog.create({
+          data: {
+            userId: currentUser.id,
+            action: 'CREATE_PAYMENT',
+            entity: 'PAYMENT',
+            entityId: created.id,
+            details: {
+              receiptNumber: created.receiptNumber,
+              amount: created.amount,
+              saleId: created.saleId,
+              customerId: created.customerId,
+              paymentType: created.paymentType,
+              description: created.description,
+            },
           },
-        },
-      });
+        });
 
-      return created;
-    });
+        return created;
+      },
+      { isolationLevel: 'Serializable' }
+    );
 
     return payment;
   }
@@ -515,14 +555,16 @@ export class PaymentsService {
     // Calculate monthly revenue (current month)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Exclusive upper bound = first instant of next month, so payments timestamped
+    // after midnight on the last day of the month are still included.
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     const monthlyAmountResult = await db.payment.aggregate({
       where: {
         status: 'ACTIVE',
         paymentDate: {
           gte: startOfMonth,
-          lte: endOfMonth,
+          lt: startOfNextMonth,
         },
       },
       _sum: {

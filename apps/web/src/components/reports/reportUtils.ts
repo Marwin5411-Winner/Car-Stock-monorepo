@@ -69,12 +69,16 @@ export function formatDateTime(dateString: string | null | undefined): string {
 
 /**
  * Get Thai month name
+ * @param month - 0-based month index (0 = January, 11 = December), matching Date.prototype.getMonth().
+ *   Callers that hold a 1-based value (e.g. from an API) must subtract 1 first.
+ *   Out-of-range input returns '' instead of undefined to keep UI rendering safe.
  */
 export function getThaiMonthName(month: number): string {
   const months = [
     'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
     'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
   ];
+  if (!Number.isInteger(month) || month < 0 || month > 11) return '';
   return months[month];
 }
 
@@ -82,25 +86,32 @@ export function getThaiMonthName(month: number): string {
  * Get date range for quick filters
  */
 export function getDateRange(type: 'today' | 'week' | 'month' | 'year'): { start: string; end: string } {
-  const today = new Date();
-  const end = today.toISOString().split('T')[0];
+  // Take a snapshot up-front and never mutate it. The previous implementation
+  // called today.setDate() which mutates in place, then computed `start` from
+  // a now-stale `today` — corrupting subsequent month/year calculations when
+  // the week subtraction crossed a month boundary.
+  const now = new Date();
+  const end = now.toISOString().split('T')[0];
   let start: Date;
 
   switch (type) {
     case 'today':
-      start = today;
+      start = new Date(now);
       break;
-    case 'week':
-      start = new Date(today.setDate(today.getDate() - 7));
+    case 'week': {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      start = weekAgo;
       break;
+    }
     case 'month':
-      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
       break;
     case 'year':
-      start = new Date(today.getFullYear(), 0, 1);
+      start = new Date(now.getFullYear(), 0, 1);
       break;
     default:
-      start = today;
+      start = new Date(now);
   }
 
   return {

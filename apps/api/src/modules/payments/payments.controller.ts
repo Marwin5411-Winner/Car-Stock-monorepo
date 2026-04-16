@@ -160,7 +160,7 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
       beforeHandle: [authMiddleware, requirePermission('PAYMENT_UPDATE')],
       body: t.Object({
         description: t.Optional(t.String()),
-        paymentDate: t.Optional(t.Date()),
+        paymentDate: t.Optional(t.Union([t.Date(), t.String()])),
         paymentType: t.Optional(t.Union([
           t.Literal('DEPOSIT'),
           t.Literal('DOWN_PAYMENT'),
@@ -168,7 +168,7 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
           t.Literal('OTHER_EXPENSE'),
           t.Literal('MISCELLANEOUS'),
         ])),
-        amount: t.Optional(t.Number()),
+        amount: t.Optional(t.Numeric()),
         paymentMethod: t.Optional(t.Union([
           t.Literal('CASH'),
           t.Literal('BANK_TRANSFER'),
@@ -177,6 +177,7 @@ export const paymentRoutes = new Elysia({ prefix: '/payments' })
         ])),
         referenceNumber: t.Optional(t.String()),
         notes: t.Optional(t.String()),
+        issuedBy: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Payments'],

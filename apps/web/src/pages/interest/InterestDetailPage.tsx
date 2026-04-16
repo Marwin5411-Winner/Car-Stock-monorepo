@@ -81,9 +81,15 @@ export default function InterestDetailPage() {
     referenceNumber?: string;
     notes?: string;
   }) => {
-    const result = await interestService.recordDebtPayment(stockId!, data);
+    // Route through executeQuery so network/server errors surface as a toast
+    // instead of becoming an unhandled promise rejection that silently drops
+    // the submit and leaves the user without feedback.
+    const result = await executeQuery(
+      interestService.recordDebtPayment(stockId!, data)
+    );
 
-    // Show success message
+    if (!result) return;
+
     if (result.debtPaidOff) {
       addToast('ปิดหนี้เรียบร้อยแล้ว! ระบบหยุดคิดดอกเบี้ยอัตโนมัติ', 'success');
     } else if (result.interestAdjusted) {

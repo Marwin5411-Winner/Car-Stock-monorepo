@@ -51,8 +51,6 @@ export const STOCK_STATUS_LABELS = {
 } as const;
 
 export const SALE_STATUS_LABELS = {
-  INQUIRY: 'สอบถาม',
-  QUOTED: 'เสนอราคาแล้ว',
   RESERVED: 'จองแล้ว',
   PREPARING: 'เตรียมส่งมอบ',
   DELIVERED: 'ส่งมอบแล้ว',
@@ -86,6 +84,7 @@ export const PAYMENT_TYPE_LABELS = {
   DOWN_PAYMENT: 'เงินดาวน์',
   FINANCE_PAYMENT: 'ยอดไฟแนนซ์',
   OTHER_EXPENSE: 'ค่าใช้จ่ายอื่น',
+  MISCELLANEOUS: 'รายการทั่วไป',
 } as const;
 
 export const PAYMENT_METHOD_LABELS = {
@@ -107,6 +106,12 @@ export const VEHICLE_TYPE_LABELS = {
   PICKUP: 'Pickup',
   HATCHBACK: 'Hatchback',
   MPV: 'MPV',
+  COUPE: 'Coupe',
+  CONVERTIBLE: 'Convertible',
+  WAGON: 'Wagon',
+  VAN: 'Van',
+  TRUCK: 'Truck',
+  CROSSOVER: 'Crossover',
   EV: 'Electric Vehicle',
 } as const;
 
@@ -149,6 +154,7 @@ export const NUMBER_PREFIXES = {
   QUOTATION: 'QTN',
   RESERVATION: 'RSV',
   RECEIPT: 'RCPT',
+  STOCK: 'STK',
 } as const;
 
 // ============================================
@@ -174,8 +180,6 @@ export const STOCK_STATUS_COLORS = {
 } as const;
 
 export const SALE_STATUS_COLORS = {
-  INQUIRY: 'gray',
-  QUOTED: 'blue',
   RESERVED: 'yellow',
   PREPARING: 'orange',
   DELIVERED: 'cyan',
