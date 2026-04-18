@@ -105,6 +105,7 @@ model Stock {
   orderDate             DateTime?          @map("order_date")
   status                StockStatus        @default(AVAILABLE)
   parkingSlot           String?            @map("parking_slot")
+  receivedFrom          String?            @map("received_from") // ผู้จำหน่าย/ซัพพลายเออร์
   baseCost              Decimal            @map("base_cost") @db.Decimal(15, 2)
   transportCost         Decimal            @default(0) @map("transport_cost") @db.Decimal(15, 2)
   accessoryCost         Decimal            @default(0) @map("accessory_cost") @db.Decimal(15, 2)
@@ -140,6 +141,8 @@ model Stock {
   @@index([vehicleModelId])
   @@index([deletedAt])
   @@index([createdAt])
+  @@index([arrivalDate])
+  @@index([soldDate])
   @@map("stocks")
 }
 
