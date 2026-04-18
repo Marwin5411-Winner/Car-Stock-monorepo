@@ -201,7 +201,10 @@ export interface SalesSummaryItem {
   customerName: string;
   customerType: string;
   vehicleInfo: string;
+  vehicleModelName?: string;
   vin?: string;
+  chassisNumber?: string;
+  engineNumber?: string;
   saleType: string;
   paymentMode: string;
   totalAmount: number;
@@ -210,6 +213,10 @@ export interface SalesSummaryItem {
   status: string;
   statusLabel: string;
   salesperson: string;
+  receivedFrom?: string;
+  priceNet?: number;
+  priceVat?: number;
+  priceGross?: number;
 }
 
 export interface SalespersonSummary {

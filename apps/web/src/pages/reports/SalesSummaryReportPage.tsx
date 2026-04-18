@@ -18,12 +18,18 @@ import {
   ReportBarChart,
   ReportPieChart,
   ReportTable,
-  ExportButton,
   PrintButton,
   formatCurrency,
+  formatDate,
   formatNumber,
 } from '../../components/reports';
-import type { SalesSummaryReportResponse, SalesBySalesperson } from '@car-stock/shared/types';
+import { exportMultiSheet } from '../../components/reports/exportUtils';
+import { Download } from 'lucide-react';
+import type {
+  SalesSummaryReportResponse,
+  SalesBySalesperson,
+  SalesSummaryItem,
+} from '@car-stock/shared/types';
 
 export default function SalesSummaryReportPage() {
   const navigate = useNavigate();
@@ -31,6 +37,7 @@ export default function SalesSummaryReportPage() {
   const [data, setData] = useState<SalesSummaryReportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('');
 
   // Default dates (first day of month to today)
   const today = new Date();
@@ -46,10 +53,62 @@ export default function SalesSummaryReportPage() {
         startDate,
         endDate,
         status: statusFilter || undefined,
+        vehicleType: vehicleTypeFilter || undefined,
       });
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toSaleExportRow = (s: SalesSummaryItem, idx: number) => ({
+    NO: idx + 1,
+    แบบรถ: s.vehicleModelName || s.vehicleInfo,
+    แชชซี่ส์: s.chassisNumber || s.vin || '-',
+    เลขเครื่อง: s.engineNumber || '-',
+    วันที่ขาย: s.saleDate ? formatDate(s.saleDate) : '-',
+    รับจาก: s.receivedFrom || '-',
+    'ราคาก่อน VAT': s.priceNet ?? 0,
+    VAT: s.priceVat ?? 0,
+    'ราคารวม VAT': s.priceGross ?? 0,
+    ชื่อลูกค้า: s.customerName,
+    สถานะ: s.statusLabel,
+    Sale: s.salesperson,
+    ยอดรวม: s.totalAmount,
+    ชำระแล้ว: s.paidAmount,
+    คงเหลือ: s.remainingAmount,
+  });
+
+  const handleExportExcel = async () => {
+    if (!data) return;
+    try {
+      setLoading(true);
+      const [sedan, pickup] = await Promise.all([
+        reportService.getSalesSummaryReport({
+          startDate,
+          endDate,
+          status: statusFilter || undefined,
+          vehicleType: 'SEDAN',
+        }),
+        reportService.getSalesSummaryReport({
+          startDate,
+          endDate,
+          status: statusFilter || undefined,
+          vehicleType: 'PICKUP',
+        }),
+      ]);
+      exportMultiSheet({
+        sheets: [
+          { name: 'รายการตัดขายประจำเดือน', data: data.sales.map(toSaleExportRow) },
+          { name: 'รายการตัดขายแยกเก๋ง', data: sedan.sales.map(toSaleExportRow) },
+          { name: 'รายการตัดขายแยกกะบะ', data: pickup.sales.map(toSaleExportRow) },
+        ],
+        filename: 'sales-summary',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ดาวน์โหลด Excel ไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
@@ -139,18 +198,6 @@ export default function SalesSummaryReportPage() {
     },
   ];
 
-  const exportSalespersonHeaders = [
-    { key: 'salesperson', label: 'พนักงานขาย' },
-    { key: 'totalSales', label: 'จำนวนขาย' },
-    { key: 'pendingCount', label: 'รอดำเนินการ' },
-    { key: 'completedCount', label: 'สำเร็จ' },
-    { key: 'canceledCount', label: 'ยกเลิก' },
-    { key: 'totalAmount', label: 'ยอดขาย' },
-    { key: 'commission', label: 'ค่าคอม' },
-    { key: 'commissionVat', label: 'VAT 7%' },
-    { key: 'commissionWithVat', label: 'ค่าคอมรวม VAT' },
-  ];
-
   const handleExportPdf = async () => {
     try {
       setLoading(true);
@@ -200,8 +247,8 @@ export default function SalesSummaryReportPage() {
         />
       </div>
 
-      {/* Status Filter */}
-      <div className="flex gap-4 mb-6">
+      {/* Status + VehicleType Filters */}
+      <div className="flex flex-wrap gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
           <select
@@ -221,6 +268,22 @@ export default function SalesSummaryReportPage() {
             <option value="CANCELED">ยกเลิก</option>
           </select>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทรถ</label>
+          <select
+            value={vehicleTypeFilter}
+            onChange={(e) => setVehicleTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">ทั้งหมด</option>
+            <option value="SEDAN">เก๋ง</option>
+            <option value="PICKUP">กะบะ</option>
+            <option value="SUV">SUV</option>
+            <option value="HATCHBACK">แฮทช์แบ็ก</option>
+            <option value="MPV">MPV</option>
+            <option value="VAN">ตู้</option>
+          </select>
+        </div>
         <div className="flex items-end">
           <button
             onClick={fetchReport}
@@ -232,14 +295,15 @@ export default function SalesSummaryReportPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 mb-6">
-        <ExportButton
-          data={data?.bySalesperson || []}
-          filename="รายงานสรุปยอดขาย"
-          sheetName="ยอดขาย"
-          headers={exportSalespersonHeaders}
-          loading={loading}
-        />
+      <div className="flex gap-3 mb-6 print-hide">
+        <button
+          onClick={handleExportExcel}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-green-200 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          ดาวน์โหลด Excel
+        </button>
         <button
           onClick={handleExportPdf}
           disabled={loading || !data}
