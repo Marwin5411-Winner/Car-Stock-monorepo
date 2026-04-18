@@ -1,5 +1,5 @@
 import { db } from '../../lib/db';
-import { StockStatus, SaleStatus, PaymentStatus } from '@prisma/client';
+import { StockStatus, SaleStatus, PaymentStatus, type VehicleType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   STOCK_STATUS_LABELS,
@@ -1403,6 +1403,106 @@ export async function getDailyStockSnapshot(params: { date: Date }) {
   });
 }
 
+// ============================================
+// Monthly Purchases Report
+// ============================================
+
+export async function getMonthlyPurchasesReport(params: {
+  year: number;
+  month: number;
+  vehicleType?: VehicleType;
+}) {
+  const { year, month, vehicleType } = params;
+
+  // Half-open interval: [startDate, endDate)
+  const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const endDate = new Date(year, month, 1, 0, 0, 0, 0);
+
+  const where: Record<string, unknown> = {
+    deletedAt: null,
+    arrivalDate: { gte: startDate, lt: endDate },
+  };
+  if (vehicleType) {
+    where.vehicleModel = { type: vehicleType };
+  }
+
+  const stocks = await db.stock.findMany({
+    where,
+    include: {
+      vehicleModel: { select: { brand: true, model: true, variant: true, type: true } },
+      sale: {
+        include: {
+          customer: { select: { name: true } },
+          createdBy: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+    orderBy: { arrivalDate: 'asc' },
+  });
+
+  const items = stocks.map((s, idx) => {
+    const gross = toNumber(s.baseCost);
+    const { net, vat } = splitVat(gross);
+    const variantStr = s.vehicleModel.variant ? ` ${s.vehicleModel.variant}` : '';
+    return {
+      no: idx + 1,
+      vehicleModelName: `${s.vehicleModel.brand} ${s.vehicleModel.model}${variantStr}`,
+      exteriorColor: s.exteriorColor,
+      vin: s.vin,
+      engineNumber: s.engineNumber || '-',
+      orderDate: s.orderDate ? s.orderDate.toISOString() : null,
+      arrivalDate: s.arrivalDate ? s.arrivalDate.toISOString() : new Date(0).toISOString(),
+      receivedFrom: s.receivedFrom || '-',
+      priceNet: net,
+      priceVat: vat,
+      priceGross: gross,
+      parkingSlot: s.parkingSlot || '-',
+      customerName: s.sale?.customer?.name ?? null,
+      soldDate: s.soldDate ? s.soldDate.toISOString() : null,
+      salesperson: s.sale?.createdBy
+        ? `${s.sale.createdBy.firstName} ${s.sale.createdBy.lastName}`
+        : null,
+      notes: s.notes ?? null,
+    };
+  });
+
+  const totalPriceNet = items.reduce((sum, i) => sum + i.priceNet, 0);
+  const totalPriceVat = items.reduce((sum, i) => sum + i.priceVat, 0);
+  const totalPriceGross = items.reduce((sum, i) => sum + i.priceGross, 0);
+
+  const byTypeMap = new Map<VehicleType, { count: number; totalGross: number }>();
+  stocks.forEach((s, idx) => {
+    const t = s.vehicleModel.type;
+    const cur = byTypeMap.get(t) || { count: 0, totalGross: 0 };
+    cur.count += 1;
+    cur.totalGross += items[idx].priceGross;
+    byTypeMap.set(t, cur);
+  });
+  const byType = Array.from(byTypeMap.entries()).map(([type, v]) => ({
+    type,
+    count: v.count,
+    totalGross: Math.round(v.totalGross * 100) / 100,
+  }));
+
+  return {
+    period: {
+      year,
+      month,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    },
+    vehicleType,
+    items,
+    summary: {
+      totalVehicles: items.length,
+      totalPriceNet: Math.round(totalPriceNet * 100) / 100,
+      totalPriceVat: Math.round(totalPriceVat * 100) / 100,
+      totalPriceGross: Math.round(totalPriceGross * 100) / 100,
+      byType,
+    },
+  };
+}
+
 export const reportsService = {
   getDailyPaymentReport,
   getStockReport,
@@ -1411,4 +1511,5 @@ export const reportsService = {
   getStockInterestReport,
   getPurchaseRequirementReport,
   getDailyStockSnapshot,
+  getMonthlyPurchasesReport,
 };
