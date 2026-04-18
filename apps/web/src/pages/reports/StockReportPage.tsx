@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Package, Car, CheckCircle, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Package, Car, CheckCircle, Clock, FileText, Download } from 'lucide-react';
 import { reportService } from '../../services/report.service';
 import {
   DateRangeFilter,
@@ -10,13 +10,13 @@ import {
   ReportBarChart,
   ReportPieChart,
   ReportTable,
-  ExportButton,
   PrintButton,
   formatCurrency,
   formatDate,
   formatNumber,
   StatusBadge,
 } from '../../components/reports';
+import { exportMultiSheet } from '../../components/reports/exportUtils';
 import type { StockReportResponse, StockReportItem } from '@car-stock/shared/types';
 
 export default function StockReportPage() {
@@ -25,6 +25,7 @@ export default function StockReportPage() {
   const [data, setData] = useState<StockReportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('');
 
   // Default dates
   const today = new Date();
@@ -40,6 +41,7 @@ export default function StockReportPage() {
         startDate,
         endDate,
         status: statusFilter || undefined,
+        vehicleType: vehicleTypeFilter || undefined,
       });
       setData(result);
     } catch (err) {
@@ -76,6 +78,11 @@ export default function StockReportPage() {
       render: (value: string) => formatDate(value),
     },
     {
+      key: 'receivedFrom',
+      label: 'รับจาก',
+      render: (value: string | null | undefined) => value || '-',
+    },
+    {
       key: 'daysInStock',
       label: 'วันในสต็อก',
       align: 'right' as const,
@@ -89,21 +96,56 @@ export default function StockReportPage() {
     },
   ];
 
-  const exportHeaders = [
-    { key: 'vin', label: 'VIN' },
-    { key: 'brand', label: 'ยี่ห้อ' },
-    { key: 'model', label: 'รุ่น' },
-    { key: 'variant', label: 'รุ่นย่อย' },
-    { key: 'year', label: 'ปี' },
-    { key: 'exteriorColor', label: 'สีภายนอก' },
-    { key: 'interiorColor', label: 'สีภายใน' },
-    { key: 'statusLabel', label: 'สถานะ' },
-    { key: 'arrivalDate', label: 'วันที่นำเข้า' },
-    { key: 'daysInStock', label: 'วันในสต็อก' },
-    { key: 'baseCost', label: 'ราคาต้นทุน' },
-    { key: 'totalCost', label: 'ต้นทุนรวม' },
-    { key: 'totalCost', label: 'ต้นทุนรวม' },
-  ];
+  const toExportRow = (s: StockReportItem) => ({
+    VIN: s.vin,
+    เลขเครื่อง: s.engineNumber || '-',
+    แบบรถ: `${s.brand} ${s.model} ${s.variant || ''}`.trim(),
+    ปี: s.year,
+    สีภายนอก: s.exteriorColor,
+    สีภายใน: s.interiorColor || '-',
+    สถานะ: s.statusLabel,
+    วันที่สั่งซื้อ: s.orderDate ? formatDate(s.orderDate) : '-',
+    วันที่รับเข้า: formatDate(s.arrivalDate),
+    รับจาก: s.receivedFrom || '-',
+    'ราคาก่อน VAT': s.priceNet ?? 0,
+    VAT: s.priceVat ?? 0,
+    'ราคารวม VAT': s.priceGross ?? s.baseCost,
+    สถานที่จอด: s.parkingSlot || '-',
+    หมายเหตุ: s.notes ?? '-',
+  });
+
+  const handleExportExcel = async () => {
+    if (!data) return;
+    try {
+      setLoading(true);
+      const [sedan, pickup] = await Promise.all([
+        reportService.getStockReport({
+          startDate,
+          endDate,
+          status: statusFilter || undefined,
+          vehicleType: 'SEDAN',
+        }),
+        reportService.getStockReport({
+          startDate,
+          endDate,
+          status: statusFilter || undefined,
+          vehicleType: 'PICKUP',
+        }),
+      ]);
+      exportMultiSheet({
+        sheets: [
+          { name: 'สต็อกรถทั้งหมด', data: data.stocks.map(toExportRow) },
+          { name: 'สต็อกแยกเก๋ง', data: sedan.stocks.map(toExportRow) },
+          { name: 'สต็อกแยกกะบะ', data: pickup.stocks.map(toExportRow) },
+        ],
+        filename: 'stock-report',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ดาวน์โหลด Excel ไม่สำเร็จ');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleExportPdf = async () => {
     try {
@@ -154,8 +196,8 @@ export default function StockReportPage() {
         />
       </div>
 
-      {/* Status Filter */}
-      <div className="flex gap-4 mb-6">
+      {/* Status + VehicleType Filters */}
+      <div className="flex flex-wrap gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
           <select
@@ -171,6 +213,22 @@ export default function StockReportPage() {
             <option value="DEMO">รถ Demo</option>
           </select>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทรถ</label>
+          <select
+            value={vehicleTypeFilter}
+            onChange={(e) => setVehicleTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">ทั้งหมด</option>
+            <option value="SEDAN">เก๋ง</option>
+            <option value="PICKUP">กะบะ</option>
+            <option value="SUV">SUV</option>
+            <option value="HATCHBACK">แฮทช์แบ็ก</option>
+            <option value="MPV">MPV</option>
+            <option value="VAN">ตู้</option>
+          </select>
+        </div>
         <div className="flex items-end">
           <button
             onClick={fetchReport}
@@ -182,14 +240,15 @@ export default function StockReportPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 mb-6">
-        <ExportButton
-          data={data?.stocks || []}
-          filename="รายงานสต็อก"
-          sheetName="สต็อกรถ"
-          headers={exportHeaders}
-          loading={loading}
-        />
+      <div className="flex gap-3 mb-6 print-hide">
+        <button
+          onClick={handleExportExcel}
+          disabled={loading || !data}
+          className="inline-flex items-center px-4 py-2 border border-green-200 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          ดาวน์โหลด Excel
+        </button>
         <button
           onClick={handleExportPdf}
           disabled={loading || !data}

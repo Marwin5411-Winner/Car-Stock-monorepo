@@ -67,10 +67,12 @@ export interface DailyPaymentReportResponse {
 export interface StockReportItem {
   id: string;
   vin: string;
+  engineNumber?: string;
   brand: string;
   model: string;
   variant?: string;
   year: number;
+  vehicleModelName?: string;
   exteriorColor: string;
   interiorColor?: string;
   status: string;
@@ -78,8 +80,14 @@ export interface StockReportItem {
   arrivalDate: string;
   orderDate?: string;
   daysInStock: number;
+  parkingSlot?: string;
+  receivedFrom?: string;
+  priceNet?: number;
+  priceVat?: number;
+  priceGross?: number;
   baseCost: number;
   totalCost: number;
+  notes?: string | null;
 }
 
 export interface StockStatusSummary {
