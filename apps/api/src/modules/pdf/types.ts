@@ -353,6 +353,8 @@ export enum PdfTemplateType {
   SALES_SUMMARY_REPORT = 'sales-summary-report',
   STOCK_INTEREST_REPORT = 'stock-interest-report',
   PURCHASE_REQUIREMENT_REPORT = 'purchase-requirement-report',
+  DAILY_STOCK_SNAPSHOT = 'daily-stock-snapshot',
+  MONTHLY_PURCHASES_REPORT = 'monthly-purchases-report',
 }
 
 /**

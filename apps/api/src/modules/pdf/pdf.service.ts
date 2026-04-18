@@ -831,6 +831,18 @@ export class PdfService {
     return this.generatePdf(PdfTemplateType.PURCHASE_REQUIREMENT_REPORT, data);
   }
 
+  public async generateDailyStockSnapshotPdf(data: unknown): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.DAILY_STOCK_SNAPSHOT, data, {
+      landscape: true,
+    });
+  }
+
+  public async generateMonthlyPurchasesReportPdf(data: unknown): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.MONTHLY_PURCHASES_REPORT, data, {
+      landscape: true,
+    });
+  }
+
   /**
    * Clear template cache
    */

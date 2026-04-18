@@ -8,6 +8,7 @@ import { pdfService } from './pdf.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from '@car-stock/shared/constants';
 import { db } from '../../lib/db';
+import { reportsService } from '../reports/reports.service';
 import {
   DeliveryReceiptData,
   ThankYouLetterData,
@@ -1220,4 +1221,110 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         description: 'Generate ใบบันทึกการชำระเงินรายวัน PDF',
       },
     }
+  )
+  // Daily Stock Snapshot PDF
+  .get(
+    '/daily-stock-snapshot',
+    async ({ query, set }) => {
+      const date = new Date(query.date);
+      if (Number.isNaN(date.getTime())) {
+        set.status = 400;
+        return 'Invalid date';
+      }
+      const report = await reportsService.getDailyStockSnapshot({ date });
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const panels = [
+        {
+          title: 'ยอดจองคงเหลือ',
+          rows: report.models.map((m) => ({
+            modelName: m.modelName,
+            cells: report.colors.map((c) => m.reservationsByColor[c] || 0),
+            total: m.reservationsTotal,
+          })),
+        },
+        {
+          title: 'สต๊อกคงเหลือ',
+          rows: report.models.map((m) => ({
+            modelName: m.modelName,
+            cells: report.colors.map((c) => m.availableByColor[c] || 0),
+            total: m.availableTotal,
+          })),
+        },
+        {
+          title: 'ยอดที่ต้องสั่งซื้อ',
+          rows: report.models.map((m) => ({
+            modelName: m.modelName,
+            cells: report.colors.map((c) => m.requiredByColor[c] || 0),
+            total: m.requiredTotal,
+          })),
+        },
+      ];
+
+      const pdfBuffer = await pdfService.generateDailyStockSnapshotPdf({
+        header,
+        date: report.date,
+        colors: report.colors,
+        panels,
+      });
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="daily-stock-snapshot-${report.date}.pdf"`;
+      return pdfBuffer;
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('REPORT_STOCK')],
+      query: t.Object({ date: t.String() }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Generate Daily Stock Snapshot PDF',
+      },
+    },
+  )
+  // Monthly Purchases Report PDF
+  .get(
+    '/monthly-purchases',
+    async ({ query, set }) => {
+      const year = Number(query.year);
+      const month = Number(query.month);
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+        set.status = 400;
+        return 'Invalid year/month';
+      }
+      const report = await reportsService.getMonthlyPurchasesReport({
+        year,
+        month,
+        vehicleType: query.vehicleType as any,
+      });
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const items = report.items.map((i) => ({
+        ...i,
+        orderDate: i.orderDate ? i.orderDate.split('T')[0] : '-',
+        arrivalDate: i.arrivalDate.split('T')[0],
+      }));
+
+      const pdfBuffer = await pdfService.generateMonthlyPurchasesReportPdf({
+        header,
+        period: report.period,
+        items,
+        summary: report.summary,
+      });
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="monthly-purchases-${year}-${String(month).padStart(2, '0')}.pdf"`;
+      return pdfBuffer;
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('REPORT_STOCK')],
+      query: t.Object({
+        year: t.String(),
+        month: t.String(),
+        vehicleType: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Generate Monthly Purchases Report PDF',
+      },
+    },
   );

@@ -1,0 +1,54 @@
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  body { font-family: 'Sarabun', sans-serif; font-size: 10px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; }
+  th { background: #f0f0f0; font-weight: bold; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  h2 { font-size: 13px; margin: 12px 0 6px; }
+  .meta { margin-bottom: 16px; }
+  .model-col { text-align: left; font-weight: bold; }
+  .total-col { font-weight: bold; }
+</style>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<h1>รายงานสต็อกประจำวัน</h1>
+<div class="meta">วันที่ {{date}}</div>
+
+{{#each panels}}
+  <h2>{{title}}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>แบบรถ</th>
+        {{#each ../colors}}<th>{{this}}</th>{{/each}}
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each rows}}
+        <tr>
+          <td class="model-col">{{modelName}}</td>
+          {{#each cells}}<td>{{this}}</td>{{/each}}
+          <td class="total-col">{{total}}</td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+{{/each}}

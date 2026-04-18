@@ -1,0 +1,71 @@
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  body { font-family: 'Sarabun', sans-serif; font-size: 9px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 3px 4px; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: bold; text-align: center; }
+  h1 { font-size: 17px; margin-bottom: 4px; }
+  .meta { margin-bottom: 12px; }
+  .n { text-align: right; }
+  .c { text-align: center; }
+  tfoot td { background: #eee; font-weight: bold; }
+</style>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<h1>รายงานรายการซื้อประจำเดือน</h1>
+<div class="meta">ประจำเดือน {{period.month}}/{{period.year}}</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>NO</th><th>แบบรถ</th><th>สี</th><th>แชชซี่ส์</th><th>เลขเครื่อง</th>
+      <th>วันสั่งซื้อ</th><th>วันรับเข้า</th><th>รับจาก</th>
+      <th>ก่อน VAT</th><th>VAT</th><th>รวม VAT</th>
+      <th>ที่จอด</th><th>หมายเหตุ</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+      <tr>
+        <td class="c">{{no}}</td>
+        <td>{{vehicleModelName}}</td>
+        <td>{{exteriorColor}}</td>
+        <td>{{vin}}</td>
+        <td>{{engineNumber}}</td>
+        <td class="c">{{orderDate}}</td>
+        <td class="c">{{arrivalDate}}</td>
+        <td>{{receivedFrom}}</td>
+        <td class="n">{{formatCurrency priceNet}}</td>
+        <td class="n">{{formatCurrency priceVat}}</td>
+        <td class="n">{{formatCurrency priceGross}}</td>
+        <td class="c">{{parkingSlot}}</td>
+        <td>{{notes}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="8" class="n">รวม {{summary.totalVehicles}} คัน</td>
+      <td class="n">{{formatCurrency summary.totalPriceNet}}</td>
+      <td class="n">{{formatCurrency summary.totalPriceVat}}</td>
+      <td class="n">{{formatCurrency summary.totalPriceGross}}</td>
+      <td colspan="2"></td>
+    </tr>
+  </tfoot>
+</table>
