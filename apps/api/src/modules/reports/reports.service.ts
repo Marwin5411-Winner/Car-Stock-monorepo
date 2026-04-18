@@ -175,16 +175,20 @@ interface StockReportParams {
   startDate?: Date;
   endDate?: Date;
   status?: StockStatus;
+  vehicleType?: VehicleType;
 }
 
 export async function getStockReport(params: StockReportParams) {
-  const { status } = params;
+  const { status, vehicleType } = params;
 
   const where: Record<string, unknown> = {
     deletedAt: null,
   };
   if (status) {
     where.status = status;
+  }
+  if (vehicleType) {
+    where.vehicleModel = { type: vehicleType };
   }
 
   const stocks = await db.stock.findMany({
@@ -289,7 +293,11 @@ export async function getStockReport(params: StockReportParams) {
       orderDate: s.orderDate?.toISOString(),
       daysInStock,
       parkingSlot: s.parkingSlot || '-',
-      
+      receivedFrom: s.receivedFrom || '-',
+      priceNet: splitVat(baseCost).net,
+      priceVat: splitVat(baseCost).vat,
+      priceGross: baseCost,
+
       // Costs
       baseCost,
       transportCost,
@@ -566,10 +574,11 @@ interface SalesSummaryParams {
   endDate?: Date;
   status?: SaleStatus;
   salespersonId?: string;
+  vehicleType?: VehicleType;
 }
 
 export async function getSalesSummaryReport(params: SalesSummaryParams) {
-  const { startDate, endDate, status, salespersonId } = params;
+  const { startDate, endDate, status, salespersonId, vehicleType } = params;
 
   const where: Record<string, unknown> = {};
 
@@ -586,6 +595,14 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
 
   if (salespersonId) {
     where.createdById = salespersonId;
+  }
+
+  if (vehicleType) {
+    // Match either the stock's model or the direct sale.vehicleModel (fleet sales).
+    where.OR = [
+      { stock: { vehicleModel: { type: vehicleType } } },
+      { vehicleModel: { type: vehicleType } },
+    ];
   }
 
   const sales = await db.sale.findMany({
@@ -710,6 +727,12 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       accumulatedInterest: interestCost,
       totalCostWithInterest: Math.round(totalCostWithInterest * 100) / 100,
       netProfit: Math.round(netProfit * 100) / 100,
+
+      // Supplier + VAT split (from stock.baseCost)
+      receivedFrom: stock?.receivedFrom || '-',
+      priceNet: splitVat(baseCost).net,
+      priceVat: splitVat(baseCost).vat,
+      priceGross: baseCost,
       
       // Placeholder fields for report columns not yet in system
       financeReturn: 0, // ค่าตอบไฟแนนซ์
