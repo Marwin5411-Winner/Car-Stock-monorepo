@@ -575,3 +575,98 @@ export const PaymentFilterSchema = PaginationSchema.extend({
   status: PaymentStatusSchema.optional(),
   paymentType: PaymentTypeSchema.optional(),
 });
+
+// ============================================================================
+// Daily Stock Snapshot Report (new)
+// ============================================================================
+
+export const DailyStockSnapshotQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+});
+
+export const DailyStockSnapshotModelSchema = z.object({
+  vehicleModelId: z.string(),
+  modelName: z.string(),
+  reservationsByColor: z.record(z.string(), z.number()),
+  reservationsTotal: z.number(),
+  availableByColor: z.record(z.string(), z.number()),
+  availableTotal: z.number(),
+  demoByColor: z.record(z.string(), z.number()),
+  demoTotal: z.number(),
+  requiredByColor: z.record(z.string(), z.number()),
+  requiredTotal: z.number(),
+});
+
+export const DailyStockSnapshotResponseSchema = z.object({
+  date: z.string(),
+  colors: z.array(z.string()),
+  models: z.array(DailyStockSnapshotModelSchema),
+  grand: z.object({
+    reservations: z.number(),
+    available: z.number(),
+    demo: z.number(),
+    required: z.number(),
+  }),
+  unassignedReservations: z.number(),
+});
+
+// ============================================================================
+// Monthly Purchases Report (new)
+// ============================================================================
+
+export const MonthlyPurchasesQuerySchema = z.object({
+  year: z.coerce.number().int().min(2000).max(3000),
+  month: z.coerce.number().int().min(1).max(12),
+  vehicleType: VehicleTypeSchema.optional(),
+});
+
+export const MonthlyPurchasesItemSchema = z.object({
+  no: z.number(),
+  vehicleModelName: z.string(),
+  exteriorColor: z.string(),
+  vin: z.string(),
+  engineNumber: z.string(),
+  orderDate: z.string().nullable(),
+  arrivalDate: z.string(),
+  receivedFrom: z.string(),
+  priceNet: z.number(),
+  priceVat: z.number(),
+  priceGross: z.number(),
+  parkingSlot: z.string(),
+  customerName: z.string().nullable(),
+  soldDate: z.string().nullable(),
+  salesperson: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
+export const MonthlyPurchasesResponseSchema = z.object({
+  period: z.object({
+    year: z.number(),
+    month: z.number(),
+    startDate: z.string(),
+    endDate: z.string(),
+  }),
+  vehicleType: VehicleTypeSchema.optional(),
+  items: z.array(MonthlyPurchasesItemSchema),
+  summary: z.object({
+    totalVehicles: z.number(),
+    totalPriceNet: z.number(),
+    totalPriceVat: z.number(),
+    totalPriceGross: z.number(),
+    byType: z.array(
+      z.object({
+        type: VehicleTypeSchema,
+        count: z.number(),
+        totalGross: z.number(),
+      }),
+    ),
+  }),
+});
+
+// ============================================================================
+// vehicleType filter extension for Stock & Sales reports
+// ============================================================================
+
+export const VehicleTypeFilterSchema = z.object({
+  vehicleType: VehicleTypeSchema.optional(),
+});

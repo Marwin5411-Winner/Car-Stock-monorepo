@@ -215,3 +215,19 @@ export interface StockMetrics {
 // ============================================
 
 export * from './reports';
+
+// ============================================
+// Daily Stock Snapshot + Monthly Purchases (new reports)
+// ============================================
+
+import type {
+  DailyStockSnapshotResponseSchema,
+  DailyStockSnapshotModelSchema,
+  MonthlyPurchasesResponseSchema,
+  MonthlyPurchasesItemSchema,
+} from '../schemas';
+
+export type DailyStockSnapshotModel = z.infer<typeof DailyStockSnapshotModelSchema>;
+export type DailyStockSnapshotResponse = z.infer<typeof DailyStockSnapshotResponseSchema>;
+export type MonthlyPurchasesItem = z.infer<typeof MonthlyPurchasesItemSchema>;
+export type MonthlyPurchasesResponse = z.infer<typeof MonthlyPurchasesResponseSchema>;
