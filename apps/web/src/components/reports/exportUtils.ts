@@ -50,6 +50,38 @@ export function exportMultiSheet({ sheets, filename }: MultiSheetExportProps) {
       ws['!cols'] = colWidths;
     }
 
+    // Default every exported sheet to A4 landscape (project convention).
+    const wsAny = ws as unknown as {
+      '!pageSetup'?: {
+        orientation?: string;
+        paperSize?: number;
+        fitToWidth?: number;
+        fitToHeight?: number;
+      };
+      '!margins'?: {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+        header: number;
+        footer: number;
+      };
+    };
+    wsAny['!pageSetup'] = {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToWidth: 1,
+      fitToHeight: 0,
+    };
+    wsAny['!margins'] = {
+      left: 0.3,
+      right: 0.3,
+      top: 0.5,
+      bottom: 0.5,
+      header: 0.3,
+      footer: 0.3,
+    };
+
     XLSX.utils.book_append_sheet(wb, ws, name);
   });
 

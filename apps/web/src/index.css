@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Global print defaults: A4 landscape for every report. */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  .print-hide { display: none !important; }
+}
+
 /* CSS Variables for theming */
 @theme {
   --color-background: hsl(0 0% 100%);
