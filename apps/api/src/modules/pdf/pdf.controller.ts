@@ -3,27 +3,27 @@
  * API endpoints for PDF generation
  */
 
-import { Elysia, t } from 'elysia';
-import { pdfService } from './pdf.service';
-import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from '@car-stock/shared/constants';
-import { db } from '../../lib/db';
-import { reportsService } from '../reports/reports.service';
-import {
-  DeliveryReceiptData,
-  ThankYouLetterData,
-  SalesConfirmationData,
-  SalesRecordData,
-  ContractData,
-  DepositReceiptData,
-  PaymentReceiptData,
-  VehicleCardData,
-  TemporaryReceiptData,
-  CustomerInfo,
-  CarInfo,
-} from './types';
-import { formatThaiDate, numberToThaiText } from './helpers';
+import { Elysia, t } from 'elysia';
 import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
+import { db } from '../../lib/db';
+import { authMiddleware, requirePermission } from '../auth/auth.middleware';
+import { reportsService } from '../reports/reports.service';
+import { formatThaiDate, numberToThaiText } from './helpers';
+import { pdfService } from './pdf.service';
+import {
+  type CarInfo,
+  ContractData,
+  type CustomerInfo,
+  type DeliveryReceiptData,
+  DepositReceiptData,
+  type PaymentReceiptData,
+  type SalesConfirmationData,
+  type SalesRecordData,
+  type TemporaryReceiptData,
+  type ThankYouLetterData,
+  type VehicleCardData,
+} from './types';
 
 // Helper function to transform customer data
 function transformCustomer(customer: any): CustomerInfo {
@@ -176,12 +176,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         deliveryDate: sale.deliveryDate ? formatThaiDate(sale.deliveryDate) : undefined,
       };
 
-
-
       const pdfBuffer = await pdfService.generateDeliveryReceipt(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="delivery-receipt-${sale.saleNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="delivery-receipt-${sale.saleNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -258,7 +257,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateThankYouLetter(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="thank-you-letter-${sale.saleNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="thank-you-letter-${sale.saleNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -306,13 +306,19 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         createdDate: sale.createdAt.toISOString(),
         car: transformCar(sale.stock),
         customer: transformCustomer(sale.customer),
-        paymentMethod: sale.paymentMode === 'CASH' ? 'เงินสด' : sale.paymentMode === 'FINANCE' ? 'บริษัทไฟแนนซ์' : sale.paymentMode,
+        paymentMethod:
+          sale.paymentMode === 'CASH'
+            ? 'เงินสด'
+            : sale.paymentMode === 'FINANCE'
+              ? 'บริษัทไฟแนนซ์'
+              : sale.paymentMode,
       };
 
       const pdfBuffer = await pdfService.generateSalesConfirmation(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="sales-confirmation-${sale.saleNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="sales-confirmation-${sale.saleNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -381,7 +387,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         },
         gifts: [], // TODO: Parse from freebiesSnapshot if available
         staff: {
-          salesConsultant: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
+          salesConsultant: sale.createdBy
+            ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
+            : '-',
           salesManager: '-',
           auditor: '-',
         },
@@ -390,7 +398,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateSalesRecord(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="sales-record-${sale.saleNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="sales-record-${sale.saleNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -441,7 +450,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const car = transformCar(sale.stock);
 
       // Get reservation payment (first payment)
-      const reservationPayment = sale.payments && sale.payments.length > 0 ? sale.payments[0] : null;
+      const reservationPayment =
+        sale.payments && sale.payments.length > 0 ? sale.payments[0] : null;
 
       // Get or generate contract number (เล่มที่ and เลขที่)
       // If the Sale already has a contract number, use it; otherwise generate a new one and save it
@@ -468,7 +478,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
-      const data: any = { // Using any to bypass strict type check for now to support the template
+      const data: any = {
+        // Using any to bypass strict type check for now to support the template
         copyTypes: [
           { thai: 'ต้นฉบับ', english: 'ORIGINAL' },
           { thai: 'คู่ฉบับ', english: 'DUPLICATE' },
@@ -481,7 +492,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           contractLocation: header.companyName,
           salesManagerName: '', // Placeholder, no data available on sale object
           salesManagerPhone: '',
-          salesStaffName: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
+          salesStaffName: sale.createdBy
+            ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
+            : '-',
           salesStaffPhone: sale.createdBy?.phone || '-',
         },
         reservationNumber: sale.saleNumber,
@@ -497,23 +510,27 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           depositAmount: sale.depositAmount?.toString() || '0',
           refundPolicy: 'ตามข้อตกลง',
         },
-        reservationFee: reservationPayment ? {
-          amount: reservationPayment.amount.toString(),
-          isCash: reservationPayment.paymentMethod === 'CASH',
-          isBankTransfer: reservationPayment.paymentMethod === 'BANK_TRANSFER',
-          isCreditCard: reservationPayment.paymentMethod === 'CREDIT_CARD',
-          isCheque: reservationPayment.paymentMethod === 'CHEQUE',
-          bank: reservationPayment.receivingBank || '',
-          accountNo: '', // Not available in Payment model
-          chequeNo: reservationPayment.referenceNumber || '',
-          chequeDate: reservationPayment.paymentDate ? formatThaiDate(reservationPayment.paymentDate) : '',
-        } : {
-          amount: '0',
-          isCash: false,
-          isBankTransfer: false,
-          isCreditCard: false,
-          isCheque: false,
-        }
+        reservationFee: reservationPayment
+          ? {
+              amount: reservationPayment.amount.toString(),
+              isCash: reservationPayment.paymentMethod === 'CASH',
+              isBankTransfer: reservationPayment.paymentMethod === 'BANK_TRANSFER',
+              isCreditCard: reservationPayment.paymentMethod === 'CREDIT_CARD',
+              isCheque: reservationPayment.paymentMethod === 'CHEQUE',
+              bank: reservationPayment.receivingBank || '',
+              accountNo: '', // Not available in Payment model
+              chequeNo: reservationPayment.referenceNumber || '',
+              chequeDate: reservationPayment.paymentDate
+                ? formatThaiDate(reservationPayment.paymentDate)
+                : '',
+            }
+          : {
+              amount: '0',
+              isCash: false,
+              isBankTransfer: false,
+              isCreditCard: false,
+              isCheque: false,
+            },
       };
 
       const pdfBuffer = await pdfService.generateContract(data);
@@ -568,9 +585,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const customer = payment.customer || sale?.customer;
 
       // Build items: payment type label as main item, description as sub-item
-      const typeLabel = PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
-      const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
-      const methodLabel = PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const typeLabel =
+        PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel
+        ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}`
+        : '';
+      const methodLabel =
+        PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
       const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
       const items: { description: string; amount: string }[] = [
         { description: mainItem, amount: payment.amount.toString() },
@@ -617,7 +638,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="deposit-receipt-${payment.receiptNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="deposit-receipt-${payment.receiptNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -687,8 +709,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           MISCELLANEOUS: 'เบ็ดเตล็ด',
         };
         const label = typeLabels[payment.paymentType] || 'ค่าชำระเงิน';
-        const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
-        items.push({ description: `${label} ${carName}`.trim(), amount: payment.amount.toString() });
+        const carName = sale?.stock?.vehicleModel
+          ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}`
+          : '';
+        items.push({
+          description: `${label} ${carName}`.trim(),
+          amount: payment.amount.toString(),
+        });
       }
 
       const data: PaymentReceiptData = {
@@ -707,7 +734,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generatePaymentReceipt(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="payment-receipt-${payment.receiptNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="payment-receipt-${payment.receiptNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -769,7 +797,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         const fixed = amount.toFixed(2);
         const [intPart, decPart] = fixed.split('.');
         return {
-          full: Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          full: Number(amount).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
           int: Number(intPart).toLocaleString('en-US'),
           dec: decPart,
         };
@@ -878,7 +909,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         const fixed = amount.toFixed(2);
         const [intPart, decPart] = fixed.split('.');
         return {
-          full: Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          full: Number(amount).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
           int: Number(intPart).toLocaleString('en-US'),
           dec: decPart,
         };
@@ -925,7 +959,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="vehicle-card-template-${stock.vin}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="vehicle-card-template-${stock.vin}.pdf"`;
 
       return pdfBuffer;
     },
@@ -974,9 +1009,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const customer = payment.customer || sale?.customer;
 
       // Build items: payment type label as main item, description as sub-item
-      const typeLabel = PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
-      const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
-      const methodLabel = PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const typeLabel =
+        PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel
+        ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}`
+        : '';
+      const methodLabel =
+        PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
       const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
       const items: { description: string; amount: string }[] = [
         { description: mainItem, amount: payment.amount.toString() },
@@ -1023,7 +1062,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateTemporaryReceipt(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-${payment.receiptNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="temporary-receipt-${payment.receiptNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -1072,9 +1112,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const customer = payment.customer || sale?.customer;
 
       // Build items: payment type label as main item, description as sub-item
-      const typeLabel = PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
-      const carName = sale?.stock?.vehicleModel ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}` : '';
-      const methodLabel = PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const typeLabel =
+        PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel
+        ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}`
+        : '';
+      const methodLabel =
+        PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
       const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
       const items: { description: string; amount: string }[] = [
         { description: mainItem, amount: payment.amount.toString() },
@@ -1121,7 +1165,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateTemporaryReceiptBg(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="temporary-receipt-bg-${payment.receiptNumber}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="temporary-receipt-bg-${payment.receiptNumber}.pdf"`;
 
       return pdfBuffer;
     },
@@ -1206,7 +1251,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const pdfBuffer = await pdfService.generateDailyPaymentReport(data);
 
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `inline; filename="daily-payment-report-${date.toISOString().slice(0, 10)}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `inline; filename="daily-payment-report-${date.toISOString().slice(0, 10)}.pdf"`;
 
       return pdfBuffer;
     },
@@ -1269,7 +1315,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         panels,
       });
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="daily-stock-snapshot-${report.date}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="daily-stock-snapshot-${report.date}.pdf"`;
       return pdfBuffer;
     },
     {
@@ -1279,7 +1326,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         tags: ['Documents'],
         summary: 'Generate Daily Stock Snapshot PDF',
       },
-    },
+    }
   )
   // Monthly Purchases Report PDF
   .get(
@@ -1312,7 +1359,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         summary: report.summary,
       });
       set.headers['Content-Type'] = 'application/pdf';
-      set.headers['Content-Disposition'] = `attachment; filename="monthly-purchases-${year}-${String(month).padStart(2, '0')}.pdf"`;
+      set.headers['Content-Disposition'] =
+        `attachment; filename="monthly-purchases-${year}-${String(month).padStart(2, '0')}.pdf"`;
       return pdfBuffer;
     },
     {
@@ -1326,5 +1374,5 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         tags: ['Documents'],
         summary: 'Generate Monthly Purchases Report PDF',
       },
-    },
+    }
   );

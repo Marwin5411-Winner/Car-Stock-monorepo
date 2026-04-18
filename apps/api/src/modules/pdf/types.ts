@@ -140,87 +140,87 @@ export interface SalesRecordData {
  */
 export interface CarReservationContractData {
   header: CompanyHeader;
-  
+
   // Copy type labels for 3-page contract
   copyTypes?: Array<{
-    thai: string;    // ต้นฉบับ, คู่ฉบับ, สำเนาคู่ฉบับ
+    thai: string; // ต้นฉบับ, คู่ฉบับ, สำเนาคู่ฉบับ
     english: string; // ORIGINAL, DUPLICATE, COPY
   }>;
-  
+
   // Document identification
   documentInfo: {
-    volumeNumber?: string;        // เล่มที่
-    documentNumber?: string;      // เลขที่
-    contractLocation?: string;    // ที่ทำสัญญา ณ
-    contractDay?: string;         // วันที่
-    contractMonth?: string;       // เดือน
-    contractYear?: string;        // พ.ศ.
-    salesManagerName?: string;    // ผู้จัดการฝ่ายขาย
-    salesManagerPhone?: string;   // เบอร์
-    salesStaffName?: string;      // พนักงานขาย
-    salesStaffPhone?: string;     // เบอร์
+    volumeNumber?: string; // เล่มที่
+    documentNumber?: string; // เลขที่
+    contractLocation?: string; // ที่ทำสัญญา ณ
+    contractDay?: string; // วันที่
+    contractMonth?: string; // เดือน
+    contractYear?: string; // พ.ศ.
+    salesManagerName?: string; // ผู้จัดการฝ่ายขาย
+    salesManagerPhone?: string; // เบอร์
+    salesStaffName?: string; // พนักงานขาย
+    salesStaffPhone?: string; // เบอร์
   };
 
   // Party information (between)
   parties: {
-    companyName?: string;         // ระหว่าง (บริษัท)
-    dealerName?: string;          // จำกัด ผู้จำหน่าย(Dealer)
-    isHeadOffice?: boolean;       // สำนักงานใหญ่
-    isBranchOffice?: boolean;     // สำนักงานสาขา
-    branchLocation?: string;      // ตั้งอยู่
-    companyPhone?: string;        // เบอร์โทรศัพท์
-    companyEmail?: string;        // อีเมล
-    authorizedPerson?: string;    // ผู้มีอำนาจกระทำการแทน
-    authorizedDate?: string;      // วันที่มอบอำนาจ
-    authorizedMonth?: string;     // เดือนมอบอำนาจ
-    authorizedYear?: string;      // พ.ศ. มอบอำนาจ
-    customerName?: string;        // ชื่อลูกค้า
-    customerIdCard?: string;      // เลขบัตรประจำตัวประชาชน
-    customerAddress?: string;     // ที่อยู่ติดต่อลูกค้า
+    companyName?: string; // ระหว่าง (บริษัท)
+    dealerName?: string; // จำกัด ผู้จำหน่าย(Dealer)
+    isHeadOffice?: boolean; // สำนักงานใหญ่
+    isBranchOffice?: boolean; // สำนักงานสาขา
+    branchLocation?: string; // ตั้งอยู่
+    companyPhone?: string; // เบอร์โทรศัพท์
+    companyEmail?: string; // อีเมล
+    authorizedPerson?: string; // ผู้มีอำนาจกระทำการแทน
+    authorizedDate?: string; // วันที่มอบอำนาจ
+    authorizedMonth?: string; // เดือนมอบอำนาจ
+    authorizedYear?: string; // พ.ศ. มอบอำนาจ
+    customerName?: string; // ชื่อลูกค้า
+    customerIdCard?: string; // เลขบัตรประจำตัวประชาชน
+    customerAddress?: string; // ที่อยู่ติดต่อลูกค้า
     customerOfficePhone?: string; // โทรศัพท์ที่ทำงาน
-    customerHomePhone?: string;   // โทรศัพท์บ้าน
-    customerMobile?: string;      // โทรศัพท์มือถือ
-    customerEmail?: string;       // อีเมล
+    customerHomePhone?: string; // โทรศัพท์บ้าน
+    customerMobile?: string; // โทรศัพท์มือถือ
+    customerEmail?: string; // อีเมล
   };
 
   // Section 1.1 - Vehicle Details
   vehicleDetails: {
-    type?: string;                // ประเภท/Type
-    brand?: string;               // ยี่ห้อ/Brand
-    model?: string;               // รุ่น/Model
-    color?: string;               // สี/Color
-    mfy?: string;                 // ปีที่ผลิต/MFY
-    engineCCOrKW?: string;        // ขนาดเครื่องยนต์หรือกำลังของมอเตอร์ไฟฟ้า/CC or kW
-    batteryType?: string;         // ประเภทของแบตเตอรี่/Battery type
-    batteryCapacity?: string;     // ความจุแบตเตอรี่/Battery capacity (kWh)
-    nedcRange?: string;           // ระยะทางวิ่งสูงสุด/NEDC Mode (KM)
-    bookingDepositDate?: string;  // วันที่ชำระเงินจอง/Booking deposit date
+    type?: string; // ประเภท/Type
+    brand?: string; // ยี่ห้อ/Brand
+    model?: string; // รุ่น/Model
+    color?: string; // สี/Color
+    mfy?: string; // ปีที่ผลิต/MFY
+    engineCCOrKW?: string; // ขนาดเครื่องยนต์หรือกำลังของมอเตอร์ไฟฟ้า/CC or kW
+    batteryType?: string; // ประเภทของแบตเตอรี่/Battery type
+    batteryCapacity?: string; // ความจุแบตเตอรี่/Battery capacity (kWh)
+    nedcRange?: string; // ระยะทางวิ่งสูงสุด/NEDC Mode (KM)
+    bookingDepositDate?: string; // วันที่ชำระเงินจอง/Booking deposit date
   };
 
   // Section 1.2 - New Car Price
   pricing: {
-    priceExcludeVAT?: string;     // ไม่รวมภาษีมูลค่าเพิ่ม/Exclude VAT
-    priceIncludeVAT?: string;     // รวมภาษีมูลค่าเพิ่ม/Include VAT
+    priceExcludeVAT?: string; // ไม่รวมภาษีมูลค่าเพิ่ม/Exclude VAT
+    priceIncludeVAT?: string; // รวมภาษีมูลค่าเพิ่ม/Include VAT
   };
 
   // Section 1.3 - FOC/Accessories
-  freeAccessories?: string[];      // รายการของแถม/FOC
+  freeAccessories?: string[]; // รายการของแถม/FOC
 
   // Section 1.4 - Reservation Fee
   reservationFee: {
-    isCash?: boolean;             // เงินสด/cash
-    isBankTransfer?: boolean;     // โอนเข้าบัญชีชื่อผู้ประกอบธุรกิจ/Bank Transfer
-    amount?: string;              // เป็นเงิน/amount
-    accountNo?: string;           // เลขที่บัญชี/Account no.
-    bank?: string;                // ธนาคาร/Bank
-    isCreditCard?: boolean;       // บัตรเครดิตธนาคาร/Credit card
-    isDebitCard?: boolean;        // บัตรเดบิตธนาคาร/Debit card
-    cardBank?: string;            // ธนาคาร
-    cashAmount?: string;          // เป็นเงิน/amount
-    isCheque?: boolean;           // เช็คธนาคาร/Bank Cheque
-    chequeBranch?: string;        // สาขา/Branch
-    chequeNo?: string;            // เลขที่เช็ค/Cheque No
-    chequeDate?: string;          // ลงวันที่/Date
+    isCash?: boolean; // เงินสด/cash
+    isBankTransfer?: boolean; // โอนเข้าบัญชีชื่อผู้ประกอบธุรกิจ/Bank Transfer
+    amount?: string; // เป็นเงิน/amount
+    accountNo?: string; // เลขที่บัญชี/Account no.
+    bank?: string; // ธนาคาร/Bank
+    isCreditCard?: boolean; // บัตรเครดิตธนาคาร/Credit card
+    isDebitCard?: boolean; // บัตรเดบิตธนาคาร/Debit card
+    cardBank?: string; // ธนาคาร
+    cashAmount?: string; // เป็นเงิน/amount
+    isCheque?: boolean; // เช็คธนาคาร/Bank Cheque
+    chequeBranch?: string; // สาขา/Branch
+    chequeNo?: string; // เลขที่เช็ค/Cheque No
+    chequeDate?: string; // ลงวันที่/Date
   };
 
   // Section 1.5 - Additional Accessories
@@ -228,50 +228,50 @@ export interface CarReservationContractData {
 
   // Section 2 - Primary Expenses
   primaryExpenses: {
-    carPrice?: string;            // ราคารถยนต์/Car price
-    downPayment?: string;         // เงินดาวน์/Down payment
-    registrationFee?: string;     // ค่าจดทะเบียน/Registration Fee
-    redPlateFee?: string;         // ค่ามัดจำป้ายแดง/Deposit red plate
-    insurancePremium?: string;    // ค่าเบี้ยประกันภัย/Insurance Premium
-    accessoryFee?: string;        // ค่าอุปกรณ์ตกแต่ง/Accessory
-    otherFee?: string;            // อื่นๆ/Other
-    totalExpense?: string;        // รวมค่าใช้จ่าย/Total Expense
-    reservationFee?: string;      // หัก เงินจอง/Reservation Fee
-    usedCarTradeIn?: string;      // หัก เงินค่ารถเก่า/Used car trade-in
-    otherDiscount?: string;       // อื่นๆ/Other (ส่วนลดเงินสด)
-    netTotalExpense?: string;     // รวมค่าใช้จ่ายทั้งสิ้น/Net total expense
+    carPrice?: string; // ราคารถยนต์/Car price
+    downPayment?: string; // เงินดาวน์/Down payment
+    registrationFee?: string; // ค่าจดทะเบียน/Registration Fee
+    redPlateFee?: string; // ค่ามัดจำป้ายแดง/Deposit red plate
+    insurancePremium?: string; // ค่าเบี้ยประกันภัย/Insurance Premium
+    accessoryFee?: string; // ค่าอุปกรณ์ตกแต่ง/Accessory
+    otherFee?: string; // อื่นๆ/Other
+    totalExpense?: string; // รวมค่าใช้จ่าย/Total Expense
+    reservationFee?: string; // หัก เงินจอง/Reservation Fee
+    usedCarTradeIn?: string; // หัก เงินค่ารถเก่า/Used car trade-in
+    otherDiscount?: string; // อื่นๆ/Other (ส่วนลดเงินสด)
+    netTotalExpense?: string; // รวมค่าใช้จ่ายทั้งสิ้น/Net total expense
   };
 
   // Section 3 - Purchase Conditions
   purchaseConditions: {
-    isCash?: boolean;             // เงินสด/Cash
-    isHirePurchase?: boolean;     // ทรัพย์สินเช่าซื้อ/Hire Purchase
-    financeCompany?: string;      // บริษัทไฟแนนซ์/Finance company
-    downPaymentPercent?: string;  // เงินดาวน์/Down payment %
-    downPaymentAmount?: string;   // บาท/Baht
-    interestPercent?: string;     // ดอกเบี้ย/Interest %
-    isBeginning?: boolean;        // ต้นงวด/Beginning
-    isEnding?: boolean;           // ปลายงวด/Ending
-    financeAmount?: string;       // ยอดจัด/Finance Amount
-    installmentMonths?: string;   // ผ่อนชำระ/Installment (months)
-    monthlyPayment?: string;      // เดือนละ/Monthly (baht)
+    isCash?: boolean; // เงินสด/Cash
+    isHirePurchase?: boolean; // ทรัพย์สินเช่าซื้อ/Hire Purchase
+    financeCompany?: string; // บริษัทไฟแนนซ์/Finance company
+    downPaymentPercent?: string; // เงินดาวน์/Down payment %
+    downPaymentAmount?: string; // บาท/Baht
+    interestPercent?: string; // ดอกเบี้ย/Interest %
+    isBeginning?: boolean; // ต้นงวด/Beginning
+    isEnding?: boolean; // ปลายงวด/Ending
+    financeAmount?: string; // ยอดจัด/Finance Amount
+    installmentMonths?: string; // ผ่อนชำระ/Installment (months)
+    monthlyPayment?: string; // เดือนละ/Monthly (baht)
   };
 
   // Section 4 - Insurance
   insurance: {
-    companyName?: string;         // บริษัท/Company Name
-    partNumber?: string;          // ประเภท/Part
-    sumInsured?: string;          // ทุนประกัน/Sum Insure
-    specifyPremium?: boolean;     // ระบุค่าเบี้ยประกันภัย checkbox
-    premiumAmount?: string;       // ระบุค่าเบี้ยประกันภัย/Premium บาท
-    notSpecifyPremium?: boolean;  // ไม่ระบุค่าเบี้ยประกันภัย checkbox
+    companyName?: string; // บริษัท/Company Name
+    partNumber?: string; // ประเภท/Part
+    sumInsured?: string; // ทุนประกัน/Sum Insure
+    specifyPremium?: boolean; // ระบุค่าเบี้ยประกันภัย checkbox
+    premiumAmount?: string; // ระบุค่าเบี้ยประกันภัย/Premium บาท
+    notSpecifyPremium?: boolean; // ไม่ระบุค่าเบี้ยประกันภัย checkbox
     notSpecifyPremiumAmount?: string; // ไม่ระบุค่าเบี้ยประกันภัย/Premium บาท
   };
 
   // Section 5 - Delivery
   delivery: {
-    deliveryDate?: string;        // กำหนดวันส่งมอบ/Delivery Date
-    deliveryLocation?: string;    // สถานที่ส่งมอบ/Location
+    deliveryDate?: string; // กำหนดวันส่งมอบ/Delivery Date
+    deliveryLocation?: string; // สถานที่ส่งมอบ/Location
   };
 
   // Footer note checkbox
@@ -330,7 +330,6 @@ export interface PdfOptions {
   printBackground?: boolean;
   scale?: number; // Scale of the page rendering (0.1 - 2.0, default 1.0)
 }
-
 
 /**
  * Template types enum
@@ -532,4 +531,3 @@ export interface PurchaseRequirementReportData {
     totalModels: number;
   };
 }
-

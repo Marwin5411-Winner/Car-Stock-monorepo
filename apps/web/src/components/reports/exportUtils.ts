@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 
 interface ExportHeader {
   key: string;
@@ -105,7 +105,12 @@ interface SingleSheetExportProps {
 /**
  * Export data to Excel with a single sheet
  */
-export function exportToExcel({ data, filename, sheetName = 'รายงาน', headers }: SingleSheetExportProps) {
+export function exportToExcel({
+  data,
+  filename,
+  sheetName = 'รายงาน',
+  headers,
+}: SingleSheetExportProps) {
   exportMultiSheet({
     sheets: [{ name: sheetName, data, headers }],
     filename,

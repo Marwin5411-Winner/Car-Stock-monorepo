@@ -2,8 +2,13 @@
 
 /* Global print defaults: A4 landscape for every report. */
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
-  .print-hide { display: none !important; }
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .print-hide {
+    display: none !important;
+  }
 }
 
 /* CSS Variables for theming */
@@ -65,7 +70,8 @@
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "Sarabun", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 }
 
 /* Focus styles */

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { buildDailySnapshot } from '../modules/reports/reports.service';
 
 type ReservationFixture = { vehicleModelId: string | null; modelName: string; color: string };

@@ -1,23 +1,23 @@
-import { useState, useEffect } from 'react';
+import type { StockReportItem, StockReportResponse } from '@car-stock/shared/types';
+import { ArrowLeft, Car, CheckCircle, Clock, Download, FileText, Package } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
-import { ArrowLeft, Package, Car, CheckCircle, Clock, FileText, Download } from 'lucide-react';
-import { reportService } from '../../services/report.service';
 import {
   DateRangeFilter,
-  SummaryCard,
-  SummaryCardsGrid,
+  PrintButton,
   ReportBarChart,
   ReportPieChart,
   ReportTable,
-  PrintButton,
+  StatusBadge,
+  SummaryCard,
+  SummaryCardsGrid,
   formatCurrency,
   formatDate,
   formatNumber,
-  StatusBadge,
 } from '../../components/reports';
 import { exportMultiSheet } from '../../components/reports/exportUtils';
-import type { StockReportResponse, StockReportItem } from '@car-stock/shared/types';
+import { reportService } from '../../services/report.service';
 
 export default function StockReportPage() {
   const navigate = useNavigate();

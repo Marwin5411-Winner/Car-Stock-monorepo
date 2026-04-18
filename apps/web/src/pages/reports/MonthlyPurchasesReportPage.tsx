@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { MainLayout } from '../../components/layout';
-import { reportService } from '../../services/report.service';
-import { useToast } from '../../components/toast';
-import { exportMultiSheet } from '../../components/reports/exportUtils';
 import { VEHICLE_TYPE_LABELS } from '@car-stock/shared/constants';
 import type {
-  MonthlyPurchasesResponse,
   MonthlyPurchasesItem,
+  MonthlyPurchasesResponse,
   VehicleType,
 } from '@car-stock/shared/types';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { MainLayout } from '../../components/layout';
+import { exportMultiSheet } from '../../components/reports/exportUtils';
+import { useToast } from '../../components/toast';
+import { reportService } from '../../services/report.service';
 
 const TYPE_OPTIONS: Array<VehicleType | ''> = [
   '',
@@ -138,9 +138,7 @@ export function MonthlyPurchasesReportPage(): React.ReactElement {
       <div className="p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">รายงานรายการซื้อประจำเดือน</h1>
-          <p className="text-gray-600 mt-1">
-            รายการรถที่รับเข้าภายในเดือนที่เลือก
-          </p>
+          <p className="text-gray-600 mt-1">รายการรถที่รับเข้าภายในเดือนที่เลือก</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 print-hide">
@@ -179,9 +177,7 @@ export function MonthlyPurchasesReportPage(): React.ReactElement {
               >
                 {TYPE_OPTIONS.map((t) => (
                   <option key={t || 'all'} value={t}>
-                    {t
-                      ? (VEHICLE_TYPE_LABELS as Record<string, string>)[t] || t
-                      : 'ทั้งหมด'}
+                    {t ? (VEHICLE_TYPE_LABELS as Record<string, string>)[t] || t : 'ทั้งหมด'}
                   </option>
                 ))}
               </select>

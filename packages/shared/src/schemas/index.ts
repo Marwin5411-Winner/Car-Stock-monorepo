@@ -33,13 +33,7 @@ export const VehicleTypeSchema = z.enum([
   'EV',
 ]);
 
-export const StockStatusSchema = z.enum([
-  'AVAILABLE',
-  'RESERVED',
-  'PREPARING',
-  'SOLD',
-  'DEMO',
-]);
+export const StockStatusSchema = z.enum(['AVAILABLE', 'RESERVED', 'PREPARING', 'SOLD', 'DEMO']);
 
 export const InterestBaseSchema = z.enum(['BASE_COST_ONLY', 'TOTAL_COST']);
 
@@ -68,12 +62,7 @@ export const PaymentTypeSchema = z.enum([
   'MISCELLANEOUS',
 ]);
 
-export const PaymentMethodSchema = z.enum([
-  'CASH',
-  'BANK_TRANSFER',
-  'CHEQUE',
-  'CREDIT_CARD',
-]);
+export const PaymentMethodSchema = z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT_CARD']);
 
 export const PaymentStatusSchema = z.enum(['ACTIVE', 'VOIDED']);
 
@@ -158,7 +147,7 @@ export const CustomerSchema = z.object({
   salesType: SalesTypeSchema,
   name: z.string(),
   taxId: z.string().nullable(),
-  
+
   // Address (Thai structure)
   houseNumber: z.string(),
   street: z.string().nullable(),
@@ -166,23 +155,23 @@ export const CustomerSchema = z.object({
   district: z.string(),
   province: z.string(),
   postalCode: z.string().nullable(),
-  
+
   // Contact
   phone: z.string(),
   email: z.string().nullable(),
   website: z.string().nullable(),
-  
+
   // Contact Person
   contactName: z.string().nullable(),
   contactRole: z.string().nullable(),
   contactMobile: z.string().nullable(),
   contactEmail: z.string().nullable(),
-  
+
   // Credit
   creditTermDays: z.number().nullable(),
   creditLimit: z.number().nullable(),
   notes: z.string().nullable(),
-  
+
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -192,7 +181,7 @@ export const CreateCustomerSchema = z.object({
   salesType: SalesTypeSchema.default('NORMAL_SALES'),
   name: z.string().min(1, 'Name is required'),
   taxId: z.string().optional(),
-  
+
   // Address
   houseNumber: z.string().min(1, 'House number is required'),
   street: z.string().optional(),
@@ -200,18 +189,18 @@ export const CreateCustomerSchema = z.object({
   district: z.string().min(1, 'District is required'),
   province: z.string().min(1, 'Province is required'),
   postalCode: z.string().optional(),
-  
+
   // Contact
   phone: z.string().min(1, 'Phone is required'),
   email: z.string().email().optional().or(z.literal('')),
   website: z.string().optional(),
-  
+
   // Contact Person
   contactName: z.string().optional(),
   contactRole: z.string().optional(),
   contactMobile: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal('')),
-  
+
   // Credit
   creditTermDays: z.number().optional(),
   creditLimit: z.number().optional(),
@@ -231,20 +220,20 @@ export const VehicleModelSchema = z.object({
   variant: z.string().nullable(),
   year: z.number(),
   type: VehicleTypeSchema,
-  
+
   primaryColor: z.string().nullable(),
   secondaryColor: z.string().nullable(),
   colorNotes: z.string().nullable(),
-  
+
   mainOptions: z.string().nullable(),
   engineSpecs: z.string().nullable(),
   dimensions: z.string().nullable(),
-  
+
   price: z.number(),
   standardCost: z.number(),
   targetMargin: z.number().nullable(),
   notes: z.string().nullable(),
-  
+
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -255,15 +244,15 @@ export const CreateVehicleModelSchema = z.object({
   variant: z.string().optional(),
   year: z.number().min(2000).max(2100),
   type: VehicleTypeSchema,
-  
+
   primaryColor: z.string().optional(),
   secondaryColor: z.string().optional(),
   colorNotes: z.string().optional(),
-  
+
   mainOptions: z.string().optional(),
   engineSpecs: z.string().optional(),
   dimensions: z.string().optional(),
-  
+
   price: z.number().positive('Price must be positive'),
   standardCost: z.number().positive('Standard cost must be positive'),
   targetMargin: z.number().optional(),
@@ -282,35 +271,35 @@ export const StockSchema = z.object({
   engineNumber: z.string().nullable(),
   motorNumber1: z.string().nullable(),
   motorNumber2: z.string().nullable(),
-  
+
   vehicleModelId: z.string(),
   exteriorColor: z.string(),
   interiorColor: z.string().nullable(),
-  
+
   arrivalDate: z.coerce.date().optional().nullable(),
   orderDate: z.coerce.date().nullable(),
   status: StockStatusSchema,
   parkingSlot: z.string().nullable(),
-  
+
   baseCost: z.number(),
   transportCost: z.number(),
   accessoryCost: z.number(),
   otherCosts: z.number(),
   financeProvider: z.string().nullable(),
-  
+
   interestRate: z.number(),
   interestPrincipalBase: InterestBaseSchema,
   accumulatedInterest: z.number(),
   financePaymentDate: z.coerce.date().nullable(),
   stopInterestCalc: z.boolean(),
   interestStoppedAt: z.coerce.date().nullable(),
-  
+
   expectedSalePrice: z.number().nullable(),
   actualSalePrice: z.number().nullable(),
   soldDate: z.coerce.date().nullable(),
   deliveryNotes: z.string().nullable(),
   notes: z.string().nullable(),
-  
+
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   deletedAt: z.coerce.date().nullable(),
@@ -321,15 +310,15 @@ export const CreateStockSchema = z.object({
   engineNumber: z.string().optional(),
   motorNumber1: z.string().optional(),
   motorNumber2: z.string().optional(),
-  
+
   vehicleModelId: z.string().min(1, 'Vehicle model is required'),
   exteriorColor: z.string().min(1, 'Exterior color is required'),
   interiorColor: z.string().optional(),
-  
+
   arrivalDate: z.coerce.date().optional().nullable(),
   orderDate: z.coerce.date().optional(),
   parkingSlot: z.string().optional(),
-  
+
   baseCost: z.coerce.number().positive('Base cost must be positive'),
   transportCost: z.coerce.number().min(0).default(0),
   accessoryCost: z.coerce.number().min(0).default(0),
@@ -338,7 +327,7 @@ export const CreateStockSchema = z.object({
 
   interestRate: z.coerce.number().min(0).default(0),
   interestPrincipalBase: InterestBaseSchema.default('BASE_COST_ONLY'),
-  
+
   expectedSalePrice: z.coerce.number().positive().optional(),
   notes: z.string().optional(),
 });
@@ -354,40 +343,40 @@ export const SaleSchema = z.object({
   saleNumber: z.string(),
   type: SaleTypeSchema,
   status: SaleStatusSchema,
-  
+
   customerId: z.string(),
   stockId: z.string().nullable(),
   vehicleModelId: z.string().nullable(),
-  
+
   preferredExtColor: z.string().nullable(),
   preferredIntColor: z.string().nullable(),
-  
+
   totalAmount: z.number(),
   depositAmount: z.number(),
   paidAmount: z.number(),
   remainingAmount: z.number(),
-  
+
   reservedDate: z.coerce.date().nullable(),
   expirationDate: z.coerce.date().nullable(),
   hasExpiration: z.boolean(),
   deliveryDate: z.coerce.date().nullable(),
   completedDate: z.coerce.date().nullable(),
-  
+
   campaignId: z.string().nullable(),
   discountSnapshot: z.number().nullable(),
   freebiesSnapshot: z.string().nullable(),
-  
+
   paymentMode: PaymentModeSchema,
   downPayment: z.number().nullable(),
   financeAmount: z.number().nullable(),
   financeProvider: z.string().nullable(),
-  
+
   refundPolicy: RefundPolicySchema,
   refundAmount: z.number().nullable(),
-  
+
   notes: z.string().nullable(),
   cancellationReason: z.string().nullable(),
-  
+
   createdById: z.string(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -398,20 +387,20 @@ export const CreateSaleSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   stockId: z.string().optional(),
   vehicleModelId: z.string().optional(),
-  
+
   preferredExtColor: z.string().optional(),
   preferredIntColor: z.string().optional(),
-  
+
   totalAmount: z.number().positive('Total amount must be positive'),
   depositAmount: z.number().min(0).default(0),
-  
+
   expirationDate: z.coerce.date().optional(),
   hasExpiration: z.boolean().default(false),
-  
+
   campaignId: z.string().optional(),
   discountSnapshot: z.number().optional(),
   freebiesSnapshot: z.string().optional(),
-  
+
   paymentMode: PaymentModeSchema.default('CASH'),
   downPayment: z.number().optional(),
   financeAmount: z.number().optional(),
@@ -421,7 +410,7 @@ export const CreateSaleSchema = z.object({
   interestRate: z.number().optional(),
   numberOfTerms: z.number().int().optional(),
   monthlyInstallment: z.number().optional(),
-  
+
   refundPolicy: RefundPolicySchema.default('FULL'),
   notes: z.string().optional(),
 });
@@ -435,22 +424,22 @@ export const UpdateSaleSchema = CreateSaleSchema.partial();
 export const PaymentSchema = z.object({
   id: z.string(),
   receiptNumber: z.string(),
-  
+
   customerId: z.string(),
   saleId: z.string().nullable(),
   description: z.string().nullable(),
-  
+
   paymentDate: z.coerce.date(),
   paymentType: PaymentTypeSchema,
   amount: z.number(),
   paymentMethod: PaymentMethodSchema,
   referenceNumber: z.string().nullable(),
   notes: z.string().nullable(),
-  
+
   status: PaymentStatusSchema,
   voidReason: z.string().nullable(),
   voidedAt: z.coerce.date().nullable(),
-  
+
   issuedBy: z.string(),
   createdById: z.string(),
   createdAt: z.coerce.date(),
@@ -461,7 +450,7 @@ export const CreatePaymentSchema = z.object({
   saleId: z.string().optional(),
   customerId: z.string().min(1, 'Customer is required'),
   description: z.string().optional(),
-  
+
   paymentDate: z.coerce.date().default(() => new Date()),
   paymentType: PaymentTypeSchema,
   amount: z.number().positive('Amount must be positive'),
@@ -658,7 +647,7 @@ export const MonthlyPurchasesResponseSchema = z.object({
         type: VehicleTypeSchema,
         count: z.number(),
         totalGross: z.number(),
-      }),
+      })
     ),
   }),
 });

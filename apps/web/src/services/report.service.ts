@@ -1,16 +1,16 @@
-import { api } from '../lib/api';
 import type {
   DailyPaymentReportResponse,
-  StockReportResponse,
-  ProfitLossReportResponse,
-  SalesSummaryReportResponse,
-  StockInterestReportResponse,
-  PurchaseRequirementReportResponse,
-  ReportQueryParams,
-  PurchaseRequirementParams,
   DailyStockSnapshotResponse,
   MonthlyPurchasesResponse,
+  ProfitLossReportResponse,
+  PurchaseRequirementParams,
+  PurchaseRequirementReportResponse,
+  ReportQueryParams,
+  SalesSummaryReportResponse,
+  StockInterestReportResponse,
+  StockReportResponse,
 } from '@car-stock/shared/types';
+import { api } from '../lib/api';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -176,7 +176,9 @@ class ReportService {
   // ============================================
   // Purchase Requirement Report
   // ============================================
-  async getPurchaseRequirementReport(params?: PurchaseRequirementParams): Promise<PurchaseRequirementReportResponse> {
+  async getPurchaseRequirementReport(
+    params?: PurchaseRequirementParams
+  ): Promise<PurchaseRequirementReportResponse> {
     const queryParams = new URLSearchParams();
     if (params?.brand) queryParams.append('brand', params.brand);
 

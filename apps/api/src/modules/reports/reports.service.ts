@@ -1,13 +1,13 @@
-import { db } from '../../lib/db';
-import { StockStatus, SaleStatus, PaymentStatus, type VehicleType } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 import {
-  STOCK_STATUS_LABELS,
-  SALE_STATUS_LABELS,
-  PAYMENT_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_MODE_LABELS,
+  PAYMENT_TYPE_LABELS,
+  SALE_STATUS_LABELS,
+  STOCK_STATUS_LABELS,
 } from '@car-stock/shared/constants';
+import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prisma/client';
+import type { Decimal } from '@prisma/client/runtime/library';
+import { db } from '../../lib/db';
 
 // Helper functions
 const toNumber = (val: Decimal | number | null | undefined): number => {
@@ -21,7 +21,20 @@ const formatDateKey = (date: Date): string => {
 };
 
 const getMonthKey = (date: Date): string => {
-  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const months = [
+    'ม.ค.',
+    'ก.พ.',
+    'มี.ค.',
+    'เม.ย.',
+    'พ.ค.',
+    'มิ.ย.',
+    'ก.ค.',
+    'ส.ค.',
+    'ก.ย.',
+    'ต.ค.',
+    'พ.ย.',
+    'ธ.ค.',
+  ];
   return `${months[date.getMonth()]} ${date.getFullYear() + 543}`;
 };
 
@@ -55,7 +68,7 @@ interface DailyPaymentParams {
 
 export async function getDailyPaymentReport(params: DailyPaymentParams) {
   const { startDate, endDate } = params;
-  
+
   const where: Record<string, unknown> = {
     status: 'ACTIVE' as PaymentStatus,
   };
@@ -89,9 +102,12 @@ export async function getDailyPaymentReport(params: DailyPaymentParams) {
     customerCode: p.customer?.code ?? '-',
     description: p.description || '',
     paymentType: p.paymentType,
-    paymentTypeLabel: PAYMENT_TYPE_LABELS[p.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || p.paymentType,
+    paymentTypeLabel:
+      PAYMENT_TYPE_LABELS[p.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || p.paymentType,
     paymentMethod: p.paymentMethod,
-    paymentMethodLabel: PAYMENT_METHOD_LABELS[p.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || p.paymentMethod,
+    paymentMethodLabel:
+      PAYMENT_METHOD_LABELS[p.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] ||
+      p.paymentMethod,
     amount: toNumber(p.amount),
     saleNumber: p.sale?.saleNumber,
     issuedBy: p.issuedBy,
@@ -268,7 +284,8 @@ export async function getStockReport(params: StockReportParams) {
 
       if (canAccrueInterest) {
         const rate = toNumber(s.interestRate) * 100;
-        const principal = s.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : costWithoutInterest;
+        const principal =
+          s.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : costWithoutInterest;
         const days = calculateDays(interestStartDate, endDate);
         accumulatedInterest = calculateInterest(principal, rate, days);
       }
@@ -305,7 +322,7 @@ export async function getStockReport(params: StockReportParams) {
       otherCosts,
       accumulatedInterest: Math.round(accumulatedInterest * 100) / 100,
       totalCost: Math.round(totalCost * 100) / 100,
-      
+
       // Reservation info
       reservedBy: s.sale?.customer?.name || '-',
       reservedDate: s.sale?.reservedDate ? s.sale.reservedDate.toISOString() : undefined,
@@ -322,10 +339,30 @@ export async function getStockReport(params: StockReportParams) {
 
   // By status
   const byStatus = [
-    { status: 'AVAILABLE', label: 'พร้อมขาย', count: availableCount, percentage: totalCount > 0 ? (availableCount / totalCount) * 100 : 0 },
-    { status: 'RESERVED', label: 'จองแล้ว', count: reservedCount, percentage: totalCount > 0 ? (reservedCount / totalCount) * 100 : 0 },
-    { status: 'PREPARING', label: 'เตรียมส่งมอบ', count: preparingCount, percentage: totalCount > 0 ? (preparingCount / totalCount) * 100 : 0 },
-    { status: 'SOLD', label: 'ขายแล้ว', count: soldCount, percentage: totalCount > 0 ? (soldCount / totalCount) * 100 : 0 },
+    {
+      status: 'AVAILABLE',
+      label: 'พร้อมขาย',
+      count: availableCount,
+      percentage: totalCount > 0 ? (availableCount / totalCount) * 100 : 0,
+    },
+    {
+      status: 'RESERVED',
+      label: 'จองแล้ว',
+      count: reservedCount,
+      percentage: totalCount > 0 ? (reservedCount / totalCount) * 100 : 0,
+    },
+    {
+      status: 'PREPARING',
+      label: 'เตรียมส่งมอบ',
+      count: preparingCount,
+      percentage: totalCount > 0 ? (preparingCount / totalCount) * 100 : 0,
+    },
+    {
+      status: 'SOLD',
+      label: 'ขายแล้ว',
+      count: soldCount,
+      percentage: totalCount > 0 ? (soldCount / totalCount) * 100 : 0,
+    },
   ];
 
   // By brand
@@ -462,7 +499,9 @@ export async function getProfitLossReport(params: ProfitLossParams) {
       saleDate: sale.createdAt.toISOString(),
       completedDate: sale.completedDate?.toISOString() || sale.createdAt.toISOString(),
       customerName: sale.customer.name,
-      vehicleInfo: vehicleModel ? `${vehicleModel.brand} ${vehicleModel.model} ${vehicleModel.variant || ''} ${vehicleModel.year}` : 'N/A',
+      vehicleInfo: vehicleModel
+        ? `${vehicleModel.brand} ${vehicleModel.model} ${vehicleModel.variant || ''} ${vehicleModel.year}`
+        : 'N/A',
       vin: stock?.vin || 'N/A',
       sellingPrice,
       baseCost,
@@ -476,9 +515,7 @@ export async function getProfitLossReport(params: ProfitLossParams) {
       grossProfit,
       netProfit: Math.round(netProfit * 100) / 100,
       profitMargin: Math.round(profitMargin * 100) / 100,
-      salesperson: sale.createdBy
-        ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
-        : '-',
+      salesperson: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
     };
   });
 
@@ -489,9 +526,10 @@ export async function getProfitLossReport(params: ProfitLossParams) {
   const totalCostWithInterest = saleItems.reduce((sum, s) => sum + s.totalCostWithInterest, 0);
   const grossProfit = saleItems.reduce((sum, s) => sum + s.grossProfit, 0);
   const netProfit = saleItems.reduce((sum, s) => sum + s.netProfit, 0);
-  const avgProfitMargin = saleItems.length > 0 
-    ? saleItems.reduce((sum, s) => sum + s.profitMargin, 0) / saleItems.length 
-    : 0;
+  const avgProfitMargin =
+    saleItems.length > 0
+      ? saleItems.reduce((sum, s) => sum + s.profitMargin, 0) / saleItems.length
+      : 0;
   const saleCount = saleItems.length;
   const profitableSales = saleItems.filter((s) => s.netProfit > 0).length;
   const lossSales = saleItems.filter((s) => s.netProfit < 0).length;
@@ -558,7 +596,12 @@ export async function getProfitLossReport(params: ProfitLossParams) {
       lossSales,
     },
     chartData: {
-      monthlyProfit: monthly.map(m => ({ month: m.month, revenue: m.revenue, cost: m.cost, netProfit: m.profit })),
+      monthlyProfit: monthly.map((m) => ({
+        month: m.month,
+        revenue: m.revenue,
+        cost: m.cost,
+        netProfit: m.profit,
+      })),
       monthly,
       bySalesperson,
     },
@@ -654,29 +697,31 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       const canAccrueActiveInterest = stock.debtStatus !== 'PAID_OFF' && !stock.stopInterestCalc;
 
       if (stock.interestPeriods?.length) {
-        stock.interestPeriods.forEach((period: {
-          startDate: Date;
-          endDate: Date | null;
-          annualRate: Decimal | number;
-          principalAmount: Decimal | number;
-          calculatedInterest: Decimal | number;
-        }) => {
-          if (period.endDate) {
-            accumulatedInterest += toNumber(period.calculatedInterest);
-            return;
-          }
+        stock.interestPeriods.forEach(
+          (period: {
+            startDate: Date;
+            endDate: Date | null;
+            annualRate: Decimal | number;
+            principalAmount: Decimal | number;
+            calculatedInterest: Decimal | number;
+          }) => {
+            if (period.endDate) {
+              accumulatedInterest += toNumber(period.calculatedInterest);
+              return;
+            }
 
-          if (!canAccrueActiveInterest) {
-            return;
-          }
+            if (!canAccrueActiveInterest) {
+              return;
+            }
 
-          const days = calculateDays(period.startDate, activeEndDate);
-          accumulatedInterest += calculateInterest(
-            toNumber(period.principalAmount),
-            toNumber(period.annualRate),
-            days
-          );
-        });
+            const days = calculateDays(period.startDate, activeEndDate);
+            accumulatedInterest += calculateInterest(
+              toNumber(period.principalAmount),
+              toNumber(period.annualRate),
+              days
+            );
+          }
+        );
       } else {
         const canAccrueInterest = stock.debtStatus !== 'PAID_OFF' || hasStopDate;
 
@@ -700,12 +745,16 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       customerName: sale.customer.name,
       customerType: sale.customer.type,
       vehicleInfo: vehicleModel ? `${vehicleModel.brand} ${vehicleModel.model}` : 'N/A', // Shortened for report
-      vehicleModelName: vehicleModel ? `${vehicleModel.brand} ${vehicleModel.model} ${vehicleModel.variant || ''}` : 'N/A',
+      vehicleModelName: vehicleModel
+        ? `${vehicleModel.brand} ${vehicleModel.model} ${vehicleModel.variant || ''}`
+        : 'N/A',
       engineNumber: stock?.engineNumber || '-',
       chassisNumber: stock?.vin || '-',
       saleType: sale.type,
       paymentMode: sale.paymentMode,
-      paymentModeLabel: PAYMENT_MODE_LABELS[sale.paymentMode as keyof typeof PAYMENT_MODE_LABELS] || sale.paymentMode,
+      paymentModeLabel:
+        PAYMENT_MODE_LABELS[sale.paymentMode as keyof typeof PAYMENT_MODE_LABELS] ||
+        sale.paymentMode,
       totalAmount: sellingPrice,
       discountAmount: toNumber(sale.discountSnapshot) || 0,
       downPayment: toNumber(sale.downPayment) || toNumber(sale.depositAmount) || 0,
@@ -714,12 +763,11 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       paidAmount: toNumber(sale.paidAmount),
       remainingAmount: toNumber(sale.remainingAmount),
       status: sale.status,
-      statusLabel: SALE_STATUS_LABELS[sale.status as keyof typeof SALE_STATUS_LABELS] || sale.status,
-      salesperson: sale.createdBy
-        ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
-        : '-',
+      statusLabel:
+        SALE_STATUS_LABELS[sale.status as keyof typeof SALE_STATUS_LABELS] || sale.status,
+      salesperson: sale.createdBy ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}` : '-',
       salespersonId: sale.createdBy?.id ?? '',
-      
+
       // Cost & Profit fields
       baseCost,
       totalCost,
@@ -733,7 +781,7 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       priceNet: splitVat(baseCost).net,
       priceVat: splitVat(baseCost).vat,
       priceGross: baseCost,
-      
+
       // Placeholder fields for report columns not yet in system
       financeReturn: 0, // ค่าตอบไฟแนนซ์
       transportFee: 0, // ทะเบียน/พรบ/ขนส่ง (Income or Expense?)
@@ -824,33 +872,36 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
   }));
 
   // Calculate completed count and top salesperson
-  const completedCount = saleItems.filter(s => s.status === 'COMPLETED').length;
+  const completedCount = saleItems.filter((s) => s.status === 'COMPLETED').length;
   const topSalesperson = bySalesperson.length > 0 ? bySalesperson[0].name : '-';
 
   // Build bySalesperson with more detailed info
-  const salespersonDetailedGroups: Record<string, { 
-    id: string; 
-    count: number; 
-    amount: number; 
-    pending: number; 
-    completed: number; 
-    canceled: number; 
-  }> = {};
+  const salespersonDetailedGroups: Record<
+    string,
+    {
+      id: string;
+      count: number;
+      amount: number;
+      pending: number;
+      completed: number;
+      canceled: number;
+    }
+  > = {};
 
   saleItems.forEach((s) => {
     if (!salespersonDetailedGroups[s.salesperson]) {
-      salespersonDetailedGroups[s.salesperson] = { 
-        id: s.salespersonId, 
-        count: 0, 
-        amount: 0, 
-        pending: 0, 
-        completed: 0, 
-        canceled: 0 
+      salespersonDetailedGroups[s.salesperson] = {
+        id: s.salespersonId,
+        count: 0,
+        amount: 0,
+        pending: 0,
+        completed: 0,
+        canceled: 0,
       };
     }
     salespersonDetailedGroups[s.salesperson].count += 1;
     salespersonDetailedGroups[s.salesperson].amount += s.totalAmount;
-    
+
     if (s.status === 'RESERVED' || s.status === 'PREPARING') {
       salespersonDetailedGroups[s.salesperson].pending += 1;
     } else if (s.status === 'COMPLETED' || s.status === 'DELIVERED') {
@@ -871,7 +922,8 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       totalAmount: data.amount,
       commission: Math.round(data.amount * 0.01),
       commissionVat: Math.round(Math.round(data.amount * 0.01) * 0.07),
-      commissionWithVat: Math.round(data.amount * 0.01) + Math.round(Math.round(data.amount * 0.01) * 0.07),
+      commissionWithVat:
+        Math.round(data.amount * 0.01) + Math.round(Math.round(data.amount * 0.01) * 0.07),
     }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
 
@@ -936,10 +988,7 @@ export async function getStockInterestReport(params: StockInterestParams) {
     where.stopInterestCalc = false;
     where.debtStatus = { not: 'PAID_OFF' };
   } else if (isCalculating === false) {
-    where.OR = [
-      { stopInterestCalc: true },
-      { debtStatus: 'PAID_OFF' },
-    ];
+    where.OR = [{ stopInterestCalc: true }, { debtStatus: 'PAID_OFF' }];
   }
 
   if (brand) {
@@ -968,13 +1017,18 @@ export async function getStockInterestReport(params: StockInterestParams) {
   const stockItems = stocks.map((stock) => {
     const interestStartDate = stock.orderDate || stock.arrivalDate;
     const soldOrToday = stock.soldDate || today;
-    const endDate = stock.stopInterestCalc && stock.interestStoppedAt
-      ? new Date(Math.min(soldOrToday.getTime(), stock.interestStoppedAt.getTime()))
-      : soldOrToday;
+    const endDate =
+      stock.stopInterestCalc && stock.interestStoppedAt
+        ? new Date(Math.min(soldOrToday.getTime(), stock.interestStoppedAt.getTime()))
+        : soldOrToday;
     const daysCount = calculateDays(interestStartDate, endDate);
 
     const baseCost = toNumber(stock.baseCost);
-    const totalCost = baseCost + toNumber(stock.transportCost) + toNumber(stock.accessoryCost) + toNumber(stock.otherCosts);
+    const totalCost =
+      baseCost +
+      toNumber(stock.transportCost) +
+      toNumber(stock.accessoryCost) +
+      toNumber(stock.otherCosts);
 
     // Calculate accumulated interest from all periods
     let totalAccumulatedInterest = 0;
@@ -1008,12 +1062,13 @@ export async function getStockInterestReport(params: StockInterestParams) {
       });
 
     const isCalculatingNow = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
-    const vehicleInfo = `${stock.vehicleModel.brand} ${stock.vehicleModel.model} ${stock.vehicleModel.variant || ''} ${stock.vehicleModel.year}`.trim();
+    const vehicleInfo =
+      `${stock.vehicleModel.brand} ${stock.vehicleModel.model} ${stock.vehicleModel.variant || ''} ${stock.vehicleModel.year}`.trim();
 
     // ดอกเบี้ยที่จ่ายแล้ว = ใช้ค่าจาก paidInterestAmount ที่ track ไว้ใน Stock
     // (ถูก update ทุกครั้งที่มีการจ่ายหนี้ผ่าน recordDebtPayment)
     let paidInterest = toNumber(stock.paidInterestAmount);
-    
+
     // ดอกเบี้ยค้างชำระ = ดอกเบี้ยสะสมทั้งหมด - ดอกเบี้ยที่จ่ายแล้ว
     let pendingInterest = Math.max(0, totalAccumulatedInterest - paidInterest);
 
@@ -1037,7 +1092,8 @@ export async function getStockInterestReport(params: StockInterestParams) {
       year: stock.vehicleModel.year,
       exteriorColor: stock.exteriorColor,
       status: stock.status,
-      statusLabel: STOCK_STATUS_LABELS[stock.status as keyof typeof STOCK_STATUS_LABELS] || stock.status,
+      statusLabel:
+        STOCK_STATUS_LABELS[stock.status as keyof typeof STOCK_STATUS_LABELS] || stock.status,
       arrivalDate: stock.arrivalDate.toISOString(),
       orderDate: stock.orderDate?.toISOString(),
       interestStartDate: interestStartDate.toISOString(),
@@ -1069,19 +1125,22 @@ export async function getStockInterestReport(params: StockInterestParams) {
   const calculatingCount = stockItems.filter((s) => s.isCalculating).length;
   const stoppedCount = stockItems.filter((s) => !s.isCalculating).length;
   const totalStockCount = stockItems.length;
-  const avgRate = totalStockCount > 0 
-    ? stockItems.reduce((sum, s) => sum + s.currentRate, 0) / totalStockCount 
-    : 0;
-  const avgDaysInStock = totalStockCount > 0 
-    ? stockItems.reduce((sum, s) => sum + s.daysCount, 0) / totalStockCount 
-    : 0;
-  const averageInterestPerDay = avgDaysInStock > 0 && totalStockCount > 0
-    ? totalInterest / (avgDaysInStock * totalStockCount)
-    : 0;
-  
+  const avgRate =
+    totalStockCount > 0
+      ? stockItems.reduce((sum, s) => sum + s.currentRate, 0) / totalStockCount
+      : 0;
+  const avgDaysInStock =
+    totalStockCount > 0 ? stockItems.reduce((sum, s) => sum + s.daysCount, 0) / totalStockCount : 0;
+  const averageInterestPerDay =
+    avgDaysInStock > 0 && totalStockCount > 0
+      ? totalInterest / (avgDaysInStock * totalStockCount)
+      : 0;
+
   // Calculate overdue vehicles (more than 90 days in stock)
-  const overdueVehicles = stockItems.filter(s => s.daysCount > 90 && s.status !== 'SOLD').length;
-  const overdueInterest = stockItems.filter(s => s.daysCount > 90 && s.status !== 'SOLD').reduce((sum, s) => sum + s.accumulatedInterest, 0);
+  const overdueVehicles = stockItems.filter((s) => s.daysCount > 90 && s.status !== 'SOLD').length;
+  const overdueInterest = stockItems
+    .filter((s) => s.daysCount > 90 && s.status !== 'SOLD')
+    .reduce((sum, s) => sum + s.accumulatedInterest, 0);
 
   // Chart data - by status
   const statusGroups: Record<string, number> = {};
@@ -1235,25 +1294,29 @@ export async function getPurchaseRequirementReport(params: PurchaseRequirementPa
   // Calculate purchase requirements
   const allModelIds = new Set([...Object.keys(reservationGroups), ...Object.keys(stockGroups)]);
 
-  const items = Array.from(allModelIds).map((modelId) => {
-    const reservationCount = reservationGroups[modelId]?.count || 0;
-    const availableCount = stockGroups[modelId]?.count || 0;
-    const requiredPurchase = Math.max(0, reservationCount - availableCount);
-    const vehicleModel = reservationGroups[modelId]?.vehicleModel || stockGroups[modelId]?.vehicleModel;
+  const items = Array.from(allModelIds)
+    .map((modelId) => {
+      const reservationCount = reservationGroups[modelId]?.count || 0;
+      const availableCount = stockGroups[modelId]?.count || 0;
+      const requiredPurchase = Math.max(0, reservationCount - availableCount);
+      const vehicleModel =
+        reservationGroups[modelId]?.vehicleModel || stockGroups[modelId]?.vehicleModel;
 
-    return {
-      vehicleModelId: modelId,
-      brand: vehicleModel?.brand || '-',
-      model: vehicleModel?.model || '-',
-      variant: vehicleModel?.variant || '',
-      year: vehicleModel?.year || 0,
-      vehicleModelName: `${vehicleModel?.brand || ''} ${vehicleModel?.model || ''} ${vehicleModel?.variant || ''}`.trim(),
-      reservationCount,
-      availableCount,
-      requiredPurchase,
-      status: requiredPurchase > 0 ? 'NEED_TO_BUY' : 'SUFFICIENT',
-    };
-  }).filter((item) => item.reservationCount > 0 || item.availableCount > 0)
+      return {
+        vehicleModelId: modelId,
+        brand: vehicleModel?.brand || '-',
+        model: vehicleModel?.model || '-',
+        variant: vehicleModel?.variant || '',
+        year: vehicleModel?.year || 0,
+        vehicleModelName:
+          `${vehicleModel?.brand || ''} ${vehicleModel?.model || ''} ${vehicleModel?.variant || ''}`.trim(),
+        reservationCount,
+        availableCount,
+        requiredPurchase,
+        status: requiredPurchase > 0 ? 'NEED_TO_BUY' : 'SUFFICIENT',
+      };
+    })
+    .filter((item) => item.reservationCount > 0 || item.availableCount > 0)
     .sort((a, b) => b.requiredPurchase - a.requiredPurchase);
 
   // Summary

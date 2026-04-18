@@ -1,35 +1,27 @@
-import { useState, useEffect } from 'react';
+import type {
+  SalesBySalesperson,
+  SalesSummaryItem,
+  SalesSummaryReportResponse,
+} from '@car-stock/shared/types';
+import { ArrowLeft, Award, DollarSign, FileText, Target, TrendingUp, Users } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
 import {
-  ArrowLeft,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Target,
-  Award,
-  FileText,
-} from 'lucide-react';
-import { reportService } from '../../services/report.service';
-import {
   DateRangeFilter,
-  SummaryCard,
-  SummaryCardsGrid,
+  PrintButton,
   ReportBarChart,
   ReportPieChart,
   ReportTable,
-  PrintButton,
+  SummaryCard,
+  SummaryCardsGrid,
   formatCurrency,
   formatDate,
   formatNumber,
 } from '../../components/reports';
 import { exportMultiSheet } from '../../components/reports/exportUtils';
-import { Download } from 'lucide-react';
-import type {
-  SalesSummaryReportResponse,
-  SalesBySalesperson,
-  SalesSummaryItem,
-} from '@car-stock/shared/types';
+import { reportService } from '../../services/report.service';
 
 export default function SalesSummaryReportPage() {
   const navigate = useNavigate();
@@ -125,13 +117,19 @@ export default function SalesSummaryReportPage() {
       label: '#',
       align: 'center' as const,
       render: (_: number, row: SalesBySalesperson) => {
-        const index = data?.bySalesperson.findIndex(s => s.id === row.id) ?? 0;
+        const index = data?.bySalesperson.findIndex((s) => s.id === row.id) ?? 0;
         return (
-          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-              index === 1 ? 'bg-gray-300 text-gray-800' :
-                index === 2 ? 'bg-orange-400 text-orange-900' :
-                  'bg-gray-100 text-gray-600'
-            }`}>
+          <span
+            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+              index === 0
+                ? 'bg-yellow-400 text-yellow-900'
+                : index === 1
+                  ? 'bg-gray-300 text-gray-800'
+                  : index === 2
+                    ? 'bg-orange-400 text-orange-900'
+                    : 'bg-gray-100 text-gray-600'
+            }`}
+          >
             {index + 1}
           </span>
         );
@@ -162,9 +160,7 @@ export default function SalesSummaryReportPage() {
       key: 'canceledCount',
       label: 'ยกเลิก',
       align: 'right' as const,
-      render: (value: number) => (
-        <span className="text-red-600">{formatNumber(value)}</span>
-      ),
+      render: (value: number) => <span className="text-red-600">{formatNumber(value)}</span>,
     },
     {
       key: 'totalAmount',
@@ -398,7 +394,9 @@ export default function SalesSummaryReportPage() {
                 {data.chartData.byStatus.map((status) => (
                   <div key={status.status} className="p-3 bg-gray-50 rounded-lg text-center">
                     <p className="text-xs text-gray-600 mb-1">{status.label}</p>
-                    <p className="text-xl font-semibold text-gray-900">{formatNumber(status.count)}</p>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {formatNumber(status.count)}
+                    </p>
                     <p className="text-sm text-gray-500">{formatCurrency(status.amount)}</p>
                   </div>
                 ))}

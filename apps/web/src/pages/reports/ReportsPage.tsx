@@ -1,17 +1,17 @@
+import {
+  Banknote,
+  CalendarDays,
+  ClipboardList,
+  Lock,
+  Package,
+  Percent,
+  ShoppingCart,
+  TrendingUp,
+  Truck,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  Banknote,
-  Package,
-  TrendingUp,
-  ShoppingCart,
-  Percent,
-  Lock,
-  Truck,
-  CalendarDays,
-  ClipboardList,
-} from 'lucide-react';
 
 interface ReportCard {
   id: string;
@@ -137,15 +137,9 @@ export default function ReportsPage() {
                     <Lock className="w-8 h-8 text-gray-400" />
                   </div>
                   <div className="ml-4 flex-1">
-                    <h3 className="text-lg font-semibold text-gray-600">
-                      {report.title}
-                    </h3>
-                    <p className="text-sm text-gray-400 mt-1">
-                      {report.description}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      ไม่มีสิทธิ์เข้าถึง
-                    </p>
+                    <h3 className="text-lg font-semibold text-gray-600">{report.title}</h3>
+                    <p className="text-sm text-gray-400 mt-1">{report.description}</p>
+                    <p className="text-xs text-gray-400 mt-2">ไม่มีสิทธิ์เข้าถึง</p>
                   </div>
                 </div>
               </div>
@@ -163,12 +157,8 @@ export default function ReportsPage() {
                   <span className={report.color}>{report.icon}</span>
                 </div>
                 <div className="ml-4 flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {report.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {report.description}
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">{report.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{report.description}</p>
                 </div>
               </div>
             </Link>

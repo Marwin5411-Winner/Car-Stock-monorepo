@@ -1,18 +1,15 @@
-import { useState } from 'react';
+import type { DailyStockSnapshotModel, DailyStockSnapshotResponse } from '@car-stock/shared/types';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { MainLayout } from '../../components/layout';
-import { reportService } from '../../services/report.service';
-import { useToast } from '../../components/toast';
 import { exportMultiSheet } from '../../components/reports/exportUtils';
-import type {
-  DailyStockSnapshotResponse,
-  DailyStockSnapshotModel,
-} from '@car-stock/shared/types';
+import { useToast } from '../../components/toast';
+import { reportService } from '../../services/report.service';
 
 export function DailyStockSnapshotPage(): React.ReactElement {
   const { addToast } = useToast();
   const [snapshotDate, setSnapshotDate] = useState<string>(
-    () => new Date().toISOString().split('T')[0],
+    () => new Date().toISOString().split('T')[0]
   );
 
   const { data, isLoading, error } = useQuery<DailyStockSnapshotResponse>({
@@ -98,7 +95,7 @@ export function DailyStockSnapshotPage(): React.ReactElement {
     title: string,
     getCell: (m: DailyStockSnapshotModel, c: string) => number,
     getTotal: (m: DailyStockSnapshotModel) => number,
-    cellClass?: (n: number) => string,
+    cellClass?: (n: number) => string
   ) => (
     <div className="mb-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-3">{title}</h2>
@@ -144,9 +141,7 @@ export function DailyStockSnapshotPage(): React.ReactElement {
       <div className="p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">รายงานสต็อกประจำวัน</h1>
-          <p className="text-gray-600 mt-1">
-            แสดงยอดจอง สต็อกคงเหลือ และยอดที่ต้องสั่งซื้อ ณ วันที่เลือก
-          </p>
+          <p className="text-gray-600 mt-1">แสดงยอดจอง สต็อกคงเหลือ และยอดที่ต้องสั่งซื้อ ณ วันที่เลือก</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 print-hide">
@@ -206,18 +201,18 @@ export function DailyStockSnapshotPage(): React.ReactElement {
         {renderPanel(
           'ยอดจองคงเหลือ',
           (m, c) => m.reservationsByColor[c],
-          (m) => m.reservationsTotal,
+          (m) => m.reservationsTotal
         )}
         {renderPanel(
           'สต๊อกคงเหลือ',
           (m, c) => m.availableByColor[c],
-          (m) => m.availableTotal,
+          (m) => m.availableTotal
         )}
         {renderPanel(
           'ยอดที่ต้องสั่งซื้อ',
           (m, c) => m.requiredByColor[c],
           (m) => m.requiredTotal,
-          (n) => (n > 0 ? 'bg-orange-50 text-orange-800' : ''),
+          (n) => (n > 0 ? 'bg-orange-50 text-orange-800' : '')
         )}
 
         {data.unassignedReservations > 0 && (

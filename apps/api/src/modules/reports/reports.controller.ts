@@ -1,9 +1,9 @@
 import { Elysia, t } from 'elysia';
-import { reportsService } from './reports.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { authService } from '../auth/auth.service';
-import { pdfService } from '../pdf/pdf.service';
 import { formatThaiDate } from '../pdf/helpers';
+import { pdfService } from '../pdf/pdf.service';
+import { reportsService } from './reports.service';
 import '../../types/context.d';
 import { db } from '../../lib/db';
 
@@ -28,7 +28,6 @@ async function getCompanyHeader(): Promise<any> {
     phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
   };
 }
-
 
 export const reportRoutes = new Elysia({ prefix: '/reports' })
   // ============================================
@@ -87,9 +86,10 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
 
       const result = await reportsService.getDailyPaymentReport({ startDate, endDate });
 
-      const dateRange = startDate && endDate
-        ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
-        : `ทั้งหมด`;
+      const dateRange =
+        startDate && endDate
+          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
+          : `ทั้งหมด`;
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -262,9 +262,10 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
 
       const result = await reportsService.getProfitLossReport({ startDate, endDate });
 
-      const dateRange = startDate && endDate
-        ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
-        : `ทั้งหมด`;
+      const dateRange =
+        startDate && endDate
+          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
+          : `ทั้งหมด`;
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -364,9 +365,10 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         salespersonId: query.salespersonId,
       });
 
-      const dateRange = startDate && endDate
-        ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
-        : `ทั้งหมด`;
+      const dateRange =
+        startDate && endDate
+          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
+          : `ทั้งหมด`;
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -410,8 +412,8 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         };
       }
 
-      const isCalculating = query.isCalculating === 'true' ? true :
-                            query.isCalculating === 'false' ? false : undefined;
+      const isCalculating =
+        query.isCalculating === 'true' ? true : query.isCalculating === 'false' ? false : undefined;
 
       const result = await reportsService.getStockInterestReport({
         status: query.status as any,
@@ -457,8 +459,8 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         return 'Forbidden';
       }
 
-      const isCalculating = query.isCalculating === 'true' ? true :
-                            query.isCalculating === 'false' ? false : undefined;
+      const isCalculating =
+        query.isCalculating === 'true' ? true : query.isCalculating === 'false' ? false : undefined;
 
       const result = await reportsService.getStockInterestReport({
         status: query.status as any,
@@ -528,7 +530,8 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       detail: {
         tags: ['Reports'],
         summary: 'Get purchase requirement report',
-        description: 'Get report of vehicles that need to be purchased based on reservations vs available stock',
+        description:
+          'Get report of vehicles that need to be purchased based on reservations vs available stock',
       },
     }
   )
@@ -602,7 +605,8 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       detail: {
         tags: ['Reports'],
         summary: 'Daily stock snapshot',
-        description: 'Reservations / available / demo / required pivot by model × color on a given date',
+        description:
+          'Reservations / available / demo / required pivot by model × color on a given date',
       },
     }
   )
