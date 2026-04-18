@@ -68,7 +68,8 @@ services:
     depends_on:
       - api
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      # Use 127.0.0.1 to avoid IPv6 resolution — nginx only listens on 0.0.0.0:80
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3
