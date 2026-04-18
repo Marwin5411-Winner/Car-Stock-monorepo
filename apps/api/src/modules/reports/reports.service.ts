@@ -1251,6 +1251,158 @@ export async function getPurchaseRequirementReport(params: PurchaseRequirementPa
   };
 }
 
+// ============================================
+// Daily Stock Snapshot
+// ============================================
+
+export interface DailySnapshotInputReservation {
+  vehicleModelId: string | null;
+  modelName: string;
+  color: string;
+}
+
+export interface DailySnapshotInputStock {
+  vehicleModelId: string;
+  modelName: string;
+  color: string;
+  status: 'AVAILABLE' | 'DEMO';
+}
+
+export function buildDailySnapshot(args: {
+  reservations: DailySnapshotInputReservation[];
+  stocks: DailySnapshotInputStock[];
+  date: string;
+}) {
+  const { reservations, stocks, date } = args;
+
+  const colorSet = new Set<string>();
+  for (const r of reservations) if (r.vehicleModelId) colorSet.add(r.color);
+  for (const s of stocks) colorSet.add(s.color);
+  const colors = Array.from(colorSet).sort();
+
+  const modelMap = new Map<
+    string,
+    {
+      vehicleModelId: string;
+      modelName: string;
+      reservationsByColor: Record<string, number>;
+      availableByColor: Record<string, number>;
+      demoByColor: Record<string, number>;
+    }
+  >();
+
+  const ensureModel = (id: string, name: string) => {
+    let m = modelMap.get(id);
+    if (!m) {
+      m = {
+        vehicleModelId: id,
+        modelName: name,
+        reservationsByColor: {},
+        availableByColor: {},
+        demoByColor: {},
+      };
+      modelMap.set(id, m);
+    }
+    return m;
+  };
+
+  let unassignedReservations = 0;
+  for (const r of reservations) {
+    if (!r.vehicleModelId) {
+      unassignedReservations += 1;
+      continue;
+    }
+    const m = ensureModel(r.vehicleModelId, r.modelName);
+    m.reservationsByColor[r.color] = (m.reservationsByColor[r.color] || 0) + 1;
+  }
+
+  for (const s of stocks) {
+    const m = ensureModel(s.vehicleModelId, s.modelName);
+    if (s.status === 'AVAILABLE') {
+      m.availableByColor[s.color] = (m.availableByColor[s.color] || 0) + 1;
+    } else {
+      m.demoByColor[s.color] = (m.demoByColor[s.color] || 0) + 1;
+    }
+  }
+
+  const models = Array.from(modelMap.values()).map((m) => {
+    const reservationsTotal = Object.values(m.reservationsByColor).reduce((a, b) => a + b, 0);
+    const availableTotal = Object.values(m.availableByColor).reduce((a, b) => a + b, 0);
+    const demoTotal = Object.values(m.demoByColor).reduce((a, b) => a + b, 0);
+
+    const requiredByColor: Record<string, number> = {};
+    const allColors = new Set([
+      ...Object.keys(m.reservationsByColor),
+      ...Object.keys(m.availableByColor),
+    ]);
+    let requiredTotal = 0;
+    for (const c of allColors) {
+      const req = Math.max(0, (m.reservationsByColor[c] || 0) - (m.availableByColor[c] || 0));
+      requiredByColor[c] = req;
+      requiredTotal += req;
+    }
+
+    return { ...m, reservationsTotal, availableTotal, demoTotal, requiredByColor, requiredTotal };
+  });
+
+  const grand = {
+    reservations: models.reduce((a, m) => a + m.reservationsTotal, 0),
+    available: models.reduce((a, m) => a + m.availableTotal, 0),
+    demo: models.reduce((a, m) => a + m.demoTotal, 0),
+    required: models.reduce((a, m) => a + m.requiredTotal, 0),
+  };
+
+  return { date, colors, models, grand, unassignedReservations };
+}
+
+export async function getDailyStockSnapshot(params: { date: Date }) {
+  const snapshotDate = new Date(params.date);
+  snapshotDate.setHours(23, 59, 59, 999);
+
+  const [reservations, stocks] = await Promise.all([
+    db.sale.findMany({
+      where: {
+        status: { in: ['RESERVED', 'PREPARING'] as SaleStatus[] },
+        createdAt: { lte: snapshotDate },
+      },
+      include: {
+        vehicleModel: { select: { id: true, brand: true, model: true, variant: true } },
+      },
+    }),
+    db.stock.findMany({
+      where: {
+        deletedAt: null,
+        arrivalDate: { lte: snapshotDate },
+        status: { in: ['AVAILABLE', 'DEMO'] as StockStatus[] },
+      },
+      include: {
+        vehicleModel: { select: { id: true, brand: true, model: true, variant: true } },
+      },
+    }),
+  ]);
+
+  const inputReservations: DailySnapshotInputReservation[] = reservations.map((r) => ({
+    vehicleModelId: r.vehicleModel?.id ?? null,
+    modelName: r.vehicleModel
+      ? `${r.vehicleModel.brand} ${r.vehicleModel.model}${r.vehicleModel.variant ? ' ' + r.vehicleModel.variant : ''}`
+      : '',
+    color: r.preferredExtColor || 'ไม่ระบุสี',
+  }));
+
+  const inputStocks: DailySnapshotInputStock[] = stocks.map((s) => ({
+    vehicleModelId: s.vehicleModel.id,
+    modelName: `${s.vehicleModel.brand} ${s.vehicleModel.model}${s.vehicleModel.variant ? ' ' + s.vehicleModel.variant : ''}`,
+    color: s.exteriorColor,
+    status: s.status as 'AVAILABLE' | 'DEMO',
+  }));
+
+  return buildDailySnapshot({
+    reservations: inputReservations,
+    stocks: inputStocks,
+    date: params.date.toISOString().split('T')[0],
+  });
+}
+
 export const reportsService = {
   getDailyPaymentReport,
   getStockReport,
@@ -1258,4 +1410,5 @@ export const reportsService = {
   getSalesSummaryReport,
   getStockInterestReport,
   getPurchaseRequirementReport,
+  getDailyStockSnapshot,
 };
