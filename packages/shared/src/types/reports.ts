@@ -367,4 +367,5 @@ export interface ReportQueryParams {
   brand?: string;
   salespersonId?: string;
   isCalculating?: boolean;
+  vehicleType?: string;
 }

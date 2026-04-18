@@ -132,6 +132,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
 
       const result = await reportsService.getStockReport({
         status: query.status as any,
+        vehicleType: query.vehicleType as any,
       });
 
       set.status = 200;
@@ -154,6 +155,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
             t.Literal('DEMO'),
           ])
         ),
+        vehicleType: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Reports'],
@@ -311,6 +313,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         endDate,
         status: query.status as any,
         salespersonId: query.salespersonId,
+        vehicleType: query.vehicleType as any,
       });
 
       set.status = 200;
@@ -334,6 +337,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
           ])
         ),
         salespersonId: t.Optional(t.String()),
+        vehicleType: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Reports'],
@@ -562,5 +566,88 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       query: t.Object({
         brand: t.Optional(t.String()),
       }),
+    }
+  )
+  // ============================================
+  // Daily Stock Snapshot Report
+  // ============================================
+  .get(
+    '/daily-stock-snapshot',
+    async ({ query, set, requester }) => {
+      if (!authService.hasPermission(requester!.role, 'REPORT_STOCK')) {
+        set.status = 403;
+        return {
+          success: false,
+          error: 'Forbidden',
+          message: 'คุณไม่มีสิทธิ์ดูรายงานนี้',
+        };
+      }
+
+      const date = new Date(query.date);
+      if (Number.isNaN(date.getTime())) {
+        set.status = 400;
+        return { success: false, error: 'BadRequest', message: 'date must be YYYY-MM-DD' };
+      }
+
+      const result = await reportsService.getDailyStockSnapshot({ date });
+
+      set.status = 200;
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        date: t.String(),
+      }),
+      detail: {
+        tags: ['Reports'],
+        summary: 'Daily stock snapshot',
+        description: 'Reservations / available / demo / required pivot by model × color on a given date',
+      },
+    }
+  )
+  // ============================================
+  // Monthly Purchases Report
+  // ============================================
+  .get(
+    '/monthly-purchases',
+    async ({ query, set, requester }) => {
+      if (!authService.hasPermission(requester!.role, 'REPORT_STOCK')) {
+        set.status = 403;
+        return {
+          success: false,
+          error: 'Forbidden',
+          message: 'คุณไม่มีสิทธิ์ดูรายงานนี้',
+        };
+      }
+
+      const year = Number(query.year);
+      const month = Number(query.month);
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+        set.status = 400;
+        return { success: false, error: 'BadRequest', message: 'year/month invalid' };
+      }
+
+      const result = await reportsService.getMonthlyPurchasesReport({
+        year,
+        month,
+        vehicleType: query.vehicleType as any,
+      });
+
+      set.status = 200;
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        year: t.String(),
+        month: t.String(),
+        vehicleType: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['Reports'],
+        summary: 'Monthly purchases report',
+        description: 'All stock intake for a given month, optionally filtered by vehicleType',
+      },
     }
   );

@@ -8,6 +8,8 @@ import type {
   PurchaseRequirementReportResponse,
   ReportQueryParams,
   PurchaseRequirementParams,
+  DailyStockSnapshotResponse,
+  MonthlyPurchasesResponse,
 } from '@car-stock/shared/types';
 
 interface ApiResponse<T> {
@@ -53,6 +55,7 @@ class ReportService {
     if (params?.startDate) queryParams.append('startDate', params.startDate);
     if (params?.endDate) queryParams.append('endDate', params.endDate);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.vehicleType) queryParams.append('vehicleType', params.vehicleType);
 
     const url = `/api/reports/stock${queryParams.toString() ? `?${queryParams}` : ''}`;
     const response = await api.get<ApiResponse<StockReportResponse>>(url);
@@ -110,6 +113,7 @@ class ReportService {
     if (params?.endDate) queryParams.append('endDate', params.endDate);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.salespersonId) queryParams.append('salespersonId', params.salespersonId);
+    if (params?.vehicleType) queryParams.append('vehicleType', params.vehicleType);
 
     const url = `/api/reports/sales-summary${queryParams.toString() ? `?${queryParams}` : ''}`;
     const response = await api.get<ApiResponse<SalesSummaryReportResponse>>(url);
@@ -191,6 +195,58 @@ class ReportService {
     if (params?.brand) queryParams.append('brand', params.brand);
 
     const url = `/api/reports/purchase-requirement/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
+    return api.getBlob(url);
+  }
+
+  // ============================================
+  // Daily Stock Snapshot (new)
+  // ============================================
+  async getDailyStockSnapshot(params: { date: string }): Promise<DailyStockSnapshotResponse> {
+    const url = `/api/reports/daily-stock-snapshot?date=${encodeURIComponent(params.date)}`;
+    const response = await api.get<ApiResponse<DailyStockSnapshotResponse>>(url);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to fetch daily stock snapshot');
+    }
+    return response.data;
+  }
+
+  async getDailyStockSnapshotPdf(params: { date: string }): Promise<Blob> {
+    const url = `/api/pdf/daily-stock-snapshot?date=${encodeURIComponent(params.date)}`;
+    return api.getBlob(url);
+  }
+
+  // ============================================
+  // Monthly Purchases Report (new)
+  // ============================================
+  async getMonthlyPurchasesReport(params: {
+    year: number;
+    month: number;
+    vehicleType?: string;
+  }): Promise<MonthlyPurchasesResponse> {
+    const qs = new URLSearchParams({
+      year: String(params.year),
+      month: String(params.month),
+    });
+    if (params.vehicleType) qs.append('vehicleType', params.vehicleType);
+    const url = `/api/reports/monthly-purchases?${qs.toString()}`;
+    const response = await api.get<ApiResponse<MonthlyPurchasesResponse>>(url);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to fetch monthly purchases report');
+    }
+    return response.data;
+  }
+
+  async getMonthlyPurchasesReportPdf(params: {
+    year: number;
+    month: number;
+    vehicleType?: string;
+  }): Promise<Blob> {
+    const qs = new URLSearchParams({
+      year: String(params.year),
+      month: String(params.month),
+    });
+    if (params.vehicleType) qs.append('vehicleType', params.vehicleType);
+    const url = `/api/pdf/monthly-purchases?${qs.toString()}`;
     return api.getBlob(url);
   }
 }
