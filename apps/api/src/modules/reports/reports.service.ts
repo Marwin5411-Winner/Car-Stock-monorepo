@@ -35,6 +35,15 @@ const calculateInterest = (principal: number, annualRate: number, days: number):
   return principal * dailyRate * days;
 };
 
+// Thai VAT-inclusive extraction: gross → { net, vat, gross } at 2dp.
+// Invariant: net + vat === gross. Derive vat from (gross − net) to avoid drift.
+export const splitVat = (gross: number): { net: number; vat: number; gross: number } => {
+  if (gross <= 0) return { net: 0, vat: 0, gross: 0 };
+  const net = Math.round((gross / 1.07) * 100) / 100;
+  const vat = Math.round((gross - net) * 100) / 100;
+  return { net, vat, gross };
+};
+
 // ============================================
 // Daily Payment Report Service
 // ============================================
