@@ -49,6 +49,8 @@ const ProfitLossReportPage = React.lazy(() => import('./pages/reports').then(m =
 const SalesSummaryReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.SalesSummaryReportPage })));
 const StockInterestReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.StockInterestReportPage })));
 const PurchaseRequirementReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.PurchaseRequirementReportPage })));
+const DailyStockSnapshotPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.DailyStockSnapshotPage })));
+const MonthlyPurchasesReportPage = React.lazy(() => import('./pages/reports').then(m => ({ default: m.MonthlyPurchasesReportPage })));
 const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
 
 const queryClient = new QueryClient({
@@ -451,6 +453,22 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={P.REPORT_STOCK}>
                   <PurchaseRequirementReportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/daily-stock-snapshot"
+              element={
+                <ProtectedRoute allowedRoles={P.REPORT_STOCK}>
+                  <DailyStockSnapshotPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports/monthly-purchases"
+              element={
+                <ProtectedRoute allowedRoles={P.REPORT_STOCK}>
+                  <MonthlyPurchasesReportPage />
                 </ProtectedRoute>
               }
             />

@@ -9,6 +9,8 @@ import {
   Percent,
   Lock,
   Truck,
+  CalendarDays,
+  ClipboardList,
 } from 'lucide-react';
 
 interface ReportCard {
@@ -81,6 +83,26 @@ const REPORTS: ReportCard[] = [
     path: '/reports/purchase-requirement',
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-100',
+    permission: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF'],
+  },
+  {
+    id: 'daily-stock-snapshot',
+    title: 'รายงานสต็อกประจำวัน',
+    description: 'ยอดจอง สต็อกคงเหลือ และยอดที่ต้องสั่งซื้อ แยกตามสี',
+    icon: <CalendarDays className="w-8 h-8" />,
+    path: '/reports/daily-stock-snapshot',
+    color: 'text-teal-600',
+    bgColor: 'bg-teal-100',
+    permission: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF'],
+  },
+  {
+    id: 'monthly-purchases',
+    title: 'รายงานรายการซื้อประจำเดือน',
+    description: 'รายการรถที่รับเข้าในเดือนที่เลือก',
+    icon: <ClipboardList className="w-8 h-8" />,
+    path: '/reports/monthly-purchases',
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-100',
     permission: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF'],
   },
 ];
