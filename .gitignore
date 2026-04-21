@@ -50,4 +50,5 @@ bun.lockb
 .env.docker
 
 # Worktrees
-.worktrees/.superpowers/
+.worktrees/
+.superpowers/
