@@ -69,6 +69,7 @@ export default function PaymentDetailPage() {
   const [downloadingBg, setDownloadingBg] = useState(false);
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidReason, setVoidReason] = useState('');
+  const [lateFee, setLateFee] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -138,14 +139,14 @@ export default function PaymentDetailPage() {
   const handlePrint = async () => {
     if (!payment) return;
     setDownloading(true);
-    await executeDownload(paymentService.downloadReceipt(payment.id));
+    await executeDownload(paymentService.downloadReceipt(payment.id, lateFee || undefined));
     setDownloading(false);
   };
 
   const handlePrintBg = async () => {
     if (!payment) return;
     setDownloadingBg(true);
-    await executeDownload(paymentService.downloadReceiptBg(payment.id));
+    await executeDownload(paymentService.downloadReceiptBg(payment.id, lateFee || undefined));
     setDownloadingBg(false);
   };
 
@@ -210,6 +211,18 @@ export default function PaymentDetailPage() {
                       แก้ไข
                     </button>
                   )}
+                  <div className="inline-flex items-center gap-1 border border-gray-300 rounded-lg px-3 py-1.5 bg-white">
+                    <span className="text-xs text-gray-500 whitespace-nowrap">เบี้ยปรับล่าช้า</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={lateFee || ''}
+                      onChange={(e) => setLateFee(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-24 text-sm text-right focus:outline-none"
+                    />
+                    <span className="text-xs text-gray-500">฿</span>
+                  </div>
                   <button
                     onClick={handlePrintBg}
                     disabled={downloadingBg}

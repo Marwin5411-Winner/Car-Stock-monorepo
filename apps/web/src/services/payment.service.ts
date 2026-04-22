@@ -228,9 +228,10 @@ class PaymentService {
   /**
    * Download payment receipt PDF
    */
-  async downloadReceipt(id: string): Promise<void> {
+  async downloadReceipt(id: string, lateFee?: number): Promise<void> {
     try {
-      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}`);
+      const qs = lateFee ? `?lateFee=${lateFee}` : '';
+      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}${qs}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -248,9 +249,10 @@ class PaymentService {
   /**
    * Download payment receipt PDF with Background
    */
-  async downloadReceiptBg(id: string): Promise<void> {
+  async downloadReceiptBg(id: string, lateFee?: number): Promise<void> {
     try {
-      const blob = await api.getBlob(`/api/pdf/temporary-receipt-bg/${id}`);
+      const qs = lateFee ? `?lateFee=${lateFee}` : '';
+      const blob = await api.getBlob(`/api/pdf/temporary-receipt-bg/${id}${qs}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

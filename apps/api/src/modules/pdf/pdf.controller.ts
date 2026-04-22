@@ -982,7 +982,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/temporary-receipt/:paymentId',
-    async ({ params, set }) => {
+    async ({ params, query, set }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
@@ -1050,10 +1050,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         customer: transformCustomer(customer),
         items,
         paymentAmount: payment.amount.toString(),
-        lateFee: '0',
+        lateFee: query.lateFee || '0',
         discount: '0',
-        totalAmount: payment.amount.toString(),
-        totalAmountText: numberToThaiText(Number(payment.amount)),
+        totalAmount: (Number(payment.amount) + Number(query.lateFee || 0)).toString(),
+        totalAmountText: numberToThaiText(Number(payment.amount) + Number(query.lateFee || 0)),
         paymentMethod: paymentMethodData,
         paymentMethodLabel: methodLabel,
         note: payment.notes || undefined,
@@ -1069,9 +1069,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
-      params: t.Object({
-        paymentId: t.String(),
-      }),
+      params: t.Object({ paymentId: t.String() }),
+      query: t.Object({ lateFee: t.Optional(t.String()) }),
       detail: {
         tags: ['Documents'],
         summary: 'Generate Temporary Receipt PDF',
@@ -1085,7 +1084,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/temporary-receipt-bg/:paymentId',
-    async ({ params, set }) => {
+    async ({ params, query, set }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
@@ -1153,10 +1152,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         customer: transformCustomer(customer),
         items,
         paymentAmount: payment.amount.toString(),
-        lateFee: '0',
+        lateFee: query.lateFee || '0',
         discount: '0',
-        totalAmount: payment.amount.toString(),
-        totalAmountText: numberToThaiText(Number(payment.amount)),
+        totalAmount: (Number(payment.amount) + Number(query.lateFee || 0)).toString(),
+        totalAmountText: numberToThaiText(Number(payment.amount) + Number(query.lateFee || 0)),
         paymentMethod: paymentMethodData,
         paymentMethodLabel: methodLabel,
         note: payment.notes || undefined,
@@ -1172,9 +1171,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
-      params: t.Object({
-        paymentId: t.String(),
-      }),
+      params: t.Object({ paymentId: t.String() }),
+      query: t.Object({ lateFee: t.Optional(t.String()) }),
       detail: {
         tags: ['PDF'],
         summary: 'Generate Temporary Receipt PDF with Background',
