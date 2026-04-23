@@ -344,6 +344,10 @@ class CampaignService {
     );
     return response.data;
   }
+
+  async getReportPdf(campaignId: string): Promise<Blob> {
+    return api.getBlob(`/api/campaigns/${campaignId}/report/pdf`);
+  }
 }
 
 export const campaignService = new CampaignService();

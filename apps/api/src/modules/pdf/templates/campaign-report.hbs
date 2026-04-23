@@ -1,0 +1,194 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title" style="font-size: 15px; margin: 12px 0 4px;">
+  งานเบิกแคมเปญเงินส่งเสริมการขายประจำ {{formatThaiDate campaign.endDate 'full'}}
+</div>
+<div class="text-center" style="font-size: 11px; margin-bottom: 4px;">
+  <strong>แคมเปญ:</strong> {{campaign.name}}
+</div>
+<div class="text-center" style="font-size: 10px; color: #555; margin-bottom: 12px;">
+  ระยะเวลา: {{formatThaiDate campaign.startDate 'full'}} - {{formatThaiDate campaign.endDate 'full'}}
+  {{#if campaign.description}} | {{campaign.description}}{{/if}}
+</div>
+
+{{! Summary stats row }}
+<div class="summary-row">
+  <div class="summary-card blue">
+    <div class="summary-value">{{summary.totalSales}}</div>
+    <div class="summary-label">รวมยอดขาย (คัน)</div>
+  </div>
+  <div class="summary-card green">
+    <div class="summary-value">{{summary.totalVehicleModels}}</div>
+    <div class="summary-label">รุ่นรถยนต์</div>
+  </div>
+  <div class="summary-card purple">
+    <div class="summary-value">{{formatCurrency summary.totalAmount false}}</div>
+    <div class="summary-label">ยอดรวม (บาท)</div>
+  </div>
+</div>
+
+{{! One table per vehicle model group }}
+{{#each groups}}
+<div class="report-group">
+  <div class="group-header">
+    กลุ่มรุ่น: {{modelFullName}} ({{vehicleModel.year}}) — จำนวน {{totalSales}} คัน
+  </div>
+  <table class="campaign-table">
+    <thead>
+      <tr>
+        <th rowspan="2">ลำดับ</th>
+        <th rowspan="2">ชื่อ-สกุล (ลูกค้า)</th>
+        <th rowspan="2">เลขเครื่อง</th>
+        <th rowspan="2">แบบรถ</th>
+        <th rowspan="2">เลขตัวรถ (VIN)</th>
+        <th rowspan="2" class="cell-hl">วันที่ขาย</th>
+        <th rowspan="2">ไฟแนนท์</th>
+        {{#if hasFormulas}}
+        <th colspan="{{formulas.length}}" class="cell-formula">สูตรคำนวณ ({{vehicleModel.model}})</th>
+        {{/if}}
+        {{#if @root.hasMultipleGroups}}
+        <th colspan="{{@root.allGroupsCount}}" class="cell-model">STANDARD — ยอดตามรุ่น</th>
+        {{/if}}
+        <th rowspan="2">รวมรับเงิน</th>
+        <th rowspan="2">วันที่แจ้งขาย</th>
+        <th rowspan="2">ค่าใช้จ่าย<br>การซื้อ/แลก</th>
+      </tr>
+      <tr>
+        {{#each formulas}}
+        <th class="cell-formula">
+          {{name}}<br>
+          <span class="sub">{{operatorDisplay}}</span><br>
+          <span class="sub">{{targetLabel}}</span>
+        </th>
+        {{/each}}
+        {{#if @root.hasMultipleGroups}}
+        {{#each @root.allGroupHeaders}}
+        <th class="cell-model">{{model}}<br><span class="sub">{{variant}}</span></th>
+        {{/each}}
+        {{/if}}
+      </tr>
+    </thead>
+    <tbody>
+      {{#if sales.length}}
+      {{#each sales}}
+      <tr>
+        <td class="tc">{{rowIndex}}</td>
+        <td>{{customerName}}</td>
+        <td class="tc mono">{{engineNumber}}</td>
+        <td class="tc">{{../modelFullName}}</td>
+        <td class="tc mono">{{vin}}</td>
+        <td class="tc cell-hl">{{formatThaiDate saleDate 'short'}}</td>
+        <td class="tc">{{financeProvider}}</td>
+        {{#each formulaResults}}
+        <td class="tr cell-formula">{{formatCurrency resultValue false}}</td>
+        {{/each}}
+        {{#if @root.hasMultipleGroups}}
+        {{#each vehicleModelAmounts}}
+        <td class="tr cell-model">{{#if this}}{{formatCurrency this false}}{{/if}}</td>
+        {{/each}}
+        {{/if}}
+        <td class="tr strong">{{formatCurrency totalAmount false}}</td>
+        <td class="tc">{{formatThaiDate soldDate 'short'}}</td>
+        <td class="tr">{{formatCurrency absCostPriceDiff false}}</td>
+      </tr>
+      {{/each}}
+      {{! Subtotal row }}
+      <tr class="row-subtotal">
+        <td colspan="{{subtotalLeftColspan}}" class="tr">รวม {{modelFullName}} ({{totalSales}} คัน):</td>
+        {{#if @root.hasMultipleGroups}}
+        {{#each subtotalModelAmounts}}
+        <td class="tr cell-model">{{#if this}}{{formatCurrency this false}}{{/if}}</td>
+        {{/each}}
+        {{/if}}
+        <td class="tr">{{formatCurrency totalAmount false}}</td>
+        <td></td>
+        <td class="tr">{{formatCurrency costPriceDiffSum false}}</td>
+      </tr>
+      {{else}}
+      <tr>
+        <td colspan="{{emptyRowColspan}}" class="tc muted">ไม่มีรายการขายในกลุ่มนี้</td>
+      </tr>
+      {{/if}}
+    </tbody>
+  </table>
+</div>
+{{/each}}
+
+{{! Grand total }}
+<div class="grand-total">
+  <table>
+    <tr>
+      <td class="tr label">รวมทั้งหมด ({{summary.totalSales}} คัน):</td>
+      <td class="tr value">{{formatCurrency summary.totalAmount false}} บาท</td>
+    </tr>
+  </table>
+</div>
+
+<div class="campaign-footer">
+  <div>สร้างโดย: {{campaign.createdByName}}</div>
+  <div>พิมพ์เมื่อ: {{printedAt}}</div>
+</div>
+
+<style>
+  .summary-row { display: flex; gap: 12px; justify-content: center; margin: 8px 0 14px; }
+  .summary-card { padding: 6px 14px; border-radius: 6px; text-align: center; min-width: 110px; }
+  .summary-card.blue { background: #dbeafe; }
+  .summary-card.green { background: #dcfce7; }
+  .summary-card.purple { background: #f3e8ff; }
+  .summary-card .summary-value { font-size: 14px; font-weight: bold; }
+  .summary-card.blue .summary-value { color: #1d4ed8; }
+  .summary-card.green .summary-value { color: #15803d; }
+  .summary-card.purple .summary-value { color: #7e22ce; }
+  .summary-card .summary-label { font-size: 9px; color: #555; }
+
+  .report-group { margin-bottom: 12px; page-break-inside: avoid; }
+  .group-header {
+    background: #f3f4f6;
+    padding: 5px 8px;
+    font-weight: bold;
+    font-size: 10px;
+    border: 1px solid #9ca3af;
+    border-bottom: 0;
+  }
+  .campaign-table { width: 100%; border-collapse: collapse; font-size: 9px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .campaign-table th, .campaign-table td { border: 1px solid #9ca3af; padding: 3px 4px; vertical-align: middle; }
+  .campaign-table th { background: #e5e7eb !important; color: #111827 !important; font-weight: bold; font-size: 9px; text-align: center; }
+  .campaign-table th.cell-formula, .campaign-table td.cell-formula { background: #ecfdf5; }
+  .campaign-table th.cell-model, .campaign-table td.cell-model { background: #eff6ff; }
+  .campaign-table th.cell-hl, .campaign-table td.cell-hl { background: #fefce8; }
+  .campaign-table .sub { font-size: 8px; color: #6b7280; font-weight: normal; }
+  .campaign-table .tc { text-align: center; }
+  .campaign-table .tr { text-align: right; }
+  .campaign-table .mono { font-family: monospace; font-size: 8px; }
+  .campaign-table .strong { font-weight: bold; }
+  .campaign-table .muted { color: #9ca3af; padding: 8px; }
+  .campaign-table .row-subtotal { background: #f3f4f6; font-weight: bold; }
+
+  .grand-total { border-top: 2px solid #6b7280; margin-top: 8px; padding-top: 6px; }
+  .grand-total table { width: 100%; }
+  .grand-total td.label { width: 70%; font-weight: bold; font-size: 12px; padding: 4px 8px; }
+  .grand-total td.value { font-weight: bold; font-size: 12px; padding: 4px 8px; }
+
+  .campaign-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #6b7280;
+    margin-top: 16px;
+  }
+</style>

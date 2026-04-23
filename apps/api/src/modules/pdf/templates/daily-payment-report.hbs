@@ -15,24 +15,26 @@
   </div>
 </div>
 
-<div class="document-title">รายงานรายวันรับ</div>
+<div class="document-title" style="font-size: 16px; margin: 15px 0 8px;">รายงานรายวันรับเงินมัดจำ - เรียงตามวันที่เอกสาร</div>
 
-<div class="text-center" style="margin-bottom: 20px;">
-  <strong>ช่วงเวลา:</strong> {{dateRange}}
+<div class="text-center" style="margin-bottom: 15px; font-size: 11px;">
+  จากวันที่ {{dateRange}}
 </div>
 
 <div class="section">
-  <table>
+  <table class="daily-payment-table">
     <thead>
       <tr>
-        <th style="width: 10%">วันที่เอกสาร</th>
-        <th style="width: 12%">เลขที่เอกสาร</th>
-        <th style="width: 12%">เลขที่ใบกำกับ</th>
-        <th style="width: 16%">ชื่อลูกค้า</th>
-        <th style="width: 14%">รายการ</th>
-        <th style="width: 10%" class="text-right">จำนวนเงิน</th>
-        <th style="width: 12%">ผู้รับ</th>
-        <th style="width: 14%">หมายเหตุ</th>
+        <th style="width: 8%">วันที่เอกสาร</th>
+        <th style="width: 10%">เลขที่เอกสาร</th>
+        <th style="width: 10%">เลขที่ใบกำกับ</th>
+        <th style="width: 15%">ชื่อลูกค้า</th>
+        <th style="width: 12%">รายการ</th>
+        <th style="width: 9%" class="text-right">รวมทั้งสิ้น</th>
+        <th style="width: 9%" class="text-right">เงินสด</th>
+        <th style="width: 9%" class="text-right">เงินโอน</th>
+        <th style="width: 8%">ผู้รับ</th>
+        <th style="width: 10%">หมายเหตุ</th>
       </tr>
     </thead>
     <tbody>
@@ -40,23 +42,48 @@
       <tr>
         <td>{{formatThaiDate paymentDate 'numeric'}}</td>
         <td>{{receiptNumber}}</td>
-        <td>{{invoiceNumber}}</td>
+        <td>{{receiptNumber}}</td>
         <td>{{customerName}}</td>
         <td>{{description}}</td>
-        <td class="text-right">{{formatCurrency amount}}</td>
+        <td class="text-right">{{formatCurrency amount false}}</td>
+        <td class="text-right">{{#if isCash}}{{formatCurrency amount false}}{{/if}}</td>
+        <td class="text-right">{{#unless isCash}}{{formatCurrency amount false}}{{/unless}}</td>
         <td>{{issuedBy}}</td>
         <td>{{notes}}</td>
       </tr>
       {{/each}}
-      <tr style="font-weight: bold; background-color: #eee;">
-        <td colspan="5" class="text-right">รวมทั้งสิ้น ({{summary.totalCount}} รายการ)</td>
-        <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+      <tr class="row-daily-total">
+        <td colspan="3">รวมประจำวัน</td>
+        <td>{{summary.totalCount}} รายการ</td>
+        <td>รวมเงิน</td>
+        <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.cashAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.transferAmount false}}</td>
+        <td colspan="2"></td>
+      </tr>
+      <tr class="row-grand-total">
+        <td colspan="3">รวมทั้งสิ้น</td>
+        <td>{{summary.totalCount}} รายการ</td>
+        <td>รวมเงินทั้งสิ้น</td>
+        <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.cashAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.transferAmount false}}</td>
         <td colspan="2"></td>
       </tr>
     </tbody>
   </table>
 </div>
 
-<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+<div class="footer" style="margin-top: 30px; text-align: right; font-size: 9px; color: #666;">
   พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
 </div>
+
+<style>
+  .daily-payment-table { font-size: 10px; }
+  .daily-payment-table th,
+  .daily-payment-table td { padding: 4px 5px; font-size: 10px; border: 1px solid #888; }
+  .daily-payment-table th { background: #7f858a; color: #fff; font-weight: normal; }
+  .daily-payment-table tr:nth-child(even) { background: #f5f5f5; }
+  .daily-payment-table .row-daily-total td { font-weight: bold; background: #eee; border-top: 2px solid #333; }
+  .daily-payment-table .row-grand-total td { font-weight: bold; background: #dcdcdc; border-top: 1px solid #333; border-bottom: 3px double #000; }
+</style>

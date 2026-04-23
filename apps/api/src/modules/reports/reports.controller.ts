@@ -88,17 +88,31 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
 
       const dateRange =
         startDate && endDate
-          ? `${formatThaiDate(startDate, 'short')} - ${formatThaiDate(endDate, 'short')}`
+          ? `${formatThaiDate(startDate, 'numeric')} ถึง ${formatThaiDate(endDate, 'numeric')}`
           : `ทั้งหมด`;
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
+      // Enrich payments with isCash flag; split totals into cash/transfer buckets
+      const enrichedPayments = result.payments.map((p) => ({
+        ...p,
+        isCash: p.paymentMethod === 'CASH',
+      }));
+      const cashAmount = enrichedPayments
+        .filter((p) => p.isCash)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const transferAmount = result.summary.totalAmount - cashAmount;
+
       const pdfBuffer = await pdfService.generateDailyPaymentReport({
         header,
         dateRange,
-        payments: result.payments,
-        summary: result.summary,
+        payments: enrichedPayments,
+        summary: {
+          ...result.summary,
+          cashAmount,
+          transferAmount,
+        },
       });
 
       set.headers['Content-Type'] = 'application/pdf';

@@ -2,6 +2,122 @@ import { Elysia, t } from 'elysia';
 import { campaignsService } from './campaigns.service';
 import { campaignFormulasService } from './campaign-formulas.service';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
+import { pdfService } from '../pdf/pdf.service';
+import { formatThaiDate, formatCurrency } from '../pdf/helpers';
+import { db } from '../../lib/db';
+
+const OPERATOR_SYMBOLS: Record<string, string> = {
+  ADD: '+',
+  SUBTRACT: '-',
+  MULTIPLY: '×',
+  PERCENT: '%',
+};
+
+async function getCompanyHeader(): Promise<any> {
+  const settings = await db.companySettings.findFirst();
+  if (settings) {
+    return {
+      logoBase64: settings.logo || '',
+      companyName: settings.companyNameTh,
+      address1: settings.addressTh,
+      address2: '',
+      phone: `โทร. ${settings.phone} ${settings.fax ? `โทรสาร. ${settings.fax}` : ''}`,
+    };
+  }
+  return {
+    logoBase64: '',
+    companyName: 'บริษัท วีบียอนด์ อินโนเวชั่น จำกัด',
+    address1: '438/288 ถนนมิตรภาพ-หนองคาย ตำบลในเมือง',
+    address2: 'อำเภอเมือง จังหวัดนครราชสีมา 30000',
+    phone: 'โทร. 044-272-888 โทรสาร. 044-271-224',
+  };
+}
+
+/**
+ * Transform raw campaign report data into the shape expected by the PDF template.
+ * Precomputes per-row indices, absolute values, colspan counts, and cross-model amount
+ * arrays so the Handlebars template stays free of conditional arithmetic.
+ */
+function prepareCampaignReportForPdf(report: any) {
+  const groups = report.groups || [];
+  const allGroupsCount = groups.length;
+  const hasMultipleGroups = allGroupsCount > 1;
+
+  const allGroupHeaders = groups.map((g: any) => ({
+    vehicleModelId: g.vehicleModelId,
+    model: g.vehicleModel.model,
+    variant: g.vehicleModel.variant || '',
+  }));
+
+  const preparedGroups = groups.map((group: any) => {
+    const modelFullName = [
+      group.vehicleModel.brand,
+      group.vehicleModel.model,
+      group.vehicleModel.variant,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const formulas = (group.formulas || []).map((f: any) => {
+      const isPercent = f.operator === 'PERCENT';
+      const operatorDisplay = `(${OPERATOR_SYMBOLS[f.operator] || ''}${
+        isPercent ? `${f.value}%` : formatCurrency(f.value, false)
+      })`;
+      return {
+        ...f,
+        operatorDisplay,
+        targetLabel: f.priceTarget === 'COST_PRICE' ? 'ทุน' : 'ขาย',
+      };
+    });
+
+    const sales = (group.sales || []).map((s: any, idx: number) => ({
+      ...s,
+      rowIndex: idx + 1,
+      absCostPriceDiff: Math.abs(Number(s.costPriceDiff) || 0),
+      vehicleModelAmounts: allGroupHeaders.map((h: any) =>
+        h.vehicleModelId === group.vehicleModelId ? s.totalAmount : null
+      ),
+    }));
+
+    const subtotalModelAmounts = allGroupHeaders.map((h: any) =>
+      h.vehicleModelId === group.vehicleModelId ? group.totalAmount : null
+    );
+
+    const costPriceDiffSum = sales.reduce(
+      (sum: number, s: any) => sum + (s.absCostPriceDiff || 0),
+      0
+    );
+
+    const subtotalLeftColspan = 7 + formulas.length;
+    const emptyRowColspan = subtotalLeftColspan + (hasMultipleGroups ? allGroupsCount : 0) + 3;
+
+    return {
+      ...group,
+      modelFullName,
+      hasFormulas: formulas.length > 0,
+      formulas,
+      sales,
+      subtotalModelAmounts,
+      subtotalLeftColspan,
+      emptyRowColspan,
+      costPriceDiffSum,
+    };
+  });
+
+  return {
+    campaign: {
+      ...report.campaign,
+      createdByName: report.campaign.createdBy
+        ? `${report.campaign.createdBy.firstName} ${report.campaign.createdBy.lastName}`
+        : '-',
+    },
+    groups: preparedGroups,
+    hasMultipleGroups,
+    allGroupsCount,
+    allGroupHeaders,
+    summary: report.summary,
+  };
+}
 
 export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Get all campaigns (ADMIN only)
@@ -468,6 +584,42 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         tags: ['Campaigns'],
         summary: 'Get campaign report data',
         description: 'Get report data for campaign with sold stocks grouped by model and formula calculations',
+      },
+    }
+  )
+  .get(
+    '/:id/report/pdf',
+    async ({ params, set }) => {
+      const report = await campaignsService.getCampaignReport(params.id);
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const prepared = prepareCampaignReportForPdf(report);
+
+      const now = new Date();
+      const printedAt = `${formatThaiDate(now, 'full')} เวลา ${now
+        .getHours()
+        .toString()
+        .padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      const pdfBuffer = await pdfService.generateCampaignReportPdf({
+        header,
+        ...prepared,
+        printedAt,
+      });
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] =
+        `attachment; filename="campaign-report-${params.id}.pdf"`;
+
+      return pdfBuffer;
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
+      params: t.Object({ id: t.String() }),
+      detail: {
+        tags: ['Campaigns'],
+        summary: 'Export campaign report as PDF',
       },
     }
   );

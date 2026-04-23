@@ -1,9 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { campaignService } from '../../services/campaign.service';
 import type { CampaignReportGroup, FormulaOperator } from '../../services/campaign.service';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, FileText, Printer } from 'lucide-react';
 
 const operatorSymbols: Record<FormulaOperator, string> = {
   ADD: '+',
@@ -176,8 +176,28 @@ export const CampaignReportPage: React.FC = () => {
     enabled: !!id,
   });
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportPdf = async () => {
+    if (!id || !report) return;
+    try {
+      setPdfLoading(true);
+      const blob = await campaignService.getReportPdf(id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `campaign-report-${report.campaign.name}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -244,13 +264,23 @@ export const CampaignReportPage: React.FC = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition-colors font-medium"
-        >
-          <Printer className="w-5 h-5" />
-          พิมพ์รายงาน
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportPdf}
+            disabled={pdfLoading}
+            className="flex items-center gap-2 border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2.5 rounded-lg transition-colors font-medium disabled:opacity-50"
+          >
+            <FileText className="w-5 h-5" />
+            {pdfLoading ? 'กำลังสร้าง PDF...' : 'ส่งออก PDF'}
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+          >
+            <Printer className="w-5 h-5" />
+            พิมพ์รายงาน
+          </button>
+        </div>
       </div>
 
       {/* Report Content */}

@@ -791,7 +791,7 @@ export class PdfService {
    * Generate Daily Payment Report PDF
    */
   public async generateDailyPaymentReport(data: DailyPaymentReportData): Promise<Buffer> {
-    return this.generatePdf(PdfTemplateType.DAILY_PAYMENT_REPORT, data);
+    return this.generatePdf(PdfTemplateType.DAILY_PAYMENT_REPORT, data, { landscape: true });
   }
 
   /**
@@ -839,6 +839,15 @@ export class PdfService {
 
   public async generateMonthlyPurchasesReportPdf(data: unknown): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.MONTHLY_PURCHASES_REPORT, data, {
+      landscape: true,
+    });
+  }
+
+  /**
+   * Generate Campaign Report PDF
+   */
+  public async generateCampaignReportPdf(data: unknown): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.CAMPAIGN_REPORT, data, {
       landscape: true,
     });
   }

@@ -354,6 +354,32 @@ export enum PdfTemplateType {
   PURCHASE_REQUIREMENT_REPORT = 'purchase-requirement-report',
   DAILY_STOCK_SNAPSHOT = 'daily-stock-snapshot',
   MONTHLY_PURCHASES_REPORT = 'monthly-purchases-report',
+  CAMPAIGN_REPORT = 'campaign-report',
+}
+
+/**
+ * Campaign Report Data — mirrors the shape returned by campaignsService.getCampaignReport(id)
+ * with PDF-specific helper fields pre-computed in the controller (e.g. row indices).
+ */
+export interface CampaignReportData {
+  header: CompanyHeader;
+  campaign: {
+    id: string;
+    name: string;
+    description: string | null;
+    startDate: string | Date;
+    endDate: string | Date;
+    notes?: string | null;
+    createdByName: string;
+  };
+  groups: any[]; // report groups; shape mirrors web consumer
+  allGroupModelNames: string[]; // for the cross-model "STANDARD" columns
+  summary: {
+    totalSales: number;
+    totalVehicleModels: number;
+    totalAmount: number;
+  };
+  printedAt: string;
 }
 
 /**

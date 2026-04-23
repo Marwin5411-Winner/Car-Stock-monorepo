@@ -15,6 +15,7 @@ import {
   type CarInfo,
   ContractData,
   type CustomerInfo,
+  type DailyPaymentReportData,
   type DeliveryReceiptData,
   DepositReceiptData,
   type PaymentReceiptData,
@@ -1220,27 +1221,39 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const totalAmount = dailyPaymentReport.reduce((sum, p) => sum + Number(p.amount), 0);
       const totalCount = dailyPaymentReport.length;
 
-      // Map payments
+      // Map payments — include fields required by the template (description/issuedBy/notes)
+      // and precompute isCash so the template can route the amount to the correct column.
       const mappedPayments = dailyPaymentReport.map((p) => ({
         paymentDate: p.paymentDate,
         receiptNumber: p.receiptNumber,
-        invoiceNumber: p.receiptNumber, // Often matches document number
+        invoiceNumber: p.receiptNumber,
         customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
+        description: p.description || '',
         amount: Number(p.amount),
         paymentType: p.paymentType,
         paymentMethod: p.paymentMethod,
+        isCash: p.paymentMethod === 'CASH',
+        issuedBy: p.issuedBy || '',
+        notes: p.notes || '',
       }));
+
+      const cashAmount = mappedPayments
+        .filter((p) => p.isCash)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const transferAmount = totalAmount - cashAmount;
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
       const data: DailyPaymentReportData = {
         header,
-        dateRange: `${formatThaiDate(date)} ถึง ${formatThaiDate(date)}`,
+        dateRange: `${formatThaiDate(date, 'numeric')} ถึง ${formatThaiDate(date, 'numeric')}`,
         payments: mappedPayments,
         summary: {
-          totalAmount: totalAmount,
-          totalCount: totalCount,
+          totalAmount,
+          totalCount,
+          cashAmount,
+          transferAmount,
           byMethod: [],
           byType: [],
         },
