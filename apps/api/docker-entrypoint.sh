@@ -8,7 +8,7 @@ attempt=0
 
 echo "Waiting for database to be ready..."
 while [ $attempt -lt $MAX_RETRIES ]; do
-  if bunx prisma db push --skip-generate 2>/tmp/db-push-error.log; then
+  if bunx prisma db push --skip-generate --accept-data-loss 2>/tmp/db-push-error.log; then
     echo "Database schema synced successfully."
     break
   fi
