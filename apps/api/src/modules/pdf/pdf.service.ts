@@ -659,6 +659,48 @@ export class PdfService {
   }
 
   /**
+   * Render template + data as standalone HTML string (no Puppeteer / no PDF).
+   * Used by browser-side `window.print()` flow so the printer driver receives
+   * the exact `@page` size from CSS — no per-machine setup needed.
+   */
+  public async renderHtml<T>(
+    templateType: PdfTemplateType,
+    data: T,
+    options: PdfOptions = {}
+  ): Promise<string> {
+    const template = this.getTemplate(templateType);
+
+    const dbSettings = await import('../settings/settings.service').then((m) =>
+      m.settingsService.getSettings()
+    );
+
+    const providedHeader = (data as any).header || {};
+    const dbHeader = dbSettings
+      ? {
+          companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
+          address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
+          address2: '',
+          phone:
+            `โทร. ${dbSettings.phone} ${dbSettings.fax ? `โทรสาร. ${dbSettings.fax}` : ''}`.trim(),
+          logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
+        }
+      : DEFAULT_COMPANY_HEADER;
+
+    const dataWithHeader = {
+      ...data,
+      header: {
+        ...dbHeader,
+        ...providedHeader,
+        logoBase64: providedHeader.logoBase64 || dbHeader.logoBase64 || this.logoBase64,
+      },
+      receiptBgBase64: this.receiptBgBase64,
+    };
+
+    const content = template(dataWithHeader);
+    return this.getBaseHtml(content, options);
+  }
+
+  /**
    * Generate Delivery Receipt PDF (ใบปล่อยรถ/ใบรับรถ)
    */
   public async generateDeliveryReceipt(data: DeliveryReceiptData): Promise<Buffer> {

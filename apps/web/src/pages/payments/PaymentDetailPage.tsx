@@ -139,7 +139,7 @@ export default function PaymentDetailPage() {
   const handlePrint = async () => {
     if (!payment) return;
     setDownloading(true);
-    await executeDownload(paymentService.downloadReceipt(payment.id, lateFee || undefined));
+    await executeDownload(paymentService.printReceiptDirect(payment.id, lateFee || undefined));
     setDownloading(false);
   };
 
@@ -224,20 +224,22 @@ export default function PaymentDetailPage() {
                     <span className="text-xs text-gray-500">฿</span>
                   </div>
                   <button
-                    onClick={handlePrintBg}
-                    disabled={downloadingBg}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    {downloadingBg ? 'กำลังโหลด...' : 'ใบเสร็จ (ชั่วคราว)'}
-                  </button>
-                  <button
                     onClick={handlePrint}
                     disabled={downloading}
+                    title="สำหรับเครื่อง Dot Matrix + กระดาษต่อเนื่องที่มีฟอร์มพิมพ์ไว้แล้ว (9×5.5 นิ้ว)"
                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
                     <Printer className="h-4 w-4 mr-2" />
-                    {downloading ? 'กำลังโหลด...' : 'พิมพ์ใบเสร็จ'}
+                    {downloading ? 'กำลังโหลด...' : 'ใบเสร็จ Dot Matrix'}
+                  </button>
+                  <button
+                    onClick={handlePrintBg}
+                    disabled={downloadingBg}
+                    title="สำหรับเครื่อง Laser/Inkjet + กระดาษ A4 เปล่า (มีฟอร์มในไฟล์ PDF)"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    {downloadingBg ? 'กำลังโหลด...' : 'ใบเสร็จ A4 (มีฟอร์ม)'}
                   </button>
                   <button
                     onClick={() => setShowVoidModal(true)}
@@ -388,11 +390,19 @@ export default function PaymentDetailPage() {
             </div>
           )}
 
-          {/* Description */}
+          {/* Description (label "รายการ" matches PaymentEditPage's description field) */}
           {payment.description && (
             <div className="bg-white rounded-lg shadow p-6 md:col-span-2">
-              <h2 className="text-lg font-semibold mb-4">หมายเหตุ</h2>
+              <h2 className="text-lg font-semibold mb-4">รายการ</h2>
               <p className="text-gray-700 whitespace-pre-wrap">{payment.description}</p>
+            </div>
+          )}
+
+          {/* Notes — free-text from PaymentEditPage's "หมายเหตุ" field */}
+          {payment.notes && (
+            <div className="bg-white rounded-lg shadow p-6 md:col-span-2">
+              <h2 className="text-lg font-semibold mb-4">หมายเหตุ</h2>
+              <p className="text-gray-700 whitespace-pre-wrap">{payment.notes}</p>
             </div>
           )}
         </div>

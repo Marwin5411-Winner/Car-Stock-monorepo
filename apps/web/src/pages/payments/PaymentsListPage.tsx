@@ -142,7 +142,7 @@ export default function PaymentsListPage() {
   const handlePrint = async (e: React.MouseEvent, paymentId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    await executeQuery(paymentService.downloadReceipt(paymentId));
+    await executeQuery(paymentService.printReceiptDirect(paymentId));
   };
 
   return (
@@ -250,7 +250,7 @@ export default function PaymentsListPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
-                  placeholder="ค้นหาเลขที่ใบเสร็จ, ลูกค้า, เลขที่ขาย..."
+                  placeholder="ค้นหาเลขที่ใบเสร็จ, ลูกค้า, เลขที่ขาย, หมายเหตุ..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -334,18 +334,31 @@ export default function PaymentsListPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {payment.sale ? (
-                            <Link
-                              to={`/sales/${payment.sale.id}`}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              {payment.sale.saleNumber}
-                            </Link>
-                          ) : (
-                            <span className="text-gray-400 italic">
-                              {payment.description ? payment.description.substring(0, 30) + (payment.description.length > 30 ? '...' : '') : 'รายการทั่วไป'}
-                            </span>
-                          )}
+                          <div className="max-w-[240px]">
+                            {payment.sale ? (
+                              <Link
+                                to={`/sales/${payment.sale.id}`}
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                {payment.sale.saleNumber}
+                              </Link>
+                            ) : (
+                              <span
+                                className="text-gray-400 italic block line-clamp-1"
+                                title={payment.description || undefined}
+                              >
+                                {payment.description || 'รายการทั่วไป'}
+                              </span>
+                            )}
+                            {payment.notes && (
+                              <div
+                                className="text-xs text-gray-500 mt-1 whitespace-pre-wrap line-clamp-3"
+                                title={payment.notes}
+                              >
+                                {payment.notes}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-gray-700">
                           {PAYMENT_TYPE_LABELS[payment.paymentType]}
@@ -377,7 +390,7 @@ export default function PaymentsListPage() {
                             <button
                               onClick={(e) => handlePrint(e, payment.id)}
                               className="inline-flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors ml-1"
-                              title="พิมพ์ใบเสร็จ"
+                              title="พิมพ์ใบเสร็จ Dot Matrix (9×5.5 นิ้ว)"
                             >
                               <Printer className="h-4 w-4" />
                             </button>

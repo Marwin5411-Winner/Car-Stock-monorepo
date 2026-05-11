@@ -19,6 +19,7 @@ import {
   type DeliveryReceiptData,
   DepositReceiptData,
   type PaymentReceiptData,
+  PdfTemplateType,
   type SalesConfirmationData,
   type SalesRecordData,
   type TemporaryReceiptData,
@@ -1076,6 +1077,120 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         tags: ['Documents'],
         summary: 'Generate Temporary Receipt PDF',
         description: 'Generate ใบรับเงินชั่วคราว PDF for a payment',
+      },
+    }
+  )
+
+  /**
+   * Render Temporary Receipt as standalone HTML (auto-prints in popup window).
+   * Used by frontend `window.print()` flow so the EPSON Dot Matrix driver receives
+   * the 9×5.5 in size from CSS @page directly — no per-machine paper-size setup.
+   */
+  .get(
+    '/temporary-receipt/:paymentId/html',
+    async ({ params, query, set }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
+      const payment = await db.payment.findUnique({
+        where: { id: params.paymentId },
+        include: {
+          customer: true,
+          sale: {
+            include: {
+              customer: true,
+              stock: { include: { vehicleModel: true } },
+            },
+          },
+        },
+      });
+
+      if (!payment) {
+        set.status = 404;
+        return { success: false, error: 'Payment not found' };
+      }
+
+      const sale = payment.sale;
+      const customer = payment.customer || sale?.customer;
+
+      const typeLabel =
+        PAYMENT_TYPE_LABELS[payment.paymentType as keyof typeof PAYMENT_TYPE_LABELS] || 'ค่าชำระเงิน';
+      const carName = sale?.stock?.vehicleModel
+        ? `${sale.stock.vehicleModel.brand} ${sale.stock.vehicleModel.model}`
+        : '';
+      const methodLabel =
+        PAYMENT_METHOD_LABELS[payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || '';
+      const mainItem = `${typeLabel}${carName ? ` - ${carName}` : ''}`;
+      const items: { description: string; amount: string }[] = [
+        { description: mainItem, amount: payment.amount.toString() },
+      ];
+      if (payment.description) {
+        items.push({ description: payment.description, amount: '' });
+      }
+
+      const paymentMethodData = {
+        isCash: payment.paymentMethod === 'CASH',
+        isCheque: payment.paymentMethod === 'CHEQUE',
+        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
+        bankName: payment.receivingBank || '',
+        branchName: '',
+        accountNumber: '',
+        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
+      };
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const data: TemporaryReceiptData = {
+        header: { ...header, fax: '' },
+        customerCode: customer?.code || '',
+        receiptNumber: payment.receiptNumber,
+        date: payment.paymentDate?.toISOString() || payment.createdAt.toISOString(),
+        contractNumber: sale?.saleNumber || '',
+        customer: transformCustomer(customer),
+        items,
+        paymentAmount: payment.amount.toString(),
+        lateFee: query.lateFee || '0',
+        discount: '0',
+        totalAmount: (Number(payment.amount) + Number(query.lateFee || 0)).toString(),
+        totalAmountText: numberToThaiText(Number(payment.amount) + Number(query.lateFee || 0)),
+        paymentMethod: paymentMethodData,
+        paymentMethodLabel: methodLabel,
+        note: payment.notes || undefined,
+      };
+
+      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT, data, {
+        width: '9in',
+        height: '5.5in',
+        margin: { top: '5mm', right: '5mm', bottom: '5mm', left: '5mm' },
+      });
+
+      // Inject auto-print script. setTimeout gives the browser one tick to lay
+      // out fonts before print(); window.close() runs after the dialog closes.
+      const autoPrint = `
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      window.focus();
+      window.print();
+    }, 250);
+  });
+  window.addEventListener('afterprint', function () {
+    window.close();
+  });
+</script>`;
+      const htmlWithAutoPrint = html.replace('</body>', `${autoPrint}</body>`);
+
+      set.headers['Content-Type'] = 'text/html; charset=utf-8';
+      set.headers['Cache-Control'] = 'no-store';
+      return htmlWithAutoPrint;
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
+      params: t.Object({ paymentId: t.String() }),
+      query: t.Object({ lateFee: t.Optional(t.String()) }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Render Temporary Receipt HTML (auto-print)',
+        description:
+          'Returns standalone HTML that auto-prints itself via window.print(). Browser passes 9×5.5 in size to printer driver via CSS @page — no per-machine setup needed.',
       },
     }
   )

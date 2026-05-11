@@ -23,7 +23,7 @@ export interface Payment {
   voidReason?: string;
   voidedAt?: string;
   issuedBy?: string;
-  notes?: string;
+  notes?: string | null;
   customer: {
     id: string;
     code: string;
@@ -54,6 +54,7 @@ export interface PaymentListItem {
   status: PaymentStatus;
   referenceNumber?: string;
   description?: string;
+  notes?: string | null;
   customer: {
     id: string;
     code: string;
@@ -242,6 +243,37 @@ class PaymentService {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Download error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Print temporary receipt directly via browser window.print().
+   * Browser passes the @page size (9×5.5 in) from the HTML to the printer driver,
+   * so the EPSON Dot Matrix needs no per-machine paper-size setup.
+   *
+   * Popup is opened synchronously inside the user-gesture (button onClick) so
+   * it isn't blocked. The fetched HTML is wrapped in a Blob URL and assigned
+   * to popup.location — the popup loads it as a real document, executing the
+   * embedded auto-print script naturally without document.write.
+   */
+  async printReceiptDirect(id: string, lateFee?: number): Promise<void> {
+    const popup = window.open('about:blank', '_blank', 'width=900,height=600');
+    if (!popup) {
+      throw new Error('Popup blocked — please allow popups for this site to print receipts.');
+    }
+
+    try {
+      const qs = lateFee ? `?lateFee=${lateFee}` : '';
+      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}/html${qs}`);
+      const htmlBlob =
+        blob.type === 'text/html' ? blob : new Blob([await blob.text()], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(htmlBlob);
+      popup.location.replace(blobUrl);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (error) {
+      popup.close();
+      console.error('Print receipt error:', error);
       throw error;
     }
   }

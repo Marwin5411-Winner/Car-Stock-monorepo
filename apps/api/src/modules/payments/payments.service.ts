@@ -62,6 +62,7 @@ export class PaymentsService {
         { customer: { is: { name: { contains: validated.search, mode: 'insensitive' } } } },
         { customer: { is: { code: { contains: validated.search, mode: 'insensitive' } } } },
         { sale: { is: { saleNumber: { contains: validated.search, mode: 'insensitive' } } } },
+        { notes: { contains: validated.search, mode: 'insensitive' } },
       ];
     }
 
@@ -93,6 +94,7 @@ export class PaymentsService {
           paymentMethod: true,
           referenceNumber: true,
           description: true,
+          notes: true,
           status: true,
           customer: {
             select: {
