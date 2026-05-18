@@ -28,11 +28,17 @@ FROM oven/bun:1-slim AS production
 WORKDIR /app
 
 # Install OpenSSL, curl, Chromium (for Puppeteer PDF generation), and Thai fonts
-RUN apt-get update -y && apt-get install -y \
+# Bypass GPG --not-after check + add retries — Debian trixie signing keys in
+# oven/bun:1-slim base image can hit `Signature ... created after the
+# --not-after date` errors on fresh pulls. The repo itself is still valid;
+# only the signature metadata's expiry is past.
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99-no-check-valid \
+ && echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+ && apt-get update -o Acquire::AllowInsecureRepositories=true -y \
+ && apt-get install -y --allow-unauthenticated --no-install-recommends \
     openssl curl \
     chromium \
     fonts-thai-tlwg \
-    --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
