@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   User,
   Car,
+  Calendar,
   DollarSign,
   Save
 } from 'lucide-react';
@@ -41,6 +42,7 @@ interface FormData {
   interestRate: number;
   numberOfTerms: number;
   monthlyInstallment: number;
+  deliveryDate: string;
   notes: string;
 }
 
@@ -83,6 +85,7 @@ export default function SalesFormPage() {
     interestRate: 0,
     numberOfTerms: 0,
     monthlyInstallment: 0,
+    deliveryDate: '',
     notes: '',
   });
 
@@ -136,6 +139,7 @@ export default function SalesFormPage() {
           interestRate: Number(sale.interestRate) || 0,
           numberOfTerms: Number(sale.numberOfTerms) || 0,
           monthlyInstallment: Number(sale.monthlyInstallment) || 0,
+          deliveryDate: sale.deliveryDate ? new Date(sale.deliveryDate).toISOString().slice(0, 10) : '',
           notes: sale.notes || '',
         });
 
@@ -285,6 +289,7 @@ export default function SalesFormPage() {
       interestRate: formData.interestRate || undefined,
       numberOfTerms: formData.numberOfTerms || undefined,
       monthlyInstallment: formData.monthlyInstallment || undefined,
+      deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : undefined,
       notes: formData.notes || undefined,
     };
 
@@ -636,6 +641,25 @@ export default function SalesFormPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Delivery Date */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center text-black">
+              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+              วันที่ลูกค้ารับรถ
+            </h2>
+            <div className="max-w-xs">
+              <input
+                type="date"
+                value={formData.deliveryDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                สำหรับใบปล่อยรถและหนังสือยืนยันการซื้อ-ขาย — ถ้าไม่กรอกจะใช้วันที่คีย์ข้อมูล
+              </p>
+            </div>
           </div>
 
           {/* Notes */}

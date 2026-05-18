@@ -396,6 +396,7 @@ export const CreateSaleSchema = z.object({
 
   expirationDate: z.coerce.date().optional(),
   hasExpiration: z.boolean().default(false),
+  deliveryDate: z.coerce.date().optional(),
 
   campaignId: z.string().optional(),
   discountSnapshot: z.number().optional(),

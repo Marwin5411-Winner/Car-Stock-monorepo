@@ -127,6 +127,7 @@ export interface CreateSaleData {
   depositAmount?: number;
   expirationDate?: Date;
   hasExpiration?: boolean;
+  deliveryDate?: Date;
   campaignId?: string;
   discountSnapshot?: number;
   freebiesSnapshot?: string;
@@ -153,6 +154,7 @@ export interface UpdateSaleData {
   depositAmount?: number;
   expirationDate?: Date;
   hasExpiration?: boolean;
+  deliveryDate?: Date;
   campaignId?: string;
   discountSnapshot?: number;
   freebiesSnapshot?: string;

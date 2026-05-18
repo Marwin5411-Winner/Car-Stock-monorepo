@@ -171,11 +171,37 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       // If logo is missing in settings, try to load default from service (or handle it in getCompanyHeader)
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
+      // Build line items showing the financial summary that must be paid/already paid
+      // on delivery. Only include non-zero values to keep the receipt focused.
+      const items: { description: string; amount: string }[] = [];
+      const totalAmount = Number(sale.totalAmount) || 0;
+      const carDiscount = Number(sale.carDiscount) || 0;
+      const downPayment = Number(sale.downPayment) || 0;
+      const financeAmount = Number(sale.financeAmount) || 0;
+      const paidAmount = Number(sale.paidAmount) || 0;
+      const remainingAmount = Number(sale.remainingAmount) || 0;
+
+      if (totalAmount > 0) items.push({ description: 'ยอดรวมการขาย', amount: totalAmount.toString() });
+      if (carDiscount > 0) items.push({ description: 'หัก ส่วนลดตัวรถ', amount: carDiscount.toString() });
+      if (sale.paymentMode !== 'CASH' && downPayment > 0) {
+        items.push({ description: 'เงินดาวน์', amount: downPayment.toString() });
+      }
+      if (sale.paymentMode !== 'CASH' && financeAmount > 0) {
+        items.push({ description: `ยอดจัดไฟแนนซ์${sale.financeProvider ? ` (${sale.financeProvider})` : ''}`, amount: financeAmount.toString() });
+      }
+      if (paidAmount > 0) items.push({ description: 'ชำระแล้ว', amount: paidAmount.toString() });
+      if (remainingAmount > 0) items.push({ description: 'ยอดค้างชำระ', amount: remainingAmount.toString() });
+
+      // Fall back to createdAt when deliveryDate is not set (advance-keyed sales
+      // print the doc before the actual pickup; user can edit deliveryDate later).
+      const docDate = sale.deliveryDate || sale.createdAt;
+
       const data: DeliveryReceiptData = {
         header,
         customer: transformCustomer(sale.customer),
         car: transformCar(sale.stock),
-        deliveryDate: sale.deliveryDate ? formatThaiDate(sale.deliveryDate) : undefined,
+        deliveryDate: formatThaiDate(docDate),
+        items,
       };
 
       const pdfBuffer = await pdfService.generateDeliveryReceipt(data);
@@ -303,9 +329,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
+      // Prefer deliveryDate (user-set pickup date) over createdAt for advance-keyed
+      // sales where the doc is printed before the actual pickup day.
+      const docDate = sale.deliveryDate || sale.createdAt;
+
       const data: SalesConfirmationData = {
         header,
-        createdDate: sale.createdAt.toISOString(),
+        createdDate: docDate.toISOString(),
         car: transformCar(sale.stock),
         customer: transformCustomer(sale.customer),
         paymentMethod:

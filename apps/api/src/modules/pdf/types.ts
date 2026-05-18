@@ -55,6 +55,7 @@ export interface DeliveryReceiptData {
   customer: CustomerInfo;
   car: CarInfo;
   deliveryDate?: string;
+  items?: { description: string; amount: string }[];
 }
 
 /**
