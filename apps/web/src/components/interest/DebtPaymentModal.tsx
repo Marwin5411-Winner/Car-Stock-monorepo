@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { X, Wallet, AlertCircle, TrendingUp, Calculator } from 'lucide-react';
 import type { DebtSummary, PaymentMethod, PaymentType } from '../../services/interest.service';
+import { DatePicker } from '../ui/date-picker';
 
 interface DebtPaymentModalProps {
   isOpen: boolean;
@@ -401,11 +402,10 @@ export default function DebtPaymentModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 วันที่จ่าย
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={setPaymentDate}
+                inputClassName="w-full"
               />
             </div>
 

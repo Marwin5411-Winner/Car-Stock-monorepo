@@ -7,6 +7,7 @@ import { MainLayout } from '../../components/layout';
 import { ArrowLeft } from 'lucide-react';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
+import { DatePicker } from '../../components/ui/date-picker';
 
 interface VehicleModel {
   id: string;
@@ -251,26 +252,20 @@ export default function StockFormPage() {
                     <label htmlFor="orderDate" className="block text-sm font-medium text-gray-700">
                       วันที่สั่งซื้อ
                     </label>
-                    <input
-                      type="date"
-                      id="orderDate"
-                      name="orderDate"
+                    <DatePicker
                       value={formData.orderDate}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                      onChange={(v) => handleChange({ target: { name: 'orderDate', value: v } } as React.ChangeEvent<HTMLInputElement>)}
+                      inputClassName="w-full"
                     />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="arrivalDate" className="block text-sm font-medium text-gray-700">
                       วันที่เข้าสต็อก
                     </label>
-                    <input
-                      type="date"
-                      id="arrivalDate"
-                      name="arrivalDate"
+                    <DatePicker
                       value={formData.arrivalDate}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                      onChange={(v) => handleChange({ target: { name: 'arrivalDate', value: v } } as React.ChangeEvent<HTMLInputElement>)}
+                      inputClassName="w-full"
                     />
                   </div>
                 </div>

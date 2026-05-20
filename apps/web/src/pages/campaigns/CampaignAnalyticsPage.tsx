@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { MainLayout } from '../../components/layout';
 import { campaignService } from '../../services/campaign.service';
 import { ArrowLeft, Calendar, TrendingUp, ShoppingCart, Car, Download } from 'lucide-react';
+import { DatePicker } from '../../components/ui/date-picker';
 
 export const CampaignAnalyticsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -144,22 +145,18 @@ export const CampaignAnalyticsPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 วันเริ่มต้น
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={setStartDate}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 วันสิ้นสุด
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={setEndDate}
               />
             </div>
             <button

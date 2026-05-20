@@ -13,6 +13,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { DatePicker } from '../../components/ui/date-picker';
 import { useToast } from '../../components/toast';
 
 export default function InterestEditPage() {
@@ -275,11 +276,11 @@ export default function InterestEditPage() {
                   <Calendar className="w-4 h-4 inline mr-1" />
                   วันที่เริ่มใช้อัตราใหม่
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={effectiveDate}
-                  onChange={(e) => setEffectiveDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={setEffectiveDate}
+                  inputClassName="w-full"
+                  clearable
                 />
                 <p className="mt-1 text-sm text-gray-500">
                   {isInitialize 

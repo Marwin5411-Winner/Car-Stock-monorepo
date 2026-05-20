@@ -5,6 +5,7 @@ import { MainLayout } from '../../components/layout';
 import { exportMultiSheet } from '../../components/reports/exportUtils';
 import { useToast } from '../../components/toast';
 import { reportService } from '../../services/report.service';
+import { DatePicker } from '../../components/ui/date-picker';
 
 export function DailyStockSnapshotPage(): React.ReactElement {
   const { addToast } = useToast();
@@ -148,11 +149,9 @@ export function DailyStockSnapshotPage(): React.ReactElement {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">วันที่:</label>
-              <input
-                type="date"
+              <DatePicker
                 value={snapshotDate}
-                onChange={(e) => setSnapshotDate(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                onChange={setSnapshotDate}
               />
             </div>
             <button

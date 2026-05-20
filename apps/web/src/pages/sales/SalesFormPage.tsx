@@ -7,6 +7,7 @@ import { useToast } from '../../components/toast';
 import { customerService, type Customer } from '../../services/customer.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
+import { DatePicker } from '../../components/ui/date-picker';
 import {
   ArrowLeft,
   User,
@@ -650,11 +651,11 @@ export default function SalesFormPage() {
               วันที่ลูกค้ารับรถ
             </h2>
             <div className="max-w-xs">
-              <input
-                type="date"
+              <DatePicker
                 value={formData.deliveryDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
-                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                onChange={(v) => setFormData(prev => ({ ...prev, deliveryDate: v }))}
+                inputClassName="w-full"
+                clearable
               />
               <p className="text-xs text-gray-500 mt-1">
                 สำหรับใบปล่อยรถและหนังสือยืนยันการซื้อ-ขาย — ถ้าไม่กรอกจะใช้วันที่คีย์ข้อมูล

@@ -4,13 +4,13 @@ import { paymentService, type CreatePaymentData, type PaymentType, type PaymentM
 import { salesService } from '../../services/sales.service';
 import { customerService, type Customer } from '../../services/customer.service';
 import { MainLayout } from '../../components/layout';
+import { DatePicker } from '../../components/ui/date-picker';
 import {
   ArrowLeft,
   CreditCard,
   DollarSign,
   Save,
   FileText,
-  Calendar,
   User,
   Receipt
 } from 'lucide-react';
@@ -575,16 +575,11 @@ export default function PaymentFormPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   วันที่ชำระ <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="date"
-                    value={formData.paymentDate}
-                    onChange={(e) => handleInputChange('paymentDate', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.paymentDate ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                  />
-                </div>
+                <DatePicker
+                  value={formData.paymentDate}
+                  onChange={(v) => handleInputChange('paymentDate', v)}
+                  inputClassName={`w-full ${errors.paymentDate ? '!border-red-500' : ''}`}
+                />
                 {errors.paymentDate && (
                   <p className="text-sm text-red-500 mt-1">{errors.paymentDate}</p>
                 )}
@@ -684,11 +679,11 @@ export default function PaymentFormPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         วันที่ได้รับเงินจริง
                       </label>
-                      <input
-                        type="date"
+                      <DatePicker
                         value={formData.actualReceivedDate || ''}
-                        onChange={(e) => handleInputChange('actualReceivedDate', e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        onChange={(v) => handleInputChange('actualReceivedDate', v)}
+                        inputClassName="w-full"
+                        clearable
                       />
                     </div>
                     <div>

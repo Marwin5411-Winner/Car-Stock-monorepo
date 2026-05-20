@@ -8,6 +8,7 @@ import { vehicleService } from '../../services/vehicle.service';
 import type { VehicleModel } from '../../services/vehicle.service';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { DatePicker } from '../../components/ui/date-picker';
 
 export const CampaignFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -189,13 +190,10 @@ export const CampaignFormPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   วันเริ่มต้น <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.startDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  onChange={(v) => setFormData({ ...formData, startDate: v })}
+                  inputClassName={`w-full ${errors.startDate ? '!border-red-500' : ''}`}
                 />
                 {errors.startDate && (
                   <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>
@@ -205,13 +203,10 @@ export const CampaignFormPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   วันสิ้นสุด <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.endDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  onChange={(v) => setFormData({ ...formData, endDate: v })}
+                  inputClassName={`w-full ${errors.endDate ? '!border-red-500' : ''}`}
                 />
                 {errors.endDate && (
                   <p className="text-red-500 text-sm mt-1">{errors.endDate}</p>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { DatePicker } from '../ui/date-picker';
 
 interface DateRangeFilterProps {
   startDate: string;
@@ -153,31 +153,21 @@ export function DateRangeFilter({
 
         {/* Date Inputs */}
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                onStartDateChange(e.target.value);
-                setQuickRange('');
-              }}
-              className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          <DatePicker
+            value={startDate}
+            onChange={(v) => {
+              onStartDateChange(v);
+              setQuickRange('');
+            }}
+          />
           <span className="text-gray-500">ถึง</span>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                onEndDateChange(e.target.value);
-                setQuickRange('');
-              }}
-              className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          <DatePicker
+            value={endDate}
+            onChange={(v) => {
+              onEndDateChange(v);
+              setQuickRange('');
+            }}
+          />
         </div>
 
         {/* Apply Button */}

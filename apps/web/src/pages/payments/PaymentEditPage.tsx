@@ -6,6 +6,7 @@ import { SearchSelect, type SearchSelectOption } from '../../components/ui/searc
 import { useErrorHandler, useMutationHandler } from '../../hooks/useErrorHandler';
 import { paymentService } from '../../services/payment.service';
 import type { Payment, PaymentMethod, PaymentType } from '../../services/payment.service';
+import { DatePicker } from '../../components/ui/date-picker';
 import { userService, type User } from '../../services/user.service';
 
 const PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
@@ -168,11 +169,10 @@ export default function PaymentEditPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>วันที่ชำระ</label>
-              <input
-                type="date"
-                className={inputClass}
+              <DatePicker
                 value={formData.paymentDate}
-                onChange={(e) => setFormData((prev) => ({ ...prev, paymentDate: e.target.value }))}
+                onChange={(v) => setFormData((prev) => ({ ...prev, paymentDate: v }))}
+                inputClassName="w-full"
               />
             </div>
             <div>

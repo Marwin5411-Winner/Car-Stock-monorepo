@@ -13,6 +13,7 @@ import {
   Save,
   FileText
 } from 'lucide-react';
+import { DatePicker } from '../../components/ui/date-picker';
 import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
@@ -405,14 +406,10 @@ export default function QuotationFormPage() {
                 <label className="block text-sm font-medium text-black mb-1">
                   วันหมดอายุใบเสนอราคา <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={formData.validUntil}
-                  onChange={(e) => setFormData(prev => ({ ...prev, validUntil: e.target.value }))}
-                  min={new Date().toISOString().split('T')[0]}
-                  className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                    errors.validUntil ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  onChange={(v) => setFormData(prev => ({ ...prev, validUntil: v }))}
+                  inputClassName={`w-full ${errors.validUntil ? '!border-red-500' : ''}`}
                 />
                 {errors.validUntil && (
                   <p className="text-red-500 text-sm mt-1">{errors.validUntil}</p>
