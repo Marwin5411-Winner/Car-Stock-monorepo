@@ -544,16 +544,6 @@ export class SalesService {
       throw new BadRequestError('Cannot change status of completed sale');
     }
 
-    // Validate full payment before marking as COMPLETED
-    if (status === 'COMPLETED') {
-      const remaining = Number(existingSale.remainingAmount);
-      if (remaining > 0) {
-        throw new BadRequestError(
-          `ไม่สามารถปิดการขายได้ ยังมียอดค้างชำระ ${remaining.toLocaleString()} บาท`
-        );
-      }
-    }
-
     // Enforce valid status transitions
     const validTransitions: Record<string, string[]> = {
       RESERVED: ['PREPARING', 'CANCELLED'],
