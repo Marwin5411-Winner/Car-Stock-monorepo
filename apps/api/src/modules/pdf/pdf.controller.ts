@@ -56,7 +56,22 @@ function transformCar(stock: any): CarInfo {
 
 // Helper to get company header from settings or default
 async function getCompanyHeader(): Promise<any> {
-  const settings = await db.companySettings.findFirst();
+  const [settings, bankAccounts] = await Promise.all([
+    db.companySettings.findFirst(),
+    db.bankAccount.findMany({
+      where: { isActive: true },
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+    }),
+  ]);
+
+  const bankAccountsForDoc = bankAccounts.map((b) => ({
+    bankName: b.bankName,
+    accountNumber: b.accountNumber,
+    accountName: b.accountName,
+    branch: b.branch || '',
+    accountType: b.accountType || '',
+  }));
+
   if (settings) {
     return {
       logoBase64: settings.logo || '',
@@ -69,6 +84,7 @@ async function getCompanyHeader(): Promise<any> {
       fax: settings.fax || '',
       mobile: settings.mobile,
       email: settings.email,
+      bankAccounts: bankAccountsForDoc,
     };
   }
 
@@ -84,6 +100,7 @@ async function getCompanyHeader(): Promise<any> {
     fax: '',
     mobile: '',
     email: '',
+    bankAccounts: bankAccountsForDoc,
   };
 }
 

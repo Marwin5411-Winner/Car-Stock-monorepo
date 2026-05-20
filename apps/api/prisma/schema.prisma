@@ -583,3 +583,19 @@ model CompanySettings {
 
   @@map("company_settings")
 }
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  bankName      String   @map("bank_name")
+  accountNumber String   @map("account_number")
+  accountName   String   @map("account_name")
+  branch        String?
+  accountType   String?  @map("account_type")
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, displayOrder])
+  @@map("bank_accounts")
+}

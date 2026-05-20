@@ -21,6 +21,7 @@ import { reportRoutes } from './modules/reports/reports.controller';
 import { pdfRoutes } from './modules/pdf/pdf.controller';
 import { analyticsRoutes } from './modules/analytics/analytics.controller';
 import { settingsRoutes } from './modules/settings/settings.controller';
+import { bankAccountsRoutes } from './modules/bank-accounts/bank-accounts.controller';
 import { systemRoutes } from './modules/system/system.controller';
 // import { documentRoutes } from './modules/documents/documents.controller';
 
@@ -120,6 +121,7 @@ const app = new Elysia()
       .use(pdfRoutes)
       .use(analyticsRoutes)
       .use(settingsRoutes)
+      .use(bankAccountsRoutes)
       .use(systemRoutes)
       // .use(documentRoutes)
   )

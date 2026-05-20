@@ -111,8 +111,34 @@
       <strong>หมายเหตุ:</strong> {{note}}
     </div>
     {{/if}}
+
+    {{#if header.bankAccounts.length}}
+    <div style="margin-top: 15px; padding: 10px; border: 1px dashed #000; background: #fafafa;">
+      <h4 style="margin: 0 0 6px; font-size: 13px;">ช่องทางชำระเงิน (Bank Accounts)</h4>
+      <table style="width: 100%; border: none; margin: 0;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 2px 6px; border-bottom: 1px solid #000; font-size: 12px;">ธนาคาร</th>
+            <th style="text-align: left; padding: 2px 6px; border-bottom: 1px solid #000; font-size: 12px;">ชื่อบัญชี</th>
+            <th style="text-align: left; padding: 2px 6px; border-bottom: 1px solid #000; font-size: 12px;">เลขที่บัญชี</th>
+            <th style="text-align: left; padding: 2px 6px; border-bottom: 1px solid #000; font-size: 12px;">สาขา/ประเภท</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each header.bankAccounts}}
+          <tr>
+            <td style="border: none; padding: 2px 6px; font-size: 12px;">{{this.bankName}}</td>
+            <td style="border: none; padding: 2px 6px; font-size: 12px;">{{this.accountName}}</td>
+            <td style="border: none; padding: 2px 6px; font-size: 12px;"><strong>{{this.accountNumber}}</strong></td>
+            <td style="border: none; padding: 2px 6px; font-size: 12px;">{{this.branch}}{{#if this.accountType}} ({{this.accountType}}){{/if}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
   </div>
-  
+
   <div class="signatures" style="margin-top: 30px;">
     <div class="signature-box">
       <div class="signature-line" style="margin-top: 20px;"></div>
