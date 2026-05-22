@@ -223,14 +223,14 @@ export default function SalesDetailPage() {
       stockService.getAll({
         vehicleModelId,
         status: 'AVAILABLE',
-        limit: 50
-      }).then((stocks) => {
-        setAvailableStocks(stocks.data || []);
-        setSelectedStockId(sale.stock?.id || '');
+        limit: 50,
       })
     );
     if (result === undefined) {
       setShowStockModal(false);
+    } else {
+      setAvailableStocks(result.data || []);
+      setSelectedStockId(sale.stock?.id || '');
     }
     setLoadingStocks(false);
   };

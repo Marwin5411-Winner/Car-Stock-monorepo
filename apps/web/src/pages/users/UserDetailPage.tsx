@@ -69,15 +69,11 @@ export default function UserDetailPage() {
 
   const fetchUser = async (userId: string) => {
     setLoading(true);
-    const result = await executeQuery(
-      userService.getById(userId).then(response => {
-        if (response.success && response.data) {
-          setUser(response.data);
-        }
-      })
-    );
-    if (!result) {
+    const result = await executeQuery(userService.getById(userId));
+    if (!result || !result.success || !result.data) {
       setError('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
+    } else {
+      setUser(result.data);
     }
     setLoading(false);
   };

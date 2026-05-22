@@ -46,23 +46,20 @@ export default function InterestEditPage() {
   const fetchDetail = async () => {
     setLoading(true);
     setError(null);
-    const result = await executeQuery(
-      interestService.getById(stockId!).then(data => {
-        setDetail(data);
-
-        // Pre-fill form
-        if (data.summary.currentRate > 0) {
-          setAnnualRate(data.summary.currentRate.toString());
-        }
-        setPrincipalBase(data.stock.interestPrincipalBase);
-
-        // Set effective date to today
-        const today = new Date().toISOString().split('T')[0];
-        setEffectiveDate(today);
-      })
-    );
+    const result = await executeQuery(interestService.getById(stockId!));
     if (!result) {
       setError('ไม่สามารถโหลดข้อมูลได้');
+    } else {
+      setDetail(result);
+
+      // Pre-fill form
+      if (result.summary.currentRate > 0) {
+        setAnnualRate(result.summary.currentRate.toString());
+      }
+      setPrincipalBase(result.stock.interestPrincipalBase);
+
+      // Set effective date to today
+      setEffectiveDate(new Date().toISOString().split('T')[0]);
     }
     setLoading(false);
   };

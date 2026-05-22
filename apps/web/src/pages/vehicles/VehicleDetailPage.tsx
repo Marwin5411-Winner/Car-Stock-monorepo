@@ -21,11 +21,11 @@ export default function VehicleDetailPage() {
 
   const fetchVehicle = async (vehicleId: string) => {
     setLoading(true);
-    const result = await executeQuery(
-      vehicleService.getById(vehicleId).then(data => setVehicle(data))
-    );
+    const result = await executeQuery(vehicleService.getById(vehicleId));
     if (!result) {
       navigate('/vehicles');
+    } else {
+      setVehicle(result);
     }
     setLoading(false);
   };
