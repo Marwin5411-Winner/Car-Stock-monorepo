@@ -102,46 +102,12 @@ const app = new Elysia()
       };
     }
   })
-  // API routes group
-  .group('/api', (app) =>
-    app
-      .get('/', () => ({ message: 'Welcome to VBeyond Car Sales API' }))
-      // Routes
-      .use(authRoutes)
-      .use(userRoutes)
-      .use(customerRoutes)
-      .use(vehicleRoutes)
-      .use(stockRoutes)
-      .use(salesRoutes)
-      .use(paymentRoutes)
-      .use(quotationRoutes)
-      .use(interestRoutes)
-      .use(campaignRoutes)
-      .use(reportRoutes)
-      .use(pdfRoutes)
-      .use(analyticsRoutes)
-      .use(settingsRoutes)
-      .use(bankAccountsRoutes)
-      .use(systemRoutes)
-      // .use(documentRoutes)
-  )
-  // Request logging
-  .onRequest(({ request, store }) => {
-    (store as any).startTime = Date.now();
-    logger.debug({ method: request.method, url: request.url }, 'Incoming request');
-  })
-  .onAfterResponse(({ request, set, store }) => {
-    const duration = Date.now() - ((store as any).startTime || Date.now());
-    const url = new URL(request.url);
-    logger.info({
-      method: request.method,
-      path: url.pathname,
-      status: set.status || 200,
-      duration,
-    }, `${request.method} ${url.pathname} ${set.status || 200} ${duration}ms`);
-  })
-  // Error handling
-  .onError(({ code, error, set }) => {
+  // Error handling — registered BEFORE the routes so it applies to every
+  // module. Elysia attaches a lifecycle hook only to routes registered after
+  // it; `as: 'global'` additionally extends it across all plugin scopes.
+  // Without this, thrown AppErrors fell through to Elysia's default handler
+  // (HTTP 500 + raw message string) instead of the normalized JSON envelope.
+  .onError({ as: 'global' }, ({ code, error, set }) => {
     logger.error({ code, err: error, stack: error instanceof Error ? error.stack : undefined }, `Error [${code}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
     // Handle AppError (custom application errors)
@@ -221,6 +187,44 @@ const app = new Elysia()
       error: 'INTERNAL_ERROR',
       message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'An unexpected error occurred',
     };
+  })
+  // API routes group
+  .group('/api', (app) =>
+    app
+      .get('/', () => ({ message: 'Welcome to VBeyond Car Sales API' }))
+      // Routes
+      .use(authRoutes)
+      .use(userRoutes)
+      .use(customerRoutes)
+      .use(vehicleRoutes)
+      .use(stockRoutes)
+      .use(salesRoutes)
+      .use(paymentRoutes)
+      .use(quotationRoutes)
+      .use(interestRoutes)
+      .use(campaignRoutes)
+      .use(reportRoutes)
+      .use(pdfRoutes)
+      .use(analyticsRoutes)
+      .use(settingsRoutes)
+      .use(bankAccountsRoutes)
+      .use(systemRoutes)
+      // .use(documentRoutes)
+  )
+  // Request logging
+  .onRequest(({ request, store }) => {
+    (store as any).startTime = Date.now();
+    logger.debug({ method: request.method, url: request.url }, 'Incoming request');
+  })
+  .onAfterResponse(({ request, set, store }) => {
+    const duration = Date.now() - ((store as any).startTime || Date.now());
+    const url = new URL(request.url);
+    logger.info({
+      method: request.method,
+      path: url.pathname,
+      status: set.status || 200,
+      duration,
+    }, `${request.method} ${url.pathname} ${set.status || 200} ${duration}ms`);
   })
   .listen(process.env.PORT || 3001);
 
