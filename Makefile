@@ -1,4 +1,4 @@
-.PHONY: help build up down logs restart clean db-seed db-migrate db-studio shell-api shell-db logs-updater backup backups check-update update rollback shell-updater
+.PHONY: help build up down logs restart clean db-seed db-migrate db-backfill db-studio shell-api shell-db logs-updater backup backups check-update update rollback shell-updater
 
 # Default target
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "  clean        Remove all containers, images, and volumes"
 	@echo "  db-seed      Seed the database"
 	@echo "  db-push      Sync database schema (prisma db push)"
+	@echo "  db-backfill  Apply idempotent data backfill migrations"
 	@echo ""
 	@echo "Updater:"
 	@echo "  check-update   Check for available updates"
@@ -80,6 +81,13 @@ db-push:
 # Run migrations manually (legacy)
 db-migrate:
 	docker compose exec api bunx prisma migrate deploy
+
+# Apply data backfill migrations (idempotent — safe to re-run on every deploy).
+# Schema changes are handled automatically by `prisma db push` in the API
+# entrypoint; data migrations are NOT, so they must be applied explicitly.
+db-backfill:
+	docker compose exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' \
+		< apps/api/prisma/migrations/20260522000000_backfill_payment_issued_by/migration.sql
 
 # Open Prisma Studio (requires api container to be running)
 db-studio:

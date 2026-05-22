@@ -53,6 +53,21 @@ const STATUS_ICONS: Record<PaymentStatus, React.ReactNode> = {
   VOIDED: <XCircle className="h-5 w-5" />,
 };
 
+/**
+ * Resolve the "issued by" name. Tolerates the stale "undefined undefined"
+ * value that older payments stored before the create flow gained
+ * null-safety, falling back to the createdBy relation.
+ */
+function resolveIssuedBy(payment: Payment): string {
+  const raw = payment.issuedBy?.trim();
+  if (raw && !/\bundefined\b/i.test(raw)) return raw;
+  const u = payment.createdBy;
+  if (u) {
+    return [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username;
+  }
+  return '';
+}
+
 export default function PaymentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -305,10 +320,10 @@ export default function PaymentDetailPage() {
                   <dd className="text-sm font-mono">{payment.referenceNumber}</dd>
                 </div>
               )}
-              {payment.issuedBy && (
+              {resolveIssuedBy(payment) && (
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">ออกโดย</dt>
-                  <dd className="text-sm font-medium">{payment.issuedBy}</dd>
+                  <dd className="text-sm font-medium">{resolveIssuedBy(payment)}</dd>
                 </div>
               )}
             </dl>
