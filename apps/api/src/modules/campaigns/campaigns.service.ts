@@ -1,6 +1,24 @@
 import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '../../lib/errors';
-import { Prisma } from '@prisma/client';
+import { Prisma, CampaignStatus } from '@prisma/client';
+
+/**
+ * Derive the display status of a campaign at read time. The stored
+ * `campaign.status` column is never auto-updated when `endDate` passes,
+ * so a once-ACTIVE campaign keeps reading "ACTIVE" forever unless someone
+ * clicks "End" manually. Project it to "ENDED" here so every API consumer
+ * (list, detail, report) sees a status that matches reality.
+ *
+ * Business-logic queries already filter on `endDate` (see e.g. the
+ * applicable-campaign lookup), so the stored value being stale has no
+ * effect on discount application — this fix is purely about UI accuracy.
+ */
+function getEffectiveStatus(status: CampaignStatus, endDate: Date): CampaignStatus {
+  if (status !== 'ENDED' && endDate.getTime() < Date.now()) {
+    return 'ENDED' as CampaignStatus;
+  }
+  return status;
+}
 
 interface CreateCampaignData {
   name: string;
@@ -92,6 +110,7 @@ class CampaignsService {
     return {
       data: campaigns.map((campaign) => ({
         ...campaign,
+        status: getEffectiveStatus(campaign.status, campaign.endDate),
         vehicleModels: campaign.vehicleModels.map((vm) => vm.vehicleModel),
         salesCount: campaign._count.sales,
       })),
@@ -144,6 +163,7 @@ class CampaignsService {
 
     return {
       ...campaign,
+      status: getEffectiveStatus(campaign.status, campaign.endDate),
       vehicleModels: campaign.vehicleModels.map((vm) => vm.vehicleModel),
       salesCount: campaign._count.sales,
     };
@@ -766,7 +786,7 @@ class CampaignsService {
         id: campaign.id,
         name: campaign.name,
         description: campaign.description,
-        status: campaign.status,
+        status: getEffectiveStatus(campaign.status, campaign.endDate),
         startDate: campaign.startDate,
         endDate: campaign.endDate,
         notes: campaign.notes,
