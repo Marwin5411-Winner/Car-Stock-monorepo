@@ -136,6 +136,8 @@ export interface CampaignReportSaleItem {
   adjustedSellingPrice: number;
   costPriceDiff: number;
   sellingPriceDiff: number;
+  /** Rebate the dealership claims from supplier for this sale (positive = supplier owes). */
+  rebatePerCar: number;
   formulaResults: {
     formulaId: string;
     name: string;
@@ -161,6 +163,8 @@ export interface CampaignReportGroup {
   sales: CampaignReportSaleItem[];
   totalSales: number;
   totalAmount: number;
+  /** Sum of rebatePerCar across this group's sales. */
+  totalRebate: number;
 }
 
 export interface CampaignReport {
@@ -180,6 +184,8 @@ export interface CampaignReport {
     totalVehicleModels: number;
     totalSales: number;
     totalAmount: number;
+    /** Grand total rebate amount to claim from the supplier. */
+    totalRebate: number;
   };
 }
 

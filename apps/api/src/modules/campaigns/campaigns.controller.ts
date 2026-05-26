@@ -73,6 +73,8 @@ function prepareCampaignReportForPdf(report: any) {
     const sales = (group.sales || []).map((s: any, idx: number) => ({
       ...s,
       rowIndex: idx + 1,
+      // Kept for backward compatibility with any older callers; the report
+      // now also uses rebatePerCar directly (positive = supplier owes).
       absCostPriceDiff: Math.abs(Number(s.costPriceDiff) || 0),
       vehicleModelAmounts: allGroupHeaders.map((h: any) =>
         h.vehicleModelId === group.vehicleModelId ? s.totalAmount : null
@@ -83,8 +85,8 @@ function prepareCampaignReportForPdf(report: any) {
       h.vehicleModelId === group.vehicleModelId ? group.totalAmount : null
     );
 
-    const costPriceDiffSum = sales.reduce(
-      (sum: number, s: any) => sum + (s.absCostPriceDiff || 0),
+    const rebateSubtotal = sales.reduce(
+      (sum: number, s: any) => sum + (Number(s.rebatePerCar) || 0),
       0
     );
 
@@ -100,7 +102,7 @@ function prepareCampaignReportForPdf(report: any) {
       subtotalModelAmounts,
       subtotalLeftColspan,
       emptyRowColspan,
-      costPriceDiffSum,
+      rebateSubtotal,
     };
   });
 

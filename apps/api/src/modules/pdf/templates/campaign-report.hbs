@@ -38,7 +38,11 @@
   </div>
   <div class="summary-card purple">
     <div class="summary-value">{{formatCurrency summary.totalAmount false}}</div>
-    <div class="summary-label">ยอดรวม (บาท)</div>
+    <div class="summary-label">ยอดขายรวม (บาท)</div>
+  </div>
+  <div class="summary-card amber">
+    <div class="summary-value">{{formatCurrency summary.totalRebate false}}</div>
+    <div class="summary-label">Rebate ที่ขอเบิก (บาท)</div>
   </div>
 </div>
 
@@ -66,7 +70,7 @@
         {{/if}}
         <th rowspan="2">รวมรับเงิน</th>
         <th rowspan="2">วันที่แจ้งขาย</th>
-        <th rowspan="2">ค่าใช้จ่าย<br>การซื้อ/แลก</th>
+        <th rowspan="2" class="cell-rebate">Rebate<br>ต่อคัน</th>
       </tr>
       <tr>
         {{#each formulas}}
@@ -104,7 +108,7 @@
         {{/if}}
         <td class="tr strong">{{formatCurrency totalAmount false}}</td>
         <td class="tc">{{formatThaiDate soldDate 'short'}}</td>
-        <td class="tr">{{formatCurrency absCostPriceDiff false}}</td>
+        <td class="tr cell-rebate strong">{{formatCurrency rebatePerCar false}}</td>
       </tr>
       {{/each}}
       {{! Subtotal row }}
@@ -117,7 +121,7 @@
         {{/if}}
         <td class="tr">{{formatCurrency totalAmount false}}</td>
         <td></td>
-        <td class="tr">{{formatCurrency costPriceDiffSum false}}</td>
+        <td class="tr cell-rebate">{{formatCurrency rebateSubtotal false}}</td>
       </tr>
       {{else}}
       <tr>
@@ -129,12 +133,16 @@
 </div>
 {{/each}}
 
-{{! Grand total }}
+{{! Grand total — supplier-facing claim summary }}
 <div class="grand-total">
   <table>
     <tr>
-      <td class="tr label">รวมทั้งหมด ({{summary.totalSales}} คัน):</td>
+      <td class="tr label">ยอดขายรวมทั้งหมด ({{summary.totalSales}} คัน):</td>
       <td class="tr value">{{formatCurrency summary.totalAmount false}} บาท</td>
+    </tr>
+    <tr class="row-rebate-total">
+      <td class="tr label">รวม Rebate ที่ขอเบิกจาก Supplier:</td>
+      <td class="tr value">{{formatCurrency summary.totalRebate false}} บาท</td>
     </tr>
   </table>
 </div>
@@ -150,10 +158,12 @@
   .summary-card.blue { background: #dbeafe; }
   .summary-card.green { background: #dcfce7; }
   .summary-card.purple { background: #f3e8ff; }
+  .summary-card.amber { background: #fef3c7; }
   .summary-card .summary-value { font-size: 14px; font-weight: bold; }
   .summary-card.blue .summary-value { color: #1d4ed8; }
   .summary-card.green .summary-value { color: #15803d; }
   .summary-card.purple .summary-value { color: #7e22ce; }
+  .summary-card.amber .summary-value { color: #b45309; }
   .summary-card .summary-label { font-size: 9px; color: #555; }
 
   .report-group { margin-bottom: 12px; page-break-inside: avoid; }
@@ -171,6 +181,7 @@
   .campaign-table th.cell-formula, .campaign-table td.cell-formula { background: #ecfdf5; }
   .campaign-table th.cell-model, .campaign-table td.cell-model { background: #eff6ff; }
   .campaign-table th.cell-hl, .campaign-table td.cell-hl { background: #fefce8; }
+  .campaign-table th.cell-rebate, .campaign-table td.cell-rebate { background: #fef3c7; color: #92400e; }
   .campaign-table .sub { font-size: 8px; color: #6b7280; font-weight: normal; }
   .campaign-table .tc { text-align: center; }
   .campaign-table .tr { text-align: right; }
@@ -183,6 +194,7 @@
   .grand-total table { width: 100%; }
   .grand-total td.label { width: 70%; font-weight: bold; font-size: 12px; padding: 4px 8px; }
   .grand-total td.value { font-weight: bold; font-size: 12px; padding: 4px 8px; }
+  .grand-total .row-rebate-total td { background: #fef3c7; color: #92400e; font-size: 13px; }
 
   .campaign-footer {
     display: flex;

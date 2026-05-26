@@ -73,7 +73,7 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
             )}
             <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>รวมรับเงิน</th>
             <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>วันที่แจ้งขาย</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>ค่าใช้จ่าย<br/>การซื้อ/แลก</th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center bg-amber-100 text-amber-900" rowSpan={2}>Rebate<br/>ต่อคัน</th>
           </tr>
           <tr className="bg-gray-50">
             {/* Formula sub-headers */}
@@ -132,8 +132,8 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
                 ))}
                 <td className="border border-gray-300 px-2 py-1 text-right font-medium">{formatCurrency(sale.totalAmount)}</td>
                 <td className="border border-gray-300 px-2 py-1 text-center">{formatDate(sale.soldDate)}</td>
-                <td className="border border-gray-300 px-2 py-1 text-right">
-                  {sale.costPriceDiff !== 0 ? formatCurrency(Math.abs(sale.costPriceDiff)) : '0.00'}
+                <td className="border border-gray-300 px-2 py-1 text-right bg-amber-50 text-amber-900 font-medium">
+                  {formatCurrency(sale.rebatePerCar)}
                 </td>
               </tr>
             ))
@@ -154,8 +154,8 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
               ))}
               <td className="border border-gray-300 px-2 py-1.5 text-right">{formatCurrency(group.totalAmount)}</td>
               <td className="border border-gray-300 px-2 py-1.5"></td>
-              <td className="border border-gray-300 px-2 py-1.5 text-right">
-                {formatCurrency(group.sales.reduce((sum, s) => sum + Math.abs(s.costPriceDiff), 0))}
+              <td className="border border-gray-300 px-2 py-1.5 text-right bg-amber-50 text-amber-900">
+                {formatCurrency(group.totalRebate)}
               </td>
             </tr>
           )}
@@ -311,7 +311,11 @@ export const CampaignReportPage: React.FC = () => {
           </div>
           <div className="bg-purple-50 px-4 py-2 rounded-lg text-center">
             <div className="text-purple-600 font-bold text-lg">{formatCurrency(report.summary.totalAmount)}</div>
-            <div className="text-gray-600">ยอดรวม (บาท)</div>
+            <div className="text-gray-600">ยอดขายรวม (บาท)</div>
+          </div>
+          <div className="bg-amber-100 px-4 py-2 rounded-lg text-center">
+            <div className="text-amber-800 font-bold text-lg">{formatCurrency(report.summary.totalRebate)}</div>
+            <div className="text-gray-700">Rebate ที่ขอเบิก (บาท)</div>
           </div>
         </div>
 
@@ -320,16 +324,24 @@ export const CampaignReportPage: React.FC = () => {
           <ReportTable key={group.vehicleModelId} group={group} allGroups={report.groups} />
         ))}
 
-        {/* Grand Total */}
+        {/* Grand Total — supplier-facing claim summary */}
         <div className="mt-4 border-t-2 border-gray-400 pt-3">
           <table className="w-full text-xs">
             <tbody>
               <tr className="font-bold text-sm">
                 <td className="px-2 py-2 text-right" style={{ width: '70%' }}>
-                  รวมทั้งหมด ({report.summary.totalSales} คัน):
+                  ยอดขายรวมทั้งหมด ({report.summary.totalSales} คัน):
                 </td>
                 <td className="px-2 py-2 text-right">
                   {formatCurrency(report.summary.totalAmount)} บาท
+                </td>
+              </tr>
+              <tr className="font-bold text-sm bg-amber-100 text-amber-900">
+                <td className="px-2 py-2 text-right">
+                  รวม Rebate ที่ขอเบิกจาก Supplier:
+                </td>
+                <td className="px-2 py-2 text-right">
+                  {formatCurrency(report.summary.totalRebate)} บาท
                 </td>
               </tr>
             </tbody>

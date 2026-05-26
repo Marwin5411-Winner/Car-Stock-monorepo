@@ -203,9 +203,12 @@ export const CampaignAnalyticsPage: React.FC = () => {
                   <TrendingUp className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">ยอดเงินรวม</p>
+                  <p className="text-sm text-gray-500">ยอดขายรวม (ไม่ใช่ Rebate)</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {formatCurrency(summary.totalAmount)}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    ดูยอด Rebate ที่ขอเบิก → หน้ารายงาน
                   </p>
                 </div>
               </div>

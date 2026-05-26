@@ -804,6 +804,14 @@ class CampaignsService {
         });
       }
 
+      // Rebate per car = the supplier-owed amount the dealership claims.
+      // Convention: when formulas REDUCE the cost/selling price (a typical
+      // supplier incentive), the diff is negative; the rebate is its
+      // negation so a positive number always means "supplier pays dealership".
+      const costPriceDiff = adjustedCostPrice - costPrice;
+      const sellingPriceDiff = adjustedSellingPrice - sellingPrice;
+      const rebatePerCar = -(costPriceDiff + sellingPriceDiff);
+
       const saleReportItem = {
         saleId: sale.id,
         saleNumber: sale.saleNumber,
@@ -826,8 +834,9 @@ class CampaignsService {
         originalSellingPrice: sellingPrice,
         adjustedCostPrice,
         adjustedSellingPrice,
-        costPriceDiff: adjustedCostPrice - costPrice,
-        sellingPriceDiff: adjustedSellingPrice - sellingPrice,
+        costPriceDiff,
+        sellingPriceDiff,
+        rebatePerCar,
         formulaResults,
       };
 
@@ -855,6 +864,7 @@ class CampaignsService {
           sales: salesItems,
           totalSales: salesItems.length,
           totalAmount: salesItems.reduce((sum, s) => sum + s.totalAmount, 0),
+          totalRebate: salesItems.reduce((sum, s) => sum + s.rebatePerCar, 0),
         };
       }
     );
@@ -879,6 +889,7 @@ class CampaignsService {
         totalVehicleModels: campaign.vehicleModels.length,
         totalSales: sales.length,
         totalAmount: sales.reduce((sum, s) => sum + Number(s.totalAmount), 0),
+        totalRebate: reportGroups.reduce((sum, g) => sum + g.totalRebate, 0),
       },
     };
   }
