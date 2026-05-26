@@ -109,7 +109,7 @@ export const CampaignDetailPage: React.FC = () => {
                       statusColors[campaign.status]
                     }`}
                   >
-                    {statusLabels[campaign.status]}
+                    {statusLabels[campaign.status] ?? campaign.status}
                   </span>
                 </div>
 
@@ -192,7 +192,22 @@ export const CampaignDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Formula Management */}
+            {/* Formula Management — empty-state CTA when no vehicle models attached */}
+            {campaign.vehicleModels.length === 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  สูตรคำนวณราคา / คอมมิชชั่น
+                </h2>
+                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center bg-gray-50">
+                  <p className="text-sm text-gray-600">
+                    ยังไม่มีรุ่นรถยนต์ในแคมเปญนี้
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดสูตรคำนวณ Rebate
+                  </p>
+                </div>
+              </div>
+            )}
             {campaign.vehicleModels.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">

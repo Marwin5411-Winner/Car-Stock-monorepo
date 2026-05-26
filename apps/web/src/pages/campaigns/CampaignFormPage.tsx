@@ -81,8 +81,24 @@ export const CampaignFormPage: React.FC = () => {
     if (!formData.name.trim()) newErrors.name = 'กรุณากรอกชื่อแคมเปญ';
     if (!formData.startDate) newErrors.startDate = 'กรุณาเลือกวันเริ่มต้น';
     if (!formData.endDate) newErrors.endDate = 'กรุณาเลือกวันสิ้นสุด';
-    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
-      newErrors.endDate = 'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น';
+    // Compare as Date objects — string compare worked only because the
+    // DatePicker happens to emit yyyy-MM-dd; this future-proofs against
+    // any format change.
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      if (start > end) {
+        newErrors.endDate = 'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น';
+      }
+      // Block past endDate on create (matches the API guard for clearer UX
+      // — fail fast in the form rather than waiting for the round-trip).
+      if (!isEdit) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (end < today) {
+          newErrors.endDate = 'วันสิ้นสุดต้องเป็นวันนี้หรือในอนาคต';
+        }
+      }
     }
     if (formData.vehicleModelIds.length === 0) {
       newErrors.vehicleModelIds = 'กรุณาเลือกอย่างน้อย 1 รุ่นรถยนต์';

@@ -179,7 +179,7 @@ export const CampaignsListPage: React.FC = () => {
                           statusColors[campaign.status]
                         }`}
                       >
-                        {statusLabels[campaign.status]}
+                        {statusLabels[campaign.status] ?? campaign.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
