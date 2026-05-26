@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '../../lib/errors';
 import { Prisma, CampaignStatus } from '@prisma/client';
+import { campaignFormulasService } from './campaign-formulas.service';
 
 /**
  * Derive the display status of a campaign at read time. The stored
@@ -301,7 +302,7 @@ class CampaignsService {
   /**
    * Update campaign
    */
-  async update(id: string, data: UpdateCampaignData) {
+  async update(id: string, data: UpdateCampaignData, userId?: string) {
     const { vehicleModelIds, ...campaignData } = data;
 
     if (campaignData.startDate && campaignData.endDate && campaignData.startDate > campaignData.endDate) {
@@ -325,6 +326,30 @@ class CampaignsService {
       id
     );
 
+    // Guard against orphaning already-tagged sales by removing the vehicle
+    // model they were attached under. The campaign report joins each sale
+    // back to a model in `campaign.vehicleModels`; if that model is gone,
+    // the report silently drops the sale — which can lose rebate claims.
+    if (vehicleModelIds !== undefined) {
+      const taggedSales = await db.sale.findMany({
+        where: { campaignId: id, status: { notIn: ['CANCELLED'] } },
+        select: {
+          vehicleModelId: true,
+          stock: { select: { vehicleModelId: true } },
+        },
+      });
+      const newSet = new Set(vehicleModelIds);
+      const orphans = taggedSales.filter((s) => {
+        const effective = s.stock?.vehicleModelId ?? s.vehicleModelId;
+        return effective && !newSet.has(effective);
+      });
+      if (orphans.length > 0) {
+        throw new BadRequestError(
+          `ไม่สามารถลบรุ่นรถออกได้ มีใบขาย ${orphans.length} ใบที่ผูกกับรุ่นที่กำลังจะถูกลบ — กรุณายกเลิกใบขายเหล่านั้นก่อนหรือคงรุ่นรถไว้`
+        );
+      }
+    }
+
     const campaign = await db.$transaction(async (tx) => {
       // If vehicleModelIds provided, update the relations atomically
       if (vehicleModelIds !== undefined) {
@@ -342,7 +367,7 @@ class CampaignsService {
         }
       }
 
-      return tx.campaign.update({
+      const updated = await tx.campaign.update({
         where: { id },
         data: campaignData,
         include: {
@@ -368,6 +393,27 @@ class CampaignsService {
           },
         },
       });
+
+      // Audit trail — retroactive edits to dates/models/status change which
+      // sales count toward the supplier-rebate claim, so we record every
+      // mutation alongside who did it.
+      if (userId) {
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'UPDATE_CAMPAIGN',
+            entity: 'CAMPAIGN',
+            entityId: id,
+            details: {
+              campaignName: updated.name,
+              changedFields: Object.keys(campaignData),
+              vehicleModelCount: vehicleModelIds?.length,
+            },
+          },
+        });
+      }
+
+      return updated;
     });
 
     return {
@@ -379,18 +425,40 @@ class CampaignsService {
   /**
    * Delete campaign
    */
-  async delete(id: string) {
-    // Check if campaign has sales
-    const salesCount = await db.sale.count({
-      where: { campaignId: id },
+  async delete(id: string, userId?: string) {
+    // Block delete only when *live* sales claim this campaign for rebate.
+    // Cancelled sales no longer contribute to a supplier claim, so they
+    // should not prevent legitimate cleanup of a mistakenly-created campaign.
+    const liveSalesCount = await db.sale.count({
+      where: {
+        campaignId: id,
+        status: { notIn: ['CANCELLED'] },
+      },
     });
 
-    if (salesCount > 0) {
-      throw new BadRequestError('Cannot delete campaign with associated sales');
+    if (liveSalesCount > 0) {
+      throw new BadRequestError(
+        `ไม่สามารถลบแคมเปญนี้ได้ มีใบขายที่ยังใช้งานอยู่ ${liveSalesCount} รายการ`
+      );
     }
 
-    await db.campaign.delete({
-      where: { id },
+    await db.$transaction(async (tx) => {
+      const deleted = await tx.campaign.delete({
+        where: { id },
+        select: { name: true },
+      });
+
+      if (userId) {
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'DELETE_CAMPAIGN',
+            entity: 'CAMPAIGN',
+            entityId: id,
+            details: { campaignName: deleted.name },
+          },
+        });
+      }
     });
 
     return { success: true };
@@ -758,58 +826,25 @@ class CampaignsService {
       const costPrice = sale.stock ? Number(sale.stock.baseCost) : 0;
       const sellingPrice = Number(vmInfo.vehicleModel.price);
 
-      // Apply formulas
-      let adjustedCostPrice = costPrice;
-      let adjustedSellingPrice = sellingPrice;
-
-      const formulaResults: any[] = [];
-
-      for (const formula of vmInfo.formulas) {
-        const value = Number(formula.value);
-        const target = formula.priceTarget;
-        const baseVal = target === 'COST_PRICE' ? adjustedCostPrice : adjustedSellingPrice;
-
-        let result: number;
-        switch (formula.operator) {
-          case 'ADD':
-            result = baseVal + value;
-            break;
-          case 'SUBTRACT':
-            result = baseVal - value;
-            break;
-          case 'MULTIPLY':
-            result = baseVal * value;
-            break;
-          case 'PERCENT':
-            result = baseVal + (baseVal * value) / 100;
-            break;
-          default:
-            result = baseVal;
-        }
-
-        if (target === 'COST_PRICE') {
-          adjustedCostPrice = result;
-        } else {
-          adjustedSellingPrice = result;
-        }
-
-        formulaResults.push({
-          formulaId: formula.id,
-          name: formula.name,
-          operator: formula.operator,
-          value: value,
-          priceTarget: formula.priceTarget,
-          sortOrder: formula.sortOrder,
-          resultValue: result,
-        });
-      }
+      // Delegate to the shared formula engine so the report and any other
+      // caller (analytics, future quotation preview, etc.) all compute the
+      // same rebate from the same code path — no drift, no per-step
+      // rounding mismatch.
+      const applied = campaignFormulasService.applyLoadedFormulas(
+        vmInfo.formulas,
+        costPrice,
+        sellingPrice
+      );
+      const adjustedCostPrice = applied.adjustedCostPrice;
+      const adjustedSellingPrice = applied.adjustedSellingPrice;
+      const formulaResults = applied.formulaResults;
 
       // Rebate per car = the supplier-owed amount the dealership claims.
       // Convention: when formulas REDUCE the cost/selling price (a typical
       // supplier incentive), the diff is negative; the rebate is its
       // negation so a positive number always means "supplier pays dealership".
-      const costPriceDiff = adjustedCostPrice - costPrice;
-      const sellingPriceDiff = adjustedSellingPrice - sellingPrice;
+      const costPriceDiff = applied.costPriceDiff;
+      const sellingPriceDiff = applied.sellingPriceDiff;
       const rebatePerCar = -(costPriceDiff + sellingPriceDiff);
 
       const saleReportItem = {

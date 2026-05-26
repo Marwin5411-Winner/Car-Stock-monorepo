@@ -299,7 +299,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Update campaign (ADMIN only)
   .put(
     '/:id',
-    async ({ params, body, set }) => {
+    async ({ params, body, set, requester }) => {
       const existing = await campaignsService.getById(params.id);
       if (!existing) {
         set.status = 404;
@@ -310,11 +310,15 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         };
       }
 
-      const campaign = await campaignsService.update(params.id, {
-        ...body,
-        startDate: body.startDate ? new Date(body.startDate) : undefined,
-        endDate: body.endDate ? new Date(body.endDate) : undefined,
-      });
+      const campaign = await campaignsService.update(
+        params.id,
+        {
+          ...body,
+          startDate: body.startDate ? new Date(body.startDate) : undefined,
+          endDate: body.endDate ? new Date(body.endDate) : undefined,
+        },
+        requester.id
+      );
 
       set.status = 200;
       return {
@@ -347,7 +351,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
   // Delete campaign (ADMIN only)
   .delete(
     '/:id',
-    async ({ params, set }) => {
+    async ({ params, set, requester }) => {
       const existing = await campaignsService.getById(params.id);
       if (!existing) {
         set.status = 404;
@@ -358,7 +362,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         };
       }
 
-      await campaignsService.delete(params.id);
+      await campaignsService.delete(params.id, requester.id);
       set.status = 200;
       return {
         success: true,

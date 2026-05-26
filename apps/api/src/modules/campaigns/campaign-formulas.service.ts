@@ -164,7 +164,81 @@ class CampaignFormulasService {
   }
 
   /**
-   * Apply all formulas for a campaign vehicle model to cost and selling prices
+   * Apply pre-loaded formulas to a (costPrice, sellingPrice) pair. Pure
+   * computation — no DB access. Returns adjusted prices and a per-step
+   * trace so callers that need to render the breakdown (e.g. the campaign
+   * report PDF) don't have to re-implement the loop.
+   *
+   * Each step is rounded to 2 decimals to prevent float drift from
+   * compounding across many cars and showing up as fractional-baht
+   * mismatches when the supplier reconciles totals.
+   */
+  applyLoadedFormulas(
+    formulas: Array<{
+      id: string;
+      name: string;
+      operator: FormulaOperator;
+      // Accepts Prisma.Decimal or number — we always coerce.
+      value: { toString(): string } | number;
+      priceTarget: FormulaPriceTarget;
+      sortOrder: number;
+    }>,
+    costPrice: number,
+    sellingPrice: number
+  ) {
+    let adjustedCostPrice = costPrice;
+    let adjustedSellingPrice = sellingPrice;
+
+    const sorted = [...formulas].sort((a, b) => a.sortOrder - b.sortOrder);
+    const formulaResults: Array<{
+      formulaId: string;
+      name: string;
+      operator: FormulaOperator;
+      value: number;
+      priceTarget: FormulaPriceTarget;
+      sortOrder: number;
+      resultValue: number;
+    }> = [];
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    for (const formula of sorted) {
+      const value = Number(formula.value);
+      const target = formula.priceTarget;
+      const baseVal = target === 'COST_PRICE' ? adjustedCostPrice : adjustedSellingPrice;
+      const result = round2(this.calculateFormulaValue(baseVal, formula.operator, value));
+
+      if (target === 'COST_PRICE') {
+        adjustedCostPrice = result;
+      } else {
+        adjustedSellingPrice = result;
+      }
+
+      formulaResults.push({
+        formulaId: formula.id,
+        name: formula.name,
+        operator: formula.operator,
+        value,
+        priceTarget: target,
+        sortOrder: formula.sortOrder,
+        resultValue: result,
+      });
+    }
+
+    return {
+      originalCostPrice: costPrice,
+      originalSellingPrice: sellingPrice,
+      adjustedCostPrice,
+      adjustedSellingPrice,
+      costPriceDiff: round2(adjustedCostPrice - costPrice),
+      sellingPriceDiff: round2(adjustedSellingPrice - sellingPrice),
+      formulaResults,
+    };
+  }
+
+  /**
+   * Apply all formulas for a campaign vehicle model to cost and selling prices.
+   * Thin wrapper that fetches formulas and delegates to applyLoadedFormulas.
    */
   async applyFormulas(
     campaignId: string,
@@ -173,28 +247,8 @@ class CampaignFormulasService {
     sellingPrice: number
   ) {
     const formulas = await this.getFormulas(campaignId, vehicleModelId);
-
-    let adjustedCostPrice = costPrice;
-    let adjustedSellingPrice = sellingPrice;
-
-    for (const formula of formulas) {
-      const value = Number(formula.value);
-      if (formula.priceTarget === 'COST_PRICE') {
-        adjustedCostPrice = this.calculateFormulaValue(adjustedCostPrice, formula.operator, value);
-      } else {
-        adjustedSellingPrice = this.calculateFormulaValue(adjustedSellingPrice, formula.operator, value);
-      }
-    }
-
-    return {
-      originalCostPrice: costPrice,
-      originalSellingPrice: sellingPrice,
-      adjustedCostPrice,
-      adjustedSellingPrice,
-      costPriceDiff: adjustedCostPrice - costPrice,
-      sellingPriceDiff: adjustedSellingPrice - sellingPrice,
-      formulas,
-    };
+    const applied = this.applyLoadedFormulas(formulas, costPrice, sellingPrice);
+    return { ...applied, formulas };
   }
 }
 
