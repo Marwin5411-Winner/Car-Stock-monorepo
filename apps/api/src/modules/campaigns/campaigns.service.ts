@@ -271,12 +271,21 @@ class CampaignsService {
     if (effectiveStatus !== 'ACTIVE') return;
     if (!vehicleModelIds?.length || !startDate || !endDate) return;
 
+    // A stored-ACTIVE campaign whose endDate is already past can never
+    // auto-tag a new sale, so it does not actually compete for the same
+    // (model, today) slot — exclude it from the conflict check. This keeps
+    // the rule aligned with the auto-tag query in sales.service.ts.
+    const now = new Date();
+
     const conflict = await db.campaign.findFirst({
       where: {
         id: excludeCampaignId ? { not: excludeCampaignId } : undefined,
         status: 'ACTIVE',
-        startDate: { lte: endDate },
-        endDate: { gte: startDate },
+        AND: [
+          { startDate: { lte: endDate } },
+          { endDate: { gte: startDate } },
+          { endDate: { gte: now } },
+        ],
         vehicleModels: {
           some: { vehicleModelId: { in: vehicleModelIds } },
         },
