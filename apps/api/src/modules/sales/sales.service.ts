@@ -334,11 +334,14 @@ export class SalesService {
       }
     }
 
-    // Check if campaign exists (if provided)
+    // Check if campaign exists and is currently within its rebate window.
+    // Both the stored status and the date window must agree — a campaign with
+    // status=ACTIVE but endDate in the past is effectively closed (the report
+    // submission window is over) and must not accept new tagged sales.
     if (validated.campaignId) {
       const campaign = await db.campaign.findUnique({
         where: { id: validated.campaignId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, startDate: true, endDate: true },
       });
 
       if (!campaign) {
@@ -347,6 +350,48 @@ export class SalesService {
 
       if (campaign.status !== 'ACTIVE') {
         throw new BadRequestError('Campaign is not active');
+      }
+
+      const now = new Date();
+      if (campaign.startDate > now) {
+        throw new BadRequestError('Campaign has not started yet');
+      }
+      if (campaign.endDate < now) {
+        throw new BadRequestError('Campaign has already ended');
+      }
+    }
+
+    // Auto-tag Sale.campaignId when the user did not pick a campaign.
+    // The supplier-rebate report needs every eligible sale linked to its
+    // active campaign or the dealership cannot claim it. The no-overlap
+    // rule on campaign create/update guarantees at most one match; we sort
+    // by latest startDate as a tiebreaker in case legacy data still has
+    // overlapping ACTIVE campaigns.
+    if (!validated.campaignId) {
+      let vehicleModelIdForCampaign: string | null = validated.vehicleModelId ?? null;
+      if (!vehicleModelIdForCampaign && validated.stockId) {
+        const stockForVm = await db.stock.findUnique({
+          where: { id: validated.stockId },
+          select: { vehicleModelId: true },
+        });
+        vehicleModelIdForCampaign = stockForVm?.vehicleModelId ?? null;
+      }
+
+      if (vehicleModelIdForCampaign) {
+        const now = new Date();
+        const activeCampaign = await db.campaign.findFirst({
+          where: {
+            status: 'ACTIVE',
+            startDate: { lte: now },
+            endDate: { gte: now },
+            vehicleModels: { some: { vehicleModelId: vehicleModelIdForCampaign } },
+          },
+          orderBy: { startDate: 'desc' },
+          select: { id: true },
+        });
+        if (activeCampaign) {
+          validated.campaignId = activeCampaign.id;
+        }
       }
     }
 

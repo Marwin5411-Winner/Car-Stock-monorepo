@@ -14,7 +14,9 @@ import { Prisma, CampaignStatus } from '@prisma/client';
  * effect on discount application — this fix is purely about UI accuracy.
  */
 function getEffectiveStatus(status: CampaignStatus, endDate: Date): CampaignStatus {
-  if (status !== 'ENDED' && endDate.getTime() < Date.now()) {
+  // Only project ACTIVE → ENDED. A DRAFT past its endDate is still a DRAFT —
+  // it never ran, so calling it "ENDED" would falsely imply rebates accrued.
+  if (status === 'ACTIVE' && endDate.getTime() < Date.now()) {
     return 'ENDED' as CampaignStatus;
   }
   return status;
@@ -179,6 +181,15 @@ class CampaignsService {
       throw new BadRequestError('วันเริ่มต้นต้องอยู่ก่อนวันสิ้นสุด');
     }
 
+    // Block creating a campaign whose window is already closed — it would
+    // immediately auto-project to ENDED and could never accept any sales.
+    // Compare end-of-day so a campaign ending "today" is still valid.
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (campaignData.endDate && campaignData.endDate < todayStart) {
+      throw new BadRequestError('วันสิ้นสุดต้องเป็นวันนี้หรือในอนาคต');
+    }
+
     const campaign = await db.$transaction(async (tx) => {
       const created = await tx.campaign.create({
         data: {
@@ -238,6 +249,56 @@ class CampaignsService {
   }
 
   /**
+   * Guard against two ACTIVE campaigns covering the same vehicle model in
+   * overlapping date windows. This is the rule that lets auto-tag at sale
+   * creation be deterministic — at most one ACTIVE campaign per (model,
+   * day) means there is exactly one candidate to attach.
+   *
+   * DRAFT/ENDED campaigns never auto-tag, so overlaps with them are fine
+   * and we skip the check for those statuses.
+   *
+   * Date overlap uses the standard interval formula:
+   *   A.start <= B.end  AND  B.start <= A.end
+   */
+  private async assertNoActiveOverlap(
+    vehicleModelIds: string[] | undefined,
+    startDate: Date | undefined,
+    endDate: Date | undefined,
+    effectiveStatus: CampaignStatus,
+    excludeCampaignId?: string
+  ) {
+    if (effectiveStatus !== 'ACTIVE') return;
+    if (!vehicleModelIds?.length || !startDate || !endDate) return;
+
+    const conflict = await db.campaign.findFirst({
+      where: {
+        id: excludeCampaignId ? { not: excludeCampaignId } : undefined,
+        status: 'ACTIVE',
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+        vehicleModels: {
+          some: { vehicleModelId: { in: vehicleModelIds } },
+        },
+      },
+      include: {
+        vehicleModels: {
+          where: { vehicleModelId: { in: vehicleModelIds } },
+          include: { vehicleModel: { select: { brand: true, model: true } } },
+        },
+      },
+    });
+
+    if (conflict) {
+      const models = conflict.vehicleModels
+        .map((vm) => `${vm.vehicleModel.brand} ${vm.vehicleModel.model}`)
+        .join(', ');
+      throw new BadRequestError(
+        `แคมเปญทับซ้อนกับ "${conflict.name}" ในช่วงเวลาเดียวกันสำหรับรุ่น: ${models}`
+      );
+    }
+  }
+
+  /**
    * Update campaign
    */
   async update(id: string, data: UpdateCampaignData) {
@@ -246,6 +307,23 @@ class CampaignsService {
     if (campaignData.startDate && campaignData.endDate && campaignData.startDate > campaignData.endDate) {
       throw new BadRequestError('วันเริ่มต้นต้องอยู่ก่อนวันสิ้นสุด');
     }
+
+    // Resolve the *effective* post-update state (status, dates, models) by
+    // merging the patch against the current row, then enforce the no-active-
+    // overlap rule. We do this outside the transaction since it is read-only.
+    const current = await db.campaign.findUnique({
+      where: { id },
+      include: { vehicleModels: { select: { vehicleModelId: true } } },
+    });
+    if (!current) throw new NotFoundError('Campaign');
+
+    await this.assertNoActiveOverlap(
+      vehicleModelIds ?? current.vehicleModels.map((vm) => vm.vehicleModelId),
+      campaignData.startDate ?? current.startDate,
+      campaignData.endDate ?? current.endDate,
+      (campaignData.status ?? current.status) as CampaignStatus,
+      id
+    );
 
     const campaign = await db.$transaction(async (tx) => {
       // If vehicleModelIds provided, update the relations atomically
