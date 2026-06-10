@@ -763,7 +763,10 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
         PAYMENT_MODE_LABELS[sale.paymentMode as keyof typeof PAYMENT_MODE_LABELS] ||
         sale.paymentMode,
       totalAmount: sellingPrice,
-      discountAmount: toNumber(sale.carDiscount) || toNumber(sale.discountSnapshot) || 0,
+      discountAmount:
+        sale.carDiscount != null
+          ? toNumber(sale.carDiscount)
+          : toNumber(sale.discountSnapshot) || 0,
       downPaymentDiscount: toNumber(sale.downPaymentDiscount) || 0,
       downPayment: toNumber(sale.downPayment) || toNumber(sale.depositAmount) || 0,
       financeAmount: toNumber(sale.financeAmount) || 0,
