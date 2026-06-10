@@ -303,14 +303,14 @@ export default function SalesFormPage() {
       downPayment: formData.downPayment || undefined,
       financeAmount: formData.financeAmount || undefined,
       financeProvider: formData.financeProvider || undefined,
-      carDiscount: formData.carDiscount || undefined,
-      downPaymentDiscount: formData.downPaymentDiscount || undefined,
-      insuranceFee: formData.insuranceFee || undefined,
-      compulsoryInsuranceFee: formData.compulsoryInsuranceFee || undefined,
-      registrationFee: formData.registrationFee || undefined,
-      salesCommission: formData.salesCommission || undefined,
-      salesExpense: formData.salesExpense || undefined,
-      financeCommission: formData.financeCommission || undefined,
+      carDiscount: formData.carDiscount,
+      downPaymentDiscount: formData.downPaymentDiscount,
+      insuranceFee: formData.insuranceFee,
+      compulsoryInsuranceFee: formData.compulsoryInsuranceFee,
+      registrationFee: formData.registrationFee,
+      salesCommission: formData.salesCommission,
+      salesExpense: formData.salesExpense,
+      financeCommission: formData.financeCommission,
       interestRate: formData.interestRate || undefined,
       numberOfTerms: formData.numberOfTerms || undefined,
       monthlyInstallment: formData.monthlyInstallment || undefined,
@@ -323,6 +323,9 @@ export default function SalesFormPage() {
     );
     setSaving(false);
   };
+
+  const buyerChargedFeesTotal =
+    formData.insuranceFee + formData.compulsoryInsuranceFee + formData.registrationFee;
 
   if (loading) {
     return (
@@ -709,7 +712,7 @@ export default function SalesFormPage() {
               </div>
               <div className="md:col-span-3 text-right text-sm font-medium text-blue-800">
                 รวมค่าใช้จ่าย:{' '}
-                {(formData.insuranceFee + formData.compulsoryInsuranceFee + formData.registrationFee).toLocaleString('th-TH', { minimumFractionDigits: 2 })}{' '}บาท
+                {buyerChargedFeesTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}{' '}บาท
               </div>
             </div>
 
