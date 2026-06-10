@@ -324,6 +324,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           registrationFee: sale.registrationFee?.toString() || '0',
           totalDelivery: sale.paidAmount?.toString() || '0',
           financeAmount: sale.financeAmount?.toString() || '0',
+          // Sale.interestRate stores percent (2.49 = 2.49%/yr), not fraction — see SalesFormPage rate/100 calc
           interestRate: sale.interestRate?.toString() || '0',
           installmentMonths: sale.numberOfTerms?.toString() || '0',
           monthlyPayment: sale.monthlyInstallment?.toString() || '0',
@@ -477,6 +478,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             outstandingBalance: sale.remainingAmount?.toString() || '0',
             paymentDueDate: sale.expirationDate ? formatThaiDate(sale.expirationDate, 'short') : '-',
             financeCompany: sale.financeProvider || '-',
+            // Sale.interestRate stores percent (2.49 = 2.49%/yr), not fraction — see SalesFormPage rate/100 calc
             interestRate: sale.interestRate?.toString() || '0',
             installmentMonths: sale.numberOfTerms?.toString() || '0',
             monthlyPayment: sale.monthlyInstallment?.toString() || '0',
