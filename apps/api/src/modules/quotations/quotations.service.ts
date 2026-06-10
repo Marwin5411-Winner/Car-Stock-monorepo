@@ -598,7 +598,7 @@ export class QuotationsService {
     const depositAmount = Number(data.depositAmount || 0);
     // Total = car price (the agreed sale price); deposit is an advance payment toward it.
     // Remaining = total minus deposit, matching the standard sale creation formula
-    // (sales.service.ts: remainingAmount = totalAmount - depositAmount).
+    // (sales.service.ts: remainingAmount = totalAmount + buyerFees - depositAmount; quotations carry no fees).
     const totalAmount = carPrice;
     const remainingAmount = carPrice - depositAmount;
 

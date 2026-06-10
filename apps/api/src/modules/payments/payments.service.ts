@@ -7,6 +7,18 @@ import { AppError, NotFoundError, ForbiddenError, BadRequestError } from '../../
 // Payment types that affect car price (should update paidAmount and remainingAmount)
 const CAR_PAYMENT_TYPES = ['DEPOSIT', 'DOWN_PAYMENT', 'FINANCE_PAYMENT'] as const;
 
+// Buyer-charged fees (insurance / พรบ / registration) are part of what the
+// customer owes. Invariant (must match sales.service.ts):
+//   remainingAmount = totalAmount + buyerFees - paidAmount
+const buyerFees = (sale: {
+  insuranceFee: any;
+  compulsoryInsuranceFee: any;
+  registrationFee: any;
+}): number =>
+  Number(sale.insuranceFee ?? 0) +
+  Number(sale.compulsoryInsuranceFee ?? 0) +
+  Number(sale.registrationFee ?? 0);
+
 export class PaymentsService {
   /**
    * Generate receipt number
@@ -248,11 +260,25 @@ export class PaymentsService {
         // and re-validate overpayment against it. Under serializable isolation
         // this prevents the race where two concurrent payments each see the
         // pre-transaction balance and individually pass the check.
-        let txSale: { totalAmount: any; paidAmount: any; remainingAmount: any } | null = null;
+        let txSale: {
+          totalAmount: any;
+          paidAmount: any;
+          remainingAmount: any;
+          insuranceFee: any;
+          compulsoryInsuranceFee: any;
+          registrationFee: any;
+        } | null = null;
         if (validated.saleId) {
           txSale = await tx.sale.findUnique({
             where: { id: validated.saleId },
-            select: { totalAmount: true, paidAmount: true, remainingAmount: true },
+            select: {
+              totalAmount: true,
+              paidAmount: true,
+              remainingAmount: true,
+              insuranceFee: true,
+              compulsoryInsuranceFee: true,
+              registrationFee: true,
+            },
           });
           if (!txSale) {
             throw new NotFoundError('Sale');
@@ -293,7 +319,7 @@ export class PaymentsService {
         // Only for car-related payment types (DEPOSIT, DOWN_PAYMENT, FINANCE_PAYMENT)
         if (txSale && validated.saleId && isCarPayment) {
           const newPaidAmount = Number(txSale.paidAmount) + validated.amount;
-          const newRemainingAmount = Number(txSale.totalAmount) - newPaidAmount;
+          const newRemainingAmount = Number(txSale.totalAmount) + buyerFees(txSale) - newPaidAmount;
 
           await tx.sale.update({
             where: { id: validated.saleId },
@@ -393,12 +419,18 @@ export class PaymentsService {
       if (existingPayment.saleId && saleDiff !== 0) {
         const sale = await tx.sale.findUnique({
           where: { id: existingPayment.saleId },
-          select: { paidAmount: true, totalAmount: true },
+          select: {
+            paidAmount: true,
+            totalAmount: true,
+            insuranceFee: true,
+            compulsoryInsuranceFee: true,
+            registrationFee: true,
+          },
         });
 
         if (sale) {
           const newPaidAmount = Number(sale.paidAmount) + saleDiff;
-          const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+          const newRemainingAmount = Number(sale.totalAmount) + buyerFees(sale) - newPaidAmount;
 
           await tx.sale.update({
             where: { id: existingPayment.saleId },
@@ -471,12 +503,18 @@ export class PaymentsService {
       if (existingPayment.saleId && isCarPayment) {
         const sale = await tx.sale.findUnique({
           where: { id: existingPayment.saleId },
-          select: { paidAmount: true, totalAmount: true },
+          select: {
+            paidAmount: true,
+            totalAmount: true,
+            insuranceFee: true,
+            compulsoryInsuranceFee: true,
+            registrationFee: true,
+          },
         });
 
         if (sale) {
           const newPaidAmount = Number(sale.paidAmount) - Number(existingPayment.amount);
-          const newRemainingAmount = Number(sale.totalAmount) - newPaidAmount;
+          const newRemainingAmount = Number(sale.totalAmount) + buyerFees(sale) - newPaidAmount;
 
           await tx.sale.update({
             where: { id: existingPayment.saleId },

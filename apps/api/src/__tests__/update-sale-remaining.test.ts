@@ -151,3 +151,18 @@ describe('updateSale — buyer-charged fees add to remaining', () => {
     if (r.throws) expect(r.message).toMatch(/ค้างชำระติดลบ/);
   });
 });
+
+// Mirrors createSale: initial remaining = totalAmount + fees − depositAmount.
+function initialRemaining(total: number, deposit: number, fees = 0): number {
+  return total + fees - deposit;
+}
+
+describe('createSale — initial remaining includes buyer-charged fees', () => {
+  it('with deposit and fees: remaining = total + fees − deposit', () => {
+    expect(initialRemaining(1_000_000, 100_000, 28_000)).toBe(928_000);
+  });
+
+  it('no fees: unchanged legacy behavior', () => {
+    expect(initialRemaining(1_000_000, 100_000)).toBe(900_000);
+  });
+});
