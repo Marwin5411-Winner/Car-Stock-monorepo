@@ -72,7 +72,7 @@
         <th rowspan="2" style="width: 5%">ส่วนลด<br>ตัวรถ</th>
         <th rowspan="2" style="width: 4%">ดอกเบี้ย</th>
         <th rowspan="2" style="width: 5%">เงินดาวน์</th>
-        <th rowspan="2" style="width: 5%">ค่างวด</th>
+        <th rowspan="2" style="width: 5%">ส่วนลด<br>ดาวน์</th>
         <th rowspan="2" style="width: 5%">คงเหลือ</th>
         <th style="width: 5%">ยอดจัด</th>
         <th style="width: 5%">ค่าตอบ</th>
@@ -110,7 +110,7 @@
         <td class="text-right">{{formatCurrency discountAmount}}</td>
         <td class="text-right">{{formatCurrency interestCost}}</td>
         <td class="text-right">{{formatCurrency downPayment}}</td>
-        <td class="text-right">-</td>
+        <td class="text-right">{{formatCurrency downPaymentDiscount}}</td>
         <td class="text-right">{{formatCurrency remainingAmount}}</td>
         <td class="text-right">{{formatCurrency financeAmount}}</td>
         <td class="text-right">{{formatCurrency financeReturn}}</td>
@@ -129,20 +129,56 @@
       <tr style="font-weight: bold; background-color: #eee;">
         <td colspan="3" class="text-right">รวมทั้งสิ้น ({{summary.totalSales}} คัน)</td>
         <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
+        <td class="text-right">{{formatCurrency summary.totalCarDiscount}}</td>
         <td class="text-right"></td>
-        <td class="text-right"></td>
-        <td class="text-right"></td>
-        <td class="text-right"></td>
+        <td class="text-right">{{formatCurrency summary.totalDownPayment}}</td>
+        <td class="text-right">{{formatCurrency summary.totalDownPaymentDiscount}}</td>
         <td class="text-right">{{formatCurrency summary.totalRemaining}}</td>
-        <td class="text-right"></td>
-        <td class="text-right"></td>
+        <td class="text-right">{{formatCurrency summary.totalFinanceAmount}}</td>
+        <td class="text-right">{{formatCurrency summary.totalFinanceReturn}}</td>
         <td class="text-right">{{formatCurrency summary.totalPaid}}</td>
-        <td colspan="9"></td>
+        <td></td>
+        <td class="text-right">{{formatCurrency summary.totalTransportFee}}</td>
+        <td class="text-right">{{formatCurrency summary.totalCostSum}}</td>
+        <td></td>
+        <td class="text-right"></td>
+        <td class="text-right">{{formatCurrency summary.totalSalesCommission}}</td>
+        <td class="text-right">{{formatCurrency summary.totalSalesExpense}}</td>
+        <td class="text-right">{{formatCurrency summary.totalInsurancePremium}}</td>
+        <td class="text-right">{{formatCurrency summary.totalNetProfit}}</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-<div class="footer" style="margin-top: 50px; text-align: right; font-size: 10px; color: #666;">
+<table style="width: 65%; margin-top: 18px; font-size: 10px; border: none;">
+  <tr>
+    <td style="border: none; width: 18%;"><strong>ยอดมูลค่าขาย</strong></td>
+    <td style="border: none; width: 17%;" class="text-right">{{formatCurrency summary.saleVatNet}}</td>
+    <td style="border: none; width: 13%;"></td>
+    <td style="border: none; width: 18%;"><strong>ยอดมูลค่าต้นทุน</strong></td>
+    <td style="border: none; width: 17%;" class="text-right">{{formatCurrency summary.costVatNet}}</td>
+  </tr>
+  <tr>
+    <td style="border: none;"><strong>ภาษีขาย</strong></td>
+    <td style="border: none;" class="text-right">{{formatCurrency summary.saleVatAmount}}</td>
+    <td style="border: none;"></td>
+    <td style="border: none;"><strong>ภาษีซื้อ</strong></td>
+    <td style="border: none;" class="text-right">{{formatCurrency summary.costVatAmount}}</td>
+  </tr>
+</table>
+
+<div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 11px;">
+  <div style="text-align: center; width: 45%;">
+    ลงชื่อ.......................................................................ผู้จัดทำ
+    <br><br>(.......................................................................)
+  </div>
+  <div style="text-align: center; width: 45%;">
+    ลงชื่อ.......................................................................ผู้ตรวจสอบ
+    <br><br>(.......................................................................)
+  </div>
+</div>
+
+<div class="footer" style="margin-top: 30px; text-align: right; font-size: 10px; color: #666;">
   พิมพ์เมื่อ: {{formatThaiDateWithDay (currentThaiDate)}}
 </div>
