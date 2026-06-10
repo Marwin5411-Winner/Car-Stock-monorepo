@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { paymentService, type CreatePaymentData, type PaymentType, type PaymentMethod } from '../../services/payment.service';
 import { salesService } from '../../services/sales.service';
 import { customerService, type Customer } from '../../services/customer.service';
+import { bankAccountsService, type BankAccount } from '../../services/bank-accounts.service';
 import { MainLayout } from '../../components/layout';
 import { DatePicker } from '../../components/ui/date-picker';
 import {
@@ -76,7 +77,11 @@ interface FormData {
   paymentMethod: PaymentMethod;
   referenceNumber: string;
   description: string;
+  receivingBankAccountId?: string;
   receivingBank?: string;
+  receivingBankName?: string;
+  receivingAccountNumber?: string;
+  receivingBranch?: string;
   actualReceivedDate?: string;
   netReceivedAmount?: number;
 }
@@ -111,10 +116,16 @@ export default function PaymentFormPage() {
     paymentMethod: 'CASH',
     referenceNumber: '',
     description: '',
+    receivingBankAccountId: '',
     receivingBank: '',
+    receivingBankName: '',
+    receivingAccountNumber: '',
+    receivingBranch: '',
     actualReceivedDate: '',
     netReceivedAmount: 0,
   });
+
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -126,6 +137,15 @@ export default function PaymentFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preSelectedSaleId]);
 
+  // Load active bank accounts for the "ธนาคารที่รับเงิน" select
+  useEffect(() => {
+    bankAccountsService.list().then((res) => {
+      if (res.success && res.data) {
+        setBankAccounts(res.data.filter((a) => a.isActive));
+      }
+    });
+  }, []);
+
   // Reset form when switching payment mode
   useEffect(() => {
     if (paymentMode === 'miscellaneous') {
@@ -136,7 +156,11 @@ export default function PaymentFormPage() {
         customerId: customerInfo?.id || '',
         paymentType: 'MISCELLANEOUS',
         amount: 0,
+        receivingBankAccountId: '',
         receivingBank: '',
+        receivingBankName: '',
+        receivingAccountNumber: '',
+        receivingBranch: '',
         actualReceivedDate: '',
         netReceivedAmount: 0,
       }));
@@ -322,7 +346,10 @@ export default function PaymentFormPage() {
       paymentMethod: formData.paymentMethod,
       referenceNumber: formData.referenceNumber || undefined,
       description: formData.description || undefined,
-      receivingBank: formData.receivingBank || undefined,
+      receivingBank: formData.receivingBankName || formData.receivingBank || undefined,
+      receivingBankName: formData.receivingBankName || undefined,
+      receivingAccountNumber: formData.receivingAccountNumber || undefined,
+      receivingBranch: formData.receivingBranch || undefined,
       actualReceivedDate: formData.actualReceivedDate || undefined,
       netReceivedAmount: formData.netReceivedAmount || undefined,
     };
@@ -646,29 +673,91 @@ export default function PaymentFormPage() {
                 )}
               </div>
 
-              {/* Receiving Bank (Only for Bank Transfer) */}
-              {formData.paymentMethod === 'BANK_TRANSFER' && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ธนาคารที่รับเงิน
-                  </label>
-                  <select
-                    value={formData.receivingBank || ''}
-                    onChange={(e) => handleInputChange('receivingBank', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">เลือกธนาคาร...</option>
-                    <option value="KBANK">กสิกรไทย (KBANK)</option>
-                    <option value="SCB">ไทยพาณิชย์ (SCB)</option>
-                    <option value="BBL">กรุงเทพ (BBL)</option>
-                    <option value="KTB">กรุงไทย (KTB)</option>
-                    <option value="TTB">ทหารไทยธนชาต (TTB)</option>
-                    <option value="BAY">กรุงศรี (BAY)</option>
-                    <option value="CIMB">ซีไอเอ็มบี (CIMB)</option>
-                    <option value="LHB">แลนด์ แอนด์ เฮาส์ (LH Bank)</option>
-                  </select>
-                </div>
-              )}
+              {/* Receiving Bank - always visible so user can see saved accounts */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ธนาคารที่รับเงิน
+                </label>
+                {bankAccounts.length === 0 ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    ยังไม่มีบัญชีธนาคาร — เพิ่มได้ที่ ตั้งค่า &rarr; บัญชีธนาคาร
+                  </p>
+                ) : formData.paymentMethod === 'BANK_TRANSFER' ? (
+                  <>
+                    <select
+                      value={formData.receivingBankAccountId || ''}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const acc = bankAccounts.find((a) => a.id === id);
+                        setFormData((prev) => ({
+                          ...prev,
+                          receivingBankAccountId: id,
+                          receivingBank: acc?.bankName || '',
+                          receivingBankName: acc?.bankName || '',
+                          receivingAccountNumber: acc?.accountNumber || '',
+                          receivingBranch: acc?.branch || '',
+                        }));
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">เลือกธนาคาร...</option>
+                      {bankAccounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {`${acc.bankName} | เลขที่บัญชี ${acc.accountNumber}${
+                            acc.branch ? ` | ${acc.branch}` : ''
+                          }`}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Show selected bank details for clear confirmation */}
+                    {formData.receivingBankAccountId &&
+                      (() => {
+                        const selected = bankAccounts.find(
+                          (a) => a.id === formData.receivingBankAccountId
+                        );
+                        if (!selected) return null;
+                        return (
+                          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                            <div className="font-medium text-blue-900">{selected.bankName}</div>
+                            <div className="text-blue-800 mt-1">
+                              <span className="text-blue-600">เลขที่บัญชี: </span>
+                              <span className="font-mono font-semibold">
+                                {selected.accountNumber}
+                              </span>
+                            </div>
+                            <div className="text-blue-700 text-xs mt-0.5">
+                              ชื่อบัญชี: {selected.accountName}
+                              {selected.branch ? ` • สาขา: ${selected.branch}` : ''}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                  </>
+                ) : (
+                  /* Read-only preview of saved bank accounts */
+                  <div className="space-y-2">
+                    {bankAccounts.map((acc) => (
+                      <div
+                        key={acc.id}
+                        className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+                      >
+                        <div className="font-medium text-gray-900">{acc.bankName}</div>
+                        <div className="text-gray-700 mt-1">
+                          <span className="text-gray-500">เลขที่บัญชี: </span>
+                          <span className="font-mono font-semibold">{acc.accountNumber}</span>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-0.5">
+                          ชื่อบัญชี: {acc.accountName}
+                          {acc.branch ? ` • สาขา: ${acc.branch}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-500 mt-1">
+                      เลือกวิธีชำระ "โอนเงิน" เพื่อระบุบัญชีที่ใช้รับเงิน
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* Finance Details (Only for Finance Payment) */}
               {formData.paymentType === 'FINANCE_PAYMENT' && (

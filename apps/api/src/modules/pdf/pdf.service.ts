@@ -812,13 +812,15 @@ export class PdfService {
   }
 
   /**
-   * Generate Temporary Receipt with Background Image (ใบรับเงินชั่วคราว - แบบมีพื้นหลัง)
+   * Generate Temporary Receipt — DATA-ONLY OVERLAY for the pre-printed
+   * dot-matrix form. Prints only the variable values positioned to land in the
+   * form's boxes. Size MUST stay 9×5.5in (hardware-locked continuous form);
+   * padding/margin 0 so overlay coordinates map directly to the paper origin.
    */
   public async generateTemporaryReceiptBg(data: TemporaryReceiptData): Promise<Buffer> {
-    // Custom size: A4 Landscape (29.7cm x 21cm)
     return this.generatePdf(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, {
-      width: '29.71cm',
-      height: '21cm',
+      width: '9in',
+      height: '5.5in',
       padding: '0mm',
       margin: {
         top: '0mm',

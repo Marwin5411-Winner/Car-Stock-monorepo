@@ -500,13 +500,25 @@ export class SalesService {
 
     // Recalculate remaining amount if total or deposit changed.
     //
-    // Invariant: `remainingAmount = totalAmount - max(depositAmount, paidAmount)`.
-    // This matches both call sites without double-counting:
-    //  - At creation (sales create): no payments yet → remaining = total - deposit
-    //  - At payment (createPayment): once a deposit payment is recorded
-    //    paidAmount >= depositAmount, so remaining = total - paid
-    // Subtracting deposit AND paid (the previous formula) double-counted the
-    // deposit whenever it had been recorded as a DEPOSIT-type payment.
+    // Invariant: `remainingAmount = totalAmount - paidAmount`.
+    //
+    // `paidAmount` is the single source of truth for what the customer has
+    // actually settled. It is kept in sync by the Payment flows:
+    //   - createPayment / updatePayment / voidPayment  →  paid += / -= amount
+    //   - convertToSale (from quotation)                →  paid = depositAmount
+    //
+    // We deliberately do NOT include `depositAmount` in this formula:
+    //   - `depositAmount` is the agreed (informational) deposit on the
+    //     contract — not money in the bank.
+    //   - If the operator raises `depositAmount` on the form above what the
+    //     customer has actually paid, the remaining must NOT drop, because
+    //     the customer has not settled that extra amount.
+    //   - The earlier `max(depositAmount, paidAmount)` formula over-counted
+    //     whenever `depositAmount > paidAmount` (e.g. partial deposit paid,
+    //     or operator bumped the agreed deposit up).
+    //
+    // `depositAmount` is still validated to be ≤ `totalAmount` so the form
+    // can't accept nonsensical values, but it does not influence `remaining`.
     if (validated.totalAmount !== undefined || validated.depositAmount !== undefined) {
       const currentSale = await db.sale.findUnique({
         where: { id },
@@ -521,8 +533,7 @@ export class SalesService {
         throw new BadRequestError('Deposit amount cannot exceed total amount');
       }
 
-      const settled = Math.max(newDeposit, paid);
-      const newRemaining = newTotal - settled;
+      const newRemaining = newTotal - paid;
       if (newRemaining < 0) {
         throw new BadRequestError(
           `ยอดค้างชำระติดลบ — ไม่สามารถลดยอดได้ (ชำระแล้ว ${paid.toLocaleString()} บาท)`

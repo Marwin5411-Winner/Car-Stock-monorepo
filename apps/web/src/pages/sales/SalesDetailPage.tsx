@@ -745,18 +745,38 @@ export default function SalesDetailPage() {
             {/* Finance details */}
             {sale.paymentMode !== 'CASH' && (
               <>
-                {sale.downPayment != null && sale.downPayment > 0 && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">เงินดาวน์</dt>
-                    <dd className="text-sm font-medium">{formatCurrency(sale.downPayment)}</dd>
-                  </div>
-                )}
-                {sale.financeAmount != null && sale.financeAmount > 0 && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">ยอดจัดไฟแนนซ์</dt>
-                    <dd className="text-sm font-medium">{formatCurrency(sale.financeAmount)}</dd>
-                  </div>
-                )}
+                {sale.downPayment != null && sale.downPayment > 0 && (() => {
+                  const downPaymentPaid = (sale.payments || [])
+                    .filter(p => p.paymentType === 'DOWN_PAYMENT' && p.status === 'ACTIVE')
+                    .reduce((sum, p) => sum + p.amount, 0);
+                  return (
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-700">เงินดาวน์</dt>
+                      <dd className="text-sm font-medium">
+                        {formatCurrency(sale.downPayment)}
+                        {downPaymentPaid > 0 && (
+                          <span className="ml-2 text-green-600 text-xs">(ชำระแล้ว {formatCurrency(downPaymentPaid)})</span>
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })()}
+                {sale.financeAmount != null && sale.financeAmount > 0 && (() => {
+                  const financePaid = (sale.payments || [])
+                    .filter(p => p.paymentType === 'FINANCE_PAYMENT' && p.status === 'ACTIVE')
+                    .reduce((sum, p) => sum + p.amount, 0);
+                  return (
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-700">ยอดจัดไฟแนนซ์</dt>
+                      <dd className="text-sm font-medium">
+                        {formatCurrency(sale.financeAmount)}
+                        {financePaid > 0 && (
+                          <span className="ml-2 text-green-600 text-xs">(ชำระแล้ว {formatCurrency(financePaid)})</span>
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })()}
                 {sale.interestRate != null && sale.interestRate > 0 && (
                   <div className="flex justify-between">
                     <dt className="text-sm text-gray-700">อัตราดอกเบี้ย</dt>

@@ -458,6 +458,10 @@ export const CreatePaymentSchema = z.object({
   paymentMethod: PaymentMethodSchema,
   referenceNumber: z.string().optional(),
   notes: z.string().optional(),
+  receivingBank: z.string().optional(),
+  receivingBankName: z.string().optional(),
+  receivingAccountNumber: z.string().optional(),
+  receivingBranch: z.string().optional(),
 });
 
 export const UpdatePaymentSchema = z.object({
@@ -469,6 +473,10 @@ export const UpdatePaymentSchema = z.object({
   referenceNumber: z.string().optional(),
   notes: z.string().optional(),
   issuedBy: z.string().optional(),
+  receivingBank: z.string().optional(),
+  receivingBankName: z.string().optional(),
+  receivingAccountNumber: z.string().optional(),
+  receivingBranch: z.string().optional(),
 });
 
 export const VoidPaymentSchema = z.object({

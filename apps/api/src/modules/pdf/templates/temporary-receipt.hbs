@@ -50,13 +50,6 @@
                 <td class="item-amount" colspan="2">{{#if this.amount}}{{formatCurrency this.amount}}{{/if}}</td>
             </tr>
             {{/each}}
-            <!-- Payment method row -->
-            {{#if paymentMethodLabel}}
-            <tr class="item-row">
-                <td class="item-desc" colspan="3" style="font-weight: bold;">ชำระโดย: {{paymentMethodLabel}}</td>
-                <td class="item-amount" colspan="2"></td>
-            </tr>
-            {{/if}}
             <!-- Empty space for more items -->
             <tr class="item-row spacer-row">
                 <td colspan="3">&nbsp;</td>
@@ -83,6 +76,48 @@
         </table>
     </div>
 
+    <!-- Payment Method Table -->
+    <div class="payment-method-wrapper">
+        <table class="payment-method-table">
+            <thead>
+                <tr>
+                    <th style="width: 14%;">ชำระโดย</th>
+                    <th style="width: 26%;">ธนาคาร</th>
+                    <th style="width: 18%;">สาขา</th>
+                    <th style="width: 18%;">เลขที่เช็ค</th>
+                    <th style="width: 10%;">ลงวันที่</th>
+                    <th style="width: 14%;">จำนวนเงิน</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="method-label">{{#if paymentMethod.isCash}}☑{{else}}☐{{/if}} เงินสด</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="amount-cell">{{#if paymentMethod.isCash}}{{formatCurrency paymentAmount}}{{/if}}</td>
+                </tr>
+                <tr>
+                    <td class="method-label">{{#if paymentMethod.isCheque}}☑{{else}}☐{{/if}} เช็ค</td>
+                    <td>{{#if paymentMethod.isCheque}}{{paymentMethod.bankName}}{{/if}}</td>
+                    <td>{{#if paymentMethod.isCheque}}{{paymentMethod.branchName}}{{/if}}</td>
+                    <td>{{#if paymentMethod.isCheque}}{{paymentMethod.chequeNumber}}{{/if}}</td>
+                    <td>{{#if paymentMethod.isCheque}}{{paymentMethod.chequeDate}}{{/if}}</td>
+                    <td class="amount-cell">{{#if paymentMethod.isCheque}}{{formatCurrency paymentMethod.chequeAmount}}{{/if}}</td>
+                </tr>
+                <tr>
+                    <td class="method-label">{{#if paymentMethod.isTransfer}}☑{{else}}☐{{/if}} เงินโอน</td>
+                    <td>{{#if paymentMethod.isTransfer}}{{paymentMethod.bankName}}{{/if}}</td>
+                    <td>{{#if paymentMethod.isTransfer}}{{paymentMethod.branchName}}{{/if}}</td>
+                    <td>{{#if paymentMethod.isTransfer}}{{paymentMethod.accountNumber}}{{/if}}</td>
+                    <td>{{#if paymentMethod.isTransfer}}{{paymentMethod.transferDate}}{{/if}}</td>
+                    <td class="amount-cell">{{#if paymentMethod.isTransfer}}{{formatCurrency paymentMethod.transferAmount}}{{/if}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
     <!-- Signatures Section -->
     <div class="signatures-section">
         <div class="sig-row">
@@ -99,10 +134,6 @@
                     <span class="sig-label">วันที่</span>
                     <div class="sig-line"></div>
                 </div>
-            </div>
-             <!-- Suffix for first row -->
-             <div class="sig-suffix-box">
-                <span class="sig-suffix">ชําระโดย {{paymentMethodLabel}}</span>
             </div>
         </div>
 
@@ -336,7 +367,44 @@
         font-weight: bold;
         border-left: 1px solid #000 !important;
     }
-    
+
+    /* Payment Method Table */
+    .payment-method-wrapper {
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+
+    .payment-method-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+        border: 1px solid #000;
+    }
+
+    .payment-method-table th,
+    .payment-method-table td {
+        border: 1px solid #000;
+        padding: 1px 4px;
+        vertical-align: middle;
+        text-align: center;
+        height: 14px;
+    }
+
+    .payment-method-table th {
+        background-color: #fff;
+        font-weight: bold;
+    }
+
+    .payment-method-table .method-label {
+        text-align: left;
+        padding-left: 6px;
+    }
+
+    .payment-method-table .amount-cell {
+        text-align: right;
+        padding-right: 6px;
+    }
+
     /* Signatures Section */
     .signatures-section {
         margin-top: 3px;

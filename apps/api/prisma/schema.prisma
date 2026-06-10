@@ -299,6 +299,9 @@ model Payment {
   referenceNumber    String?       @map("reference_number")
   notes              String?
   receivingBank      String?       @map("receiving_bank")
+  receivingBankName  String?       @map("receiving_bank_name")
+  receivingAccountNumber String?   @map("receiving_account_number")
+  receivingBranch    String?       @map("receiving_branch")
   actualReceivedDate DateTime?     @map("actual_received_date")
   netReceivedAmount  Decimal?      @map("net_received_amount") @db.Decimal(15, 2)
   status             PaymentStatus @default(ACTIVE)

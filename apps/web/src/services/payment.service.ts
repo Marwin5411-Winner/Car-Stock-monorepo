@@ -78,6 +78,9 @@ export interface CreatePaymentData {
   description?: string;
   notes?: string;
   receivingBank?: string;
+  receivingBankName?: string;
+  receivingAccountNumber?: string;
+  receivingBranch?: string;
   actualReceivedDate?: string;
   netReceivedAmount?: number;
 }

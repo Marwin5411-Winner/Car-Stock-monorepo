@@ -32,28 +32,6 @@
     </p>
   </div>
 
-  {{#if items.length}}
-  <div class="items-section" style="margin-top: 25px;">
-    <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">รายการที่ต้องจ่าย</h3>
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-      <thead>
-        <tr style="background-color: #f3f4f6; border-bottom: 1px solid #000;">
-          <th style="text-align: left; padding: 6px 10px; border: 1px solid #000;">รายการ</th>
-          <th style="text-align: right; padding: 6px 10px; border: 1px solid #000; width: 30%;">จำนวนเงิน (บาท)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each items}}
-        <tr>
-          <td style="padding: 5px 10px; border: 1px solid #000;">{{this.description}}</td>
-          <td style="padding: 5px 10px; border: 1px solid #000; text-align: right;">{{formatCurrency this.amount}}</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
-  {{/if}}
-
   <div class="signatures" style="margin-top: 50px;">
     <div class="signature-box">
       <div class="signature-line"></div>

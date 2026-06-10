@@ -27,6 +27,30 @@ import {
   type VehicleCardData,
 } from './types';
 
+// Build paymentMethod block for temporary-receipt templates from a Payment row.
+// Snapshot fields (receivingBankName/receivingAccountNumber/receivingBranch) take
+// precedence; legacy `receivingBank` is the fallback for rows created before the
+// snapshot columns existed.
+function buildReceiptPaymentMethod(payment: any) {
+  const isCash = payment.paymentMethod === 'CASH';
+  const isCheque = payment.paymentMethod === 'CHEQUE';
+  const isTransfer = payment.paymentMethod === 'BANK_TRANSFER';
+  const paymentDate = payment.paymentDate || payment.createdAt;
+  return {
+    isCash,
+    isCheque,
+    isTransfer,
+    bankName: payment.receivingBankName || payment.receivingBank || '',
+    branchName: payment.receivingBranch || '',
+    accountNumber: payment.receivingAccountNumber || '',
+    chequeNumber: isCheque ? payment.referenceNumber || '' : '',
+    chequeDate: isCheque ? formatThaiDate(paymentDate) : '',
+    chequeAmount: isCheque ? payment.amount.toString() : '',
+    transferDate: isTransfer ? formatThaiDate(paymentDate) : '',
+    transferAmount: isTransfer ? payment.amount.toString() : '',
+  };
+}
+
 // Helper function to transform customer data
 function transformCustomer(customer: any): CustomerInfo {
   return {
@@ -566,8 +590,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
               isBankTransfer: reservationPayment.paymentMethod === 'BANK_TRANSFER',
               isCreditCard: reservationPayment.paymentMethod === 'CREDIT_CARD',
               isCheque: reservationPayment.paymentMethod === 'CHEQUE',
-              bank: reservationPayment.receivingBank || '',
-              accountNo: '', // Not available in Payment model
+              bank: reservationPayment.receivingBankName || reservationPayment.receivingBank || '',
+              accountNo: reservationPayment.receivingAccountNumber || '',
               chequeNo: reservationPayment.referenceNumber || '',
               chequeDate: reservationPayment.paymentDate
                 ? formatThaiDate(reservationPayment.paymentDate)
@@ -649,16 +673,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         items.push({ description: payment.description, amount: '' });
       }
 
-      // Determine payment method
-      const paymentMethodData = {
-        isCash: payment.paymentMethod === 'CASH',
-        isCheque: payment.paymentMethod === 'CHEQUE',
-        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-        bankName: payment.receivingBank || '',
-        branchName: '',
-        accountNumber: '',
-        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-      };
+      const paymentMethodData = buildReceiptPaymentMethod(payment);
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -1073,16 +1088,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         items.push({ description: payment.description, amount: '' });
       }
 
-      // Determine payment method
-      const paymentMethodData = {
-        isCash: payment.paymentMethod === 'CASH',
-        isCheque: payment.paymentMethod === 'CHEQUE',
-        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-        bankName: payment.receivingBank || '',
-        branchName: '',
-        accountNumber: '',
-        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-      };
+      const paymentMethodData = buildReceiptPaymentMethod(payment);
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -1172,15 +1178,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         items.push({ description: payment.description, amount: '' });
       }
 
-      const paymentMethodData = {
-        isCash: payment.paymentMethod === 'CASH',
-        isCheque: payment.paymentMethod === 'CHEQUE',
-        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-        bankName: payment.receivingBank || '',
-        branchName: '',
-        accountNumber: '',
-        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-      };
+      const paymentMethodData = buildReceiptPaymentMethod(payment);
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -1203,10 +1201,14 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         note: payment.notes || undefined,
       };
 
-      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT, data, {
+      // Data-only overlay: prints just the values onto the PRE-PRINTED form's
+      // boxes. padding 0 so overlay coordinates map directly to the paper origin
+      // (no scaling — @page 9×5.5in is passed straight to the dot-matrix driver).
+      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, {
         width: '9in',
         height: '5.5in',
-        margin: { top: '5mm', right: '5mm', bottom: '5mm', left: '5mm' },
+        padding: '0mm',
+        margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
       });
 
       // Inject auto-print script. setTimeout gives the browser one tick to lay
@@ -1289,16 +1291,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         items.push({ description: payment.description, amount: '' });
       }
 
-      // Determine payment method
-      const paymentMethodData = {
-        isCash: payment.paymentMethod === 'CASH',
-        isCheque: payment.paymentMethod === 'CHEQUE',
-        isTransfer: payment.paymentMethod === 'BANK_TRANSFER',
-        bankName: payment.receivingBank || '',
-        branchName: '',
-        accountNumber: '',
-        transferAmount: payment.paymentMethod === 'BANK_TRANSFER' ? payment.amount.toString() : '',
-      };
+      const paymentMethodData = buildReceiptPaymentMethod(payment);
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
