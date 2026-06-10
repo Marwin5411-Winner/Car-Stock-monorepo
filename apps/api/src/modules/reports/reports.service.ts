@@ -652,6 +652,7 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     where,
     include: {
       customer: { select: { name: true, type: true } },
+      campaign: { select: { name: true } },
       stock: {
         include: {
           vehicleModel: { select: { brand: true, model: true, variant: true, year: true } },
@@ -735,7 +736,13 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     }
 
     const totalCostWithInterest = totalCost + accumulatedInterest;
-    const netProfit = sellingPrice - totalCostWithInterest; // Net Profit includes interest cost
+    const financeCommission = toNumber(sale.financeCommission) || 0;
+    const salesCommission = toNumber(sale.salesCommission) || 0;
+    const salesExpense = toNumber(sale.salesExpense) || 0;
+    // Spec: netProfit = gross profit + finance commission − staff commission − sales expense.
+    // Buyer-charged fees are pass-through and excluded.
+    const netProfit =
+      sellingPrice - totalCostWithInterest + financeCommission - salesCommission - salesExpense;
     const interestCost = Math.round(accumulatedInterest * 100) / 100;
 
     return {
@@ -756,7 +763,8 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
         PAYMENT_MODE_LABELS[sale.paymentMode as keyof typeof PAYMENT_MODE_LABELS] ||
         sale.paymentMode,
       totalAmount: sellingPrice,
-      discountAmount: toNumber(sale.discountSnapshot) || 0,
+      discountAmount: toNumber(sale.carDiscount) || toNumber(sale.discountSnapshot) || 0,
+      downPaymentDiscount: toNumber(sale.downPaymentDiscount) || 0,
       downPayment: toNumber(sale.downPayment) || toNumber(sale.depositAmount) || 0,
       financeAmount: toNumber(sale.financeAmount) || 0,
       financeProvider: sale.financeProvider || stock?.financeProvider || '-',
@@ -782,13 +790,13 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       priceVat: splitVat(baseCost).vat,
       priceGross: baseCost,
 
-      // Placeholder fields for report columns not yet in system
-      financeReturn: 0, // ค่าตอบไฟแนนซ์
-      transportFee: 0, // ทะเบียน/พรบ/ขนส่ง (Income or Expense?)
-      campaignName: '-', // แคมเปญขาย
-      salesCommission: 0, // คอมฯ พนักงานขาย
-      salesExpense: 0, // ค่าใช้จ่ายในการขาย
-      insurancePremium: 0, // ค่าเบี้ยประกัน
+      financeReturn: financeCommission, // ค่าตอบไฟแนนซ์
+      transportFee:
+        (toNumber(sale.registrationFee) || 0) + (toNumber(sale.compulsoryInsuranceFee) || 0), // ทะเบียน/พรบ/ขนส่ง
+      campaignName: sale.campaign?.name || '-', // แคมเปญขาย
+      salesCommission, // คอมฯ พนักงานขาย
+      salesExpense, // ค่าใช้จ่ายในการขาย
+      insurancePremium: toNumber(sale.insuranceFee) || 0, // ค่าเบี้ยประกัน
     };
   });
 
@@ -798,6 +806,38 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
   const totalPaid = saleItems.reduce((sum, s) => sum + s.paidAmount, 0);
   const totalRemaining = saleItems.reduce((sum, s) => sum + s.remainingAmount, 0);
   const avgSaleAmount = totalSales > 0 ? totalAmount / totalSales : 0;
+
+  // Column totals + VAT split for the report footer (customer form layout)
+  const sumField = (field: string) =>
+    saleItems.reduce((sum, s) => sum + ((s as Record<string, any>)[field] || 0), 0);
+
+  const totalCarDiscount = sumField('discountAmount');
+  const totalDownPaymentDiscount = sumField('downPaymentDiscount');
+  const totalDownPayment = sumField('downPayment');
+  const totalFinanceAmount = sumField('financeAmount');
+  const totalFinanceReturn = sumField('financeReturn');
+  const totalTransportFee = sumField('transportFee');
+  const totalCostSum = sumField('totalCost');
+  const totalSalesCommission = sumField('salesCommission');
+  const totalSalesExpense = sumField('salesExpense');
+  const totalInsurancePremium = sumField('insurancePremium');
+  const totalNetProfit = sumField('netProfit');
+
+  // ยอดมูลค่าขาย/ภาษีขาย from selling price; ยอดมูลค่าต้นทุน/ภาษีซื้อ from base cost
+  const saleVat = saleItems.reduce(
+    (acc, s) => {
+      const split = splitVat(s.totalAmount);
+      return { net: acc.net + split.net, vat: acc.vat + split.vat };
+    },
+    { net: 0, vat: 0 }
+  );
+  const costVat = saleItems.reduce(
+    (acc, s) => {
+      const split = splitVat(s.baseCost);
+      return { net: acc.net + split.net, vat: acc.vat + split.vat };
+    },
+    { net: 0, vat: 0 }
+  );
 
   // By salesperson
   const salespersonGroups: Record<string, { id: string; count: number; amount: number }> = {};
@@ -943,6 +983,21 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       bySalesperson,
       byStatus,
       byPaymentMode,
+      totalCarDiscount,
+      totalDownPaymentDiscount,
+      totalDownPayment,
+      totalFinanceAmount,
+      totalFinanceReturn,
+      totalTransportFee,
+      totalCostSum,
+      totalSalesCommission,
+      totalSalesExpense,
+      totalInsurancePremium,
+      totalNetProfit,
+      saleVatNet: Math.round(saleVat.net * 100) / 100,
+      saleVatAmount: Math.round(saleVat.vat * 100) / 100,
+      costVatNet: Math.round(costVat.net * 100) / 100,
+      costVatAmount: Math.round(costVat.vat * 100) / 100,
     },
     chartData: {
       monthly,

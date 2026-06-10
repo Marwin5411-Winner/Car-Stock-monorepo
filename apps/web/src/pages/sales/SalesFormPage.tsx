@@ -40,6 +40,12 @@ interface FormData {
   financeProvider: string;
   carDiscount: number;
   downPaymentDiscount: number;
+  insuranceFee: number;
+  compulsoryInsuranceFee: number;
+  registrationFee: number;
+  salesCommission: number;
+  salesExpense: number;
+  financeCommission: number;
   interestRate: number;
   numberOfTerms: number;
   monthlyInstallment: number;
@@ -83,6 +89,12 @@ export default function SalesFormPage() {
     financeProvider: '',
     carDiscount: 0,
     downPaymentDiscount: 0,
+    insuranceFee: 0,
+    compulsoryInsuranceFee: 0,
+    registrationFee: 0,
+    salesCommission: 0,
+    salesExpense: 0,
+    financeCommission: 0,
     interestRate: 0,
     numberOfTerms: 0,
     monthlyInstallment: 0,
@@ -137,6 +149,12 @@ export default function SalesFormPage() {
           financeProvider: sale.financeProvider || '',
           carDiscount: Number(sale.carDiscount) || 0,
           downPaymentDiscount: Number(sale.downPaymentDiscount) || 0,
+          insuranceFee: Number(sale.insuranceFee) || 0,
+          compulsoryInsuranceFee: Number(sale.compulsoryInsuranceFee) || 0,
+          registrationFee: Number(sale.registrationFee) || 0,
+          salesCommission: Number(sale.salesCommission) || 0,
+          salesExpense: Number(sale.salesExpense) || 0,
+          financeCommission: Number(sale.financeCommission) || 0,
           interestRate: Number(sale.interestRate) || 0,
           numberOfTerms: Number(sale.numberOfTerms) || 0,
           monthlyInstallment: Number(sale.monthlyInstallment) || 0,
@@ -287,6 +305,12 @@ export default function SalesFormPage() {
       financeProvider: formData.financeProvider || undefined,
       carDiscount: formData.carDiscount || undefined,
       downPaymentDiscount: formData.downPaymentDiscount || undefined,
+      insuranceFee: formData.insuranceFee || undefined,
+      compulsoryInsuranceFee: formData.compulsoryInsuranceFee || undefined,
+      registrationFee: formData.registrationFee || undefined,
+      salesCommission: formData.salesCommission || undefined,
+      salesExpense: formData.salesExpense || undefined,
+      financeCommission: formData.financeCommission || undefined,
       interestRate: formData.interestRate || undefined,
       numberOfTerms: formData.numberOfTerms || undefined,
       monthlyInstallment: formData.monthlyInstallment || undefined,
@@ -639,6 +663,97 @@ export default function SalesFormPage() {
                     step="0.01"
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Buyer-charged fees — add to outstanding balance */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+              <div className="md:col-span-3">
+                <p className="text-xs font-medium text-blue-700 mb-2">
+                  ค่าใช้จ่ายเรียกเก็บจากลูกค้า (รวมเข้ายอดค้างชำระ)
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">ค่าประกันชั้น 1 (บาท)</label>
+                <input
+                  type="number"
+                  value={formData.insuranceFee}
+                  onChange={(e) => setFormData(prev => ({ ...prev, insuranceFee: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">ค่าพรบ. (บาท)</label>
+                <input
+                  type="number"
+                  value={formData.compulsoryInsuranceFee}
+                  onChange={(e) => setFormData(prev => ({ ...prev, compulsoryInsuranceFee: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">ค่าจดทะเบียน (บาท)</label>
+                <input
+                  type="number"
+                  value={formData.registrationFee}
+                  onChange={(e) => setFormData(prev => ({ ...prev, registrationFee: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                />
+              </div>
+              <div className="md:col-span-3 text-right text-sm font-medium text-blue-800">
+                รวมค่าใช้จ่าย:{' '}
+                {(formData.insuranceFee + formData.compulsoryInsuranceFee + formData.registrationFee).toLocaleString('th-TH', { minimumFractionDigits: 2 })}{' '}บาท
+              </div>
+            </div>
+
+            {/* Dealer-side amounts — report profit only */}
+            {canDiscount && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
+                <div className="md:col-span-3">
+                  <p className="text-xs font-medium text-yellow-700 mb-2">
+                    ค่าใช้จ่าย/รายรับฝั่งบริษัท (สำหรับบัญชี/กรรมการ — ใช้ในรายงานกำไร)
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">คอมฯ พนักงานขาย (บาท)</label>
+                  <input
+                    type="number"
+                    value={formData.salesCommission}
+                    onChange={(e) => setFormData(prev => ({ ...prev, salesCommission: parseFloat(e.target.value) || 0 }))}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">ค่าใช้จ่ายในการขาย (บาท)</label>
+                  <input
+                    type="number"
+                    value={formData.salesExpense}
+                    onChange={(e) => setFormData(prev => ({ ...prev, salesExpense: parseFloat(e.target.value) || 0 }))}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">ค่าตอบไฟแนนซ์ (บาท)</label>
+                  <input
+                    type="number"
+                    value={formData.financeCommission}
+                    onChange={(e) => setFormData(prev => ({ ...prev, financeCommission: parseFloat(e.target.value) || 0 }))}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">รายรับจากบริษัทไฟแนนซ์ (บวกเข้ากำไร)</p>
                 </div>
               </div>
             )}

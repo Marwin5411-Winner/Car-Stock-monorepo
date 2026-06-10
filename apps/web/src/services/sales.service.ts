@@ -59,6 +59,12 @@ export interface Sale {
   };
   discountSnapshot?: number;
   freebiesSnapshot?: string;
+  insuranceFee?: number | null;
+  compulsoryInsuranceFee?: number | null;
+  registrationFee?: number | null;
+  salesCommission?: number | null;
+  salesExpense?: number | null;
+  financeCommission?: number | null;
   paymentMode: PaymentMode;
   downPayment?: number;
   financeAmount?: number;
@@ -137,6 +143,12 @@ export interface CreateSaleData {
   financeProvider?: string;
   carDiscount?: number;
   downPaymentDiscount?: number;
+  insuranceFee?: number;
+  compulsoryInsuranceFee?: number;
+  registrationFee?: number;
+  salesCommission?: number;
+  salesExpense?: number;
+  financeCommission?: number;
   interestRate?: number;
   numberOfTerms?: number;
   monthlyInstallment?: number;
@@ -164,6 +176,12 @@ export interface UpdateSaleData {
   financeProvider?: string;
   carDiscount?: number;
   downPaymentDiscount?: number;
+  insuranceFee?: number;
+  compulsoryInsuranceFee?: number;
+  registrationFee?: number;
+  salesCommission?: number;
+  salesExpense?: number;
+  financeCommission?: number;
   interestRate?: number;
   numberOfTerms?: number;
   monthlyInstallment?: number;

@@ -724,6 +724,29 @@ export default function SalesDetailPage() {
               </div>
             )}
 
+            {(Number(sale.insuranceFee) || Number(sale.compulsoryInsuranceFee) || Number(sale.registrationFee)) > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-700">ค่าประกันชั้น 1</dt>
+                  <dd className="text-sm font-medium">{formatCurrency(Number(sale.insuranceFee) || 0)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-700">ค่าพรบ.</dt>
+                  <dd className="text-sm font-medium">{formatCurrency(Number(sale.compulsoryInsuranceFee) || 0)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-700">ค่าจดทะเบียน</dt>
+                  <dd className="text-sm font-medium">{formatCurrency(Number(sale.registrationFee) || 0)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-700">รวมค่าใช้จ่าย</dt>
+                  <dd className="text-sm font-semibold text-blue-700">
+                    {formatCurrency((Number(sale.insuranceFee) || 0) + (Number(sale.compulsoryInsuranceFee) || 0) + (Number(sale.registrationFee) || 0))}
+                  </dd>
+                </div>
+              </>
+            )}
+
             {/* Deposit */}
             {sale.depositAmount > 0 && (() => {
               const depositPaid = (sale.payments || [])
