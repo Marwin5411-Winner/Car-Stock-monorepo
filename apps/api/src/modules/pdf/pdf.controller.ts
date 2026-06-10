@@ -78,6 +78,19 @@ function transformCar(stock: any): CarInfo {
   };
 }
 
+/**
+ * freebiesSnapshot stores one gift per line (newline-separated). Legacy rows
+ * may be comma-separated free text — split on both so old sales still render.
+ */
+function parseFreebies(snapshot: string | null | undefined): { name: string }[] {
+  if (!snapshot) return [];
+  return snapshot
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((name) => ({ name }));
+}
+
 // Helper to get company header from settings or default
 async function getCompanyHeader(): Promise<any> {
   const [settings, bankAccounts] = await Promise.all([
@@ -305,16 +318,16 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           discount: sale.discountSnapshot?.toString() || '0',
           remaining: sale.remainingAmount?.toString() || '0',
           downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
-          downPaymentDiscount: '0',
-          insurance: '0', // Not in schema - to be added if needed
-          actInsurance: '0', // Not in schema - to be added if needed
-          registrationFee: '0', // Not in schema - to be added if needed
+          downPaymentDiscount: sale.downPaymentDiscount?.toString() || '0',
+          insurance: sale.insuranceFee?.toString() || '0',
+          actInsurance: sale.compulsoryInsuranceFee?.toString() || '0',
+          registrationFee: sale.registrationFee?.toString() || '0',
           totalDelivery: sale.paidAmount?.toString() || '0',
           financeAmount: sale.financeAmount?.toString() || '0',
-          interestRate: '0', // Not in schema - to be added if needed
-          installmentMonths: '0', // Not in schema - to be added if needed
-          monthlyPayment: '0', // Not in schema - to be added if needed
-          gifts: [], // TODO: Parse from freebiesSnapshot if available
+          interestRate: sale.interestRate?.toString() || '0',
+          installmentMonths: sale.numberOfTerms?.toString() || '0',
+          monthlyPayment: sale.monthlyInstallment?.toString() || '0',
+          gifts: parseFreebies(sale.freebiesSnapshot),
         },
         contactPerson: {
           name: 'นายณัฐนันท์ คมฤทัย',
@@ -439,26 +452,37 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         header,
         customer: transformCustomer(sale.customer),
         car: transformCar(sale.stock),
-        pricing: {
-          sellingPrice: sale.totalAmount?.toString() || '0',
-          remaining: sale.remainingAmount?.toString() || '0',
-          downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
-          downPaymentDiscount: '0',
-          insurance: '0', // Not in schema
-          actInsurance: '0', // Not in schema
-          registrationFee: '0', // Not in schema
-          totalDelivery: sale.paidAmount?.toString() || '0',
-          financeAmount: sale.financeAmount?.toString() || '0',
-          deductDeposit: sale.paidAmount?.toString() || '0',
-          deliveryAmount: sale.paidAmount?.toString() || '0',
-          outstandingBalance: sale.remainingAmount?.toString() || '0',
-          paymentDueDate: sale.expirationDate ? formatThaiDate(sale.expirationDate, 'short') : '-',
-          financeCompany: sale.financeProvider || '-',
-          interestRate: '0', // Not in Sale schema
-          installmentMonths: '0', // Not in schema
-          monthlyPayment: '0', // Not in schema
-        },
-        gifts: [], // TODO: Parse from freebiesSnapshot if available
+        pricing: (() => {
+          const downPayment = Number(sale.downPayment ?? sale.depositAmount ?? 0);
+          const downPaymentDiscount = Number(sale.downPaymentDiscount ?? 0);
+          const insurance = Number(sale.insuranceFee ?? 0);
+          const actInsurance = Number(sale.compulsoryInsuranceFee ?? 0);
+          const registrationFee = Number(sale.registrationFee ?? 0);
+          // รวมเงินออกรถ = sum of the delivery-day column on the paper form:
+          // เงินดาวน์ − ส่วนลดดาวน์ + ประกันชั้น 1 + พรบ. + จดทะเบียน
+          const totalDelivery =
+            downPayment - downPaymentDiscount + insurance + actInsurance + registrationFee;
+          return {
+            sellingPrice: sale.totalAmount?.toString() || '0',
+            remaining: sale.remainingAmount?.toString() || '0',
+            downPayment: downPayment.toString(),
+            downPaymentDiscount: downPaymentDiscount.toString(),
+            insurance: insurance.toString(),
+            actInsurance: actInsurance.toString(),
+            registrationFee: registrationFee.toString(),
+            totalDelivery: totalDelivery.toString(),
+            financeAmount: sale.financeAmount?.toString() || '0',
+            deductDeposit: sale.paidAmount?.toString() || '0',
+            deliveryAmount: sale.paidAmount?.toString() || '0',
+            outstandingBalance: sale.remainingAmount?.toString() || '0',
+            paymentDueDate: sale.expirationDate ? formatThaiDate(sale.expirationDate, 'short') : '-',
+            financeCompany: sale.financeProvider || '-',
+            interestRate: sale.interestRate?.toString() || '0',
+            installmentMonths: sale.numberOfTerms?.toString() || '0',
+            monthlyPayment: sale.monthlyInstallment?.toString() || '0',
+          };
+        })(),
+        gifts: parseFreebies(sale.freebiesSnapshot),
         staff: {
           salesConsultant: sale.createdBy
             ? `${sale.createdBy.firstName} ${sale.createdBy.lastName}`
