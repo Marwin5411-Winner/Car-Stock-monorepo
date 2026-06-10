@@ -319,7 +319,7 @@ export default function SalesFormPage() {
       monthlyInstallment: formData.monthlyInstallment || undefined,
       deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : undefined,
       notes: formData.notes || undefined,
-      freebiesSnapshot: formData.freebiesSnapshot || undefined,
+      freebiesSnapshot: formData.freebiesSnapshot,
     };
 
     await executeMutation(
