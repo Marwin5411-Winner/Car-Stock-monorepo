@@ -2,7 +2,7 @@
  * Unit tests for the remaining-amount recalculation in updateSale.
  *
  * Invariant under test:
- *   `remainingAmount = totalAmount - paidAmount`
+ *   `remainingAmount = totalAmount + totalFees - paidAmount`
  *
  * We deliberately do NOT use `max(depositAmount, paidAmount)`. The earlier
  * `max()` formula over-counted whenever `depositAmount > paidAmount` — e.g.
@@ -19,10 +19,12 @@
 import { describe, it, expect } from 'bun:test';
 
 // Mirror the formula. Numbers mirror `toNumber()` output: plain `number`.
+// `fees` = insuranceFee + compulsoryInsuranceFee + registrationFee (buyer-charged).
 function recalcRemaining(
   newTotal: number,
   newDeposit: number,
-  paid: number
+  paid: number,
+  fees = 0
 ): { remaining: number; throws: false } | { throws: true; message: string } {
   if (newDeposit > newTotal) {
     return {
@@ -30,7 +32,7 @@ function recalcRemaining(
       message: 'Deposit amount cannot exceed total amount',
     };
   }
-  const remaining = newTotal - paid;
+  const remaining = newTotal + fees - paid;
   if (remaining < 0) {
     return {
       throws: true,
@@ -114,5 +116,38 @@ describe('updateSale — remaining-amount recalculation', () => {
     const r = recalcRemaining(0, 0, 0);
     expect(r.throws).toBe(false);
     if (!r.throws) expect(r.remaining).toBe(0);
+  });
+});
+
+describe('updateSale — buyer-charged fees add to remaining', () => {
+  it('fees only, nothing paid: remaining = total + fees', () => {
+    // 1M car + 25k insurance + 600 พรบ + 2,400 registration
+    const r = recalcRemaining(1_000_000, 0, 0, 28_000);
+    expect(r.throws).toBe(false);
+    if (!r.throws) expect(r.remaining).toBe(1_028_000);
+  });
+
+  it('car fully paid but fees outstanding: remaining = fees (not 0)', () => {
+    const r = recalcRemaining(1_000_000, 100_000, 1_000_000, 28_000);
+    expect(r.throws).toBe(false);
+    if (!r.throws) expect(r.remaining).toBe(28_000);
+  });
+
+  it('car + fees fully paid: remaining = 0', () => {
+    const r = recalcRemaining(1_000_000, 100_000, 1_028_000, 28_000);
+    expect(r.throws).toBe(false);
+    if (!r.throws) expect(r.remaining).toBe(0);
+  });
+
+  it('zero fees behaves exactly like before (backward compat)', () => {
+    const r = recalcRemaining(1_000_000, 100_000, 50_000, 0);
+    expect(r.throws).toBe(false);
+    if (!r.throws) expect(r.remaining).toBe(950_000);
+  });
+
+  it('overpay beyond total + fees throws', () => {
+    const r = recalcRemaining(900_000, 0, 1_000_000, 28_000);
+    expect(r.throws).toBe(true);
+    if (r.throws) expect(r.message).toMatch(/ค้างชำระติดลบ/);
   });
 });

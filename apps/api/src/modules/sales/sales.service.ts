@@ -31,6 +31,12 @@ function serializeSale(sale: any): any {
     financeAmount: toNumberOrNull(sale.financeAmount),
     carDiscount: toNumberOrNull(sale.carDiscount),
     downPaymentDiscount: toNumberOrNull(sale.downPaymentDiscount),
+    insuranceFee: toNumberOrNull(sale.insuranceFee),
+    compulsoryInsuranceFee: toNumberOrNull(sale.compulsoryInsuranceFee),
+    registrationFee: toNumberOrNull(sale.registrationFee),
+    salesCommission: toNumberOrNull(sale.salesCommission),
+    salesExpense: toNumberOrNull(sale.salesExpense),
+    financeCommission: toNumberOrNull(sale.financeCommission),
     interestRate: toNumberOrNull(sale.interestRate),
     monthlyInstallment: toNumberOrNull(sale.monthlyInstallment),
     discountSnapshot: toNumberOrNull(sale.discountSnapshot),
@@ -398,8 +404,14 @@ export class SalesService {
     // Generate sale number
     const saleNumber = await this.generateSaleNumber();
 
-    // Calculate remaining amount
-    const remainingAmount = validated.totalAmount - (validated.depositAmount || 0);
+    // Calculate remaining amount.
+    // Buyer-charged fees (insurance / พรบ / registration) are part of what the
+    // customer owes: remaining = total + fees − settled.
+    const createFees =
+      (validated.insuranceFee || 0) +
+      (validated.compulsoryInsuranceFee || 0) +
+      (validated.registrationFee || 0);
+    const remainingAmount = validated.totalAmount + createFees - (validated.depositAmount || 0);
 
     // Create sale + reserve stock + history + activity log in transaction
     const sale = await db.$transaction(async (tx) => {
@@ -488,6 +500,8 @@ export class SalesService {
         'totalAmount', 'depositAmount', 'paymentMode', 'downPayment',
         'financeAmount', 'financeProvider', 'carDiscount', 'downPaymentDiscount',
         'discountSnapshot', 'freebiesSnapshot',
+        'insuranceFee', 'compulsoryInsuranceFee', 'registrationFee',
+        'salesCommission', 'salesExpense', 'financeCommission',
         'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
       ];
       const disallowed = Object.keys(validated).filter(k => !allowedFields.includes(k));
@@ -500,7 +514,7 @@ export class SalesService {
 
     // Recalculate remaining amount if total or deposit changed.
     //
-    // Invariant: `remainingAmount = totalAmount - paidAmount`.
+    // Invariant: remainingAmount = totalAmount + totalFees - paidAmount.
     //
     // `paidAmount` is the single source of truth for what the customer has
     // actually settled. It is kept in sync by the Payment flows:
@@ -519,21 +533,40 @@ export class SalesService {
     //
     // `depositAmount` is still validated to be ≤ `totalAmount` so the form
     // can't accept nonsensical values, but it does not influence `remaining`.
-    if (validated.totalAmount !== undefined || validated.depositAmount !== undefined) {
+    const feeFields = ['insuranceFee', 'compulsoryInsuranceFee', 'registrationFee'] as const;
+    const feeChanged = feeFields.some((f) => validated[f] !== undefined);
+
+    if (
+      validated.totalAmount !== undefined ||
+      validated.depositAmount !== undefined ||
+      feeChanged
+    ) {
       const currentSale = await db.sale.findUnique({
         where: { id },
-        select: { totalAmount: true, depositAmount: true, paidAmount: true },
+        select: {
+          totalAmount: true,
+          depositAmount: true,
+          paidAmount: true,
+          insuranceFee: true,
+          compulsoryInsuranceFee: true,
+          registrationFee: true,
+        },
       });
 
       const newTotal = validated.totalAmount !== undefined ? validated.totalAmount : toNumber(currentSale!.totalAmount);
       const newDeposit = validated.depositAmount !== undefined ? validated.depositAmount : toNumber(currentSale!.depositAmount);
       const paid = toNumber(currentSale!.paidAmount);
+      const newFees = feeFields.reduce(
+        (sum, f) =>
+          sum + (validated[f] !== undefined ? (validated[f] as number) : (toNumberOrNull(currentSale![f]) || 0)),
+        0
+      );
 
       if (newDeposit > newTotal) {
         throw new BadRequestError('Deposit amount cannot exceed total amount');
       }
 
-      const newRemaining = newTotal - paid;
+      const newRemaining = newTotal + newFees - paid;
       if (newRemaining < 0) {
         throw new BadRequestError(
           `ยอดค้างชำระติดลบ — ไม่สามารถลดยอดได้ (ชำระแล้ว ${paid.toLocaleString()} บาท)`
