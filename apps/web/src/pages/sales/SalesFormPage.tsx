@@ -51,6 +51,7 @@ interface FormData {
   monthlyInstallment: number;
   deliveryDate: string;
   notes: string;
+  freebiesSnapshot: string;
 }
 
 export default function SalesFormPage() {
@@ -100,6 +101,7 @@ export default function SalesFormPage() {
     monthlyInstallment: 0,
     deliveryDate: '',
     notes: '',
+    freebiesSnapshot: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -160,6 +162,7 @@ export default function SalesFormPage() {
           monthlyInstallment: Number(sale.monthlyInstallment) || 0,
           deliveryDate: sale.deliveryDate ? new Date(sale.deliveryDate).toISOString().slice(0, 10) : '',
           notes: sale.notes || '',
+          freebiesSnapshot: sale.freebiesSnapshot || '',
         });
 
         setSelectedCustomer(sale.customer as Customer);
@@ -316,6 +319,7 @@ export default function SalesFormPage() {
       monthlyInstallment: formData.monthlyInstallment || undefined,
       deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : undefined,
       notes: formData.notes || undefined,
+      freebiesSnapshot: formData.freebiesSnapshot || undefined,
     };
 
     await executeMutation(
@@ -784,6 +788,17 @@ export default function SalesFormPage() {
           {/* Notes */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4 text-black">หมายเหตุ</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-black mb-1">รายการของแถม</label>
+              <textarea
+                value={formData.freebiesSnapshot}
+                onChange={(e) => setFormData(prev => ({ ...prev, freebiesSnapshot: e.target.value }))}
+                rows={4}
+                placeholder={'พิมพ์ของแถมบรรทัดละ 1 รายการ เช่น\nฟิล์มกรองแสง\nพรมปูพื้น'}
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-500 mt-1">แสดงในใบบันทึกการขาย (บรรทัดละ 1 รายการ)</p>
+            </div>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}

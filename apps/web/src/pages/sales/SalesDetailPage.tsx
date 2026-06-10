@@ -965,7 +965,7 @@ export default function SalesDetailPage() {
       </div>
 
       {/* Campaign & Notes */}
-      {(sale.campaign || sale.notes) && (
+      {(sale.campaign || sale.notes || sale.freebiesSnapshot) && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">ข้อมูลเพิ่มเติม</h3>
           {sale.campaign && (
@@ -975,9 +975,16 @@ export default function SalesDetailPage() {
               {sale.discountSnapshot && (
                 <p className="text-sm text-green-600">ส่วนลด: {formatCurrency(sale.discountSnapshot)}</p>
               )}
-              {sale.freebiesSnapshot && (
-                <p className="text-sm text-blue-600">ของแถม: {sale.freebiesSnapshot}</p>
-              )}
+            </div>
+          )}
+          {sale.freebiesSnapshot && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-700">รายการของแถม</p>
+              <ul className="text-sm text-blue-600 list-disc list-inside">
+                {sale.freebiesSnapshot.split(/[\n,]/).map((g) => g.trim()).filter(Boolean).map((gift) => (
+                  <li key={gift}>{gift}</li>
+                ))}
+              </ul>
             </div>
           )}
           {sale.notes && (
