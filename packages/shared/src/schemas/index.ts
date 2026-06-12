@@ -674,6 +674,46 @@ export const MonthlyPurchasesResponseSchema = z.object({
 });
 
 // ============================================================================
+// Campaign Claim Report (new)
+// ============================================================================
+
+export const CampaignClaimRowSchema = z.object({
+  no: z.number(),
+  saleId: z.string(),
+  saleNumber: z.string(),
+  customerName: z.string(),
+  modelName: z.string(),
+  engineNumber: z.string(),
+  vin: z.string(),
+  financeProvider: z.string(),
+  saleDate: z.string().nullable(),
+  notifyDate: z.string().nullable(),
+  campaignName: z.string(),
+  promotionDiscount: z.number(),
+  baseCommission: z.number(),
+  claimTotal: z.number(),
+  // One slot per modelColumns entry; claimTotal in the car's column, null elsewhere.
+  modelAmounts: z.array(z.number().nullable()),
+});
+
+export const CampaignClaimReportResponseSchema = z.object({
+  period: z.object({
+    year: z.number(),
+    month: z.number(),
+    startDate: z.string(),
+    endDate: z.string(),
+  }),
+  brand: z.string(),
+  modelColumns: z.array(z.object({ vehicleModelId: z.string(), label: z.string() })),
+  rows: z.array(CampaignClaimRowSchema),
+  summary: z.object({
+    totalCars: z.number(),
+    modelTotals: z.array(z.number()),
+    grandTotal: z.number(),
+  }),
+});
+
+// ============================================================================
 // vehicleType filter extension for Stock & Sales reports
 // ============================================================================
 

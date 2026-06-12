@@ -1,4 +1,5 @@
 import type {
+  CampaignClaimReportResponse,
   DailyPaymentReportResponse,
   DailyStockSnapshotResponse,
   MonthlyPurchasesResponse,
@@ -17,32 +18,6 @@ interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
-}
-
-export interface CampaignClaimRow {
-  no: number;
-  saleId: string;
-  saleNumber: string;
-  customerName: string;
-  modelName: string;
-  engineNumber: string;
-  vin: string;
-  financeProvider: string;
-  saleDate: string | null;
-  notifyDate: string | null;
-  campaignName: string;
-  promotionDiscount: number;
-  baseCommission: number;
-  claimTotal: number;
-  modelAmounts: Array<number | null>;
-}
-
-export interface CampaignClaimReportResponse {
-  period: { year: number; month: number; startDate: string; endDate: string };
-  brand: string;
-  modelColumns: Array<{ vehicleModelId: string; label: string }>;
-  rows: CampaignClaimRow[];
-  summary: { totalCars: number; modelTotals: number[]; grandTotal: number };
 }
 
 class ReportService {
