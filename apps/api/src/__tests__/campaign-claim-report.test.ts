@@ -142,6 +142,46 @@ describe('buildCampaignClaimReport', () => {
     expect(report.summary.grandTotal).toBe(27000);
   });
 
+  test('sale without stock still gets selling-side rebate, cost-side dropped', () => {
+    const report = buildCampaignClaimReport([
+      baseSale({
+        stock: null,
+        campaign: {
+          id: 'camp1',
+          name: 'NETA Q2 Push',
+          vehicleModels: [
+            {
+              vehicleModelId: 'vm1',
+              formulas: [
+                {
+                  id: 'f-cost',
+                  name: 'ส่วนลดทุน',
+                  operator: 'SUBTRACT' as const,
+                  value: 10000,
+                  priceTarget: 'COST_PRICE' as const,
+                  sortOrder: 1,
+                },
+                {
+                  id: 'f-sell',
+                  name: 'ส่วนลดราคาขาย',
+                  operator: 'SUBTRACT' as const,
+                  value: 3000,
+                  priceTarget: 'SELLING_PRICE' as const,
+                  sortOrder: 2,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+    const row = report.rows[0];
+    // selling-side: 500000 - 3000 → sellingPriceDiff = -3000 → rebate 3000
+    // cost-side dropped entirely (no stock → no cost base)
+    expect(row.baseCommission).toBe(3000);
+    expect(row.claimTotal).toBe(8000); // 5000 discount + 3000 commission
+  });
+
   test('empty input produces empty rows and zero totals', () => {
     const report = buildCampaignClaimReport([]);
     expect(report.rows).toEqual([]);
