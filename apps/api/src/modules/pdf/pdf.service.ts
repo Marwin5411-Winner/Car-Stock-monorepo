@@ -19,6 +19,7 @@ import {
   safeString,
 } from './helpers';
 import {
+  type CampaignClaimReportData,
   type CarReservationContractData,
   type CompanyHeader,
   type ContractData,
@@ -885,6 +886,13 @@ export class PdfService {
     return this.generatePdf(PdfTemplateType.MONTHLY_PURCHASES_REPORT, data, {
       landscape: true,
     });
+  }
+
+  /**
+   * Generate Monthly Campaign Claim Report PDF (brand submission form)
+   */
+  public async generateCampaignClaimReportPdf(data: CampaignClaimReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.CAMPAIGN_CLAIM_MONTHLY, data, { landscape: true });
   }
 
   /**

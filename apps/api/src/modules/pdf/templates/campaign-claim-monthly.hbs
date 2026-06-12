@@ -1,0 +1,165 @@
+{{! apps/api/src/modules/pdf/templates/campaign-claim-monthly.hbs }}
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title" style="font-size: 14px; margin: 10px 0 2px;">
+  รายงานเบิกแคมเปญเงินส่งเสริมการขายประจำเดือน {{monthLabel}}
+</div>
+<div class="text-center" style="font-size: 11px; margin-bottom: 10px;">
+  ยี่ห้อ: <strong>{{brand}}</strong>
+</div>
+
+<table class="claim-table">
+  <thead>
+    <tr>
+      <th rowspan="2">ลำดับ</th>
+      <th>ชื่อ - สกุล</th>
+      <th>เลขเครื่อง</th>
+      <th>ไฟแนนท์</th>
+      <th>ส่วนลดโปรโมชั่น</th>
+      <th>คอมมิชชั่นพื้นฐาน</th>
+      {{#if modelColumns.length}}
+      <th colspan="{{modelColumns.length}}">STANDARD</th>
+      <th colspan="{{modelColumns.length}}">เป้าขาย</th>
+      {{/if}}
+      <th>รวมรับเงิน</th>
+      <th rowspan="2" class="w-expense">ค่าใช้จ่ายในการซื้อ/แลกรถ<br><span class="sub">ในการแลก/ซื้อรถกับดีเลอร์</span></th>
+    </tr>
+    <tr>
+      <th class="sub-h">แบบรถ</th>
+      <th class="sub-h">เลขตัวรถ</th>
+      <th class="sub-h">วันที่ขาย</th>
+      <th class="sub-h">วันที่รับเงิน</th>
+      <th class="sub-h">วันที่รับเงิน</th>
+      {{#each modelColumns}}
+      <th class="sub-h model-col">{{label}}</th>
+      {{/each}}
+      {{#each modelColumns}}
+      <th class="sub-h model-col target-col">{{label}}</th>
+      {{/each}}
+      <th class="sub-h">วันที่แจ้งขาย</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each rows}}
+    <tr class="row-top">
+      <td rowspan="2" class="tc">{{no}}</td>
+      <td>{{customerName}}</td>
+      <td class="tc mono">{{engineNumber}}</td>
+      <td class="tc">{{financeProvider}}</td>
+      <td class="tr">{{#if promotionDiscount}}{{formatCurrency promotionDiscount false}}{{/if}}</td>
+      <td class="tr">{{#if baseCommission}}{{formatCurrency baseCommission false}}{{/if}}</td>
+      {{#each modelAmounts}}
+      <td class="tr model-col">{{#if this}}{{formatCurrency this false}}{{/if}}</td>
+      {{/each}}
+      {{#each ../modelColumns}}
+      <td class="target-col"></td>
+      {{/each}}
+      <td class="tr strong">{{formatCurrency claimTotal false}}</td>
+      <td rowspan="2" class="fill-cell"></td>
+    </tr>
+    <tr class="row-bottom">
+      <td>{{modelName}}</td>
+      <td class="tc mono">{{vin}}</td>
+      <td class="tc">{{#if saleDate}}{{formatThaiDate saleDate 'short'}}{{/if}}</td>
+      <td class="fill-cell"></td>
+      <td class="fill-cell"></td>
+      {{#each modelAmounts}}
+      <td class="model-col"></td>
+      {{/each}}
+      {{#each ../modelColumns}}
+      <td class="target-col"></td>
+      {{/each}}
+      <td class="tc">{{#if notifyDate}}{{formatThaiDate notifyDate 'short'}}{{/if}}</td>
+    </tr>
+    {{else}}
+    <tr>
+      <td colspan="100" class="tc muted">ไม่มีรายการเบิกแคมเปญในเดือนนี้</td>
+    </tr>
+    {{/each}}
+    {{#if rows.length}}
+    <tr class="row-total">
+      <td colspan="4" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
+      <td></td>
+      <td></td>
+      {{#each summary.modelTotals}}
+      <td class="tr strong model-col">{{#if this}}{{formatCurrency this false}}{{/if}}</td>
+      {{/each}}
+      {{#each modelColumns}}
+      <td class="target-col"></td>
+      {{/each}}
+      <td class="tr strong">{{formatCurrency summary.grandTotal false}}</td>
+      <td></td>
+    </tr>
+    {{/if}}
+  </tbody>
+</table>
+
+<div class="claim-footer">
+  <div class="sign-block">
+    <div>ลงชื่อ .................................................. ผู้จัดทำ</div>
+    <div class="sign-date">วันที่ ........../........../..........</div>
+  </div>
+  <div class="sign-block">
+    <div>ลงชื่อ .................................................. ผู้อนุมัติ</div>
+    <div class="sign-date">วันที่ ........../........../..........</div>
+  </div>
+</div>
+<div class="printed-at">พิมพ์เมื่อ: {{printedAt}}</div>
+
+<style>
+  .claim-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .claim-table th, .claim-table td {
+    border: 1px solid #374151;
+    padding: 2px 4px;
+    vertical-align: middle;
+  }
+  .claim-table th {
+    background: #f3f4f6 !important;
+    font-weight: bold;
+    text-align: center;
+    font-size: 9px;
+  }
+  .claim-table th.sub-h { font-weight: normal; font-size: 8px; }
+  .claim-table th .sub { font-size: 7px; font-weight: normal; color: #4b5563; }
+  .claim-table .tc { text-align: center; }
+  .claim-table .tr { text-align: right; }
+  .claim-table .mono { font-family: monospace; font-size: 8px; }
+  .claim-table .strong { font-weight: bold; }
+  .claim-table .muted { color: #6b7280; padding: 10px; }
+  .claim-table .model-col { min-width: 44px; }
+  .claim-table .w-expense { max-width: 70px; }
+  .claim-table .row-top td { border-bottom-style: dotted; }
+  .claim-table .row-bottom td { border-top-style: dotted; font-size: 8px; color: #1f2937; }
+  .claim-table .row-total td { background: #f3f4f6 !important; }
+  .claim-footer {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 28px;
+    font-size: 10px;
+    page-break-inside: avoid;
+  }
+  .sign-block { text-align: center; }
+  .sign-date { margin-top: 6px; }
+  .printed-at { margin-top: 14px; font-size: 8px; color: #6b7280; text-align: right; }
+</style>

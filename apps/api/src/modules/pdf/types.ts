@@ -356,6 +356,7 @@ export enum PdfTemplateType {
   DAILY_STOCK_SNAPSHOT = 'daily-stock-snapshot',
   MONTHLY_PURCHASES_REPORT = 'monthly-purchases-report',
   CAMPAIGN_REPORT = 'campaign-report',
+  CAMPAIGN_CLAIM_MONTHLY = 'campaign-claim-monthly',
 }
 
 /**
@@ -557,4 +558,38 @@ export interface PurchaseRequirementReportData {
     modelsNeedingPurchase: number;
     totalModels: number;
   };
+}
+
+/**
+ * Monthly Campaign Claim Report Data — brand submission form
+ * (รายงานเบิกแคมเปญเงินส่งเสริมการขายประจำเดือน)
+ */
+export interface CampaignClaimReportData {
+  header: {
+    logoBase64: string;
+    companyName: string;
+    address1: string;
+    address2: string;
+    phone: string;
+  };
+  monthLabel: string; // e.g. 'พฤษภาคม 2569'
+  brand: string;
+  modelColumns: Array<{ label: string }>;
+  rows: Array<{
+    no: number;
+    customerName: string;
+    modelName: string;
+    engineNumber: string;
+    vin: string;
+    financeProvider: string;
+    saleDate: string | null; // ISO string, formatted in template
+    notifyDate: string | null;
+    campaignName: string;
+    promotionDiscount: number;
+    baseCommission: number;
+    claimTotal: number;
+    modelAmounts: Array<number | null>;
+  }>;
+  summary: { totalCars: number; modelTotals: number[]; grandTotal: number };
+  printedAt: string;
 }
