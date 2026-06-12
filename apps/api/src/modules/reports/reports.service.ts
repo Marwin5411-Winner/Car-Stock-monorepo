@@ -8,6 +8,7 @@ import {
 import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prisma/client';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
+import { buildCampaignClaimReport } from './campaign-claim.helpers';
 
 // Helper functions
 const toNumber = (val: Decimal | number | null | undefined): number => {
@@ -1647,6 +1648,78 @@ export async function getMonthlyPurchasesReport(params: {
   };
 }
 
+export async function getCampaignClaimReport(params: {
+  year: number;
+  month: number;
+  brand: string;
+}) {
+  const { year, month, brand } = params;
+  // Half-open interval: [startDate, endDate) — same convention as monthly purchases.
+  const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const endDate = new Date(year, month, 1, 0, 0, 0, 0);
+
+  const vehicleModelSelect = {
+    select: { id: true, brand: true, model: true, variant: true, price: true },
+  } as const;
+
+  const sales = await db.sale.findMany({
+    where: {
+      campaignId: { not: null },
+      status: { notIn: ['CANCELLED'] },
+      OR: [
+        { stock: { is: { soldDate: { gte: startDate, lt: endDate } } } },
+        { stock: { is: null }, completedDate: { gte: startDate, lt: endDate } },
+      ],
+    },
+    include: {
+      customer: { select: { name: true } },
+      vehicleModel: vehicleModelSelect,
+      stock: {
+        select: {
+          vin: true,
+          engineNumber: true,
+          soldDate: true,
+          baseCost: true,
+          vehicleModelId: true,
+          vehicleModel: vehicleModelSelect,
+        },
+      },
+      campaign: {
+        select: {
+          id: true,
+          name: true,
+          vehicleModels: {
+            select: {
+              vehicleModelId: true,
+              formulas: { orderBy: { sortOrder: 'asc' } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  // Brand lives on the resolved model (stock's model wins) — filter in JS to
+  // keep the OR query simple; monthly volumes are small.
+  const brandSales = sales.filter(
+    (s) => (s.stock?.vehicleModel?.brand ?? s.vehicleModel?.brand) === brand
+  );
+
+  const report = buildCampaignClaimReport(brandSales);
+
+  return {
+    period: {
+      year,
+      month,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    },
+    brand,
+    ...report,
+  };
+}
+
 export const reportsService = {
   getDailyPaymentReport,
   getStockReport,
@@ -1656,4 +1729,5 @@ export const reportsService = {
   getPurchaseRequirementReport,
   getDailyStockSnapshot,
   getMonthlyPurchasesReport,
+  getCampaignClaimReport,
 };
