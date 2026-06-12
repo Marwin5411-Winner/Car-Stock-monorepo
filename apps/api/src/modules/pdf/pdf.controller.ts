@@ -1622,9 +1622,14 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         summary: report.summary,
         printedAt: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       });
+      const safeBrand = query.brand.replace(/[^A-Za-z0-9_-]/g, '_');
+      const baseName = `campaign-claims-${safeBrand}-${year}-${String(month).padStart(2, '0')}.pdf`;
+      const utf8Name = encodeURIComponent(
+        `campaign-claims-${query.brand}-${year}-${String(month).padStart(2, '0')}.pdf`
+      );
       set.headers['Content-Type'] = 'application/pdf';
       set.headers['Content-Disposition'] =
-        `attachment; filename="campaign-claims-${query.brand}-${year}-${String(month).padStart(2, '0')}.pdf"`;
+        `attachment; filename="${baseName}"; filename*=UTF-8''${utf8Name}`;
       return pdfBuffer;
     },
     {
