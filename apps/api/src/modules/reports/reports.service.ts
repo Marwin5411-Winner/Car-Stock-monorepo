@@ -1666,9 +1666,15 @@ export async function getCampaignClaimReport(params: {
     where: {
       campaignId: { not: null },
       status: { notIn: ['CANCELLED'] },
+      // Third branch covers stocked sales whose soldDate hasn't been stamped yet
+      // (builder falls back to completedDate).
       OR: [
         { stock: { is: { soldDate: { gte: startDate, lt: endDate } } } },
         { stock: { is: null }, completedDate: { gte: startDate, lt: endDate } },
+        {
+          stock: { is: { soldDate: null } },
+          completedDate: { gte: startDate, lt: endDate },
+        },
       ],
     },
     include: {
