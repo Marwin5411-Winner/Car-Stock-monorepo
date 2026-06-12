@@ -668,4 +668,54 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         description: 'All stock intake for a given month, optionally filtered by vehicleType',
       },
     }
+  )
+  // ============================================
+  // Monthly Campaign Claim Report (brand submission)
+  // ============================================
+  .get(
+    '/campaign-claims',
+    async ({ query, set, requester }) => {
+      if (!authService.hasPermission(requester!.role, 'CAMPAIGN_VIEW')) {
+        set.status = 403;
+        return {
+          success: false,
+          error: 'Forbidden',
+          message: 'คุณไม่มีสิทธิ์ดูรายงานนี้',
+        };
+      }
+
+      const year = Number(query.year);
+      const month = Number(query.month);
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+        set.status = 400;
+        return { success: false, error: 'BadRequest', message: 'year/month invalid' };
+      }
+      if (!query.brand) {
+        set.status = 400;
+        return { success: false, error: 'BadRequest', message: 'brand is required' };
+      }
+
+      const result = await reportsService.getCampaignClaimReport({
+        year,
+        month,
+        brand: query.brand,
+      });
+
+      set.status = 200;
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        year: t.String(),
+        month: t.String(),
+        brand: t.String(),
+      }),
+      detail: {
+        tags: ['Reports'],
+        summary: 'Monthly campaign claim report',
+        description:
+          'Campaign claim rows for a month, filtered by vehicle brand, in brand submission format',
+      },
+    }
   );

@@ -1567,4 +1567,76 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         summary: 'Generate Monthly Purchases Report PDF',
       },
     }
+  )
+  // Monthly Campaign Claim Report PDF (brand submission form)
+  .get(
+    '/campaign-claims',
+    async ({ query, set }) => {
+      const year = Number(query.year);
+      const month = Number(query.month);
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+        set.status = 400;
+        return 'Invalid year/month';
+      }
+      if (!query.brand) {
+        set.status = 400;
+        return 'brand is required';
+      }
+
+      const report = await reportsService.getCampaignClaimReport({
+        year,
+        month,
+        brand: query.brand,
+      });
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const THAI_MONTHS = [
+        'มกราคม',
+        'กุมภาพันธ์',
+        'มีนาคม',
+        'เมษายน',
+        'พฤษภาคม',
+        'มิถุนายน',
+        'กรกฎาคม',
+        'สิงหาคม',
+        'กันยายน',
+        'ตุลาคม',
+        'พฤศจิกายน',
+        'ธันวาคม',
+      ];
+      const monthLabel = `${THAI_MONTHS[month - 1]} ${year + 543}`;
+
+      const rows = report.rows.map((r) => ({
+        ...r,
+        saleDate: r.saleDate ? r.saleDate.toISOString() : null,
+        notifyDate: r.notifyDate ? r.notifyDate.toISOString() : null,
+      }));
+
+      const pdfBuffer = await pdfService.generateCampaignClaimReportPdf({
+        header,
+        monthLabel,
+        brand: report.brand,
+        modelColumns: report.modelColumns,
+        rows,
+        summary: report.summary,
+        printedAt: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+      });
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] =
+        `attachment; filename="campaign-claims-${query.brand}-${year}-${String(month).padStart(2, '0')}.pdf"`;
+      return pdfBuffer;
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
+      query: t.Object({
+        year: t.String(),
+        month: t.String(),
+        brand: t.String(),
+      }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Generate Monthly Campaign Claim Report PDF',
+      },
+    }
   );
