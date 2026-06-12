@@ -54,8 +54,8 @@
       <th class="sub-h">วันที่แจ้งขาย</th>
     </tr>
   </thead>
-  <tbody>
-    {{#each rows}}
+  {{#each rows}}
+  <tbody class="sale-group">
     <tr class="row-top">
       <td rowspan="2" class="tc">{{no}}</td>
       <td>{{customerName}}</td>
@@ -86,12 +86,16 @@
       {{/each}}
       <td class="tc">{{#if notifyDate}}{{formatThaiDate notifyDate 'short'}}{{/if}}</td>
     </tr>
-    {{else}}
+  </tbody>
+  {{else}}
+  <tbody>
     <tr>
       <td colspan="100" class="tc muted">ไม่มีรายการเบิกแคมเปญในเดือนนี้</td>
     </tr>
-    {{/each}}
-    {{#if rows.length}}
+  </tbody>
+  {{/each}}
+  {{#if rows.length}}
+  <tbody>
     <tr class="row-total">
       <td colspan="4" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
       <td></td>
@@ -105,8 +109,8 @@
       <td class="tr strong">{{formatCurrency summary.grandTotal false}}</td>
       <td></td>
     </tr>
-    {{/if}}
   </tbody>
+  {{/if}}
 </table>
 
 <div class="claim-footer">
@@ -152,6 +156,7 @@
   .claim-table .row-top td { border-bottom-style: dotted; }
   .claim-table .row-bottom td { border-top-style: dotted; font-size: 8px; color: #1f2937; }
   .claim-table .row-total td { background: #f3f4f6 !important; }
+  .claim-table .sale-group { page-break-inside: avoid; break-inside: avoid; }
   .claim-footer {
     display: flex;
     justify-content: space-around;
