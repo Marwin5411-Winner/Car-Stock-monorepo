@@ -356,6 +356,13 @@ export default function StockDetailPage() {
               <div className="flex items-start">
                 <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
                 <div>
+                  <p className="text-sm text-gray-500">วันที่สั่งซื้อ</p>
+                  <p className="text-gray-900">{stock.orderDate ? formatDate(stock.orderDate) : '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                <div>
                   <p className="text-sm text-gray-500">วันที่รถเข้า</p>
                   <p className="text-gray-900">{formatDate(stock.arrivalDate)}</p>
                 </div>

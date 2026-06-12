@@ -26,6 +26,10 @@ export interface Sale {
   stock?: {
     id: string;
     vin: string;
+    engineNumber?: string;
+    motorNumber1?: string;
+    motorNumber2?: string;
+    orderDate?: string;
     vehicleModel: {
       brand: string;
       model: string;

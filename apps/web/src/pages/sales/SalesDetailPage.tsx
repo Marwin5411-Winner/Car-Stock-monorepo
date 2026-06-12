@@ -610,6 +610,22 @@ export default function SalesDetailPage() {
                 <dt className="text-sm text-gray-700">VIN</dt>
                 <dd className="text-sm font-mono">{sale.stock.vin}</dd>
               </div>
+              <div>
+                <dt className="text-sm text-gray-700">หมายเลขมอเตอร์ 1</dt>
+                <dd className="text-sm font-mono">{sale.stock.motorNumber1 || '-'}</dd>
+              </div>
+              {sale.stock.motorNumber2 && (
+                <div>
+                  <dt className="text-sm text-gray-700">หมายเลขมอเตอร์ 2</dt>
+                  <dd className="text-sm font-mono">{sale.stock.motorNumber2}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-sm text-gray-700">วันที่สั่งซื้อ</dt>
+                <dd className="text-sm font-medium">
+                  {sale.stock.orderDate ? formatDate(sale.stock.orderDate) : '-'}
+                </dd>
+              </div>
               {sale.stock.exteriorColor && (
                 <div>
                   <dt className="text-sm text-gray-700">สีภายนอก</dt>
