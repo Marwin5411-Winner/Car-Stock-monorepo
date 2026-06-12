@@ -43,7 +43,7 @@ Auth: same as existing campaign report (`CAMPAIGN_VIEW` permission).
 |---|---|
 | ลำดับ | running number, sorted by sold date |
 | ชื่อ-สกุล | `customer.name` |
-| แบบรถ (lower row) | `vehicleModel.model + variant` |
+| แบบรถ (lower row) | resolved model: `stock.vehicleModel` first, fallback `sale.vehicleModel` — `model + variant` |
 | เลขเครื่อง / เลขตัวรถ | `stock.engineNumber` / `stock.vin` |
 | ไฟแนนท์ / วันที่ขาย | `sale.financeProvider` / `stock.soldDate` |
 | ส่วนลดโปรโมชั่น | `sale.carDiscount`, fallback `discountSnapshot`; วันที่รับเงิน blank |
