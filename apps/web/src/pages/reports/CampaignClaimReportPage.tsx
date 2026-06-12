@@ -77,8 +77,8 @@ export function CampaignClaimReportPage(): React.ReactElement {
       data.modelColumns.forEach((c) => {
         base[`เป้าขาย ${c.label}`] = '';
       });
-      base['รวมรับเงิน'] = r.claimTotal;
-      base['วันที่แจ้งขาย'] = fmtDate(r.notifyDate);
+      base.รวมรับเงิน = r.claimTotal;
+      base.วันที่แจ้งขาย = fmtDate(r.notifyDate);
       base['ค่าใช้จ่ายในการซื้อ/แลกรถ'] = '';
       return base;
     };
