@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ClipboardList,
   Lock,
+  Megaphone,
   Package,
   Percent,
   ShoppingCart,
@@ -104,6 +105,16 @@ const REPORTS: ReportCard[] = [
     color: 'text-amber-600',
     bgColor: 'bg-amber-100',
     permission: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF'],
+  },
+  {
+    id: 'campaign-claims',
+    title: 'รายงานเบิกแคมเปญ (ส่ง Brand)',
+    description: 'รายงานเบิกเงินส่งเสริมการขายประจำเดือน แยกตามยี่ห้อ',
+    icon: <Megaphone className="w-8 h-8" />,
+    path: '/reports/campaign-claims',
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-100',
+    permission: ['ADMIN', 'SALES_MANAGER', 'ACCOUNTANT', 'SALES_STAFF'],
   },
 ];
 

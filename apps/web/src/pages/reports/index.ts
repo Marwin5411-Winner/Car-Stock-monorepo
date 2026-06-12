@@ -7,3 +7,4 @@ export { default as StockInterestReportPage } from './StockInterestReportPage';
 export { PurchaseRequirementReportPage } from './PurchaseRequirementReportPage';
 export { DailyStockSnapshotPage } from './DailyStockSnapshotPage';
 export { MonthlyPurchasesReportPage } from './MonthlyPurchasesReportPage';
+export { CampaignClaimReportPage } from './CampaignClaimReportPage';

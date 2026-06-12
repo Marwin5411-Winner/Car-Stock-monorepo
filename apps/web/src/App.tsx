@@ -101,6 +101,9 @@ const DailyStockSnapshotPage = React.lazy(() =>
 const MonthlyPurchasesReportPage = React.lazy(() =>
   import('./pages/reports').then((m) => ({ default: m.MonthlyPurchasesReportPage }))
 );
+const CampaignClaimReportPage = React.lazy(() =>
+  import('./pages/reports').then((m) => ({ default: m.CampaignClaimReportPage }))
+);
 const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
 
 const queryClient = new QueryClient({
@@ -525,6 +528,14 @@ function App() {
                       element={
                         <ProtectedRoute allowedRoles={P.REPORT_STOCK}>
                           <MonthlyPurchasesReportPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/reports/campaign-claims"
+                      element={
+                        <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
+                          <CampaignClaimReportPage />
                         </ProtectedRoute>
                       }
                     />
