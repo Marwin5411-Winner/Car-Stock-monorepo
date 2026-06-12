@@ -19,6 +19,32 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+export interface CampaignClaimRow {
+  no: number;
+  saleId: string;
+  saleNumber: string;
+  customerName: string;
+  modelName: string;
+  engineNumber: string;
+  vin: string;
+  financeProvider: string;
+  saleDate: string | null;
+  notifyDate: string | null;
+  campaignName: string;
+  promotionDiscount: number;
+  baseCommission: number;
+  claimTotal: number;
+  modelAmounts: Array<number | null>;
+}
+
+export interface CampaignClaimReportResponse {
+  period: { year: number; month: number; startDate: string; endDate: string };
+  brand: string;
+  modelColumns: Array<{ vehicleModelId: string; label: string }>;
+  rows: CampaignClaimRow[];
+  summary: { totalCars: number; modelTotals: number[]; grandTotal: number };
+}
+
 class ReportService {
   // ============================================
   // Daily Payment Report
@@ -249,6 +275,41 @@ class ReportService {
     });
     if (params.vehicleType) qs.append('vehicleType', params.vehicleType);
     const url = `/api/pdf/monthly-purchases?${qs.toString()}`;
+    return api.getBlob(url);
+  }
+
+  // ============================================
+  // Campaign Claim Report
+  // ============================================
+  async getCampaignClaimReport(params: {
+    year: number;
+    month: number;
+    brand: string;
+  }): Promise<CampaignClaimReportResponse> {
+    const qs = new URLSearchParams({
+      year: String(params.year),
+      month: String(params.month),
+      brand: params.brand,
+    });
+    const url = `/api/reports/campaign-claims?${qs.toString()}`;
+    const response = await api.get<ApiResponse<CampaignClaimReportResponse>>(url);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to fetch campaign claim report');
+    }
+    return response.data;
+  }
+
+  async getCampaignClaimReportPdf(params: {
+    year: number;
+    month: number;
+    brand: string;
+  }): Promise<Blob> {
+    const qs = new URLSearchParams({
+      year: String(params.year),
+      month: String(params.month),
+      brand: params.brand,
+    });
+    const url = `/api/pdf/campaign-claims?${qs.toString()}`;
     return api.getBlob(url);
   }
 }
