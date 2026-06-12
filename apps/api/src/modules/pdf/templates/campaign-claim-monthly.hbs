@@ -19,7 +19,7 @@
 <div class="document-title" style="font-size: 14px; margin: 10px 0 2px;">
   รายงานเบิกแคมเปญเงินส่งเสริมการขายประจำเดือน {{monthLabel}}
 </div>
-<div class="text-center" style="font-size: 11px; margin-bottom: 10px;">
+<div class="text-center" style="font-size: 11px; margin-bottom: 6px;">
   ยี่ห้อ: <strong>{{brand}}</strong>
 </div>
 
@@ -126,16 +126,18 @@
 <div class="printed-at">พิมพ์เมื่อ: {{printedAt}}</div>
 
 <style>
+  @page { size: A4 landscape; margin: 8mm; }
   .claim-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 9px;
+    line-height: 1.2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .claim-table th, .claim-table td {
     border: 1px solid #374151;
-    padding: 2px 4px;
+    padding: 1px 4px;
     vertical-align: middle;
   }
   .claim-table th {
@@ -145,6 +147,7 @@
     font-size: 9px;
   }
   .claim-table th.sub-h { font-weight: normal; font-size: 8px; }
+  .claim-table th.model-col { white-space: nowrap; }
   .claim-table th .sub { font-size: 7px; font-weight: normal; color: #4b5563; }
   .claim-table .tc { text-align: center; }
   .claim-table .tr { text-align: right; }
@@ -160,7 +163,7 @@
   .claim-footer {
     display: flex;
     justify-content: space-around;
-    margin-top: 28px;
+    margin-top: 18px;
     font-size: 10px;
     page-break-inside: avoid;
   }
