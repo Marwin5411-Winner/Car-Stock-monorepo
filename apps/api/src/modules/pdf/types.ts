@@ -352,6 +352,7 @@ export enum PdfTemplateType {
   PROFIT_LOSS_REPORT = 'profit-loss-report',
   SALES_SUMMARY_REPORT = 'sales-summary-report',
   STOCK_INTEREST_REPORT = 'stock-interest-report',
+  BANK_INTEREST_REPORT = 'bank-interest-report',
   PURCHASE_REQUIREMENT_REPORT = 'purchase-requirement-report',
   DAILY_STOCK_SNAPSHOT = 'daily-stock-snapshot',
   MONTHLY_PURCHASES_REPORT = 'monthly-purchases-report',
@@ -530,6 +531,17 @@ export interface StockInterestReportData {
   header: CompanyHeader;
   dateRange: string;
   stocks: any[];
+  summary: any;
+}
+
+/**
+ * Bank Interest Report Data (รายงานคำนวณดอกเบี้ยธนาคาร ต่องวด)
+ */
+export interface BankInterestReportData {
+  header: CompanyHeader;
+  dateRange: string; // ช่วงรอบบิล (Thai numeric range)
+  dueDate: string; // วันครบกำหนดชำระ (Thai numeric)
+  rows: any[];
   summary: any;
 }
 

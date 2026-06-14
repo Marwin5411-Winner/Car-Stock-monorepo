@@ -2,6 +2,7 @@ import {
   Banknote,
   CalendarDays,
   ClipboardList,
+  Landmark,
   Lock,
   Megaphone,
   Package,
@@ -115,6 +116,16 @@ const REPORTS: ReportCard[] = [
     color: 'text-pink-600',
     bgColor: 'bg-pink-100',
     permission: ['ADMIN', 'SALES_MANAGER', 'ACCOUNTANT', 'SALES_STAFF'],
+  },
+  {
+    id: 'bank-interest',
+    title: 'รายงานคำนวณดอกเบี้ยธนาคาร',
+    description: 'คำนวณดอกเบี้ยไฟแนนซ์รถในสต็อกต่องวด แบบเดียวกับใบแจ้งของธนาคาร',
+    icon: <Landmark className="w-8 h-8" />,
+    path: '/reports/bank-interest',
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-100',
+    permission: ['ADMIN', 'ACCOUNTANT', 'STOCK_STAFF'],
   },
 ];
 

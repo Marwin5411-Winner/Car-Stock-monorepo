@@ -20,6 +20,32 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+// Bank Interest Report — locked API contract (GET /api/reports/bank-interest).
+export interface BankInterestRow {
+  stockId: string;
+  stockNumber: string;
+  vin: string;
+  vehicleInfo: string;
+  exteriorColor: string;
+  principalAmount: number;
+  rate: number;
+  periodFrom: string;
+  periodTo: string;
+  days: number;
+  interest: number;
+}
+
+export interface BankInterestSummary {
+  vehicleCount: number;
+  rowCount: number;
+  totalInterest: number;
+}
+
+export interface BankInterestReportResponse {
+  rows: BankInterestRow[];
+  summary: BankInterestSummary;
+}
+
 class ReportService {
   // ============================================
   // Daily Payment Report
@@ -285,6 +311,39 @@ class ReportService {
       brand: params.brand,
     });
     const url = `/api/pdf/campaign-claims?${qs.toString()}`;
+    return api.getBlob(url);
+  }
+
+  // ============================================
+  // Bank Interest Report
+  // ============================================
+  async getBankInterestReport(params: {
+    startDate: string;
+    endDate: string;
+  }): Promise<BankInterestReportResponse> {
+    const qs = new URLSearchParams({
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+    const url = `/api/reports/bank-interest?${qs.toString()}`;
+    const response = await api.get<ApiResponse<BankInterestReportResponse>>(url);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to fetch bank interest report');
+    }
+    return response.data;
+  }
+
+  async downloadBankInterestReportPdf(params: {
+    startDate: string;
+    endDate: string;
+    dueDate?: string;
+  }): Promise<Blob> {
+    const qs = new URLSearchParams({
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+    if (params.dueDate) qs.append('dueDate', params.dueDate);
+    const url = `/api/reports/bank-interest/pdf?${qs.toString()}`;
     return api.getBlob(url);
   }
 }

@@ -1,0 +1,66 @@
+<div class="header">
+  <div class="header-logo">
+    <img src="{{header.logoBase64}}" alt="Logo">
+  </div>
+  <div class="header-info">
+    <div class="company-name-wrapper">
+      <div class="company-name">{{header.companyName}}</div>
+      <div class="header-line"></div>
+      <div class="header-address">
+        {{header.address1}}<br>
+        {{header.address2}}<br>
+        {{header.phone}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="document-title">รายงานคำนวณดอกเบี้ยธนาคาร</div>
+
+<div class="text-center" style="margin-bottom: 6px;">
+  <strong>ช่วงรอบบิล:</strong> {{dateRange}}
+</div>
+<div class="text-center" style="margin-bottom: 16px;">
+  <strong>วันครบกำหนดชำระ:</strong> {{dueDate}}
+</div>
+
+<div class="section">
+  <table style="font-size: 10px;">
+    <thead>
+      <tr>
+        <th style="width: 5%" class="text-center">ลำดับ</th>
+        <th style="width: 10%">เลขสต็อก</th>
+        <th style="width: 14%">เลขตัวถัง (VIN)</th>
+        <th style="width: 22%">รุ่น/สี</th>
+        <th style="width: 12%" class="text-right">ยอดตั้งดอก</th>
+        <th style="width: 15%" class="text-center">ช่วง (จาก–ถึง)</th>
+        <th style="width: 7%" class="text-center">จำนวนวัน</th>
+        <th style="width: 7%" class="text-center">อัตรา %</th>
+        <th style="width: 8%" class="text-right">ดอกเบี้ย</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each rows}}
+      <tr>
+        <td class="text-center">{{add @index 1}}</td>
+        <td>{{stockNumber}}</td>
+        <td>{{vin}}</td>
+        <td>{{vehicleInfo}} / {{exteriorColor}}</td>
+        <td class="text-right">{{formatCurrency principalAmount false}}</td>
+        <td class="text-center">{{formatThaiDate periodFrom 'numeric'}} – {{formatThaiDate periodTo 'numeric'}}</td>
+        <td class="text-center">{{days}}</td>
+        <td class="text-center">{{rate}}</td>
+        <td class="text-right">{{formatCurrency interest false}}</td>
+      </tr>
+      {{/each}}
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td colspan="8" class="text-right">รวมทั้งสิ้น</td>
+        <td class="text-right">{{formatCurrency summary.totalInterest false}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="text-center" style="margin-top: 16px; font-size: 11px;">
+  จำนวนรถ {{summary.vehicleCount}} คัน · {{summary.rowCount}} รายการ
+</div>

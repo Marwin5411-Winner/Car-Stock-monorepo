@@ -8,6 +8,7 @@ import {
 import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prisma/client';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
+import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
 import { buildCampaignClaimReport } from './campaign-claim.helpers';
 
 // Helper functions
@@ -1648,6 +1649,66 @@ export async function getMonthlyPurchasesReport(params: {
   };
 }
 
+// ============================================
+// Bank Interest Report (รายงานคำนวณดอกเบี้ยธนาคาร ต่องวด)
+// คิดดอกเบี้ยไฟแนนซ์รถในสต็อกต่องวด แบบเดียวกับใบแจ้งของธนาคาร
+// (inclusive day count → ตรงกับบิลธนาคาร)
+// ============================================
+export async function getBankInterestReport(params: { cycleStart: Date; cycleEnd: Date }) {
+  const { cycleStart, cycleEnd } = params;
+
+  const stocks = await db.stock.findMany({
+    where: {
+      financeProvider: { not: null },
+      deletedAt: null,
+    },
+    include: {
+      vehicleModel: {
+        select: { brand: true, model: true, variant: true, year: true },
+      },
+      interestPeriods: {
+        orderBy: { startDate: 'asc' },
+      },
+    },
+    orderBy: { arrivalDate: 'asc' },
+  });
+
+  // Map Prisma rows to the pure-helper input shape (Decimal → number happens in the helper).
+  const stockInputs: BankInterestStockInput[] = stocks.map((stock) => ({
+    id: stock.id,
+    stockNumber: stock.stockNumber,
+    vin: stock.vin,
+    exteriorColor: stock.exteriorColor,
+    orderDate: stock.orderDate,
+    arrivalDate: stock.arrivalDate,
+    interestStoppedAt: stock.interestStoppedAt,
+    interestRate: stock.interestRate,
+    interestPrincipalBase: stock.interestPrincipalBase,
+    baseCost: stock.baseCost,
+    transportCost: stock.transportCost,
+    accessoryCost: stock.accessoryCost,
+    otherCosts: stock.otherCosts,
+    vehicleModel: stock.vehicleModel,
+    interestPeriods: stock.interestPeriods.map((p) => ({
+      startDate: p.startDate,
+      endDate: p.endDate,
+      annualRate: p.annualRate,
+      principalAmount: p.principalAmount,
+    })),
+  }));
+
+  const { rows, summary } = buildBankInterestRows(stockInputs, cycleStart, cycleEnd);
+
+  return {
+    rows: rows.map((r) => ({
+      ...r,
+      periodFrom: r.periodFrom.toISOString(),
+      periodTo: r.periodTo.toISOString(),
+    })),
+    summary,
+  };
+}
+
 export async function getCampaignClaimReport(params: {
   year: number;
   month: number;
@@ -1736,4 +1797,5 @@ export const reportsService = {
   getDailyStockSnapshot,
   getMonthlyPurchasesReport,
   getCampaignClaimReport,
+  getBankInterestReport,
 };

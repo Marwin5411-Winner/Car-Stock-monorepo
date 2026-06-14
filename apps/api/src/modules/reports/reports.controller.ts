@@ -511,6 +511,108 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
     }
   )
   // ============================================
+  // Bank Interest Report (รายงานคำนวณดอกเบี้ยธนาคาร ต่องวด)
+  // ============================================
+  .get(
+    '/bank-interest',
+    async ({ query, set, requester }) => {
+      // Check permission - INTEREST_VIEW
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
+        return {
+          success: false,
+          error: 'Forbidden',
+          message: 'คุณไม่มีสิทธิ์ดูรายงานนี้',
+        };
+      }
+
+      const cycleStart = new Date(query.startDate);
+      const cycleEnd = new Date(query.endDate);
+      if (Number.isNaN(cycleStart.getTime()) || Number.isNaN(cycleEnd.getTime())) {
+        set.status = 400;
+        return {
+          success: false,
+          error: 'BadRequest',
+          message: 'startDate/endDate must be YYYY-MM-DD',
+        };
+      }
+
+      const result = await reportsService.getBankInterestReport({ cycleStart, cycleEnd });
+
+      set.status = 200;
+      return {
+        success: true,
+        data: result,
+      };
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.String(),
+        endDate: t.String(),
+      }),
+      detail: {
+        tags: ['Reports'],
+        summary: 'Get bank interest report',
+        description:
+          'Bank-style per-cycle interest for financed stock (inclusive day count, matches bank bill)',
+      },
+    }
+  )
+  .get(
+    '/bank-interest/pdf',
+    async ({ query, set, requester }) => {
+      if (!authService.hasPermission(requester!.role, 'INTEREST_VIEW' as any)) {
+        set.status = 403;
+        return 'Forbidden';
+      }
+
+      const cycleStart = new Date(query.startDate);
+      const cycleEnd = new Date(query.endDate);
+      if (Number.isNaN(cycleStart.getTime()) || Number.isNaN(cycleEnd.getTime())) {
+        set.status = 400;
+        return 'startDate/endDate must be YYYY-MM-DD';
+      }
+
+      const result = await reportsService.getBankInterestReport({ cycleStart, cycleEnd });
+
+      // Due date defaults to end of cycle + 1 day if not provided.
+      const dueDateObj = query.dueDate
+        ? new Date(query.dueDate)
+        : new Date(cycleEnd.getTime() + 24 * 60 * 60 * 1000);
+
+      const dateRange = `${formatThaiDate(cycleStart, 'numeric')} ถึง ${formatThaiDate(
+        cycleEnd,
+        'numeric'
+      )}`;
+      const dueDate = formatThaiDate(dueDateObj, 'numeric');
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const pdfBuffer = await pdfService.generateBankInterestReport({
+        header,
+        dateRange,
+        dueDate,
+        rows: result.rows,
+        summary: result.summary,
+      });
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = `attachment; filename="bank-interest-report.pdf"`;
+
+      return pdfBuffer;
+    },
+    {
+      beforeHandle: authMiddleware,
+      query: t.Object({
+        startDate: t.String(),
+        endDate: t.String(),
+        dueDate: t.Optional(t.String()),
+      }),
+    }
+  )
+  // ============================================
   // Purchase Requirement Report
   // ============================================
   .get(

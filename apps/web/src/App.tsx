@@ -104,6 +104,9 @@ const MonthlyPurchasesReportPage = React.lazy(() =>
 const CampaignClaimReportPage = React.lazy(() =>
   import('./pages/reports').then((m) => ({ default: m.CampaignClaimReportPage }))
 );
+const BankInterestReportPage = React.lazy(() =>
+  import('./pages/reports').then((m) => ({ default: m.BankInterestReportPage }))
+);
 const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
 
 const queryClient = new QueryClient({
@@ -536,6 +539,14 @@ function App() {
                       element={
                         <ProtectedRoute allowedRoles={P.CAMPAIGN_VIEW}>
                           <CampaignClaimReportPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/reports/bank-interest"
+                      element={
+                        <ProtectedRoute allowedRoles={P.INTEREST_VIEW}>
+                          <BankInterestReportPage />
                         </ProtectedRoute>
                       }
                     />

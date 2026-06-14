@@ -8,3 +8,4 @@ export { PurchaseRequirementReportPage } from './PurchaseRequirementReportPage';
 export { DailyStockSnapshotPage } from './DailyStockSnapshotPage';
 export { MonthlyPurchasesReportPage } from './MonthlyPurchasesReportPage';
 export { CampaignClaimReportPage } from './CampaignClaimReportPage';
+export { BankInterestReportPage } from './BankInterestReportPage';

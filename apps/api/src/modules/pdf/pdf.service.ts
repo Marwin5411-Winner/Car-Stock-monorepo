@@ -19,6 +19,7 @@ import {
   safeString,
 } from './helpers';
 import {
+  type BankInterestReportData,
   type CampaignClaimReportData,
   type CarReservationContractData,
   type CompanyHeader,
@@ -865,6 +866,13 @@ export class PdfService {
    */
   public async generateStockInterestReport(data: StockInterestReportData): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.STOCK_INTEREST_REPORT, data, { landscape: true });
+  }
+
+  /**
+   * Generate Bank Interest Report PDF (รายงานคำนวณดอกเบี้ยธนาคาร ต่องวด) — A4 landscape
+   */
+  public async generateBankInterestReport(data: BankInterestReportData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.BANK_INTEREST_REPORT, data, { landscape: true });
   }
 
   /**
