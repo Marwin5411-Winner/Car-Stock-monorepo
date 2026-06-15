@@ -137,6 +137,33 @@ export interface SalesRecordData {
 }
 
 /**
+ * ใบยืนยันรายละเอียดการขาย (Sales Confirmation Form)
+ * Customer-facing price/discount summary + freebies list, matching the dealership Excel layout.
+ */
+export interface SalesConfirmationFormData {
+  header: CompanyHeader;
+  vehicleName: string; // brand + model + variant, e.g. "CHERY V23 4WD PEAK"
+  plate: string; // ทะเบียนรถ, "—" when not yet registered
+  pricing: {
+    sellingPrice: string;
+    carDiscount: string; // ส่วนลด (รถยนต์)
+    remaining: string; // คงเหลือ = ราคาขาย − ส่วนลดรถยนต์
+    deposit: string; // จอง
+    downPayment: string;
+    downPaymentDiscount: string;
+    insurance: string; // ประกันชั้น 1
+    actInsurance: string; // พรบ.
+    registrationFee: string;
+    totalDelivery: string; // รวมเงินออกรถ
+    financeAmount: string; // ยอดจัดไฟแนนซ์
+    interestRate: string;
+    installmentMonths: string;
+    monthlyPayment: string; // งวดละ
+  };
+  gifts: GiftItem[];
+}
+
+/**
  * สัญญาจองรถยนต์ (Car Reservation Contract) - Official Form
  */
 export interface CarReservationContractData {
@@ -339,6 +366,7 @@ export enum PdfTemplateType {
   DELIVERY_RECEIPT = 'delivery-receipt',
   THANK_YOU_LETTER = 'thank-you-letter',
   SALES_CONFIRMATION = 'sales-confirmation',
+  SALES_CONFIRMATION_FORM = 'sales-confirmation-form',
   SALES_RECORD = 'sales-record',
   CONTRACT = 'contract',
   DEPOSIT_RECEIPT = 'deposit-receipt',

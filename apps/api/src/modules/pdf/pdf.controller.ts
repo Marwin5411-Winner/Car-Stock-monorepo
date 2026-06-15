@@ -21,6 +21,7 @@ import {
   type PaymentReceiptData,
   PdfTemplateType,
   type SalesConfirmationData,
+  type SalesConfirmationFormData,
   type SalesRecordData,
   type TemporaryReceiptData,
   type ThankYouLetterData,
@@ -511,6 +512,92 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         tags: ['Documents'],
         summary: 'Generate Sales Record PDF',
         description: 'Generate ใบบันทึกการขาย PDF for a sale',
+      },
+    }
+  )
+
+  /**
+   * Generate Sales Confirmation Form PDF (ใบยืนยันรายละเอียดการขาย)
+   */
+  .get(
+    '/sales-confirmation-form/:saleId',
+    async ({ params, set }) => {
+      const sale = await db.sale.findUnique({
+        where: { id: params.saleId },
+        include: {
+          customer: true,
+          stock: { include: { vehicleModel: true } },
+          createdBy: true,
+        },
+      });
+
+      if (!sale) {
+        set.status = 404;
+        return { success: false, error: 'Sale not found' };
+      }
+
+      const header = await getCompanyHeader();
+      if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
+
+      const vm = sale.stock?.vehicleModel;
+      const vehicleName = [vm?.brand, vm?.model, vm?.variant].filter(Boolean).join(' ') || '-';
+
+      const data: SalesConfirmationFormData = {
+        header,
+        vehicleName,
+        plate: '—',
+        pricing: (() => {
+          const sellingPrice = Number(sale.totalAmount ?? 0);
+          const carDiscount = Number(sale.carDiscount ?? 0);
+          const deposit = Number(sale.depositAmount ?? 0);
+          const downPayment = Number(sale.downPayment ?? sale.depositAmount ?? 0);
+          const downPaymentDiscount = Number(sale.downPaymentDiscount ?? 0);
+          const insurance = Number(sale.insuranceFee ?? 0);
+          const actInsurance = Number(sale.compulsoryInsuranceFee ?? 0);
+          const registrationFee = Number(sale.registrationFee ?? 0);
+          // คงเหลือ = ราคาขาย − ส่วนลด (รถยนต์)
+          const remaining = sellingPrice - carDiscount;
+          // รวมเงินออกรถ = เงินดาวน์ − ส่วนลดดาวน์ + ประกันชั้น 1 + พรบ. + จดทะเบียน
+          const totalDelivery =
+            downPayment - downPaymentDiscount + insurance + actInsurance + registrationFee;
+          return {
+            sellingPrice: sellingPrice.toString(),
+            carDiscount: carDiscount.toString(),
+            remaining: remaining.toString(),
+            deposit: deposit.toString(),
+            downPayment: downPayment.toString(),
+            downPaymentDiscount: downPaymentDiscount.toString(),
+            insurance: insurance.toString(),
+            actInsurance: actInsurance.toString(),
+            registrationFee: registrationFee.toString(),
+            totalDelivery: totalDelivery.toString(),
+            financeAmount: sale.financeAmount?.toString() || '0',
+            // Sale.interestRate stores percent (3.39 = 3.39%/yr), not fraction
+            interestRate: sale.interestRate?.toString() || '0',
+            installmentMonths: sale.numberOfTerms?.toString() || '0',
+            monthlyPayment: sale.monthlyInstallment?.toString() || '0',
+          };
+        })(),
+        gifts: parseFreebies(sale.freebiesSnapshot),
+      };
+
+      const pdfBuffer = await pdfService.generateSalesConfirmationForm(data);
+
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] =
+        `attachment; filename="sales-confirmation-form-${sale.saleNumber}.pdf"`;
+
+      return pdfBuffer;
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
+      params: t.Object({
+        saleId: t.String(),
+      }),
+      detail: {
+        tags: ['Documents'],
+        summary: 'Generate Sales Confirmation Form PDF',
+        description: 'Generate ใบยืนยันรายละเอียดการขาย PDF for a sale',
       },
     }
   )

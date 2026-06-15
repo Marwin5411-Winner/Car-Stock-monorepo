@@ -1,0 +1,86 @@
+<!-- ใบยืนยันรายละเอียดการขาย (Sales Confirmation Form) — customer price/discount + freebies layout -->
+<div class="page">
+  <style>
+    .page { font-family: 'Sarabun', 'Kanit', sans-serif; font-size: 13px; color: #000; padding: 0; }
+    .page * { box-sizing: border-box; }
+    .sc-header { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #000; padding-bottom: 6px; }
+    .sc-logo { width: 56px; height: 56px; object-fit: contain; }
+    .sc-company { font-size: 18px; font-weight: bold; }
+    .sc-address { font-size: 11px; color: #333; }
+    .sc-vehicle { font-weight: bold; margin-top: 8px; font-size: 14px; }
+    .sc-greeting { margin: 8px 0 4px; line-height: 1.5; text-indent: 2.5em; }
+    table.sc { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
+    table.sc th, table.sc td { border: 1px solid #000; padding: 4px 8px; font-size: 13px; vertical-align: middle; }
+    table.sc th { background: #f0f0f0; text-align: center; font-weight: bold; }
+    .sc-detail { text-align: center; }
+    .sc-amount { text-align: right; background: #ededed; }
+    .sc-gifts { vertical-align: top; }
+    .sc-gifts ol { margin: 0; padding-left: 22px; }
+    .sc-gifts li { line-height: 1.6; }
+    .sc-footer { margin-top: 18px; line-height: 1.6; font-size: 12px; }
+    .sc-sign { display: flex; justify-content: flex-end; margin-top: 36px; }
+    .sc-sign .line { border-bottom: 1px dotted #000; width: 220px; height: 44px; margin-bottom: 4px; }
+    .sc-sign .cap { text-align: center; }
+  </style>
+
+  <div class="sc-header">
+    {{#if header.logoBase64}}<img class="sc-logo" src="{{header.logoBase64}}" alt="logo">{{/if}}
+    <div>
+      <div class="sc-company">{{header.companyName}}</div>
+      <div class="sc-address">{{header.address1}} {{header.address2}} &nbsp; โทร {{header.phone}}</div>
+    </div>
+  </div>
+
+  <div class="sc-vehicle">{{vehicleName}} &nbsp;&nbsp;&nbsp; ทะเบียนรถ {{plate}}</div>
+
+  <div class="sc-greeting">
+    ขอขอบพระคุณท่านผู้อุปการะคุณมา ทางบริษัทฯ จึงได้จัดทำแบบสอบถามรายละเอียดต่าง ๆ เพื่อเป็นข้อมูลในการบริการ
+    หลังการขายและยืนยันส่วนลดต่าง ๆ ที่ท่านได้รับ ถูกต้องตามนี้หรือไม่
+  </div>
+
+  <table class="sc">
+    <thead>
+      <tr>
+        <th style="width: 24%;">รายละเอียด</th>
+        <th style="width: 22%;">จำนวนเงิน</th>
+        <th>รายการของแถม</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="sc-detail">ราคาขาย</td>
+        <td class="sc-amount">{{amt pricing.sellingPrice}}</td>
+        <td class="sc-gifts" rowspan="14">
+          <ol>
+            {{#each gifts}}<li>{{this.name}}</li>{{/each}}
+          </ol>
+        </td>
+      </tr>
+      <tr><td class="sc-detail">ส่วนลด (รถยนต์)</td><td class="sc-amount">{{amt pricing.carDiscount}}</td></tr>
+      <tr><td class="sc-detail">คงเหลือ</td><td class="sc-amount">{{amt pricing.remaining}}</td></tr>
+      <tr><td class="sc-detail">จอง</td><td class="sc-amount">{{amt pricing.deposit}}</td></tr>
+      <tr><td class="sc-detail">เงินดาวน์</td><td class="sc-amount">{{amt pricing.downPayment}}</td></tr>
+      <tr><td class="sc-detail">ส่วนลด (เงินดาวน์)</td><td class="sc-amount">{{amt pricing.downPaymentDiscount}}</td></tr>
+      <tr><td class="sc-detail">ค่าประกันภัยชั้น 1</td><td class="sc-amount">{{amt pricing.insurance}}</td></tr>
+      <tr><td class="sc-detail">ค่าพรบ.</td><td class="sc-amount">{{amt pricing.actInsurance}}</td></tr>
+      <tr><td class="sc-detail">ค่าจดทะเบียน</td><td class="sc-amount">{{amt pricing.registrationFee}}</td></tr>
+      <tr><td class="sc-detail">รวมเงินออกรถ</td><td class="sc-amount"><strong>{{amt pricing.totalDelivery}}</strong></td></tr>
+      <tr><td class="sc-detail">ยอดจัดไฟแนนซ์</td><td class="sc-amount">{{amt pricing.financeAmount}}</td></tr>
+      <tr><td class="sc-detail">อัตราดอกเบี้ยต่อปี</td><td class="sc-amount">{{pricing.interestRate}}%</td></tr>
+      <tr><td class="sc-detail">ผ่อนทั้งหมด : เดือน</td><td class="sc-amount">{{pricing.installmentMonths}}</td></tr>
+      <tr><td class="sc-detail">งวดละ</td><td class="sc-amount">{{amt pricing.monthlyPayment}}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sc-footer">
+    หากจำนวนเงินไม่ถูกต้องตามรายการนี้ กรุณาติดต่อกับเจ้าหน้าที่ที่ด้านล่าง เพื่อประโยชน์ของตัวท่านเอง<br>
+    บริษัทฯ ใคร่ขอขอบพระคุณที่ท่านให้ความร่วมมือมา ณ โอกาสนี้
+  </div>
+
+  <div class="sc-sign">
+    <div>
+      <div class="line"></div>
+      <div class="cap">ลูกค้า / ผู้รับรถ</div>
+    </div>
+  </div>
+</div>

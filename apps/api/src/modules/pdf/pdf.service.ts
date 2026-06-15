@@ -33,6 +33,7 @@ import {
   type ProfitLossReportData,
   type PurchaseRequirementReportData,
   type SalesConfirmationData,
+  type SalesConfirmationFormData,
   type SalesRecordData,
   type SalesSummaryReportData,
   type StockInterestReportData,
@@ -71,6 +72,17 @@ Handlebars.registerHelper('lt', (a: number, b: number) => a < b);
 Handlebars.registerHelper('toLowerCase', (str: string) => {
   if (!str) return '';
   return str.toString().toLowerCase();
+});
+// Currency amount that renders '-' for zero/empty (used by the sales confirmation form)
+Handlebars.registerHelper('amt', (value: number | string | null | undefined) => {
+  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (value === null || value === undefined || value === '' || Number.isNaN(num) || num === 0) {
+    return '-';
+  }
+  return (num as number).toLocaleString('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 });
 
 // Default company header — used only as fallback when settings not configured
@@ -728,6 +740,13 @@ export class PdfService {
    */
   public async generateSalesRecord(data: SalesRecordData): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.SALES_RECORD, data);
+  }
+
+  /**
+   * Generate Sales Confirmation Form PDF (ใบยืนยันรายละเอียดการขาย)
+   */
+  public async generateSalesConfirmationForm(data: SalesConfirmationFormData): Promise<Buffer> {
+    return this.generatePdf(PdfTemplateType.SALES_CONFIRMATION_FORM, data);
   }
 
   /**

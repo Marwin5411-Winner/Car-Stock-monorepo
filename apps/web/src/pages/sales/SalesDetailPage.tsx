@@ -83,6 +83,7 @@ type DocumentType =
   | 'contract'
   | 'deposit-receipt'
   | 'sales-confirmation'
+  | 'sales-confirmation-form'
   | 'sales-record'
   | 'delivery-receipt'
   | 'thank-you-letter';
@@ -128,6 +129,13 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     endpoint: '/api/pdf/sales-record',
     getAvailable: (sale) => ['DELIVERED', 'COMPLETED'].includes(sale.status),
     restricted: true,
+  },
+  {
+    id: 'sales-confirmation-form',
+    title: 'ใบยืนยันรายละเอียดการขาย',
+    description: 'สรุปราคา/ส่วนลด + รายการของแถม (สำหรับลูกค้า)',
+    endpoint: '/api/pdf/sales-confirmation-form',
+    getAvailable: (sale) => ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
   },
 
   {
