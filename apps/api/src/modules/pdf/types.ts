@@ -417,6 +417,7 @@ export interface VehicleCardData {
     interiorColor?: string;
     engineNo: string;
     chassisNo: string;
+    motorNumbers?: string; // EV/Hybrid motor number(s), joined by ' / '
     ccOrKw?: string;
   };
   costs: {

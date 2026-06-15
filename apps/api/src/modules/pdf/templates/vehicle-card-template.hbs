@@ -79,6 +79,16 @@
     </tr>
   </table>
 
+  {{#if car.motorNumbers}}
+  <!-- Motor Number Row (EV/Hybrid) — label shown because the pre-printed form has no motor field -->
+  <table class="mt-neg" style="width: 100%; table-layout: fixed;">
+    <tr>
+      <td style="width: 16%; font-weight: bold; visibility: visible;">เลขมอเตอร์</td>
+      <td style="text-align: center;">{{car.motorNumbers}}</td>
+    </tr>
+  </table>
+  {{/if}}
+
   <!-- Date Row -->
   <table class="mt-neg" style="width: 100%; table-layout: fixed;">
     <tr style="visibility: hidden;">

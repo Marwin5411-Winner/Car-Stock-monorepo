@@ -913,6 +913,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           interiorColor: stock.interiorColor || '-',
           engineNo: stock.engineNumber || '-',
           chassisNo: stock.vin || '-',
+          motorNumbers: [stock.motorNumber1, stock.motorNumber2].filter(Boolean).join(' / '),
           ccOrKw: '-',
         },
         costs: {
@@ -1025,6 +1026,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           interiorColor: stock.interiorColor || '-',
           engineNo: stock.engineNumber || '-',
           chassisNo: stock.vin || '-',
+          motorNumbers: [stock.motorNumber1, stock.motorNumber2].filter(Boolean).join(' / '),
           ccOrKw: '-',
         },
         costs: {

@@ -85,6 +85,16 @@
     </tr>
   </table>
 
+  {{#if car.motorNumbers}}
+  <!-- Motor Number Row (EV/Hybrid) -->
+  <table class="mt-neg">
+    <tr>
+      <td style="width: 16%; font-weight: bold;">เลขมอเตอร์</td>
+      <td style="text-align: center;">{{car.motorNumbers}}</td>
+    </tr>
+  </table>
+  {{/if}}
+
   <!-- Date Row -->
   <table class="mt-neg">
     <tr>
