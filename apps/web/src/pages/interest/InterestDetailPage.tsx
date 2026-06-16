@@ -4,6 +4,7 @@ import { interestService } from '../../services/interest.service';
 import type { InterestDetail, DebtSummary, DebtPayment, PaymentMethod, PaymentType } from '../../services/interest.service';
 import { MainLayout } from '../../components/layout';
 import DebtPaymentModal from '../../components/interest/DebtPaymentModal';
+import StopInterestModal from '../../components/interest/StopInterestModal';
 import {
   ArrowLeft,
   Edit,
@@ -37,6 +38,7 @@ export default function InterestDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showDebtPaymentModal, setShowDebtPaymentModal] = useState(false);
+  const [showStopModal, setShowStopModal] = useState(false);
 
   useEffect(() => {
     if (stockId) {
@@ -103,17 +105,14 @@ export default function InterestDetailPage() {
     await Promise.all([fetchDetail(), fetchDebtData()]);
   };
 
-  const handleStopCalculation = async () => {
-    if (!window.confirm('คุณต้องการหยุดคิดดอกเบี้ยสำหรับรถคันนี้หรือไม่?')) {
-      return;
-    }
-
+  const handleStopCalculation = async (data: { stopDate?: string; notes?: string }) => {
     setActionLoading(true);
     const result = await executeQuery(
-      interestService.stopCalculation(stockId!, 'Stopped by user')
+      interestService.stopCalculation(stockId!, data.notes, data.stopDate)
     );
     if (result) {
-      await fetchDetail();
+      setShowStopModal(false);
+      await Promise.all([fetchDetail(), fetchDebtData()]);
     }
     setActionLoading(false);
   };
@@ -229,7 +228,7 @@ export default function InterestDetailPage() {
                   แก้ไขอัตราดอกเบี้ย
                 </Link>
                 <button
-                  onClick={handleStopCalculation}
+                  onClick={() => setShowStopModal(true)}
                   disabled={actionLoading}
                   className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
@@ -690,6 +689,14 @@ export default function InterestDetailPage() {
           )}
         </div>
       </div>
+
+      <StopInterestModal
+        isOpen={showStopModal}
+        onClose={() => setShowStopModal(false)}
+        onSubmit={handleStopCalculation}
+        activePeriodStart={periods.find((p) => !p.endDate)?.startDate ?? null}
+        stockInfo={{ vin: stock.vin, vehicleModel: stock.vehicleModel }}
+      />
 
       {/* Debt Payment Modal - แสดงเมื่อมี financeProvider และยังไม่ปิดหนี้ (รวมถึง NO_DEBT ที่มี finance) */}
       {debtSummary && debtSummary.hasFinanceProvider && debtSummary.debtStatus !== 'PAID_OFF' && (
