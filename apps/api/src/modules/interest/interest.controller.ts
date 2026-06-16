@@ -341,7 +341,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
       await interestService.initializeDebt(
         params.stockId,
         body.debtAmount,
-        requester!.userId
+        requester!.id
       );
 
       set.status = 201;
