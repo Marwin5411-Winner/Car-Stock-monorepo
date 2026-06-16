@@ -23,6 +23,8 @@ interface DatePickerProps {
   disabled?: boolean;
   clearable?: boolean;
   inputClassName?: string;
+  minDate?: string; // ISO yyyy-MM-dd; days before this are disabled
+  maxDate?: string; // ISO yyyy-MM-dd; days after this are disabled
 }
 
 const ISO_FORMAT = 'yyyy-MM-dd';
@@ -57,12 +59,21 @@ export function DatePicker({
   inputClassName,
   disabled,
   clearable = false,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   const selected = useMemo(() => parseIso(value), [value]);
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState<Date>(selected ?? new Date());
 
   const displayValue = selected ? format(selected, DISPLAY_FORMAT) : '';
+
+  const isOutOfRange = (d: Date): boolean => {
+    const key = format(d, ISO_FORMAT);
+    if (minDate && key < minDate) return true;
+    if (maxDate && key > maxDate) return true;
+    return false;
+  };
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(viewMonth);
@@ -158,17 +169,20 @@ export function DatePicker({
               const inMonth = isSameMonth(day, viewMonth);
               const isSelected = selected && isSameDay(day, selected);
               const isToday = isSameDay(day, today);
+              const outOfRange = isOutOfRange(day);
               return (
                 <button
                   key={day.toISOString()}
                   type="button"
-                  onClick={() => handleSelect(day)}
+                  disabled={outOfRange}
+                  onClick={() => !outOfRange && handleSelect(day)}
                   className={cn(
                     'h-8 w-full text-sm rounded transition-colors',
                     !inMonth && 'text-gray-300',
-                    inMonth && !isSelected && 'text-gray-800 hover:bg-blue-50',
+                    inMonth && !isSelected && !outOfRange && 'text-gray-800 hover:bg-blue-50',
                     isSelected && 'bg-blue-600 text-white font-medium',
-                    !isSelected && isToday && 'ring-1 ring-blue-400'
+                    !isSelected && isToday && !outOfRange && 'ring-1 ring-blue-400',
+                    outOfRange && 'text-gray-300 cursor-not-allowed opacity-50'
                   )}
                 >
                   {day.getDate()}
@@ -180,11 +194,12 @@ export function DatePicker({
           <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100 text-xs">
             <button
               type="button"
+              disabled={isOutOfRange(today)}
               onClick={() => {
                 handleSelect(today);
                 setViewMonth(today);
               }}
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
             >
               วันนี้
             </button>
