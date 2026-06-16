@@ -42,3 +42,39 @@ export function canShowInitialize(state: InterestActionState): boolean {
     state.debtStatus !== 'PAID_OFF'
   );
 }
+
+/** Reduce an ISO date or datetime string to its yyyy-MM-dd day portion. */
+const toDay = (iso: string | null | undefined): string => (iso ?? '').slice(0, 10);
+
+/** Inclusive day-range check on ISO date strings (empty bound = unbounded). */
+function withinDayRange(
+  dateIso: string,
+  minIso: string | null | undefined,
+  maxIso: string | null | undefined,
+): boolean {
+  const d = toDay(dateIso);
+  if (!d) return false;
+  const min = toDay(minIso);
+  const max = toDay(maxIso);
+  if (min && d < min) return false;
+  if (max && d > max) return false;
+  return true;
+}
+
+/** Stop date must be within [active period start, today]. */
+export function isValidStopDate(
+  stopDate: string,
+  activePeriodStart: string | null | undefined,
+  today: string,
+): boolean {
+  return withinDayRange(stopDate, activePeriodStart, today);
+}
+
+/** Resume start date must be within [last stop date, today]. */
+export function isValidResumeStartDate(
+  startDate: string,
+  lastStopDate: string | null | undefined,
+  today: string,
+): boolean {
+  return withinDayRange(startDate, lastStopDate, today);
+}

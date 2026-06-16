@@ -3,6 +3,8 @@ import {
   type InterestActionState,
   canShowInitialize,
   getInterestHeaderAction,
+  isValidResumeStartDate,
+  isValidStopDate,
 } from './interestActions';
 
 /**
@@ -144,5 +146,57 @@ describe('interest initialize link gating', () => {
         stockStatus: 'AVAILABLE',
       })
     ).toBe(true);
+  });
+});
+
+describe('isValidStopDate', () => {
+  const today = '2026-06-16';
+  const periodStart = '2026-06-01';
+
+  it('accepts a date between period start and today (inclusive)', () => {
+    expect(isValidStopDate('2026-06-10', periodStart, today)).toBe(true);
+    expect(isValidStopDate(periodStart, periodStart, today)).toBe(true);
+    expect(isValidStopDate(today, periodStart, today)).toBe(true);
+  });
+
+  it('rejects a date before the active period start', () => {
+    expect(isValidStopDate('2026-05-31', periodStart, today)).toBe(false);
+  });
+
+  it('rejects a future date', () => {
+    expect(isValidStopDate('2026-06-17', periodStart, today)).toBe(false);
+  });
+
+  it('only enforces the upper bound when there is no active period start', () => {
+    expect(isValidStopDate('2020-01-01', null, today)).toBe(true);
+    expect(isValidStopDate('2026-06-17', null, today)).toBe(false);
+  });
+
+  it('normalizes full ISO datetime inputs to the date portion', () => {
+    expect(isValidStopDate('2026-06-10T00:00:00.000Z', '2026-06-01T00:00:00.000Z', today)).toBe(true);
+  });
+});
+
+describe('isValidResumeStartDate', () => {
+  const today = '2026-06-16';
+  const lastStop = '2026-06-10';
+
+  it('accepts a date between last stop and today (inclusive)', () => {
+    expect(isValidResumeStartDate('2026-06-12', lastStop, today)).toBe(true);
+    expect(isValidResumeStartDate(lastStop, lastStop, today)).toBe(true);
+    expect(isValidResumeStartDate(today, lastStop, today)).toBe(true);
+  });
+
+  it('rejects a date before the last stop date', () => {
+    expect(isValidResumeStartDate('2026-06-09', lastStop, today)).toBe(false);
+  });
+
+  it('rejects a future date', () => {
+    expect(isValidResumeStartDate('2026-06-17', lastStop, today)).toBe(false);
+  });
+
+  it('only enforces the upper bound when there is no last stop date', () => {
+    expect(isValidResumeStartDate('2020-01-01', null, today)).toBe(true);
+    expect(isValidResumeStartDate('2026-06-17', null, today)).toBe(false);
   });
 });
