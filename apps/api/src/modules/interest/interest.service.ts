@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InterestBase, StockStatus, DebtStatus, PaymentMethod } from '@prisma/client';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
+import { dayKey, isValidStopDate, isValidResumeStartDate } from './interest.dates';
 
 interface InterestSummary {
   stockId: string;
@@ -498,6 +499,21 @@ export class InterestService {
 
     // Close active period if exists
     const activePeriod = stock.interestPeriods[0];
+
+    // Validate a caller-supplied back-date: must be within [period start, today].
+    if (stopDate) {
+      const ok = isValidStopDate(
+        dayKey(effectiveStopDate),
+        activePeriod ? dayKey(activePeriod.startDate) : null,
+        dayKey(today),
+      );
+      if (!ok) {
+        throw new BadRequestError(
+          'วันที่หยุดต้องไม่เกินวันนี้ และไม่ก่อนวันเริ่มคิดดอกเบี้ยของงวดปัจจุบัน',
+        );
+      }
+    }
+
     if (activePeriod) {
       const days = this.calculateDays(activePeriod.startDate, effectiveStopDate);
       const calculatedInterest = this.calculateInterestForPeriod(
@@ -536,6 +552,7 @@ export class InterestService {
       annualRate: number;
       principalBase?: InterestBase;
       notes?: string;
+      startDate?: Date;
     },
     userId: string
   ): Promise<InterestPeriodDetail> {
@@ -558,6 +575,22 @@ export class InterestService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const effectiveStartDate = input.startDate || today;
+
+    // Validate a caller-supplied back-date: must be within [last stop date, today].
+    if (input.startDate) {
+      const ok = isValidResumeStartDate(
+        dayKey(effectiveStartDate),
+        stock.interestStoppedAt ? dayKey(stock.interestStoppedAt) : null,
+        dayKey(today),
+      );
+      if (!ok) {
+        throw new BadRequestError(
+          'วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้ และไม่ก่อนวันที่หยุดล่าสุด',
+        );
+      }
+    }
+
     const principalBase = input.principalBase || stock.interestPrincipalBase;
     const principalAmount = this.getPrincipalAmount(stock, principalBase);
 
@@ -565,7 +598,7 @@ export class InterestService {
     const newPeriod = await db.interestPeriod.create({
       data: {
         stockId,
-        startDate: today,
+        startDate: effectiveStartDate,
         endDate: null,
         annualRate: new Decimal(input.annualRate),
         principalBase,
