@@ -50,7 +50,7 @@ const toDay = (iso: string | null | undefined): string => (iso ?? '').slice(0, 1
 function withinDayRange(
   dateIso: string,
   minIso: string | null | undefined,
-  maxIso: string | null | undefined,
+  maxIso: string | null | undefined
 ): boolean {
   const d = toDay(dateIso);
   if (!d) return false;
@@ -65,7 +65,7 @@ function withinDayRange(
 export function isValidStopDate(
   stopDate: string,
   activePeriodStart: string | null | undefined,
-  today: string,
+  today: string
 ): boolean {
   return withinDayRange(stopDate, activePeriodStart, today);
 }
@@ -74,7 +74,7 @@ export function isValidStopDate(
 export function isValidResumeStartDate(
   startDate: string,
   lastStopDate: string | null | undefined,
-  today: string,
+  today: string
 ): boolean {
   return withinDayRange(startDate, lastStopDate, today);
 }

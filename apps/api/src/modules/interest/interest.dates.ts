@@ -16,7 +16,7 @@ export function dayKey(value: Date | string): string {
 export function isValidStopDate(
   stopDate: string,
   activePeriodStart: string | null,
-  today: string,
+  today: string
 ): boolean {
   if (stopDate > today) return false;
   if (activePeriodStart && stopDate < activePeriodStart) return false;
@@ -27,7 +27,7 @@ export function isValidStopDate(
 export function isValidResumeStartDate(
   startDate: string,
   lastStopDate: string | null,
-  today: string,
+  today: string
 ): boolean {
   if (startDate > today) return false;
   if (lastStopDate && startDate < lastStopDate) return false;

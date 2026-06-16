@@ -173,7 +173,9 @@ describe('isValidStopDate', () => {
   });
 
   it('normalizes full ISO datetime inputs to the date portion', () => {
-    expect(isValidStopDate('2026-06-10T00:00:00.000Z', '2026-06-01T00:00:00.000Z', today)).toBe(true);
+    expect(isValidStopDate('2026-06-10T00:00:00.000Z', '2026-06-01T00:00:00.000Z', today)).toBe(
+      true
+    );
   });
 });
 

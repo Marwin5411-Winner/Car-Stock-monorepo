@@ -1,7 +1,7 @@
+import { AlertCircle, PauseCircle, X } from 'lucide-react';
 import { useState } from 'react';
-import { X, PauseCircle, AlertCircle } from 'lucide-react';
-import { DatePicker } from '../ui/date-picker';
 import { isValidStopDate } from '../../pages/interest/interestActions';
+import { DatePicker } from '../ui/date-picker';
 
 interface StopInterestModalProps {
   isOpen: boolean;

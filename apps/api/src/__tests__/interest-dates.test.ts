@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { dayKey, isValidStopDate, isValidResumeStartDate } from '../modules/interest/interest.dates';
+import {
+  dayKey,
+  isValidResumeStartDate,
+  isValidStopDate,
+} from '../modules/interest/interest.dates';
 
 describe('dayKey', () => {
   it('formats a Date as a local yyyy-MM-dd string', () => {
