@@ -241,8 +241,9 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
 
       await interestService.stopInterestCalculation(
         params.stockId,
-        requester!.userId,
-        body?.notes
+        requester!.id,
+        body?.notes,
+        body?.stopDate ? new Date(body.stopDate) : undefined
       );
 
       set.status = 200;
@@ -259,6 +260,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
       body: t.Optional(
         t.Object({
           notes: t.Optional(t.String()),
+          stopDate: t.Optional(t.String()),
         })
       ),
       detail: {
@@ -288,8 +290,9 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           annualRate: body.annualRate,
           principalBase: body.principalBase as any,
           notes: body.notes,
+          startDate: body.startDate ? new Date(body.startDate) : undefined,
         },
-        requester!.userId
+        requester!.id
       );
 
       set.status = 200;
@@ -308,6 +311,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
         annualRate: t.Number({ minimum: 0, maximum: 100 }),
         principalBase: t.Optional(t.Union([t.Literal('BASE_COST_ONLY'), t.Literal('TOTAL_COST')])),
         notes: t.Optional(t.String()),
+        startDate: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Interest'],
