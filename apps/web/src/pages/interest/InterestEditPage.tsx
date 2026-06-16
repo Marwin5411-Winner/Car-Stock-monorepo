@@ -15,6 +15,7 @@ import {
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { DatePicker } from '../../components/ui/date-picker';
 import { useToast } from '../../components/toast';
+import { isValidResumeStartDate } from './interestActions';
 
 export default function InterestEditPage() {
   const { stockId } = useParams<{ stockId: string }>();
@@ -84,10 +85,18 @@ export default function InterestEditPage() {
         notes: notes || undefined,
       });
     } else if (isResume) {
+      const lastStop = detail?.stock.interestStoppedAt ?? null;
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (effectiveDate && !isValidResumeStartDate(effectiveDate, lastStop, todayStr)) {
+        addToast('วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้ และไม่ก่อนวันที่หยุดล่าสุด', 'error');
+        setSubmitting(false);
+        return;
+      }
       promise = interestService.resumeCalculation(stockId!, {
         annualRate: rate,
         principalBase,
         notes: notes || undefined,
+        startDate: effectiveDate || undefined,
       });
     } else {
       promise = interestService.updateRate(stockId!, {
@@ -266,27 +275,28 @@ export default function InterestEditPage() {
               </div>
             </div>
 
-            {/* Effective Date (only for update, not resume) */}
-            {!isResume && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  วันที่เริ่มใช้อัตราใหม่
-                </label>
-                <DatePicker
-                  value={effectiveDate}
-                  onChange={setEffectiveDate}
-                  inputClassName="w-full"
-                  clearable
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  {isInitialize 
+            {/* Effective / start date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Calendar className="w-4 h-4 inline mr-1" />
+                {isResume ? 'วันที่เริ่มคิดดอกเบี้ยใหม่' : 'วันที่เริ่มใช้อัตราใหม่'}
+              </label>
+              <DatePicker
+                value={effectiveDate}
+                onChange={setEffectiveDate}
+                inputClassName="w-full"
+                clearable={!isResume}
+                minDate={isResume ? detail?.stock.interestStoppedAt?.slice(0, 10) : undefined}
+                maxDate={isResume ? new Date().toISOString().split('T')[0] : undefined}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                {isResume
+                  ? 'เลือกวันที่ต้องการเริ่มคิดดอกเบี้ยใหม่ (ย้อนหลังได้ถึงวันที่หยุดล่าสุด ไม่เกินวันนี้)'
+                  : isInitialize
                     ? 'หากไม่ระบุ จะใช้วันที่เข้าสต็อกเป็นวันเริ่มต้น'
-                    : 'หากไม่ระบุ จะใช้วันนี้เป็นวันเริ่มต้น'
-                  }
-                </p>
-              </div>
-            )}
+                    : 'หากไม่ระบุ จะใช้วันนี้เป็นวันเริ่มต้น'}
+              </p>
+            </div>
 
             {/* Notes */}
             <div>
