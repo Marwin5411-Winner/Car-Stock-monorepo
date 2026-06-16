@@ -109,6 +109,7 @@ export interface ResumeInterestData {
   annualRate: number;
   principalBase?: 'BASE_COST_ONLY' | 'TOTAL_COST';
   notes?: string;
+  startDate?: string;
 }
 
 // Debt Management Types
@@ -280,10 +281,21 @@ class InterestService {
   }
 
   /**
-   * Stop interest calculation for a stock
+   * Stop interest calculation for a stock.
+   * Returns the API envelope so callers can distinguish success from a void result.
    */
-  async stopCalculation(stockId: string, notes?: string): Promise<void> {
-    await api.post(`/api/interest/${stockId}/stop`, notes ? { notes } : undefined);
+  async stopCalculation(
+    stockId: string,
+    notes?: string,
+    stopDate?: string,
+  ): Promise<{ success: boolean }> {
+    const payload: { notes?: string; stopDate?: string } = {};
+    if (notes) payload.notes = notes;
+    if (stopDate) payload.stopDate = stopDate;
+    return api.post<{ success: boolean }>(
+      `/api/interest/${stockId}/stop`,
+      Object.keys(payload).length ? payload : undefined,
+    );
   }
 
   /**
