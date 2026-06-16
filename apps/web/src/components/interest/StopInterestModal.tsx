@@ -6,7 +6,8 @@ import { DatePicker } from '../ui/date-picker';
 interface StopInterestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { stopDate?: string; notes?: string }) => Promise<void>;
+  /** Resolves true when the stop succeeded, false when it was rejected (modal stays open). */
+  onSubmit: (data: { stopDate?: string; notes?: string }) => Promise<boolean>;
   /** ISO date/datetime of the active period start (lower bound); null if none */
   activePeriodStart: string | null;
   stockInfo: {
@@ -49,7 +50,8 @@ export default function StopInterestModal({
     try {
       setLoading(true);
       setError(null);
-      await onSubmit({ stopDate, notes: notes || undefined });
+      const ok = await onSubmit({ stopDate, notes: notes || undefined });
+      if (!ok) return; // stay open; the caller already surfaced the error
       setNotes('');
       onClose();
     } catch {

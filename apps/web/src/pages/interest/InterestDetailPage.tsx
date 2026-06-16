@@ -105,16 +105,19 @@ export default function InterestDetailPage() {
     await Promise.all([fetchDetail(), fetchDebtData()]);
   };
 
-  const handleStopCalculation = async (data: { stopDate?: string; notes?: string }) => {
+  const handleStopCalculation = async (data: {
+    stopDate?: string;
+    notes?: string;
+  }): Promise<boolean> => {
     setActionLoading(true);
     const result = await executeQuery(
       interestService.stopCalculation(stockId!, data.notes, data.stopDate)
     );
     if (result) {
-      setShowStopModal(false);
       await Promise.all([fetchDetail(), fetchDebtData()]);
     }
     setActionLoading(false);
+    return !!result;
   };
 
   const formatCurrency = (amount: number) => {
