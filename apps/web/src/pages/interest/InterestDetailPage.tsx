@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
+import { canShowInitialize, getInterestHeaderAction } from './interestActions';
 
 export default function InterestDetailPage() {
   const { stockId } = useParams<{ stockId: string }>();
@@ -187,6 +188,15 @@ export default function InterestDetailPage() {
 
   const { stock, summary, periods } = detail;
 
+  // Decide which action the header offers. A paid-off stock must NOT be offered
+  // "resume" — the API rejects it with BAD_REQUEST ("คำขอไม่ถูกต้อง").
+  const headerAction = getInterestHeaderAction({
+    isCalculating: summary.isCalculating,
+    debtStatus: debtSummary?.debtStatus,
+    periodCount: summary.periodCount,
+    stockStatus: stock.status,
+  });
+
   return (
     <MainLayout>
       <div className="mb-6">
@@ -209,7 +219,7 @@ export default function InterestDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            {summary.isCalculating ? (
+            {headerAction === 'EDIT_AND_STOP' && (
               <>
                 <Link
                   to={`/interest/${stockId}/edit`}
@@ -227,7 +237,8 @@ export default function InterestDetailPage() {
                   หยุดคิดดอกเบี้ย
                 </button>
               </>
-            ) : (
+            )}
+            {headerAction === 'RESUME' && (
               <Link
                 to={`/interest/${stockId}/edit?resume=true`}
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -235,6 +246,12 @@ export default function InterestDetailPage() {
                 <PlayCircle className="w-4 h-4 mr-2" />
                 เริ่มคิดดอกเบี้ยใหม่
               </Link>
+            )}
+            {headerAction === 'PAID_OFF' && (
+              <span className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                ปิดหนี้แล้ว — หยุดคิดดอกเบี้ย
+              </span>
             )}
           </div>
         </div>
@@ -564,7 +581,12 @@ export default function InterestDetailPage() {
             <div className="p-12 text-center text-gray-500">
               <Clock className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <p>ยังไม่มีประวัติการเปลี่ยนแปลงดอกเบี้ย</p>
-              {!summary.isCalculating && stock.status !== 'SOLD' && (
+              {canShowInitialize({
+                isCalculating: summary.isCalculating,
+                debtStatus: debtSummary?.debtStatus,
+                periodCount: summary.periodCount,
+                stockStatus: stock.status,
+              }) && (
                 <Link
                   to={`/interest/${stockId}/edit?initialize=true`}
                   className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
