@@ -577,17 +577,11 @@ export class InterestService {
 
     const effectiveStartDate = input.startDate || today;
 
-    // Validate a caller-supplied back-date: must be within [last stop date, today].
+    // Validate a caller-supplied back-date: it may be any day, the only rule is no future date.
     if (input.startDate) {
-      const ok = isValidResumeStartDate(
-        dayKey(effectiveStartDate),
-        stock.interestStoppedAt ? dayKey(stock.interestStoppedAt) : null,
-        dayKey(today),
-      );
+      const ok = isValidResumeStartDate(dayKey(effectiveStartDate), null, dayKey(today));
       if (!ok) {
-        throw new BadRequestError(
-          'วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้ และไม่ก่อนวันที่หยุดล่าสุด',
-        );
+        throw new BadRequestError('วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้');
       }
     }
 

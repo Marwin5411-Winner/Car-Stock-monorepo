@@ -85,10 +85,10 @@ export default function InterestEditPage() {
         notes: notes || undefined,
       });
     } else if (isResume) {
-      const lastStop = detail?.stock.interestStoppedAt ?? null;
       const todayStr = todayIso();
-      if (effectiveDate && !isValidResumeStartDate(effectiveDate, lastStop, todayStr)) {
-        addToast('วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้ และไม่ก่อนวันที่หยุดล่าสุด', 'error');
+      // Resume start date may be back-dated freely; the only rule is it must not be in the future.
+      if (effectiveDate && !isValidResumeStartDate(effectiveDate, null, todayStr)) {
+        addToast('วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้', 'error');
         setSubmitting(false);
         return;
       }
@@ -286,12 +286,11 @@ export default function InterestEditPage() {
                 onChange={setEffectiveDate}
                 inputClassName="w-full"
                 clearable={!isResume}
-                minDate={isResume ? detail?.stock.interestStoppedAt?.slice(0, 10) : undefined}
                 maxDate={isResume ? todayIso() : undefined}
               />
               <p className="mt-1 text-sm text-gray-500">
                 {isResume
-                  ? 'เลือกวันที่ต้องการเริ่มคิดดอกเบี้ยใหม่ (ย้อนหลังได้ถึงวันที่หยุดล่าสุด ไม่เกินวันนี้)'
+                  ? 'เลือกวันที่ต้องการเริ่มคิดดอกเบี้ยใหม่ (ย้อนหลังได้ไม่จำกัด ไม่เกินวันนี้)'
                   : isInitialize
                     ? 'หากไม่ระบุ จะใช้วันที่เข้าสต็อกเป็นวันเริ่มต้น'
                     : 'หากไม่ระบุ จะใช้วันนี้เป็นวันเริ่มต้น'}
