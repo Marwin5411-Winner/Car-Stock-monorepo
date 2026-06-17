@@ -15,7 +15,7 @@ import {
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { DatePicker } from '../../components/ui/date-picker';
 import { useToast } from '../../components/toast';
-import { isValidResumeStartDate, todayIso } from './interestActions';
+import { isValidResumeStartDate, resumeStartsBeforeLastStop, todayIso } from './interestActions';
 
 export default function InterestEditPage() {
   const { stockId } = useParams<{ stockId: string }>();
@@ -89,6 +89,18 @@ export default function InterestEditPage() {
       // Resume start date may be back-dated freely; the only rule is it must not be in the future.
       if (effectiveDate && !isValidResumeStartDate(effectiveDate, null, todayStr)) {
         addToast('วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้', 'error');
+        setSubmitting(false);
+        return;
+      }
+      // A start date before the last stop overlaps the closed period and double-counts
+      // interest for the overlap days — make the user confirm before saving (still allowed).
+      if (
+        effectiveDate &&
+        resumeStartsBeforeLastStop(effectiveDate, detail?.stock.interestStoppedAt) &&
+        !window.confirm(
+          'วันที่เริ่มคิดดอกเบี้ยใหม่อยู่ก่อนวันที่หยุดล่าสุด ช่วงที่ทับกันจะถูกคิดดอกเบี้ยซ้ำกับงวดที่ปิดไปแล้ว\n\nต้องการดำเนินการต่อหรือไม่?'
+        )
+      ) {
         setSubmitting(false);
         return;
       }

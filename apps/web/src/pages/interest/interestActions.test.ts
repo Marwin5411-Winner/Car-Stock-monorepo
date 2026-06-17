@@ -5,6 +5,7 @@ import {
   getInterestHeaderAction,
   isValidResumeStartDate,
   isValidStopDate,
+  resumeStartsBeforeLastStop,
   todayIso,
 } from './interestActions';
 
@@ -211,5 +212,29 @@ describe('todayIso', () => {
     const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(result).toBe(expected);
+  });
+});
+
+describe('resumeStartsBeforeLastStop', () => {
+  const lastStop = '2026-06-10';
+
+  it('is true when the start date is before the last stop day', () => {
+    expect(resumeStartsBeforeLastStop('2026-06-05', lastStop)).toBe(true);
+  });
+
+  it('is false on the same day or after the last stop', () => {
+    expect(resumeStartsBeforeLastStop('2026-06-10', lastStop)).toBe(false);
+    expect(resumeStartsBeforeLastStop('2026-06-12', lastStop)).toBe(false);
+  });
+
+  it('is false when there is no last stop date', () => {
+    expect(resumeStartsBeforeLastStop('2020-01-01', null)).toBe(false);
+    expect(resumeStartsBeforeLastStop('2020-01-01', undefined)).toBe(false);
+  });
+
+  it('normalizes full ISO datetime inputs to the day portion', () => {
+    expect(resumeStartsBeforeLastStop('2026-06-09T23:00:00.000Z', '2026-06-10T00:00:00.000Z')).toBe(
+      true
+    );
   });
 });

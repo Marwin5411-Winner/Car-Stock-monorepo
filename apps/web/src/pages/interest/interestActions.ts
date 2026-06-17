@@ -91,3 +91,18 @@ export function isValidResumeStartDate(
 ): boolean {
   return withinDayRange(startDate, lastStopDate, today);
 }
+
+/**
+ * True when a resume start date falls BEFORE the last stop date — the new period
+ * would overlap the prior closed period and double-count interest for the overlap
+ * days. Used to warn/confirm before saving. No last stop date = no overlap.
+ */
+export function resumeStartsBeforeLastStop(
+  startDate: string,
+  lastStopDate: string | null | undefined
+): boolean {
+  const start = toDay(startDate);
+  const stop = toDay(lastStopDate);
+  if (!start || !stop) return false;
+  return start < stop;
+}
