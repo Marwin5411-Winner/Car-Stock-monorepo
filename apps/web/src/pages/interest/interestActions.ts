@@ -46,6 +46,19 @@ export function canShowInitialize(state: InterestActionState): boolean {
 /** Reduce an ISO date or datetime string to its yyyy-MM-dd day portion. */
 const toDay = (iso: string | null | undefined): string => (iso ?? '').slice(0, 10);
 
+/**
+ * Today's LOCAL calendar date as yyyy-MM-dd. Uses local date fields (not
+ * toISOString, which is UTC) so it agrees with the server's day-key
+ * convention — avoids the early-morning off-by-one in UTC+ timezones.
+ */
+export function todayIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** Inclusive day-range check on ISO date strings (empty bound = unbounded). */
 function withinDayRange(
   dateIso: string,

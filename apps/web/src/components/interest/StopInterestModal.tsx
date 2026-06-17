@@ -1,6 +1,6 @@
 import { AlertCircle, PauseCircle, X } from 'lucide-react';
 import { useState } from 'react';
-import { isValidStopDate } from '../../pages/interest/interestActions';
+import { isValidStopDate, todayIso } from '../../pages/interest/interestActions';
 import { DatePicker } from '../ui/date-picker';
 
 interface StopInterestModalProps {
@@ -15,8 +15,6 @@ interface StopInterestModalProps {
     vehicleModel: { brand: string; model: string; variant: string | null; year: number };
   };
 }
-
-const todayIso = (): string => new Date().toISOString().split('T')[0];
 
 export default function StopInterestModal({
   isOpen,

@@ -15,7 +15,7 @@ import {
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { DatePicker } from '../../components/ui/date-picker';
 import { useToast } from '../../components/toast';
-import { isValidResumeStartDate } from './interestActions';
+import { isValidResumeStartDate, todayIso } from './interestActions';
 
 export default function InterestEditPage() {
   const { stockId } = useParams<{ stockId: string }>();
@@ -60,7 +60,7 @@ export default function InterestEditPage() {
       setPrincipalBase(result.stock.interestPrincipalBase);
 
       // Set effective date to today
-      setEffectiveDate(new Date().toISOString().split('T')[0]);
+      setEffectiveDate(todayIso());
     }
     setLoading(false);
   };
@@ -86,7 +86,7 @@ export default function InterestEditPage() {
       });
     } else if (isResume) {
       const lastStop = detail?.stock.interestStoppedAt ?? null;
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = todayIso();
       if (effectiveDate && !isValidResumeStartDate(effectiveDate, lastStop, todayStr)) {
         addToast('วันที่เริ่มคิดดอกเบี้ยใหม่ต้องไม่เกินวันนี้ และไม่ก่อนวันที่หยุดล่าสุด', 'error');
         setSubmitting(false);
@@ -287,7 +287,7 @@ export default function InterestEditPage() {
                 inputClassName="w-full"
                 clearable={!isResume}
                 minDate={isResume ? detail?.stock.interestStoppedAt?.slice(0, 10) : undefined}
-                maxDate={isResume ? new Date().toISOString().split('T')[0] : undefined}
+                maxDate={isResume ? todayIso() : undefined}
               />
               <p className="mt-1 text-sm text-gray-500">
                 {isResume

@@ -5,6 +5,7 @@ import {
   getInterestHeaderAction,
   isValidResumeStartDate,
   isValidStopDate,
+  todayIso,
 } from './interestActions';
 
 /**
@@ -200,5 +201,15 @@ describe('isValidResumeStartDate', () => {
   it('only enforces the upper bound when there is no last stop date', () => {
     expect(isValidResumeStartDate('2020-01-01', null, today)).toBe(true);
     expect(isValidResumeStartDate('2026-06-17', null, today)).toBe(false);
+  });
+});
+
+describe('todayIso', () => {
+  it('returns today as a local yyyy-MM-dd string (not the UTC date from toISOString)', () => {
+    const result = todayIso();
+    const d = new Date();
+    const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result).toBe(expected);
   });
 });
