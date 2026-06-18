@@ -21,7 +21,6 @@ import {
   PaymentReceiptData,
   VehicleCardData,
   TemporaryReceiptData,
-
   CompanyHeader,
   DailyPaymentReportData,
   StockReportData,
@@ -34,6 +33,7 @@ import {
   formatThaiDate,
   formatThaiDateWithDay,
   formatCurrency,
+  formatInt,
   numberToThaiText,
   formatPhoneNumber,
   formatIdCard,
@@ -50,6 +50,7 @@ Handlebars.registerHelper('formatThaiDateWithDay', (date: string) => formatThaiD
 Handlebars.registerHelper('formatCurrency', (amount: number | string, showCurrency?: boolean) =>
   formatCurrency(amount, showCurrency !== false)
 );
+Handlebars.registerHelper('formatInt', (amount: number | string) => formatInt(amount));
 Handlebars.registerHelper('numberToThaiText', (num: number | string) => numberToThaiText(num));
 Handlebars.registerHelper('formatPhone', (phone: string) => formatPhoneNumber(phone));
 Handlebars.registerHelper('formatIdCard', (idCard: string) => formatIdCard(idCard));
@@ -58,9 +59,12 @@ Handlebars.registerHelper('safe', (value: string | null | undefined, defaultValu
   safeString(value, defaultValue)
 );
 Handlebars.registerHelper('formatPercentage', (value: number | string) => formatPercentage(value));
-Handlebars.registerHelper('ifEquals', function (this: any, arg1: any, arg2: any, options: Handlebars.HelperOptions) {
-  return arg1 === arg2 ? options.fn(this) : options.inverse(this);
-});
+Handlebars.registerHelper(
+  'ifEquals',
+  function (this: any, arg1: any, arg2: any, options: Handlebars.HelperOptions) {
+    return arg1 === arg2 ? options.fn(this) : options.inverse(this);
+  }
+);
 Handlebars.registerHelper('add', (a: number, b: number) => a + b);
 Handlebars.registerHelper('subtract', (a: number, b: number) => a - b);
 Handlebars.registerHelper('gt', (a: number, b: number) => a > b);
@@ -86,7 +90,7 @@ export class PdfService {
   private fontsDir: string;
   private logoBase64: string = '';
   private receiptBgBase64: string = '';
-  
+
   // Use environment variable or default to Docker service URL
   private readonly gotenbergUrl: string = process.env.GOTENBERG_URL || 'http://gotenberg:3000';
 
@@ -169,10 +173,10 @@ export class PdfService {
    */
   private registerPartials(): void {
     const partialsDir = path.join(this.templatesDir, 'partials');
-    
+
     if (fs.existsSync(partialsDir)) {
       const partialFiles = fs.readdirSync(partialsDir);
-      
+
       for (const file of partialFiles) {
         if (file.endsWith('.hbs')) {
           const partialName = file.replace('.hbs', '');
@@ -189,19 +193,19 @@ export class PdfService {
    */
   private getTemplate(templateType: PdfTemplateType): Handlebars.TemplateDelegate {
     const isDevelopment = process.env.NODE_ENV !== 'production';
-    
+
     // In development, always reload templates and partials
     if (isDevelopment) {
       this.templateCache.clear();
       this.registerPartials(); // Reload partials
     }
-    
+
     if (this.templateCache.has(templateType)) {
       return this.templateCache.get(templateType)!;
     }
 
     const templatePath = path.join(this.templatesDir, `${templateType}.hbs`);
-    
+
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template not found: ${templateType}`);
     }
@@ -209,7 +213,7 @@ export class PdfService {
     const templateContent = fs.readFileSync(templatePath, 'utf-8');
     const compiled = Handlebars.compile(templateContent);
     this.templateCache.set(templateType, compiled);
-    
+
     return compiled;
   }
 
@@ -256,13 +260,13 @@ export class PdfService {
    */
   private getBaseHtml(content: string, options: PdfOptions = {}): string {
     const fontCss = this.getFontCss();
-    
+
     // Default to A4 if no custom dimensions provided
     let width = options.width;
     if (!width) {
       width = options.landscape ? '297mm' : '210mm';
     }
-    
+
     // Padding (default 10mm)
     const padding = options.padding || '10mm';
 
@@ -509,27 +513,32 @@ export class PdfService {
     try {
       // Get and compile template
       const template = this.getTemplate(templateType);
-      
+
       // Fetch company settings from DB
-      const dbSettings = await import('../settings/settings.service').then(m => m.settingsService.getSettings());
-      
+      const dbSettings = await import('../settings/settings.service').then((m) =>
+        m.settingsService.getSettings()
+      );
+
       // Add company header to data if not present
       const providedHeader = (data as any).header || {};
-      
-      // Construct header from DB settings or fallback
-      const dbHeader = dbSettings ? {
-        companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
-        address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
-        address2: '', // Address logic might need adjustment if DB splits address differently
-        phone: `โทร. ${dbSettings.phone} ${dbSettings.fax ? 'โทรสาร. ' + dbSettings.fax : ''}`.trim(),
-        logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
-      } : DEFAULT_COMPANY_HEADER;
 
-      // If DB has addressEn, maybe we want to use it? 
+      // Construct header from DB settings or fallback
+      const dbHeader = dbSettings
+        ? {
+            companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
+            address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
+            address2: '', // Address logic might need adjustment if DB splits address differently
+            phone:
+              `โทร. ${dbSettings.phone} ${dbSettings.fax ? 'โทรสาร. ' + dbSettings.fax : ''}`.trim(),
+            logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
+          }
+        : DEFAULT_COMPANY_HEADER;
+
+      // If DB has addressEn, maybe we want to use it?
       // For now, sticking to Thai as per default template usage.
       // If address in DB is single string, we might need to split it if template expects address1/address2.
       // But looking at template styles, it just dumps address.
-      
+
       const dataWithHeader = {
         ...data,
         header: {
@@ -550,7 +559,7 @@ export class PdfService {
       // Bun provides native FormData and Blob support
       const formData = new FormData();
       formData.append('files', new Blob([html], { type: 'text/html' }), 'index.html');
-      
+
       // Configure options
       if (options.landscape) {
         formData.append('landscape', 'true');
@@ -563,7 +572,7 @@ export class PdfService {
         bottom: '5mm',
         left: '5mm',
       };
-      
+
       formData.append('marginTop', margins.top);
       formData.append('marginBottom', margins.bottom);
       formData.append('marginLeft', margins.left);
@@ -574,11 +583,10 @@ export class PdfService {
         formData.append('paperWidth', options.width);
         formData.append('paperHeight', options.height);
       }
-      
+
       // Prefer CSS page size
       formData.append('preferCssPageSize', 'true');
-      
-      
+
       // Print background
       if (options.printBackground !== false) {
         formData.append('printBackground', 'true');
@@ -593,13 +601,17 @@ export class PdfService {
 
       // Health check before generating PDF
       try {
-        const healthRes = await fetch(`${this.gotenbergUrl}/health`, { signal: AbortSignal.timeout(5000) });
+        const healthRes = await fetch(`${this.gotenbergUrl}/health`, {
+          signal: AbortSignal.timeout(5000),
+        });
         if (!healthRes.ok) {
           throw new Error(`Gotenberg health check failed: ${healthRes.status}`);
         }
       } catch (healthErr) {
         console.error('❌ Gotenberg service is not available:', healthErr);
-        throw new Error('บริการสร้าง PDF ไม่พร้อมใช้งาน (Gotenberg ไม่ตอบสนอง) กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ');
+        throw new Error(
+          'บริการสร้าง PDF ไม่พร้อมใช้งาน (Gotenberg ไม่ตอบสนอง) กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ'
+        );
       }
 
       const maxRetries = 3;
@@ -806,7 +818,9 @@ export class PdfService {
   /**
    * Generate Purchase Requirement Report PDF
    */
-  public async generatePurchaseRequirementReport(data: PurchaseRequirementReportData): Promise<Buffer> {
+  public async generatePurchaseRequirementReport(
+    data: PurchaseRequirementReportData
+  ): Promise<Buffer> {
     return this.generatePdf(PdfTemplateType.PURCHASE_REQUIREMENT_REPORT, data);
   }
 

@@ -34,15 +34,7 @@ const THAI_MONTH_ABBR = [
   'ธ.ค.',
 ];
 
-const THAI_DAYS = [
-  'อาทิตย์',
-  'จันทร์',
-  'อังคาร',
-  'พุธ',
-  'พฤหัสบดี',
-  'ศุกร์',
-  'เสาร์',
-];
+const THAI_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
 // Thai number words
 const THAI_DIGITS = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
@@ -61,7 +53,7 @@ export function formatThaiDate(
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '-';
-  
+
   const day = d.getDate();
   const month = d.getMonth();
   const buddhistYear = d.getFullYear() + 543;
@@ -87,7 +79,7 @@ export function formatThaiDateWithDay(date: Date | string | null | undefined): s
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '-';
-  
+
   const dayName = THAI_DAYS[d.getDay()];
   const day = d.getDate();
   const month = THAI_MONTHS[d.getMonth()];
@@ -105,13 +97,24 @@ export function formatThaiDateWithDay(date: Date | string | null | undefined): s
 export function formatCurrency(amount: number | string, showCurrency: boolean = true): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   if (isNaN(num)) return '-';
-  
+
   const formatted = num.toLocaleString('th-TH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
   return showCurrency ? `${formatted} บาท` : formatted;
+}
+
+/**
+ * Format a number as whole baht — no decimals, no currency suffix. For dense
+ * tables (e.g. the sales summary report) where "1,234,567.00 บาท" would wrap to
+ * multiple lines. The "บาท" unit is shown once in the report header instead.
+ */
+export function formatInt(amount: number | string): string {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(num)) return '-';
+  return num.toLocaleString('th-TH', { maximumFractionDigits: 0 });
 }
 
 /**
@@ -246,11 +249,11 @@ export function calculateAge(birthdate: Date | string): number {
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age--;
   }
-  
+
   return age;
 }
 

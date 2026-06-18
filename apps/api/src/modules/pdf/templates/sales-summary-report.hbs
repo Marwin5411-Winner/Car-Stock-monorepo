@@ -1,7 +1,10 @@
 <style>
   @page {
     size: A4 landscape;
-    margin: 10mm;
+    /* The base layout's .page already adds 10mm padding; a @page margin on top
+       of that pushes the 297mm page past the printable area and clips the right
+       columns. Keep margin 0 here and let .page provide the inset. */
+    margin: 0;
   }
   body {
     font-family: 'Sarabun', sans-serif;
@@ -10,17 +13,27 @@
   table {
     width: 100%;
     border-collapse: collapse;
+    /* Honour the column width %s and keep the table inside the A4 landscape
+       width instead of letting wide content push it off the page. */
+    table-layout: fixed;
   }
   th, td {
     border: 1px solid #ccc;
-    padding: 4px;
+    padding: 2px 3px;
     vertical-align: top;
+    /* Must set font-size on the cells directly: the base layout has a
+       `th, td { font-size: 13px }` rule that otherwise overrides the table's
+       inherited font and makes every value too wide for its column. */
+    font-size: 8px;
+    /* Wrap long values/headers within the cell rather than overflowing. */
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
   th {
     background-color: #f2f2f2;
     font-weight: bold;
     text-align: center;
-    white-space: nowrap;
+    white-space: normal;
     color: #333;
     border-bottom: 2px solid #ddd;
   }
@@ -59,32 +72,36 @@
 
 <div class="text-center" style="margin-bottom: 20px;">
   <strong>ช่วงเวลา:</strong> {{dateRange}}
+  <div style="font-size: 9px; color: #666; margin-top: 2px;">หน่วย: บาท</div>
 </div>
 
 <div class="section">
-  <table style="font-size: 9px;">
+  <table style="font-size: 8px; width: 100%; table-layout: fixed;">
+    <colgroup>
+      <col style="width: 3%"><col style="width: 8%"><col style="width: 7%"><col style="width: 6%"><col style="width: 3%"><col style="width: 3%"><col style="width: 5%"><col style="width: 3%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 6%"><col style="width: 5%"><col style="width: 6%"><col style="width: 5%"><col style="width: 5%"><col style="width: 3%"><col style="width: 3%"><col style="width: 3%"><col style="width: 6%">
+    </colgroup>
     <thead>
       <tr class="header-row">
         <th rowspan="2" style="width: 3%">ลำดับ</th>
-        <th style="width: 12%">ชื่อ - สกุล</th>
-        <th style="width: 10%">เลขเครื่อง</th>
+        <th style="width: 9%">ชื่อ - สกุล</th>
+        <th style="width: 8%">เลขเครื่อง</th>
         <th rowspan="2" style="width: 5%">ราคารถ</th>
-        <th rowspan="2" style="width: 5%">ส่วนลด<br>ตัวรถ</th>
+        <th rowspan="2" style="width: 4%">ส่วนลด<br>ตัวรถ</th>
         <th rowspan="2" style="width: 4%">ดอกเบี้ย</th>
         <th rowspan="2" style="width: 5%">เงินดาวน์</th>
-        <th rowspan="2" style="width: 5%">ส่วนลด<br>ดาวน์</th>
+        <th rowspan="2" style="width: 4%">ส่วนลด<br>ดาวน์</th>
         <th rowspan="2" style="width: 5%">คงเหลือ</th>
         <th style="width: 5%">ยอดจัด</th>
-        <th style="width: 5%">ค่าตอบ</th>
+        <th style="width: 5%">ค่าคอม</th>
         <th rowspan="2" style="width: 5%">รวมรับเงิน</th>
-        <th rowspan="2" style="width: 5%">วันที่ขาย</th>
+        <th rowspan="2" style="width: 4%">วันที่ขาย</th>
         <th rowspan="2" style="width: 5%">ทะเบียน/พรบ<br>ขนส่ง</th>
         <th rowspan="2" style="width: 5%">ต้นทุน</th>
         <th rowspan="2" style="width: 5%">แคมเปญขาย</th>
-        <th rowspan="2" style="width: 5%">กำไร<br>ขั้นต้น</th>
+        <th rowspan="2" style="width: 4%">กำไร<br>ขั้นต้น</th>
         <th rowspan="2" style="width: 4%">คอมฯ<br>พนักงาน</th>
-        <th rowspan="2" style="width: 4%">ค่าใช้จ่าย<br>ขาย</th>
-        <th rowspan="2" style="width: 4%">ค่าเบี้ย<br>ประกัน</th>
+        <th rowspan="2" style="width: 3%">ค่าใช้จ่าย<br>ขาย</th>
+        <th rowspan="2" style="width: 3%">ค่าเบี้ย<br>ประกัน</th>
         <th rowspan="2" style="width: 5%">กำไรสุทธิ</th>
       </tr>
       <tr class="sub-header-row">
@@ -106,46 +123,46 @@
           {{engineNumber}}<br>
           <span style="color: #666;">{{chassisNumber}}</span>
         </td>
-        <td class="text-right">{{formatCurrency totalAmount}}</td>
-        <td class="text-right">{{formatCurrency discountAmount}}</td>
-        <td class="text-right">{{formatCurrency interestCost}}</td>
-        <td class="text-right">{{formatCurrency downPayment}}</td>
-        <td class="text-right">{{formatCurrency downPaymentDiscount}}</td>
-        <td class="text-right">{{formatCurrency remainingAmount}}</td>
-        <td class="text-right">{{formatCurrency financeAmount}}</td>
-        <td class="text-right">{{formatCurrency financeReturn}}</td>
-        <td class="text-right">{{formatCurrency paidAmount}}</td>
-        <td class="text-center">{{formatThaiDate saleDate 'numeric'}}</td>
-        <td class="text-right">{{formatCurrency transportFee}}</td>
-        <td class="text-right">{{formatCurrency totalCost}}</td>
+        <td class="text-right">{{formatInt totalAmount}}</td>
+        <td class="text-right">{{formatInt discountAmount}}</td>
+        <td class="text-right">{{formatInt interestCost}}</td>
+        <td class="text-right">{{formatInt downPayment}}</td>
+        <td class="text-right">{{formatInt downPaymentDiscount}}</td>
+        <td class="text-right">{{formatInt remainingAmount}}</td>
+        <td class="text-right">{{formatInt financeAmount}}</td>
+        <td class="text-right">{{formatInt financeReturn}}</td>
+        <td class="text-right">{{formatInt paidAmount}}</td>
+        <td class="text-center" style="white-space: nowrap;">{{formatThaiDate saleDate 'numeric'}}</td>
+        <td class="text-right">{{formatInt transportFee}}</td>
+        <td class="text-right">{{formatInt totalCost}}</td>
         <td>{{campaignName}}</td>
-        <td class="text-right">{{formatCurrency (subtract totalAmount totalCost)}}</td>
-        <td class="text-right">{{formatCurrency salesCommission}}</td>
-        <td class="text-right">{{formatCurrency salesExpense}}</td>
-        <td class="text-right">{{formatCurrency insurancePremium}}</td>
-        <td class="text-right">{{formatCurrency netProfit}}</td>
+        <td class="text-right">{{formatInt (subtract totalAmount totalCost)}}</td>
+        <td class="text-right">{{formatInt salesCommission}}</td>
+        <td class="text-right">{{formatInt salesExpense}}</td>
+        <td class="text-right">{{formatInt insurancePremium}}</td>
+        <td class="text-right">{{formatInt netProfit}}</td>
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
         <td colspan="3" class="text-right">รวมทั้งสิ้น ({{summary.totalSales}} คัน)</td>
-        <td class="text-right">{{formatCurrency summary.totalAmount}}</td>
-        <td class="text-right">{{formatCurrency summary.totalCarDiscount}}</td>
+        <td class="text-right">{{formatInt summary.totalAmount}}</td>
+        <td class="text-right">{{formatInt summary.totalCarDiscount}}</td>
         <td class="text-right"></td>
-        <td class="text-right">{{formatCurrency summary.totalDownPayment}}</td>
-        <td class="text-right">{{formatCurrency summary.totalDownPaymentDiscount}}</td>
-        <td class="text-right">{{formatCurrency summary.totalRemaining}}</td>
-        <td class="text-right">{{formatCurrency summary.totalFinanceAmount}}</td>
-        <td class="text-right">{{formatCurrency summary.totalFinanceReturn}}</td>
-        <td class="text-right">{{formatCurrency summary.totalPaid}}</td>
+        <td class="text-right">{{formatInt summary.totalDownPayment}}</td>
+        <td class="text-right">{{formatInt summary.totalDownPaymentDiscount}}</td>
+        <td class="text-right">{{formatInt summary.totalRemaining}}</td>
+        <td class="text-right">{{formatInt summary.totalFinanceAmount}}</td>
+        <td class="text-right">{{formatInt summary.totalFinanceReturn}}</td>
+        <td class="text-right">{{formatInt summary.totalPaid}}</td>
         <td></td>
-        <td class="text-right">{{formatCurrency summary.totalTransportFee}}</td>
-        <td class="text-right">{{formatCurrency summary.totalCostSum}}</td>
+        <td class="text-right">{{formatInt summary.totalTransportFee}}</td>
+        <td class="text-right">{{formatInt summary.totalCostSum}}</td>
         <td></td>
         <td class="text-right"></td>
-        <td class="text-right">{{formatCurrency summary.totalSalesCommission}}</td>
-        <td class="text-right">{{formatCurrency summary.totalSalesExpense}}</td>
-        <td class="text-right">{{formatCurrency summary.totalInsurancePremium}}</td>
-        <td class="text-right">{{formatCurrency summary.totalNetProfit}}</td>
+        <td class="text-right">{{formatInt summary.totalSalesCommission}}</td>
+        <td class="text-right">{{formatInt summary.totalSalesExpense}}</td>
+        <td class="text-right">{{formatInt summary.totalInsurancePremium}}</td>
+        <td class="text-right">{{formatInt summary.totalNetProfit}}</td>
       </tr>
     </tbody>
   </table>

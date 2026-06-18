@@ -10,6 +10,7 @@ import puppeteer, { type Browser } from 'puppeteer-core';
 import {
   formatCurrency,
   formatIdCard,
+  formatInt,
   formatPercentage,
   formatPhoneNumber,
   formatThaiDate,
@@ -51,6 +52,7 @@ Handlebars.registerHelper('formatThaiDateWithDay', (date: string) => formatThaiD
 Handlebars.registerHelper('formatCurrency', (amount: number | string, showCurrency?: boolean) =>
   formatCurrency(amount, showCurrency !== false)
 );
+Handlebars.registerHelper('formatInt', (amount: number | string) => formatInt(amount));
 Handlebars.registerHelper('numberToThaiText', (num: number | string) => numberToThaiText(num));
 Handlebars.registerHelper('formatPhone', (phone: string) => formatPhoneNumber(phone));
 Handlebars.registerHelper('formatIdCard', (idCard: string) => formatIdCard(idCard));
