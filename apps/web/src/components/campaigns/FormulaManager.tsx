@@ -110,8 +110,8 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
 
   return (
     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสูตร</label>
           <input
             type="text"
@@ -121,7 +121,7 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
             placeholder="เช่น ส่วนลดพิเศษ, คอมมิชชั่นเพิ่ม"
           />
         </div>
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">เป้าหมายราคา</label>
           <select
             value={formData.priceTarget}

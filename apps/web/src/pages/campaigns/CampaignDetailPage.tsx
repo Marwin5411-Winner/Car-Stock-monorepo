@@ -22,7 +22,11 @@ export const CampaignDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: campaign, isLoading, error } = useQuery({
+  const {
+    data: campaign,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['campaign', id],
     queryFn: () => campaignService.getById(id!),
     enabled: !!id,
@@ -47,9 +51,7 @@ export const CampaignDetailPage: React.FC = () => {
   if (error || !campaign) {
     return (
       <MainLayout>
-        <div className="text-center text-red-600 py-8">
-          ไม่พบแคมเปญ
-        </div>
+        <div className="text-center text-red-600 py-8">ไม่พบแคมเปญ</div>
       </MainLayout>
     );
   }
@@ -158,12 +160,8 @@ export const CampaignDetailPage: React.FC = () => {
             {/* Vehicle Models */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  รุ่นรถยนต์ในแคมเปญ
-                </h2>
-                <span className="text-sm text-gray-500">
-                  {campaign.vehicleModels.length} รุ่น
-                </span>
+                <h2 className="text-lg font-semibold text-gray-900">รุ่นรถยนต์ในแคมเปญ</h2>
+                <span className="text-sm text-gray-500">{campaign.vehicleModels.length} รุ่น</span>
               </div>
 
               {campaign.vehicleModels.length === 0 ? (
@@ -191,42 +189,6 @@ export const CampaignDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {/* Formula Management — empty-state CTA when no vehicle models attached */}
-            {campaign.vehicleModels.length === 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                  สูตรคำนวณราคา / คอมมิชชั่น
-                </h2>
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center bg-gray-50">
-                  <p className="text-sm text-gray-600">
-                    ยังไม่มีรุ่นรถยนต์ในแคมเปญนี้
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดสูตรคำนวณ Rebate
-                  </p>
-                </div>
-              </div>
-            )}
-            {campaign.vehicleModels.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  สูตรคำนวณราคา / คอมมิชชั่น
-                </h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  กำหนดสูตรคำนวณสำหรับแต่ละรุ่นรถยนต์ สามารถเพิ่ม +, -, ×, % และเรียงลำดับการคำนวณได้
-                </p>
-                <div className="space-y-4">
-                  {campaign.vehicleModels.map((model) => (
-                    <FormulaManager
-                      key={model.id}
-                      campaignId={id!}
-                      vehicleModel={model}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Sidebar */}
@@ -240,9 +202,7 @@ export const CampaignDetailPage: React.FC = () => {
                     <FileText className="w-5 h-5 text-blue-600" />
                     <span className="text-gray-700">ยอดขาย</span>
                   </div>
-                  <span className="text-xl font-bold text-blue-600">
-                    {campaign.salesCount}
-                  </span>
+                  <span className="text-xl font-bold text-blue-600">{campaign.salesCount}</span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
@@ -286,6 +246,30 @@ export const CampaignDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Formula Management — full width below the grid for more room */}
+        {campaign.vehicleModels.length === 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">สูตรคำนวณราคา / คอมมิชชั่น</h2>
+            <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center bg-gray-50">
+              <p className="text-sm text-gray-600">ยังไม่มีรุ่นรถยนต์ในแคมเปญนี้</p>
+              <p className="text-xs text-gray-500 mt-1">เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดสูตรคำนวณ Rebate</p>
+            </div>
+          </div>
+        )}
+        {campaign.vehicleModels.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">สูตรคำนวณราคา / คอมมิชชั่น</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              กำหนดสูตรคำนวณสำหรับแต่ละรุ่นรถยนต์ สามารถเพิ่ม +, -, ×, % และเรียงลำดับการคำนวณได้
+            </p>
+            <div className="space-y-4">
+              {campaign.vehicleModels.map((model) => (
+                <FormulaManager key={model.id} campaignId={id!} vehicleModel={model} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );
