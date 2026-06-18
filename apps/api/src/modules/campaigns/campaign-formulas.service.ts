@@ -158,6 +158,8 @@ class CampaignFormulasService {
         return baseValue * formulaValue;
       case 'PERCENT':
         return baseValue + (baseValue * formulaValue) / 100;
+      case 'PERCENT_SUBTRACT':
+        return baseValue - (baseValue * formulaValue) / 100;
       default:
         return baseValue;
     }

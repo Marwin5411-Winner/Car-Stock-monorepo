@@ -10,7 +10,8 @@ const OPERATOR_SYMBOLS: Record<string, string> = {
   ADD: '+',
   SUBTRACT: '-',
   MULTIPLY: '×',
-  PERCENT: '%',
+  PERCENT: '+',
+  PERCENT_SUBTRACT: '-',
 };
 
 async function getCompanyHeader(): Promise<any> {
@@ -59,7 +60,7 @@ function prepareCampaignReportForPdf(report: any) {
       .join(' ');
 
     const formulas = (group.formulas || []).map((f: any) => {
-      const isPercent = f.operator === 'PERCENT';
+      const isPercent = f.operator === 'PERCENT' || f.operator === 'PERCENT_SUBTRACT';
       const operatorDisplay = `(${OPERATOR_SYMBOLS[f.operator] || ''}${
         isPercent ? `${f.value}%` : formatCurrency(f.value, false)
       })`;
@@ -477,6 +478,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
           t.Literal('SUBTRACT'),
           t.Literal('MULTIPLY'),
           t.Literal('PERCENT'),
+          t.Literal('PERCENT_SUBTRACT'),
         ]),
         value: t.Number(),
         priceTarget: t.Union([t.Literal('COST_PRICE'), t.Literal('SELLING_PRICE')]),
@@ -513,6 +515,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
             t.Literal('SUBTRACT'),
             t.Literal('MULTIPLY'),
             t.Literal('PERCENT'),
+            t.Literal('PERCENT_SUBTRACT'),
           ])
         ),
         value: t.Optional(t.Number()),

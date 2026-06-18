@@ -9,7 +9,8 @@ const operatorSymbols: Record<FormulaOperator, string> = {
   ADD: '+',
   SUBTRACT: '-',
   MULTIPLY: '×',
-  PERCENT: '%',
+  PERCENT: '+',
+  PERCENT_SUBTRACT: '-',
 };
 
 const formatCurrency = (value: number) => {
@@ -33,8 +34,12 @@ const formatDateLong = (dateString: string) => {
   });
 };
 
-const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignReportGroup[] }> = ({ group, allGroups }) => {
-  const modelName = `${group.vehicleModel.brand} ${group.vehicleModel.model} ${group.vehicleModel.variant || ''}`.trim();
+const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignReportGroup[] }> = ({
+  group,
+  allGroups,
+}) => {
+  const modelName =
+    `${group.vehicleModel.brand} ${group.vehicleModel.model} ${group.vehicleModel.variant || ''}`.trim();
 
   return (
     <div className="report-group mb-6">
@@ -46,13 +51,27 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr className="bg-gray-50">
-            <th className="border border-gray-300 px-2 py-1.5 text-center w-8" rowSpan={2}>ลำดับ</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>ชื่อ-สกุล (ลูกค้า)</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>เลขเครื่อง</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>แบบรถ</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>เลขตัวรถ (VIN)</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center bg-yellow-50" rowSpan={2}>วันที่ขาย</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>ไฟแนนท์</th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center w-8" rowSpan={2}>
+              ลำดับ
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              ชื่อ-สกุล (ลูกค้า)
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              เลขเครื่อง
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              แบบรถ
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              เลขตัวรถ (VIN)
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center bg-yellow-50" rowSpan={2}>
+              วันที่ขาย
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              ไฟแนนท์
+            </th>
             {/* Dynamic formula columns */}
             {group.formulas.length > 0 && (
               <th
@@ -71,35 +90,62 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
                 STANDARD — ยอดตามรุ่น
               </th>
             )}
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>รวมรับเงิน</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>วันที่แจ้งขาย</th>
-            <th className="border border-gray-300 px-2 py-1.5 text-center bg-amber-100 text-amber-900" rowSpan={2}>Rebate<br/>ต่อคัน</th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              รวมรับเงิน
+            </th>
+            <th className="border border-gray-300 px-2 py-1.5 text-center" rowSpan={2}>
+              วันที่แจ้งขาย
+            </th>
+            <th
+              className="border border-gray-300 px-2 py-1.5 text-center bg-amber-100 text-amber-900"
+              rowSpan={2}
+            >
+              Rebate
+              <br />
+              ต่อคัน
+            </th>
           </tr>
           <tr className="bg-gray-50">
             {/* Formula sub-headers */}
             {group.formulas.map((f) => (
-              <th key={f.id} className="border border-gray-300 px-1.5 py-1 text-center bg-green-50 whitespace-nowrap">
-                {f.name}<br/>
+              <th
+                key={f.id}
+                className="border border-gray-300 px-1.5 py-1 text-center bg-green-50 whitespace-nowrap"
+              >
+                {f.name}
+                <br />
                 <span className="text-[10px] text-gray-500">
-                  ({operatorSymbols[f.operator]}{f.operator === 'PERCENT' ? `${f.value}%` : formatCurrency(f.value)})
-                  <br/>{f.priceTarget === 'COST_PRICE' ? 'ทุน' : 'ขาย'}
+                  ({operatorSymbols[f.operator]}
+                  {f.operator === 'PERCENT' || f.operator === 'PERCENT_SUBTRACT'
+                    ? `${f.value}%`
+                    : formatCurrency(f.value)}
+                  )
+                  <br />
+                  {f.priceTarget === 'COST_PRICE' ? 'ทุน' : 'ขาย'}
                 </span>
               </th>
             ))}
             {/* Vehicle model sub-headers */}
-            {allGroups.length > 1 && allGroups.map((g) => (
-              <th key={g.vehicleModelId} className="border border-gray-300 px-1.5 py-1 text-center bg-blue-50 whitespace-nowrap">
-                {g.vehicleModel.model}<br/>
-                <span className="text-[10px] text-gray-500">{g.vehicleModel.variant || ''}</span>
-              </th>
-            ))}
+            {allGroups.length > 1 &&
+              allGroups.map((g) => (
+                <th
+                  key={g.vehicleModelId}
+                  className="border border-gray-300 px-1.5 py-1 text-center bg-blue-50 whitespace-nowrap"
+                >
+                  {g.vehicleModel.model}
+                  <br />
+                  <span className="text-[10px] text-gray-500">{g.vehicleModel.variant || ''}</span>
+                </th>
+              ))}
           </tr>
         </thead>
         <tbody>
           {group.sales.length === 0 ? (
             <tr>
               <td
-                colSpan={7 + group.formulas.length + (allGroups.length > 1 ? allGroups.length : 0) + 3}
+                colSpan={
+                  7 + group.formulas.length + (allGroups.length > 1 ? allGroups.length : 0) + 3
+                }
                 className="border border-gray-300 px-2 py-4 text-center text-gray-400"
               >
                 ไม่มีรายการขายในกลุ่มนี้
@@ -110,28 +156,49 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
               <tr key={sale.saleId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 <td className="border border-gray-300 px-2 py-1 text-center">{index + 1}</td>
                 <td className="border border-gray-300 px-2 py-1">{sale.customerName}</td>
-                <td className="border border-gray-300 px-2 py-1 text-center font-mono text-[10px]">{sale.engineNumber}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center font-mono text-[10px]">
+                  {sale.engineNumber}
+                </td>
                 <td className="border border-gray-300 px-2 py-1 text-center">{modelName}</td>
-                <td className="border border-gray-300 px-2 py-1 text-center font-mono text-[10px]">{sale.vin}</td>
-                <td className="border border-gray-300 px-2 py-1 text-center bg-yellow-50">{formatDate(sale.saleDate)}</td>
-                <td className="border border-gray-300 px-2 py-1 text-center">{sale.financeProvider}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center font-mono text-[10px]">
+                  {sale.vin}
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-center bg-yellow-50">
+                  {formatDate(sale.saleDate)}
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-center">
+                  {sale.financeProvider}
+                </td>
                 {/* Formula result cells */}
                 {group.formulas.map((f) => {
                   const result = sale.formulaResults.find((r) => r.formulaId === f.id);
                   return (
-                    <td key={f.id} className="border border-gray-300 px-2 py-1 text-right bg-green-50">
+                    <td
+                      key={f.id}
+                      className="border border-gray-300 px-2 py-1 text-right bg-green-50"
+                    >
                       {result ? formatCurrency(result.resultValue) : '-'}
                     </td>
                   );
                 })}
                 {/* Vehicle model amount cells — show amount only in matching column */}
-                {allGroups.length > 1 && allGroups.map((g) => (
-                  <td key={g.vehicleModelId} className="border border-gray-300 px-2 py-1 text-right bg-blue-50">
-                    {g.vehicleModelId === group.vehicleModelId ? formatCurrency(sale.totalAmount) : ''}
-                  </td>
-                ))}
-                <td className="border border-gray-300 px-2 py-1 text-right font-medium">{formatCurrency(sale.totalAmount)}</td>
-                <td className="border border-gray-300 px-2 py-1 text-center">{formatDate(sale.soldDate)}</td>
+                {allGroups.length > 1 &&
+                  allGroups.map((g) => (
+                    <td
+                      key={g.vehicleModelId}
+                      className="border border-gray-300 px-2 py-1 text-right bg-blue-50"
+                    >
+                      {g.vehicleModelId === group.vehicleModelId
+                        ? formatCurrency(sale.totalAmount)
+                        : ''}
+                    </td>
+                  ))}
+                <td className="border border-gray-300 px-2 py-1 text-right font-medium">
+                  {formatCurrency(sale.totalAmount)}
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-center">
+                  {formatDate(sale.soldDate)}
+                </td>
                 <td className="border border-gray-300 px-2 py-1 text-right bg-amber-50 text-amber-900 font-medium">
                   {formatCurrency(sale.rebatePerCar)}
                 </td>
@@ -147,12 +214,20 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
               >
                 รวม {modelName} ({group.totalSales} คัน):
               </td>
-              {allGroups.length > 1 && allGroups.map((g) => (
-                <td key={g.vehicleModelId} className="border border-gray-300 px-2 py-1.5 text-right bg-blue-50">
-                  {g.vehicleModelId === group.vehicleModelId ? formatCurrency(group.totalAmount) : ''}
-                </td>
-              ))}
-              <td className="border border-gray-300 px-2 py-1.5 text-right">{formatCurrency(group.totalAmount)}</td>
+              {allGroups.length > 1 &&
+                allGroups.map((g) => (
+                  <td
+                    key={g.vehicleModelId}
+                    className="border border-gray-300 px-2 py-1.5 text-right bg-blue-50"
+                  >
+                    {g.vehicleModelId === group.vehicleModelId
+                      ? formatCurrency(group.totalAmount)
+                      : ''}
+                  </td>
+                ))}
+              <td className="border border-gray-300 px-2 py-1.5 text-right">
+                {formatCurrency(group.totalAmount)}
+              </td>
               <td className="border border-gray-300 px-2 py-1.5"></td>
               <td className="border border-gray-300 px-2 py-1.5 text-right bg-amber-50 text-amber-900">
                 {formatCurrency(group.totalRebate)}
@@ -170,7 +245,11 @@ export const CampaignReportPage: React.FC = () => {
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
 
-  const { data: report, isLoading, error } = useQuery({
+  const {
+    data: report,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['campaign-report', id],
     queryFn: () => campaignService.getReport(id!),
     enabled: !!id,
@@ -258,9 +337,12 @@ export const CampaignReportPage: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">รายงานแคมเปญ: {report.campaign.name}</h1>
+            <h1 className="text-lg font-bold text-gray-900">
+              รายงานแคมเปญ: {report.campaign.name}
+            </h1>
             <p className="text-sm text-gray-500">
-              {formatDateLong(report.campaign.startDate)} - {formatDateLong(report.campaign.endDate)}
+              {formatDateLong(report.campaign.startDate)} -{' '}
+              {formatDateLong(report.campaign.endDate)}
             </p>
           </div>
         </div>
@@ -290,11 +372,10 @@ export const CampaignReportPage: React.FC = () => {
           <h1 className="text-base font-bold">
             งานเบิกแคมเปญเงินส่งเสริมการขายประจำ {formatDateLong(report.campaign.endDate)}
           </h1>
-          <h2 className="text-sm font-medium text-gray-700 mt-1">
-            แคมเปญ: {report.campaign.name}
-          </h2>
+          <h2 className="text-sm font-medium text-gray-700 mt-1">แคมเปญ: {report.campaign.name}</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            ระยะเวลา: {formatDateLong(report.campaign.startDate)} - {formatDateLong(report.campaign.endDate)}
+            ระยะเวลา: {formatDateLong(report.campaign.startDate)} -{' '}
+            {formatDateLong(report.campaign.endDate)}
             {report.campaign.description && ` | ${report.campaign.description}`}
           </p>
         </div>
@@ -306,15 +387,21 @@ export const CampaignReportPage: React.FC = () => {
             <div className="text-gray-600">รวมยอดขาย (คัน)</div>
           </div>
           <div className="bg-green-50 px-4 py-2 rounded-lg text-center">
-            <div className="text-green-600 font-bold text-lg">{report.summary.totalVehicleModels}</div>
+            <div className="text-green-600 font-bold text-lg">
+              {report.summary.totalVehicleModels}
+            </div>
             <div className="text-gray-600">รุ่นรถยนต์</div>
           </div>
           <div className="bg-purple-50 px-4 py-2 rounded-lg text-center">
-            <div className="text-purple-600 font-bold text-lg">{formatCurrency(report.summary.totalAmount)}</div>
+            <div className="text-purple-600 font-bold text-lg">
+              {formatCurrency(report.summary.totalAmount)}
+            </div>
             <div className="text-gray-600">ยอดขายรวม (บาท)</div>
           </div>
           <div className="bg-amber-100 px-4 py-2 rounded-lg text-center">
-            <div className="text-amber-800 font-bold text-lg">{formatCurrency(report.summary.totalRebate)}</div>
+            <div className="text-amber-800 font-bold text-lg">
+              {formatCurrency(report.summary.totalRebate)}
+            </div>
             <div className="text-gray-700">Rebate ที่ขอเบิก (บาท)</div>
           </div>
         </div>
@@ -337,9 +424,7 @@ export const CampaignReportPage: React.FC = () => {
                 </td>
               </tr>
               <tr className="font-bold text-sm bg-amber-100 text-amber-900">
-                <td className="px-2 py-2 text-right">
-                  รวม Rebate ที่ขอเบิกจาก Supplier:
-                </td>
+                <td className="px-2 py-2 text-right">รวม Rebate ที่ขอเบิกจาก Supplier:</td>
                 <td className="px-2 py-2 text-right">
                   {formatCurrency(report.summary.totalRebate)} บาท
                 </td>
@@ -354,7 +439,8 @@ export const CampaignReportPage: React.FC = () => {
             สร้างโดย: {report.campaign.createdBy.firstName} {report.campaign.createdBy.lastName}
           </div>
           <div>
-            พิมพ์เมื่อ: {new Date().toLocaleDateString('th-TH', {
+            พิมพ์เมื่อ:{' '}
+            {new Date().toLocaleDateString('th-TH', {
               day: 'numeric',
               month: 'long',
               year: 'numeric',

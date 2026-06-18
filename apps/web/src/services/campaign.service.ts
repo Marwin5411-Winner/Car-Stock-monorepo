@@ -78,7 +78,7 @@ export interface CampaignAnalytics {
   summary: CampaignAnalyticsSummary;
 }
 
-export type FormulaOperator = 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'PERCENT';
+export type FormulaOperator = 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'PERCENT' | 'PERCENT_SUBTRACT';
 export type FormulaPriceTarget = 'COST_PRICE' | 'SELLING_PRICE';
 
 export interface CampaignFormula {

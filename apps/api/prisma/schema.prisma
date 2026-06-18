@@ -555,10 +555,11 @@ enum CampaignStatus {
 }
 
 enum FormulaOperator {
-  ADD       // +
-  SUBTRACT  // -
-  MULTIPLY  // *
-  PERCENT   // %
+  ADD              // +
+  SUBTRACT         // -
+  MULTIPLY         // *
+  PERCENT          // + n% of base
+  PERCENT_SUBTRACT // - n% of base
 }
 
 enum FormulaPriceTarget {
