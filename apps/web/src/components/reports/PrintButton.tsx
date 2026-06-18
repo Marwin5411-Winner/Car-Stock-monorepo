@@ -1,8 +1,16 @@
 import { Printer } from 'lucide-react';
+import { useState } from 'react';
 
 interface PrintButtonProps {
   contentId?: string;
   title?: string;
+  /**
+   * When provided, the button prints this server-generated PDF so the printout
+   * matches the "ส่งออก PDF" output exactly, instead of printing the page HTML.
+   * Takes precedence over contentId.
+   */
+  getPdf?: () => Promise<Blob>;
+  disabled?: boolean;
 }
 
 const PRINT_STYLE_RULES = `
@@ -63,7 +71,51 @@ const PRINT_STYLE_RULES = `
   }
 `;
 
-export function PrintButton({ contentId, title }: PrintButtonProps) {
+export function PrintButton({ contentId, title, getPdf, disabled }: PrintButtonProps) {
+  const [preparing, setPreparing] = useState(false);
+
+  // Load the server PDF into a hidden iframe and open the print dialog on it,
+  // so what prints is byte-for-byte the same document as "ส่งออก PDF".
+  const printPdfBlob = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    iframe.src = url;
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch {
+        // Some browsers block programmatic iframe printing of PDFs — fall back
+        // to opening the PDF in a new tab so the user can print from the viewer.
+        window.open(url, '_blank');
+      }
+      // Revoke late so the print dialog has time to read the document.
+      window.setTimeout(() => {
+        iframe.remove();
+        URL.revokeObjectURL(url);
+      }, 60_000);
+    };
+    document.body.appendChild(iframe);
+  };
+
+  const handlePrintPdf = async () => {
+    if (!getPdf) return;
+    try {
+      setPreparing(true);
+      const blob = await getPdf();
+      printPdfBlob(blob);
+    } catch (err) {
+      console.error('Failed to prepare PDF for printing:', err);
+    } finally {
+      setPreparing(false);
+    }
+  };
+
   const handlePrint = () => {
     const originalTitle = document.title;
 
@@ -123,19 +175,30 @@ export function PrintButton({ contentId, title }: PrintButtonProps) {
   return (
     <button
       type="button"
-      onClick={handlePrint}
-      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors"
+      onClick={getPdf ? handlePrintPdf : handlePrint}
+      disabled={disabled || preparing}
+      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors disabled:opacity-50"
     >
       <Printer className="w-4 h-4 mr-2" />
-      พิมพ์
+      {preparing ? 'กำลังเตรียม...' : 'พิมพ์'}
     </button>
   );
 }
 
 function formatThaiDate(date: Date): string {
   const thaiMonths = [
-    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    'มกราคม',
+    'กุมภาพันธ์',
+    'มีนาคม',
+    'เมษายน',
+    'พฤษภาคม',
+    'มิถุนายน',
+    'กรกฎาคม',
+    'สิงหาคม',
+    'กันยายน',
+    'ตุลาคม',
+    'พฤศจิกายน',
+    'ธันวาคม',
   ];
 
   const day = date.getDate();

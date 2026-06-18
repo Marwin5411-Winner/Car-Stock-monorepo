@@ -308,7 +308,17 @@ export default function SalesSummaryReportPage() {
           <FileText className="w-4 h-4 mr-2" />
           ส่งออก PDF
         </button>
-        <PrintButton title="รายงานสรุปยอดขาย" contentId="report-content" />
+        <PrintButton
+          title="รายงานสรุปยอดขาย"
+          disabled={loading || !data}
+          getPdf={() =>
+            reportService.getSalesSummaryReportPdf({
+              startDate,
+              endDate,
+              status: statusFilter || undefined,
+            })
+          }
+        />
       </div>
 
       {error && (
