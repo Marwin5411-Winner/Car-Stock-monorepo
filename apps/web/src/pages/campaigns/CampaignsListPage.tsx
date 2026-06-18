@@ -73,9 +73,7 @@ export const CampaignsListPage: React.FC = () => {
   if (error) {
     return (
       <MainLayout>
-        <div className="text-center text-red-600 py-8">
-          เกิดข้อผิดพลาดในการโหลดข้อมูล
-        </div>
+        <div className="text-center text-red-600 py-8">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>
       </MainLayout>
     );
   }
@@ -127,110 +125,110 @@ export const CampaignsListPage: React.FC = () => {
           {isLoading ? (
             <div className="text-center py-8">กำลังโหลด...</div>
           ) : data?.data?.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              ไม่พบแคมเปญ
-            </div>
+            <div className="text-center py-8 text-gray-500">ไม่พบแคมเปญ</div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ชื่อแคมเปญ
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ระยะเวลา
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    สถานะ
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    รุ่นรถยนต์
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ยอดขาย
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    การดำเนินการ
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data?.data.map((campaign) => (
-                  <tr key={campaign.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-gray-900">{campaign.name}</div>
-                        {campaign.description && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
-                            {campaign.description}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          statusColors[campaign.status]
-                        }`}
-                      >
-                        {statusLabels[campaign.status] ?? campaign.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {campaign.vehicleModels.length} รุ่น
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900">
-                        {campaign.salesCount} รายการ
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="ดูรายละเอียด"
-                        >
-                          <Eye className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => navigate(`/campaigns/${campaign.id}/analytics`)}
-                          className="text-green-600 hover:text-green-900 p-1"
-                          title="ดูสถิติ"
-                        >
-                          <BarChart3 className="w-5 h-5" />
-                        </button>
-                        {canUpdate && (
-                          <button
-                            onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
-                            className="text-yellow-600 hover:text-yellow-900 p-1"
-                            title="แก้ไข"
-                          >
-                            <Edit className="w-5 h-5" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            onClick={() => handleDelete(campaign)}
-                            className="text-red-600 hover:text-red-900 p-1"
-                            title="ลบ"
-                            disabled={campaign.salesCount > 0}
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      ชื่อแคมเปญ
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      ระยะเวลา
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      สถานะ
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      รุ่นรถยนต์
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      ยอดขาย
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      การดำเนินการ
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data?.data.map((campaign) => (
+                    <tr key={campaign.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-gray-900">{campaign.name}</div>
+                          {campaign.description && (
+                            <div className="text-sm text-gray-500 truncate max-w-xs">
+                              {campaign.description}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            statusColors[campaign.status]
+                          }`}
+                        >
+                          {statusLabels[campaign.status] ?? campaign.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {campaign.vehicleModels.length} รุ่น
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-900">
+                          {campaign.salesCount} รายการ
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                            className="text-blue-600 hover:text-blue-900 p-1"
+                            title="ดูรายละเอียด"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/campaigns/${campaign.id}/analytics`)}
+                            className="text-green-600 hover:text-green-900 p-1"
+                            title="ดูสถิติ"
+                          >
+                            <BarChart3 className="w-5 h-5" />
+                          </button>
+                          {canUpdate && (
+                            <button
+                              onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
+                              className="text-yellow-600 hover:text-yellow-900 p-1"
+                              title="แก้ไข"
+                            >
+                              <Edit className="w-5 h-5" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(campaign)}
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="ลบ"
+                              disabled={campaign.salesCount > 0}
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* Pagination */}
@@ -255,11 +253,7 @@ export const CampaignsListPage: React.FC = () => {
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-gray-700">
-                    แสดง{' '}
-                    <span className="font-medium">
-                      {(page - 1) * data.meta.limit + 1}
-                    </span>{' '}
-                    ถึง{' '}
+                    แสดง <span className="font-medium">{(page - 1) * data.meta.limit + 1}</span> ถึง{' '}
                     <span className="font-medium">
                       {Math.min(page * data.meta.limit, data.meta.total)}
                     </span>{' '}
