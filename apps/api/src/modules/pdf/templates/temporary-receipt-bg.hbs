@@ -1,7 +1,9 @@
 {{!--
   ใบรับเงินชั่วคราว — DATA-ONLY OVERLAY สำหรับฟอร์ม SIAMK (Dot Matrix 9×5.5 นิ้ว)
   ====================================================================
-  v1.0.37 (calibrated 2026-06-09 จาก CamScanner 8-6-69 16.26 2.jpg — full recalibration: ทุก cell เลื่อนขึ้นตาม cell จริงของฟอร์ม)
+  v1.0.40 (recalibrated 2026-06-19 จาก temp-receipt-preview "Fix" — ทุก cell ขยับ
+           ตามฟอร์มจริงรอบใหม่; totals ย้ายมา left 137mm; เพิ่ม "จำนวนเงิน(ตัวอักษร)"
+           และ "เลขบัญชีธนาคาร" ฝั่งซ้าย เหนือจำนวนเงินตัวอักษร)
 
   กระดาษ: 9in × 5.5in แนวนอน (228.6 × 139.7 mm)
   ฟอร์ม SIAMK 1 แผ่น = 1 ใบ
@@ -18,12 +20,10 @@
   │  แถว 3: ที่อยู่         → 142 หมู่ 7 ...          │ เบอร์โทรศัพท์  │
   ├─ BOX ล่าง ──────────────────────────────────────────────────────┤
   │  รายการ (cell สูง)        │ จำนวนเงิน (4 cell ย่อย)              │
-  │                           │ ยอดชำระ / เบียปรับ / ส่วนลด / ยอดสุทธิ │
-  ├─ "จำนวนเงินที่ต้องชำระ" (เต็มความกว้าง) ────────────────────────┤
+  │  [เลขบัญชีธนาคาร]          │ ยอดชำระ / เบียปรับ / ส่วนลด / ยอดสุทธิ │
+  │  (จำนวนเงินตัวอักษร)        │                                       │
   ├─ Signature lines ────────────────────────────────────────────────┤
-  │  ผู้รับเงิน .......................... วันที่ ........... ชำระโดย ........... │
-  │  ผู้ตรวจสอบ .................. วันที่ ...........                            │
-  │  ผู้อนุมัติ ..........................                                           │
+  │  ผู้รับเงิน .......... วันที่ ........ ชำระโดย ........               │
   └──────────────────────────────────────────────────────────────────┘
 
   ── วิธี calibrate (ปรับตำแหน่ง) ──────────────────────────────
@@ -60,17 +60,30 @@
     <div class="item-block">
       <div class="item-desc">{{this.description}}</div>
       {{#if this.amount}}
-      <div class="item-amt">{{formatCurrency this.amount}}</div>
+      <div class="item-amt">{{formatCurrency this.amount false}}</div>
       {{/if}}
     </div>
     {{/each}}
   </div>
 
+  <!-- ════════ เลขบัญชีธนาคาร (ฝั่งซ้าย, เหนือจำนวนเงินตัวอักษร) ════════ -->
+  {{#if bankAccount.accountNumber}}
+  <div class="f f-bank-account">
+    <div>{{bankAccount.bankName}} เลขที่บัญชี {{bankAccount.accountNumber}}</div>
+    {{#if bankAccount.accountName}}<div>ชื่อบัญชี {{bankAccount.accountName}}</div>{{/if}}
+  </div>
+  {{/if}}
+
   <!-- ════════ BOX ล่าง — cell "จำนวนเงิน" (ขวา, 4 cell ย่อย) ════════ -->
-  <div class="f f-total-paid">{{formatCurrency paymentAmount}}</div>
-  <div class="f f-total-late">{{formatCurrency lateFee}}</div>
-  <div class="f f-total-discount">{{formatCurrency discount}}</div>
-  <div class="f f-grand-total">{{formatCurrency totalAmount}}</div>
+  <div class="f f-total-paid">{{formatCurrency paymentAmount false}}</div>
+  <div class="f f-total-late">{{formatCurrency lateFee false}}</div>
+  <div class="f f-total-discount">{{formatCurrency discount false}}</div>
+  <div class="f f-grand-total">{{formatCurrency totalAmount false}}</div>
+
+  <!-- ════════ จำนวนเงิน (ตัวอักษร) — Y เท่ากับ grand-total, X เท่ากับ items ════════ -->
+  {{#if totalAmountText}}
+  <div class="f f-amount-text">({{totalAmountText}})</div>
+  {{/if}}
 
   <!-- ════════ Signature lines (ล่างสุดของฟอร์ม) ════════ -->
   <!-- "ชำระโดย" อยู่ท้ายบรรทัด "ผู้รับเงิน ... วันที่ ... ชำระโดย ..." -->
@@ -118,46 +131,42 @@
 
   /* ════════════════════════════════════════════════════════════════
      CUST-XXXX — แถวเดียวกับ "ชื่อ-นามสกุล" (ขวาของชื่อ)
-     baseline ≈ 23mm (แถวเดียวกับ cell "ชื่อ - นามสกุล" ใน main box)
      ════════════════════════════════════════════════════════════════ */
   .f-cust-code {
-    top: 23mm; left: 95mm;
+    top: 36mm; left: 20mm;
   }
 
   /* ════════════════════════════════════════════════════════════════
-     นอก BOX (ขวา 4 cells) — RCPT, วันที่, เลขที่สัญญา, โทร.
-     baseline (จากบน) ≈ 10 / 14 / 18 / 22 mm
+     นอก BOX (ขวา) — RCPT, วันที่, เลขที่สัญญา, โทร.
      ════════════════════════════════════════════════════════════════ */
   .f-receipt-no {
-    top: 10mm; left: 175mm; width: 50mm; text-align: right;
+    top: 30mm; left: 128mm; width: 50mm; text-align: right;
   }
   .f-date {
-    top: 14mm; left: 175mm; width: 50mm; text-align: right;
+    top: 36mm; left: 154mm; width: 50mm; text-align: left;
   }
   .f-contract {
-    top: 18mm; left: 175mm; width: 50mm; text-align: right;
+    top: 44mm; left: 154mm; width: 50mm; text-align: left;
   }
   .f-phone {
-    top: 22mm; left: 175mm; width: 50mm; text-align: right;
+    top: 50mm; left: 102mm; width: 50mm; text-align: right;
   }
 
   /* ════════════════════════════════════════════════════════════════
-     BOX บน (3 แถว: ชื่อ / รถ / ที่อยู่)
-     baseline (จากบน) ≈ 23 / 26 / 28 mm
+     BOX บน (ชื่อ / ที่อยู่)
      ════════════════════════════════════════════════════════════════ */
   .f-cust-name {
-    top: 23mm; left: 38mm;
+    top: 42mm; left: 25mm;
   }
   .f-cust-addr {
-    top: 28mm; left: 38mm; max-width: 130mm; white-space: normal;
+    top: 50mm; left: 25mm; max-width: 130mm; white-space: normal;
   }
 
   /* ════════════════════════════════════════════════════════════════
      BOX ล่าง — cell "รายการ" (ซ้าย, cell สูง — ใส่รายการค่าใช้จ่าย)
-     cell: top ≈ 52mm, left ≈ 15mm, width ≈ 130mm, height ≈ 15mm
      ════════════════════════════════════════════════════════════════ */
   .f-items {
-    top: 52mm;
+    top: 60mm;
     left: 15mm;
     width: 130mm;
     line-height: 1.3;
@@ -175,28 +184,46 @@
   }
 
   /* ════════════════════════════════════════════════════════════════
+     เลขบัญชีธนาคาร — ฝั่งซ้าย เหนือจำนวนเงินตัวอักษร
+     ════════════════════════════════════════════════════════════════ */
+  .f-bank-account {
+    top: 99mm;
+    left: 15mm;
+    width: 118mm;
+    line-height: 1.25;
+    font-size: calc(var(--fs) - 1px);
+    white-space: normal;
+  }
+
+  /* ════════════════════════════════════════════════════════════════
      BOX ล่าง — cell "จำนวนเงิน" (ขวา, 4 cell ย่อย)
-     baseline (จากบน) ≈ 56 / 60 / 64 / 68 mm
      ════════════════════════════════════════════════════════════════ */
   .f-total-paid,
   .f-total-late,
   .f-total-discount,
   .f-grand-total {
-    left: 175mm; width: 50mm; text-align: right;
+    left: 137mm; width: 50mm; text-align: right;
   }
-  .f-total-paid     { top: 56mm; }
-  .f-total-late     { top: 60mm; }
-  .f-total-discount { top: 64mm; }
-  .f-grand-total    { top: 68mm; font-weight: bold; }
+  .f-total-paid     { top: 78mm; }
+  .f-total-late     { top: 85mm; }
+  .f-total-discount { top: 92mm; }
+  .f-grand-total    { top: 109mm; font-weight: bold; }
 
   /* ════════════════════════════════════════════════════════════════
-     Signature lines — "ชำระโดย" อยู่ท้ายบรรทัด "ผู้รับเงิน ... วันที่ ... ชำระโดย"
-     baseline ≈ 86mm (signature row 1)
-     cell "ชำระโดย" อยู่ขวาสุดของบรรทัด
+     จำนวนเงิน (ตัวอักษร) — Y เดียวกับ .f-grand-total | X เดียวกับ .f-items
+     ════════════════════════════════════════════════════════════════ */
+  .f-amount-text {
+    top: 110mm;
+    left: 15mm;
+    font-weight: bold;
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     Signature lines — "ชำระโดย" อยู่ท้ายบรรทัด
      ════════════════════════════════════════════════════════════════ */
   .f-pay-method {
-    top: 86mm;
-    left: 165mm;
+    top: 121.5mm;
+    left: 130mm;
     width: 55mm;
     text-align: left;
   }

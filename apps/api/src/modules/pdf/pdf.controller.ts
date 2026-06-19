@@ -53,6 +53,21 @@ function buildReceiptPaymentMethod(payment: any) {
   };
 }
 
+// Bank account block for the temporary-receipt overlay. The payment row only
+// snapshots bank name / number / branch (no account name), so look the account
+// name up from the bank_accounts master by the receiving account number.
+// Returns undefined for cash (no receiving account) so the template hides it.
+async function buildReceiptBankAccount(payment: any) {
+  const accountNumber = payment.receivingAccountNumber;
+  if (!accountNumber) return undefined;
+  const master = await db.bankAccount.findFirst({ where: { accountNumber } });
+  return {
+    bankName: payment.receivingBankName || master?.bankName || '',
+    accountNumber,
+    accountName: master?.accountName || '',
+  };
+}
+
 // Helper function to transform customer data
 function transformCustomer(customer: any): CustomerInfo {
   return {
@@ -1349,6 +1364,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         totalAmountText: numberToThaiText(Number(payment.amount) + Number(query.lateFee || 0)),
         paymentMethod: paymentMethodData,
         paymentMethodLabel: methodLabel,
+        bankAccount: await buildReceiptBankAccount(payment),
         note: payment.notes || undefined,
       };
 
@@ -1469,6 +1485,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         totalAmountText: numberToThaiText(Number(payment.amount) + Number(query.lateFee || 0)),
         paymentMethod: paymentMethodData,
         paymentMethodLabel: methodLabel,
+        bankAccount: await buildReceiptBankAccount(payment),
         note: payment.notes || undefined,
       };
 

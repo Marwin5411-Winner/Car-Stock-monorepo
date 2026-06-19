@@ -510,6 +510,13 @@ export interface TemporaryReceiptData {
   };
   paymentMethodLabel?: string;
   note?: string;
+  // Bank account selected when the receipt was created — printed left of the
+  // money summary so the customer knows where the payment went / pays into.
+  bankAccount?: {
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
+  };
 }
 
 /**
