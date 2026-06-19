@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   type ClaimSaleInput,
   buildCampaignClaimReport,
+  computeCampaignSubsidies,
 } from '../modules/reports/campaign-claim.helpers';
 
 const model = (id: string, modelName: string, variant: string | null, price: number) => ({
@@ -71,6 +72,7 @@ describe('buildCampaignClaimReport', () => {
     expect(row.engineNumber).toBe('ENG001');
     expect(row.vin).toBe('VIN001');
     expect(row.financeProvider).toBe('KTB Leasing');
+    expect(row.salePrice).toBe(500000); // from vehicle model price (MSRP incl VAT)
     expect(row.promotionDiscount).toBe(5000);
     expect(row.baseCommission).toBe(10000);
     expect(row.claimTotal).toBe(15000);
@@ -186,6 +188,117 @@ describe('buildCampaignClaimReport', () => {
     const report = buildCampaignClaimReport([]);
     expect(report.rows).toEqual([]);
     expect(report.modelColumns).toEqual([]);
-    expect(report.summary).toEqual({ totalCars: 0, modelTotals: [], grandTotal: 0 });
+    expect(report.summary).toEqual({
+      totalCars: 0,
+      modelTotals: [],
+      grandTotal: 0,
+      subsidyTotals: {
+        stockLevel: 0,
+        afterSalesNoComplaint: 0,
+        afterSalesQr: 0,
+        marketing: 0,
+        retailTarget: 0,
+        total: 0,
+      },
+    });
+  });
+
+  test('summary.subsidyTotals sums each bucket across rows', () => {
+    const mk = (id: string) =>
+      baseSale({
+        id,
+        saleNumber: id,
+        vehicleModel: model('vm1', 'V', 'LITE', 535000),
+        stock: {
+          vin: `V${id}`,
+          engineNumber: `E${id}`,
+          soldDate: new Date('2026-05-15T07:00:00Z'),
+          baseCost: 450000,
+          vehicleModelId: 'vm1',
+          vehicleModel: model('vm1', 'V', 'LITE', 535000),
+        },
+      });
+    const report = buildCampaignClaimReport([mk('a'), mk('b')]);
+    expect(report.summary.subsidyTotals).toEqual({
+      stockLevel: 5000,
+      afterSalesNoComplaint: 2500,
+      afterSalesQr: 2500,
+      marketing: 9000,
+      retailTarget: 9000,
+      total: 28000,
+    });
+  });
+
+  test('retailTargetTier option overrides the default เป้าขาย tier', () => {
+    const sale = baseSale({
+      vehicleModel: model('vm1', 'V', 'LITE', 535000),
+      stock: {
+        vin: 'VIN001',
+        engineNumber: 'ENG001',
+        soldDate: new Date('2026-05-15T07:00:00Z'),
+        baseCost: 450000,
+        vehicleModelId: 'vm1',
+        vehicleModel: model('vm1', 'V', 'LITE', 535000),
+      },
+    });
+    const s = buildCampaignClaimReport([sale], { retailTargetTier: 0.015 }).rows[0].subsidies;
+    expect(s.retailTarget).toBe(6750); // 450000 × 1.5%
+    expect(s.total).toBe(16250); // 2500 + 1250 + 1250 + 4500 + 6750
+  });
+
+  test('each row carries computed subsidy buckets (MSRP from incl-VAT price, DNP from cost)', () => {
+    // price 535,000 incl VAT → MSRP 500,000; cost (DNP) 450,000; default tier 1%.
+    const sale = baseSale({
+      vehicleModel: model('vm1', 'V', 'LITE', 535000),
+      stock: {
+        vin: 'VIN001',
+        engineNumber: 'ENG001',
+        soldDate: new Date('2026-05-15T07:00:00Z'),
+        baseCost: 450000,
+        vehicleModelId: 'vm1',
+        vehicleModel: model('vm1', 'V', 'LITE', 535000),
+      },
+    });
+    const s = buildCampaignClaimReport([sale]).rows[0].subsidies;
+    expect(s.stockLevel).toBe(2500); // 500000 × 0.5%
+    expect(s.afterSalesNoComplaint).toBe(1250); // 500000 × 0.25%
+    expect(s.afterSalesQr).toBe(1250);
+    expect(s.marketing).toBe(4500); // 450000 × 1%
+    expect(s.retailTarget).toBe(4500); // 450000 × 1% (default tier)
+    expect(s.total).toBe(14000);
+  });
+
+  test('subsidy DNP buckets are zero without stock (no cost base), MSRP buckets still apply', () => {
+    const s = buildCampaignClaimReport([
+      baseSale({ stock: null, vehicleModel: model('vm1', 'V', 'LITE', 535000) }),
+    ]).rows[0].subsidies;
+    expect(s.stockLevel).toBe(2500); // MSRP from price still works
+    expect(s.marketing).toBe(0); // no cost → no DNP buckets
+    expect(s.retailTarget).toBe(0);
+    expect(s.total).toBe(5000); // 2500 + 1250 + 1250
+  });
+});
+
+// Brand-standard subsidy rates (from customer's ตัวอย่างหนังสือและรายงาน.xls sheet แคมเปญ):
+// STOCK LEVEL 0.5% MSRP, After Sales 0.25%×2 MSRP, MARKETING 1% DNP, เป้าขาย tier% DNP.
+const STD_RATES = {
+  stockLevel: 0.005,
+  afterSalesNoComplaint: 0.0025,
+  afterSalesQr: 0.0025,
+  marketing: 0.01,
+  retailTargetTier: 0.01, // chosen tier (0.005 / 0.01 / 0.015)
+} as const;
+
+describe('computeCampaignSubsidies', () => {
+  // Ground truth: CHERY V23 2WD PLUS — sale price 759,900 (incl VAT), cost (DNP) 714,306.
+  // MSRP = 759900 × 100/107 = 710,186.92. Values taken from the customer's own cells.
+  test('computes each subsidy bucket from MSRP (ex-VAT) and DNP', () => {
+    const s = computeCampaignSubsidies(759900, 714306, STD_RATES);
+    expect(s.stockLevel).toBe(3550.93); // 710186.92 × 0.5%
+    expect(s.afterSalesNoComplaint).toBe(1775.47); // 710186.92 × 0.25%
+    expect(s.afterSalesQr).toBe(1775.47);
+    expect(s.marketing).toBe(7143.06); // 714306 × 1%
+    expect(s.retailTarget).toBe(7143.06); // 714306 × 1% (tier)
+    expect(s.total).toBe(21387.99); // SUM, rounded — matches cell 21387.989158878507
   });
 });

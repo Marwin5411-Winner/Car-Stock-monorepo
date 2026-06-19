@@ -223,6 +223,7 @@ export * from './reports';
 import type {
   CampaignClaimReportResponseSchema,
   CampaignClaimRowSchema,
+  CampaignSubsidySchema,
   DailyStockSnapshotModelSchema,
   DailyStockSnapshotResponseSchema,
   MonthlyPurchasesItemSchema,
@@ -235,3 +236,4 @@ export type MonthlyPurchasesItem = z.infer<typeof MonthlyPurchasesItemSchema>;
 export type MonthlyPurchasesResponse = z.infer<typeof MonthlyPurchasesResponseSchema>;
 export type CampaignClaimRow = z.infer<typeof CampaignClaimRowSchema>;
 export type CampaignClaimReportResponse = z.infer<typeof CampaignClaimReportResponseSchema>;
+export type CampaignSubsidy = z.infer<typeof CampaignSubsidySchema>;

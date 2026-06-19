@@ -605,6 +605,15 @@ export interface PurchaseRequirementReportData {
  * Monthly Campaign Claim Report Data — brand submission form
  * (รายงานเบิกแคมเปญเงินส่งเสริมการขายประจำเดือน)
  */
+export interface CampaignSubsidyAmounts {
+  stockLevel: number;
+  afterSalesNoComplaint: number;
+  afterSalesQr: number;
+  marketing: number;
+  retailTarget: number;
+  total: number;
+}
+
 export interface CampaignClaimReportData {
   header: {
     logoBase64: string;
@@ -615,7 +624,10 @@ export interface CampaignClaimReportData {
   };
   monthLabel: string; // e.g. 'พฤษภาคม 2569'
   brand: string;
-  modelColumns: Array<{ label: string }>;
+  /** Chosen เป้าขาย tier label e.g. '1.0%'. */
+  tierLabel: string;
+  /** Monthly construction/booth subsidy (ค่าก่อสร้าง) — manual, shown once. */
+  constructionCost: number;
   rows: Array<{
     no: number;
     customerName: string;
@@ -626,11 +638,15 @@ export interface CampaignClaimReportData {
     saleDate: string | null; // ISO string, formatted in template
     notifyDate: string | null;
     campaignName: string;
+    salePrice: number;
     promotionDiscount: number;
-    baseCommission: number;
-    claimTotal: number;
-    modelAmounts: Array<number | null>;
+    subsidies: CampaignSubsidyAmounts;
   }>;
-  summary: { totalCars: number; modelTotals: number[]; grandTotal: number };
+  summary: {
+    totalCars: number;
+    subsidyTotals: CampaignSubsidyAmounts;
+    /** subsidyTotals.total + constructionCost. */
+    grandTotalWithConstruction: number;
+  };
   printedAt: string;
 }

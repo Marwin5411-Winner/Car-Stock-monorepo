@@ -29,28 +29,26 @@
       <th rowspan="2">ลำดับ</th>
       <th>ชื่อ - สกุล</th>
       <th>เลขเครื่อง</th>
-      <th>ไฟแนนท์</th>
-      <th>ส่วนลดโปรโมชั่น</th>
-      <th>คอมมิชชั่นพื้นฐาน</th>
-      {{#if modelColumns.length}}
-      <th colspan="{{modelColumns.length}}">STANDARD</th>
-      <th colspan="{{modelColumns.length}}">เป้าขาย</th>
-      {{/if}}
+      <th>ราคาขาย</th>
+      <th rowspan="2">ไฟแนนท์</th>
+      <th rowspan="2">ส่วนลด<br>การขาย</th>
+      <th rowspan="2">STOCK LEVEL<br>(MSRP)<br>0.5%</th>
+      <th colspan="2">After Sales Support (MSRP) 0.5%</th>
+      <th>การตลาด<br>MARKETING<br>(DNP) 1%</th>
+      <th>FLEET ,<br>TEST</th>
+      <th rowspan="2">เป้าขาย<br>(Retail Sales)<br>{{tierLabel}} DNP</th>
+      <th rowspan="2">ค่าก่อสร้าง</th>
       <th>รวมรับเงิน</th>
-      <th rowspan="2" class="w-expense">ค่าใช้จ่ายในการซื้อ/แลกรถ<br><span class="sub">ในการแลก/ซื้อรถกับดีเลอร์</span></th>
+      <th rowspan="2" class="w-expense">ค่าใช้จ่ายในการ<br>ซื้อ/แลกรถ<br><span class="sub">ในการแลก/ซื้อรถกับดีเลอร์</span></th>
     </tr>
     <tr>
       <th class="sub-h">แบบรถ</th>
       <th class="sub-h">เลขตัวรถ</th>
       <th class="sub-h">วันที่ขาย</th>
+      <th class="sub-h">ไม่ร้องเรียน<br>0.25%</th>
+      <th class="sub-h">ทำ GOOGLE<br>QR CODE 0.25%</th>
       <th class="sub-h">วันที่รับเงิน</th>
       <th class="sub-h">วันที่รับเงิน</th>
-      {{#each modelColumns}}
-      <th class="sub-h model-col">{{label}}</th>
-      {{/each}}
-      {{#each modelColumns}}
-      <th class="sub-h model-col target-col">{{label}}</th>
-      {{/each}}
       <th class="sub-h">วันที่แจ้งขาย</th>
     </tr>
   </thead>
@@ -60,16 +58,17 @@
       <td rowspan="2" class="tc">{{no}}</td>
       <td>{{customerName}}</td>
       <td class="tc mono">{{engineNumber}}</td>
-      <td class="tc">{{financeProvider}}</td>
-      <td class="tr">{{#if promotionDiscount}}{{formatCurrency promotionDiscount false}}{{/if}}</td>
-      <td class="tr">{{#if baseCommission}}{{formatCurrency baseCommission false}}{{/if}}</td>
-      {{#each modelAmounts}}
-      <td class="tr model-col">{{#if this}}{{formatCurrency this false}}{{/if}}</td>
-      {{/each}}
-      {{#each ../modelColumns}}
-      <td class="target-col"></td>
-      {{/each}}
-      <td class="tr strong">{{formatCurrency claimTotal false}}</td>
+      <td class="tr">{{#if salePrice}}{{formatCurrency salePrice false}}{{/if}}</td>
+      <td rowspan="2" class="tc">{{financeProvider}}</td>
+      <td rowspan="2" class="tr">{{#if promotionDiscount}}{{formatCurrency promotionDiscount false}}{{/if}}</td>
+      <td rowspan="2" class="tr">{{#if subsidies.stockLevel}}{{formatCurrency subsidies.stockLevel false}}{{/if}}</td>
+      <td rowspan="2" class="tr">{{#if subsidies.afterSalesNoComplaint}}{{formatCurrency subsidies.afterSalesNoComplaint false}}{{/if}}</td>
+      <td rowspan="2" class="tr">{{#if subsidies.afterSalesQr}}{{formatCurrency subsidies.afterSalesQr false}}{{/if}}</td>
+      <td class="tr">{{#if subsidies.marketing}}{{formatCurrency subsidies.marketing false}}{{/if}}</td>
+      <td class="fill-cell"></td>
+      <td rowspan="2" class="tr">{{#if subsidies.retailTarget}}{{formatCurrency subsidies.retailTarget false}}{{/if}}</td>
+      <td rowspan="2" class="fill-cell"></td>
+      <td class="tr strong">{{#if subsidies.total}}{{formatCurrency subsidies.total false}}{{/if}}</td>
       <td rowspan="2" class="fill-cell"></td>
     </tr>
     <tr class="row-bottom">
@@ -78,36 +77,33 @@
       <td class="tc">{{#if saleDate}}{{formatThaiDate saleDate 'short'}}{{/if}}</td>
       <td class="fill-cell"></td>
       <td class="fill-cell"></td>
-      {{#each modelAmounts}}
-      <td class="model-col"></td>
-      {{/each}}
-      {{#each ../modelColumns}}
-      <td class="target-col"></td>
-      {{/each}}
       <td class="tc">{{#if notifyDate}}{{formatThaiDate notifyDate 'short'}}{{/if}}</td>
     </tr>
   </tbody>
   {{else}}
   <tbody>
     <tr>
-      <td colspan="100" class="tc muted">ไม่มีรายการเบิกแคมเปญในเดือนนี้</td>
+      <td colspan="15" class="tc muted">ไม่มีรายการเบิกแคมเปญในเดือนนี้</td>
     </tr>
   </tbody>
   {{/each}}
   {{#if rows.length}}
   <tbody>
     <tr class="row-total">
-      <td colspan="4" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
+      <td colspan="6" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
+      <td class="tr strong">{{formatCurrency summary.subsidyTotals.stockLevel false}}</td>
+      <td class="tr strong">{{formatCurrency summary.subsidyTotals.afterSalesNoComplaint false}}</td>
+      <td class="tr strong">{{formatCurrency summary.subsidyTotals.afterSalesQr false}}</td>
+      <td class="tr strong">{{formatCurrency summary.subsidyTotals.marketing false}}</td>
       <td></td>
+      <td class="tr strong">{{formatCurrency summary.subsidyTotals.retailTarget false}}</td>
+      <td class="tr strong">{{#if constructionCost}}{{formatCurrency constructionCost false}}{{/if}}</td>
+      <td class="tr strong">{{formatCurrency summary.subsidyTotals.total false}}</td>
       <td></td>
-      {{#each summary.modelTotals}}
-      <td class="tr strong model-col">{{#if this}}{{formatCurrency this false}}{{/if}}</td>
-      {{/each}}
-      {{#each modelColumns}}
-      <td class="target-col"></td>
-      {{/each}}
-      <td class="tr strong">{{formatCurrency summary.grandTotal false}}</td>
-      <td></td>
+    </tr>
+    <tr class="row-grand">
+      <td colspan="13" class="tr strong">ยอดเบิกรวมทั้งสิ้น (รวมค่าก่อสร้าง)</td>
+      <td colspan="2" class="tr strong">{{formatCurrency summary.grandTotalWithConstruction false}}</td>
     </tr>
   </tbody>
   {{/if}}
@@ -130,14 +126,14 @@
   .claim-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 9px;
+    font-size: 8px;
     line-height: 1.2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .claim-table th, .claim-table td {
     border: 1px solid #374151;
-    padding: 1px 4px;
+    padding: 1px 3px;
     vertical-align: middle;
   }
   .claim-table th {
@@ -145,21 +141,20 @@
     color: #111827 !important;
     font-weight: bold;
     text-align: center;
-    font-size: 9px;
+    font-size: 8px;
   }
-  .claim-table th.sub-h { font-weight: normal; font-size: 8px; }
-  .claim-table th.model-col { white-space: nowrap; }
-  .claim-table th .sub { font-size: 7px; font-weight: normal; color: #4b5563; }
+  .claim-table th.sub-h { font-weight: normal; font-size: 7px; }
+  .claim-table th .sub { font-size: 6px; font-weight: normal; color: #4b5563; }
   .claim-table .tc { text-align: center; }
   .claim-table .tr { text-align: right; }
-  .claim-table .mono { font-family: monospace; font-size: 8px; }
+  .claim-table .mono { font-family: monospace; font-size: 7px; }
   .claim-table .strong { font-weight: bold; }
   .claim-table .muted { color: #6b7280; padding: 10px; }
-  .claim-table .model-col { min-width: 44px; }
   .claim-table .w-expense { max-width: 70px; }
+  .claim-table .fill-cell { background: #fffdf5; }
   .claim-table .row-top td { border-bottom-style: dotted; }
-  .claim-table .row-bottom td { border-top-style: dotted; font-size: 8px; color: #1f2937; }
-  .claim-table .row-total td { background: #f3f4f6 !important; }
+  .claim-table .row-bottom td { border-top-style: dotted; font-size: 7px; color: #1f2937; }
+  .claim-table .row-total td, .claim-table .row-grand td { background: #f3f4f6 !important; }
   .claim-table .sale-group { page-break-inside: avoid; break-inside: avoid; }
   .claim-footer {
     display: flex;

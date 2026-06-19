@@ -236,16 +236,22 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const paidAmount = Number(sale.paidAmount) || 0;
       const remainingAmount = Number(sale.remainingAmount) || 0;
 
-      if (totalAmount > 0) items.push({ description: 'ยอดรวมการขาย', amount: totalAmount.toString() });
-      if (carDiscount > 0) items.push({ description: 'หัก ส่วนลดตัวรถ', amount: carDiscount.toString() });
+      if (totalAmount > 0)
+        items.push({ description: 'ยอดรวมการขาย', amount: totalAmount.toString() });
+      if (carDiscount > 0)
+        items.push({ description: 'หัก ส่วนลดตัวรถ', amount: carDiscount.toString() });
       if (sale.paymentMode !== 'CASH' && downPayment > 0) {
         items.push({ description: 'เงินดาวน์', amount: downPayment.toString() });
       }
       if (sale.paymentMode !== 'CASH' && financeAmount > 0) {
-        items.push({ description: `ยอดจัดไฟแนนซ์${sale.financeProvider ? ` (${sale.financeProvider})` : ''}`, amount: financeAmount.toString() });
+        items.push({
+          description: `ยอดจัดไฟแนนซ์${sale.financeProvider ? ` (${sale.financeProvider})` : ''}`,
+          amount: financeAmount.toString(),
+        });
       }
       if (paidAmount > 0) items.push({ description: 'ชำระแล้ว', amount: paidAmount.toString() });
-      if (remainingAmount > 0) items.push({ description: 'ยอดค้างชำระ', amount: remainingAmount.toString() });
+      if (remainingAmount > 0)
+        items.push({ description: 'ยอดค้างชำระ', amount: remainingAmount.toString() });
 
       // Fall back to createdAt when deliveryDate is not set (advance-keyed sales
       // print the doc before the actual pickup; user can edit deliveryDate later).
@@ -477,7 +483,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             deductDeposit: sale.paidAmount?.toString() || '0',
             deliveryAmount: sale.paidAmount?.toString() || '0',
             outstandingBalance: sale.remainingAmount?.toString() || '0',
-            paymentDueDate: sale.expirationDate ? formatThaiDate(sale.expirationDate, 'short') : '-',
+            paymentDueDate: sale.expirationDate
+              ? formatThaiDate(sale.expirationDate, 'short')
+              : '-',
             financeCompany: sale.financeProvider || '-',
             // Sale.interestRate stores percent (2.49 = 2.49%/yr), not fraction — see SalesFormPage rate/100 calc
             interestRate: sale.interestRate?.toString() || '0',
@@ -1161,7 +1169,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/temporary-receipt/:paymentId',
-    async ({ params, query, set }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
+    async ({
+      params,
+      query,
+      set,
+    }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
@@ -1256,7 +1268,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/temporary-receipt/:paymentId/html',
-    async ({ params, query, set }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
+    async ({
+      params,
+      query,
+      set,
+    }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
@@ -1364,7 +1380,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/temporary-receipt-bg/:paymentId',
-    async ({ params, query, set }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
+    async ({
+      params,
+      query,
+      set,
+    }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
@@ -1672,10 +1692,16 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         return 'brand is required';
       }
 
+      const tierNum = query.tier != null && query.tier !== '' ? Number(query.tier) : undefined;
+      const constructionCost =
+        query.constructionCost != null && query.constructionCost !== ''
+          ? Number(query.constructionCost)
+          : 0;
       const report = await reportsService.getCampaignClaimReport({
         year,
         month,
         brand: query.brand,
+        retailTargetTier: Number.isFinite(tierNum) ? tierNum : undefined,
       });
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -1697,18 +1723,35 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const monthLabel = `${THAI_MONTHS[month - 1]} ${year + 543}`;
 
       const rows = report.rows.map((r) => ({
-        ...r,
+        no: r.no,
+        customerName: r.customerName,
+        modelName: r.modelName,
+        engineNumber: r.engineNumber,
+        vin: r.vin,
+        financeProvider: r.financeProvider,
         saleDate: r.saleDate ? r.saleDate.toISOString() : null,
         notifyDate: r.notifyDate ? r.notifyDate.toISOString() : null,
+        campaignName: r.campaignName,
+        salePrice: r.salePrice,
+        promotionDiscount: r.promotionDiscount,
+        subsidies: r.subsidies,
       }));
+
+      const tierLabel = `${(report.retailTargetTier * 100).toFixed(1)}%`;
 
       const pdfBuffer = await pdfService.generateCampaignClaimReportPdf({
         header,
         monthLabel,
         brand: report.brand,
-        modelColumns: report.modelColumns,
+        tierLabel,
+        constructionCost,
         rows,
-        summary: report.summary,
+        summary: {
+          totalCars: report.summary.totalCars,
+          subsidyTotals: report.summary.subsidyTotals,
+          grandTotalWithConstruction:
+            Math.round((report.summary.subsidyTotals.total + constructionCost) * 100) / 100,
+        },
         printedAt: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       });
       const safeBrand = query.brand.replace(/[^A-Za-z0-9_-]/g, '_');
@@ -1727,6 +1770,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         year: t.String(),
         month: t.String(),
         brand: t.String(),
+        tier: t.Optional(t.String()),
+        constructionCost: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],

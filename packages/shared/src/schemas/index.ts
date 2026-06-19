@@ -677,6 +677,16 @@ export const MonthlyPurchasesResponseSchema = z.object({
 // Campaign Claim Report (new)
 // ============================================================================
 
+// Brand reimbursement subsidy buckets (mirrors the customer's claim form).
+export const CampaignSubsidySchema = z.object({
+  stockLevel: z.number(), // MSRP × 0.5%
+  afterSalesNoComplaint: z.number(), // MSRP × 0.25%
+  afterSalesQr: z.number(), // MSRP × 0.25%
+  marketing: z.number(), // DNP × 1%
+  retailTarget: z.number(), // DNP × tier (0.5/1.0/1.5%)
+  total: z.number(), // รวมรับเงิน (subsidies only)
+});
+
 export const CampaignClaimRowSchema = z.object({
   no: z.number(),
   saleId: z.string(),
@@ -689,9 +699,11 @@ export const CampaignClaimRowSchema = z.object({
   saleDate: z.string().nullable(),
   notifyDate: z.string().nullable(),
   campaignName: z.string(),
+  salePrice: z.number(),
   promotionDiscount: z.number(),
   baseCommission: z.number(),
   claimTotal: z.number(),
+  subsidies: CampaignSubsidySchema,
   // One slot per modelColumns entry; claimTotal in the car's column, null elsewhere.
   modelAmounts: z.array(z.number().nullable()),
 });
@@ -704,12 +716,15 @@ export const CampaignClaimReportResponseSchema = z.object({
     endDate: z.string(),
   }),
   brand: z.string(),
+  // Chosen เป้าขาย tier fraction echoed back (0.005 / 0.01 / 0.015).
+  retailTargetTier: z.number(),
   modelColumns: z.array(z.object({ vehicleModelId: z.string(), label: z.string() })),
   rows: z.array(CampaignClaimRowSchema),
   summary: z.object({
     totalCars: z.number(),
     modelTotals: z.array(z.number()),
     grandTotal: z.number(),
+    subsidyTotals: CampaignSubsidySchema,
   }),
 });
 

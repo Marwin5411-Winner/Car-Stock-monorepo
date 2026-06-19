@@ -1713,8 +1713,9 @@ export async function getCampaignClaimReport(params: {
   year: number;
   month: number;
   brand: string;
+  retailTargetTier?: number;
 }) {
-  const { year, month, brand } = params;
+  const { year, month, brand, retailTargetTier } = params;
   // Half-open interval: [startDate, endDate) — same convention as monthly purchases.
   const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
   const endDate = new Date(year, month, 1, 0, 0, 0, 0);
@@ -1773,7 +1774,7 @@ export async function getCampaignClaimReport(params: {
     (s) => (s.stock?.vehicleModel?.brand ?? s.vehicleModel?.brand) === brand
   );
 
-  const report = buildCampaignClaimReport(brandSales);
+  const report = buildCampaignClaimReport(brandSales, { retailTargetTier });
 
   return {
     period: {
@@ -1783,6 +1784,7 @@ export async function getCampaignClaimReport(params: {
       endDate: endDate.toISOString(),
     },
     brand,
+    retailTargetTier: retailTargetTier ?? 0.01,
     ...report,
   };
 }
