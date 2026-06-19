@@ -1,0 +1,75 @@
+/**
+ * Thank-you letter (หนังสือขอบคุณ) financial chain.
+ *
+ * Recomputes คงเหลือ / ยอดจัดไฟแนนซ์ / ค่างวด live from the sale's base inputs
+ * instead of trusting stored DB columns, so the printed letter always agrees
+ * with the customer's .ods "ขอขอบคุณ" sheet (and with SalesFormPage). Acts as a
+ * safety net: if a stored value drifts (manual edit, override, partial entry),
+ * the document still shows the formula result.
+ *
+ * NOTE on "คงเหลือ": the ODS "คงเหลือ" = ราคาขาย − ส่วนลดรถ (price after the car
+ * discount). This is NOT the same as Sale.remainingAmount, which in this system
+ * is the outstanding balance (totalAmount + fees − paid). We must derive it here.
+ */
+export interface ThankYouFinancialsInput {
+  /** ราคาขาย (sale.totalAmount) */
+  sellingPrice: number;
+  /** ส่วนลด (รถยนต์) (sale.discountSnapshot) */
+  carDiscount: number;
+  /** เงินดาวน์ (sale.downPayment ?? depositAmount) */
+  downPayment: number;
+  /** ส่วนลด (เงินดาวน์) (sale.downPaymentDiscount) */
+  downPaymentDiscount?: number;
+  /** ค่าประกันภัยชั้น 1 (sale.insuranceFee) */
+  insurance?: number;
+  /** ค่าพรบ. (sale.compulsoryInsuranceFee) */
+  actInsurance?: number;
+  /** ค่าจดทะเบียน (sale.registrationFee) */
+  registrationFee?: number;
+  /** อัตราดอกเบี้ยต่อปี as a percent, e.g. 2.49 = 2.49%/yr (sale.interestRate) */
+  interestRatePercentPerYear: number;
+  /** จำนวนงวด (เดือน) (sale.numberOfTerms) */
+  termMonths: number;
+  /** true unless this is a cash sale — cash sales carry no finance/installment */
+  isFinanced: boolean;
+}
+
+export interface ThankYouFinancials {
+  /** คงเหลือ = ราคาขาย − ส่วนลดรถ */
+  remaining: number;
+  /** รวมเงินออกรถ = เงินดาวน์ − ส่วนลดดาวน์ + ประกันชั้น1 + พรบ + จดทะเบียน */
+  totalDelivery: number;
+  /** ยอดจัดไฟแนนซ์ = คงเหลือ − เงินดาวน์ (0 for cash sales) */
+  financeAmount: number;
+  /** ค่างวด, flat-rate add-on interest, whole baht (0 when not financed / no terms) */
+  monthlyPayment: number;
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {
+  const remaining = round2(input.sellingPrice - input.carDiscount);
+
+  // รวมเงินออกรถ — cash due at delivery (ODS: I53−I54+I55+I56+I57). Independent of
+  // financing; applies to cash and finance sales alike.
+  const totalDelivery = round2(
+    input.downPayment -
+      (input.downPaymentDiscount ?? 0) +
+      (input.insurance ?? 0) +
+      (input.actInsurance ?? 0) +
+      (input.registrationFee ?? 0)
+  );
+
+  const financeAmount = input.isFinanced ? round2(remaining - input.downPayment) : 0;
+
+  // งวดละ = (finance + finance × (rate/100) × (terms/12)) / terms, rounded to whole
+  // baht. Mirrors SalesFormPage:584-586 exactly. Guard divide-by-zero.
+  let monthlyPayment = 0;
+  if (input.isFinanced && input.termMonths > 0 && financeAmount > 0) {
+    const years = input.termMonths / 12;
+    const totalInterest = financeAmount * (input.interestRatePercentPerYear / 100) * years;
+    monthlyPayment = Math.round((financeAmount + totalInterest) / input.termMonths);
+  }
+
+  return { remaining, totalDelivery, financeAmount, monthlyPayment };
+}

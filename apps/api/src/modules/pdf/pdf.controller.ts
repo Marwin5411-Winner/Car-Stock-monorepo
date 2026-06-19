@@ -11,6 +11,7 @@ import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { reportsService } from '../reports/reports.service';
 import { formatThaiDate, numberToThaiText } from './helpers';
 import { pdfService } from './pdf.service';
+import { computeThankYouFinancials } from './thank-you-financials';
 import {
   type CarInfo,
   ContractData,
@@ -315,6 +316,25 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
+      // Recompute คงเหลือ / ยอดจัดไฟแนนซ์ / ค่างวด live from the sale's base inputs
+      // (matches the customer's .ods ขอบคุณ sheet + SalesFormPage) so the printed
+      // letter never drifts from the formula even if a stored column is stale.
+      const sellingPrice = Number(sale.totalAmount) || 0;
+      const carDiscount = Number(sale.discountSnapshot) || 0;
+      const downPayment = Number(sale.downPayment ?? sale.depositAmount ?? 0);
+      const financials = computeThankYouFinancials({
+        sellingPrice,
+        carDiscount,
+        downPayment,
+        downPaymentDiscount: Number(sale.downPaymentDiscount) || 0,
+        insurance: Number(sale.insuranceFee) || 0,
+        actInsurance: Number(sale.compulsoryInsuranceFee) || 0,
+        registrationFee: Number(sale.registrationFee) || 0,
+        interestRatePercentPerYear: Number(sale.interestRate) || 0,
+        termMonths: Number(sale.numberOfTerms) || 0,
+        isFinanced: sale.paymentMode !== 'CASH',
+      });
+
       const data: ThankYouLetterData = {
         header,
         thaiDate: formatThaiDate(new Date(), 'full'),
@@ -323,18 +343,18 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         detailsTable: {
           sellingPrice: sale.totalAmount?.toString() || '0',
           discount: sale.discountSnapshot?.toString() || '0',
-          remaining: sale.remainingAmount?.toString() || '0',
+          remaining: financials.remaining.toString(),
           downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
           downPaymentDiscount: sale.downPaymentDiscount?.toString() || '0',
           insurance: sale.insuranceFee?.toString() || '0',
           actInsurance: sale.compulsoryInsuranceFee?.toString() || '0',
           registrationFee: sale.registrationFee?.toString() || '0',
-          totalDelivery: sale.paidAmount?.toString() || '0',
-          financeAmount: sale.financeAmount?.toString() || '0',
+          totalDelivery: financials.totalDelivery.toString(),
+          financeAmount: financials.financeAmount.toString(),
           // Sale.interestRate stores percent (2.49 = 2.49%/yr), not fraction — see SalesFormPage rate/100 calc
           interestRate: sale.interestRate?.toString() || '0',
           installmentMonths: sale.numberOfTerms?.toString() || '0',
-          monthlyPayment: sale.monthlyInstallment?.toString() || '0',
+          monthlyPayment: financials.monthlyPayment.toString(),
           gifts: parseFreebies(sale.freebiesSnapshot),
         },
         contactPerson: {
