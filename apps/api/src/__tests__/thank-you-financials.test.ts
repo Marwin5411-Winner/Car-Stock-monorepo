@@ -5,8 +5,8 @@ import { computeThankYouFinancials, resolveCarDiscount } from '../modules/pdf/th
 // customer's .ods "ขอขอบคุณ" sheet formulas:
 //   คงเหลือ (remaining)        = ราคาขาย - ส่วนลดรถ
 //   ยอดจัดไฟแนนซ์ (finance)     = คงเหลือ - เงินดาวน์
-//   ค่างวด (monthlyPayment)     = round( (finance + finance*(rate%/100)*(terms/12)) / terms )
-//                                 flat-rate / add-on interest (same as SalesFormPage)
+//   ค่างวด (monthlyPayment)     = round2( (finance + finance*(rate%/100)*(terms/12)) / terms )
+//                                 flat-rate / add-on interest, kept to 2 decimals to match .ods
 describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => {
   test('finance sale: full chain remaining -> finance -> monthly', () => {
     const r = computeThankYouFinancials({
@@ -19,8 +19,25 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     });
     expect(r.remaining).toBe(750_000); // 800,000 - 50,000
     expect(r.financeAmount).toBe(600_000); // 750,000 - 150,000
-    // totalInterest = 600,000 * 0.0249 * 6 = 89,640 ; (600,000+89,640)/72 = 9578.33 -> 9578
-    expect(r.monthlyPayment).toBe(9_578);
+    // totalInterest = 600,000 * 0.0249 * 6 = 89,640 ; (600,000+89,640)/72 = 9578.3333 -> 9578.33
+    expect(r.monthlyPayment).toBe(9_578.33);
+  });
+
+  test("matches the customer's .ods งวดละ to 2 decimals (9,620.55)", () => {
+    // Exact scenario from the reported letter: ราคาขาย 759,900 / ส่วนลด 20,000 /
+    // เงินดาวน์ 221,970 / ดอกเบี้ย 2.29% / 60 เดือน
+    const r = computeThankYouFinancials({
+      sellingPrice: 759_900,
+      carDiscount: 20_000,
+      downPayment: 221_970,
+      interestRatePercentPerYear: 2.29,
+      termMonths: 60,
+      isFinanced: true,
+    });
+    expect(r.remaining).toBe(739_900); // 759,900 - 20,000
+    expect(r.financeAmount).toBe(517_930); // 739,900 - 221,970
+    // interest = 517,930 * 0.0229 * 5 = 59,302.985 ; (517,930+59,302.985)/60 = 9,620.5497.. -> 9,620.55
+    expect(r.monthlyPayment).toBe(9_620.55);
   });
 
   test('matches SalesFormPage flat-rate exactly (round numbers)', () => {

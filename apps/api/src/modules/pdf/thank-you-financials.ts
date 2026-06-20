@@ -41,7 +41,7 @@ export interface ThankYouFinancials {
   totalDelivery: number;
   /** ยอดจัดไฟแนนซ์ = คงเหลือ − เงินดาวน์ (0 for cash sales) */
   financeAmount: number;
-  /** ค่างวด, flat-rate add-on interest, whole baht (0 when not financed / no terms) */
+  /** ค่างวด, flat-rate add-on interest, 2 decimals (0 when not financed / no terms) */
   monthlyPayment: number;
 }
 
@@ -81,13 +81,14 @@ export function computeThankYouFinancials(input: ThankYouFinancialsInput): Thank
 
   const financeAmount = input.isFinanced ? round2(remaining - input.downPayment) : 0;
 
-  // งวดละ = (finance + finance × (rate/100) × (terms/12)) / terms, rounded to whole
-  // baht. Mirrors SalesFormPage:584-586 exactly. Guard divide-by-zero.
+  // งวดละ = (finance + finance × (rate/100) × (terms/12)) / terms. Same flat-rate
+  // formula as SalesFormPage:584-586 but kept to 2 decimals (not whole baht) so the
+  // printed letter matches the customer's .ods "ขอบคุณ" sheet exactly. Guard divide-by-zero.
   let monthlyPayment = 0;
   if (input.isFinanced && input.termMonths > 0 && financeAmount > 0) {
     const years = input.termMonths / 12;
     const totalInterest = financeAmount * (input.interestRatePercentPerYear / 100) * years;
-    monthlyPayment = Math.round((financeAmount + totalInterest) / input.termMonths);
+    monthlyPayment = round2((financeAmount + totalInterest) / input.termMonths);
   }
 
   return { remaining, totalDelivery, financeAmount, monthlyPayment };
