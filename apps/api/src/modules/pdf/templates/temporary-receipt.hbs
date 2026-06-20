@@ -70,7 +70,7 @@
             </tr>
             <!-- Grand Total Row -->
             <tr class="grand-total-row">
-                <td colspan="3" class="grand-total-label">จำนวนเงินที่ต้องชำระ</td>
+                <td colspan="3" class="grand-total-label">จำนวนเงินที่ต้องชำระ{{#if totalAmountText}} <span class="grand-total-text">({{totalAmountText}})</span>{{/if}}</td>
                 <td colspan="2" class="grand-total-value">{{formatCurrency totalAmount}}</td>
             </tr>
         </table>
