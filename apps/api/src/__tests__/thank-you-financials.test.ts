@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { computeThankYouFinancials } from '../modules/pdf/thank-you-financials';
+import { computeThankYouFinancials, resolveCarDiscount } from '../modules/pdf/thank-you-financials';
 
 // Ground truth computed BY HAND, independent of the implementation, mirroring the
 // customer's .ods "ขอขอบคุณ" sheet formulas:
@@ -104,5 +104,35 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     });
     expect(r.remaining).toBe(100_000.25);
     expect(r.financeAmount).toBe(90_000.15);
+  });
+});
+
+// Regression for: thank-you letter showed ส่วนลด (รถยนต์) = 0 because the controller
+// sourced the discount from sale.discountSnapshot only, while the sale form writes the
+// manual "ส่วนลดตัวรถ" to sale.carDiscount. Precedence must match reports.service.ts.
+describe('resolveCarDiscount — ส่วนลดตัวรถ field precedence', () => {
+  test('prefers carDiscount (the manual sale-form entry) over discountSnapshot', () => {
+    expect(resolveCarDiscount(20_000, 0)).toBe(20_000);
+    expect(resolveCarDiscount(20_000, 5_000)).toBe(20_000);
+  });
+
+  test('uses carDiscount even when it is 0 (explicit no-discount)', () => {
+    // carDiscount present-but-zero must NOT silently fall through to a stale snapshot
+    expect(resolveCarDiscount(0, 5_000)).toBe(0);
+  });
+
+  test('falls back to discountSnapshot when carDiscount is null (quotation-derived sale)', () => {
+    expect(resolveCarDiscount(null, 20_000)).toBe(20_000);
+  });
+
+  test('returns 0 when neither field is set', () => {
+    expect(resolveCarDiscount(null, null)).toBe(0);
+    expect(resolveCarDiscount(undefined, undefined)).toBe(0);
+  });
+
+  test('accepts Prisma Decimal-like objects (toString)', () => {
+    const decimal = (s: string) => ({ toString: () => s });
+    expect(resolveCarDiscount(decimal('20000'), decimal('0'))).toBe(20_000);
+    expect(resolveCarDiscount(null, decimal('15000.5'))).toBe(15_000.5);
   });
 });

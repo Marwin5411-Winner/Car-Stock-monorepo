@@ -11,7 +11,7 @@ import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { reportsService } from '../reports/reports.service';
 import { formatThaiDate, numberToThaiText } from './helpers';
 import { pdfService } from './pdf.service';
-import { computeThankYouFinancials } from './thank-you-financials';
+import { computeThankYouFinancials, resolveCarDiscount } from './thank-you-financials';
 import {
   type CarInfo,
   ContractData,
@@ -335,7 +335,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       // (matches the customer's .ods ขอบคุณ sheet + SalesFormPage) so the printed
       // letter never drifts from the formula even if a stored column is stale.
       const sellingPrice = Number(sale.totalAmount) || 0;
-      const carDiscount = Number(sale.discountSnapshot) || 0;
+      // ส่วนลดตัวรถ lives on sale.carDiscount (manual sale-form entry); discountSnapshot
+      // is only set on quotation→sale conversion. See resolveCarDiscount for the precedence.
+      const carDiscount = resolveCarDiscount(sale.carDiscount, sale.discountSnapshot);
       const downPayment = Number(sale.downPayment ?? sale.depositAmount ?? 0);
       const financials = computeThankYouFinancials({
         sellingPrice,
@@ -357,7 +359,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         carBrand: car.brand,
         detailsTable: {
           sellingPrice: sale.totalAmount?.toString() || '0',
-          discount: sale.discountSnapshot?.toString() || '0',
+          discount: carDiscount.toString(),
           remaining: financials.remaining.toString(),
           downPayment: sale.downPayment?.toString() || sale.depositAmount?.toString() || '0',
           downPaymentDiscount: sale.downPaymentDiscount?.toString() || '0',

@@ -14,7 +14,7 @@
 export interface ThankYouFinancialsInput {
   /** ราคาขาย (sale.totalAmount) */
   sellingPrice: number;
-  /** ส่วนลด (รถยนต์) (sale.discountSnapshot) */
+  /** ส่วนลด (รถยนต์) — resolveCarDiscount(sale.carDiscount, sale.discountSnapshot) */
   carDiscount: number;
   /** เงินดาวน์ (sale.downPayment ?? depositAmount) */
   downPayment: number;
@@ -46,6 +46,25 @@ export interface ThankYouFinancials {
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/** Prisma Decimal columns arrive as objects with toString(); accept those, numbers, or null. */
+type Decimalish = { toString(): string } | number | null | undefined;
+
+const toNum = (v: Decimalish): number | null => (v == null ? null : Number(v));
+
+/**
+ * ส่วนลด (รถยนต์) shown on the thank-you letter.
+ *
+ * The sale form ("ส่วนลดตัวรถ") writes the manual discount to Sale.carDiscount.
+ * Sale.discountSnapshot is only populated when a sale is converted from a quotation.
+ * Prefer carDiscount, fall back to discountSnapshot, else 0 — same precedence used by
+ * reports.service.ts and campaign-claim.helpers.ts so every document agrees.
+ */
+export function resolveCarDiscount(carDiscount: Decimalish, discountSnapshot: Decimalish): number {
+  const car = toNum(carDiscount);
+  if (car != null) return car;
+  return toNum(discountSnapshot) ?? 0;
+}
 
 export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {
   const remaining = round2(input.sellingPrice - input.carDiscount);
