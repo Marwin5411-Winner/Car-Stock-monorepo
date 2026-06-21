@@ -70,6 +70,7 @@ export interface ThankYouLetterData {
     sellingPrice: string;
     discount: string;
     remaining: string;
+    bookingDeposit: string; // เงินจอง (= เงินมัดจำ / sale.depositAmount)
     downPayment: string;
     downPaymentDiscount: string;
     insurance: string;

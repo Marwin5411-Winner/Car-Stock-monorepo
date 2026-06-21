@@ -43,7 +43,7 @@
       <tr>
         <td>ราคาขาย</td>
         <td class="text-right">{{formatCurrency detailsTable.sellingPrice false}}</td>
-        <td rowspan="13">
+        <td rowspan="14">
           {{#each detailsTable.gifts}}
           • {{this.name}}<br>
           {{/each}}
@@ -56,6 +56,10 @@
       <tr>
         <td>คงเหลือ</td>
         <td class="text-right">{{formatCurrency detailsTable.remaining false}}</td>
+      </tr>
+      <tr>
+        <td>เงินจอง</td>
+        <td class="text-right">{{formatCurrency detailsTable.bookingDeposit false}}</td>
       </tr>
       <tr>
         <td>เงินดาวน์</td>
