@@ -282,16 +282,18 @@ class PaymentService {
   }
 
   /**
-   * Download payment receipt PDF with Background
+   * Download the A4 "with form" receipt PDF (full CSS-drawn form/frame).
+   * Uses /temporary-receipt (the full-form template) — NOT /temporary-receipt-bg,
+   * which is the frameless data-only overlay meant for pre-printed dot-matrix forms.
    */
   async downloadReceiptBg(id: string, lateFee?: number): Promise<void> {
     try {
       const qs = lateFee ? `?lateFee=${lateFee}` : '';
-      const blob = await api.getBlob(`/api/pdf/temporary-receipt-bg/${id}${qs}`);
+      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}${qs}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `temporary-receipt-bg-${id}.pdf`;
+      a.download = `receipt-${id}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
