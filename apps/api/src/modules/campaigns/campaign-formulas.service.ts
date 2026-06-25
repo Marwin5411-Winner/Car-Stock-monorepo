@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
 import { FormulaOperator, FormulaPriceTarget } from '@prisma/client';
+import { applyFormulaStep } from '@car-stock/shared/formulas';
 
 interface CreateFormulaData {
   campaignId: string;
@@ -149,20 +150,7 @@ class CampaignFormulasService {
     operator: FormulaOperator,
     formulaValue: number
   ): number {
-    switch (operator) {
-      case 'ADD':
-        return baseValue + formulaValue;
-      case 'SUBTRACT':
-        return baseValue - formulaValue;
-      case 'MULTIPLY':
-        return baseValue * formulaValue;
-      case 'PERCENT':
-        return baseValue + (baseValue * formulaValue) / 100;
-      case 'PERCENT_SUBTRACT':
-        return baseValue - (baseValue * formulaValue) / 100;
-      default:
-        return baseValue;
-    }
+    return applyFormulaStep(baseValue, operator, formulaValue);
   }
 
   /**
