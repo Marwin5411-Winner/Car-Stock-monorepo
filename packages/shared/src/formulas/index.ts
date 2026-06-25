@@ -1,4 +1,10 @@
-export type FormulaOperator = 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'PERCENT' | 'PERCENT_SUBTRACT';
+export type FormulaOperator =
+  | 'ADD'
+  | 'SUBTRACT'
+  | 'MULTIPLY'
+  | 'PERCENT'
+  | 'PERCENT_SUBTRACT'
+  | 'FIXED';
 
 export type FormulaPriceTarget = 'COST_PRICE' | 'SELLING_PRICE';
 
@@ -30,4 +36,49 @@ export function applyFormulaStep(
     default:
       return baseValue;
   }
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Per-row campaign SUBSIDY amount (a positive per-car amount), used by the
+ * sale snapshot + campaign-detail total. Distinct from applyFormulaStep:
+ * here rows do NOT chain — each is an independent amount that callers sum.
+ *  - PERCENT / PERCENT_SUBTRACT → magnitude % of the chosen base
+ *  - FIXED / ADD / SUBTRACT     → the flat value (base-independent)
+ *  - MULTIPLY                   → 0 (not meaningful as a subsidy)
+ */
+export function formulaSubsidyAmount(
+  operator: FormulaOperator,
+  value: number,
+  priceTarget: FormulaPriceTarget,
+  bases: { cost: number; selling: number }
+): number {
+  const v = Number.isFinite(value) ? value : 0;
+  switch (operator) {
+    case 'PERCENT':
+    case 'PERCENT_SUBTRACT': {
+      const base = priceTarget === 'COST_PRICE' ? bases.cost : bases.selling;
+      return round2((base * v) / 100);
+    }
+    case 'FIXED':
+    case 'ADD':
+    case 'SUBTRACT':
+      return round2(v);
+    default:
+      return 0; // MULTIPLY and any future operator contribute nothing
+  }
+}
+
+/** Sum of every row's subsidy amount for one vehicle model. */
+export function sumCampaignSubsidies(
+  formulas: Array<{ operator: FormulaOperator; value: number; priceTarget: FormulaPriceTarget }>,
+  bases: { cost: number; selling: number }
+): number {
+  return round2(
+    formulas.reduce(
+      (sum, f) => sum + formulaSubsidyAmount(f.operator, f.value, f.priceTarget, bases),
+      0
+    )
+  );
 }
