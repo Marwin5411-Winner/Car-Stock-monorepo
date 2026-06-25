@@ -10,6 +10,7 @@ import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
 import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
 import { buildCampaignClaimReport } from './campaign-claim.helpers';
+import { buildSalespersonBreakdown } from './sales-summary.helpers';
 
 // Helper functions
 const toNumber = (val: Decimal | number | null | undefined): number => {
@@ -920,57 +921,10 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
   const completedCount = saleItems.filter((s) => s.status === 'COMPLETED').length;
   const topSalesperson = bySalesperson.length > 0 ? bySalesperson[0].name : '-';
 
-  // Build bySalesperson with more detailed info
-  const salespersonDetailedGroups: Record<
-    string,
-    {
-      id: string;
-      count: number;
-      amount: number;
-      pending: number;
-      completed: number;
-      canceled: number;
-    }
-  > = {};
-
-  saleItems.forEach((s) => {
-    if (!salespersonDetailedGroups[s.salesperson]) {
-      salespersonDetailedGroups[s.salesperson] = {
-        id: s.salespersonId,
-        count: 0,
-        amount: 0,
-        pending: 0,
-        completed: 0,
-        canceled: 0,
-      };
-    }
-    salespersonDetailedGroups[s.salesperson].count += 1;
-    salespersonDetailedGroups[s.salesperson].amount += s.totalAmount;
-
-    if (s.status === 'RESERVED' || s.status === 'PREPARING') {
-      salespersonDetailedGroups[s.salesperson].pending += 1;
-    } else if (s.status === 'COMPLETED' || s.status === 'DELIVERED') {
-      salespersonDetailedGroups[s.salesperson].completed += 1;
-    } else if (s.status === 'CANCELLED') {
-      salespersonDetailedGroups[s.salesperson].canceled += 1;
-    }
-  });
-
-  const bySalespersonDetailed = Object.entries(salespersonDetailedGroups)
-    .map(([name, data]) => ({
-      id: data.id,
-      salesperson: name,
-      totalSales: data.count,
-      pendingCount: data.pending,
-      completedCount: data.completed,
-      canceledCount: data.canceled,
-      totalAmount: data.amount,
-      commission: Math.round(data.amount * 0.01),
-      commissionVat: Math.round(Math.round(data.amount * 0.01) * 0.07),
-      commissionWithVat:
-        Math.round(data.amount * 0.01) + Math.round(Math.round(data.amount * 0.01) * 0.07),
-    }))
-    .sort((a, b) => b.totalAmount - a.totalAmount);
+  // Build per-salesperson breakdown. commission = sum of the salesCommission
+  // entered on each sale (see sales-summary.helpers); previously this used a
+  // hardcoded 1% of sales amount, which ignored the typed value (bug B6).
+  const bySalespersonDetailed = buildSalespersonBreakdown(saleItems);
 
   return {
     sales: saleItems,
