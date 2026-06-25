@@ -12,6 +12,7 @@ export const OPERATOR_OPTIONS: OperatorOption[] = [
   { operator: 'MULTIPLY', label: 'คูณด้วยตัวเลข (×)' },
   { operator: 'SUBTRACT', label: 'ลดเป็นบาท (฿)' },
   { operator: 'ADD', label: 'เพิ่มเป็นบาท (฿)' },
+  { operator: 'FIXED', label: 'จำนวนเงินตายตัว (฿)' },
 ];
 
 export function operatorUnitSuffix(operator: FormulaOperator): string {
@@ -43,6 +44,8 @@ export function describeFormula(
       return `ลด ${n.toLocaleString('th-TH')} บาท จาก${target}`;
     case 'ADD':
       return `เพิ่ม ${n.toLocaleString('th-TH')} บาท จาก${target}`;
+    case 'FIXED':
+      return `จำนวนเงินตายตัว ${n.toLocaleString('th-TH')} บาท`;
     default:
       return '';
   }

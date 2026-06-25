@@ -11,6 +11,7 @@ const operatorSymbols: Record<FormulaOperator, string> = {
   MULTIPLY: '×',
   PERCENT: '+',
   PERCENT_SUBTRACT: '-',
+  FIXED: '=',
 };
 
 const formatCurrency = (value: number) => {

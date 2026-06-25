@@ -19,7 +19,7 @@ import {
   X,
   Calculator,
 } from 'lucide-react';
-import { applyFormulaStep } from '@car-stock/shared/formulas';
+import { applyFormulaStep, sumCampaignSubsidies } from '@car-stock/shared/formulas';
 import {
   OPERATOR_OPTIONS,
   FORMULA_PRESETS,
@@ -89,18 +89,28 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
 
       {/* Sentence row: เอา [ราคา] มา [การกระทำ] [ค่า] */}
       <div className="flex flex-wrap items-end gap-2 text-base">
-        <span className="pb-2 text-gray-700">เอา</span>
-        <select
-          value={formData.priceTarget}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, priceTarget: e.target.value as FormulaPriceTarget }))
-          }
-          className="px-3 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="SELLING_PRICE">ราคาขาย</option>
-          <option value="COST_PRICE">ราคาทุน</option>
-        </select>
-        <span className="pb-2 text-gray-700">มา</span>
+        {formData.operator !== 'FIXED' && (
+          <>
+            <span className="pb-2 text-gray-700">เอา</span>
+            <select
+              value={formData.priceTarget}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  priceTarget: e.target.value as FormulaPriceTarget,
+                }))
+              }
+              className="px-3 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="SELLING_PRICE">ราคาขาย</option>
+              <option value="COST_PRICE">ราคาทุน</option>
+            </select>
+            <span className="pb-2 text-gray-700">มา</span>
+          </>
+        )}
+        {formData.operator === 'FIXED' && (
+          <span className="pb-2 text-gray-700">ตั้งเป็นจำนวนเงิน</span>
+        )}
         <select
           value={formData.operator}
           onChange={(e) =>
@@ -131,7 +141,13 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
 
       {/* Real-number live preview */}
       <div className="rounded-lg bg-purple-50 px-4 py-3 text-purple-900">
-        {hasBase ? (
+        {formData.operator === 'FIXED' ? (
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-sm text-purple-700">
+              {describeFormula(formData.operator, valNum, formData.priceTarget)}
+            </span>
+          </div>
+        ) : hasBase ? (
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-sm">{targetLabel}</span>
             <span className="font-semibold">{fmt(base)}</span>
@@ -431,6 +447,19 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
             )}
           </div>
         ))}
+
+        {formulas.length > 0 && (
+          <div className="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
+            <span className="text-sm text-gray-600">ยอดรวมแคมเปญต่อคัน</span>
+            <span className="text-lg font-bold text-purple-700">
+              {sumCampaignSubsidies(
+                formulas.map((f) => ({ operator: f.operator, value: f.value, priceTarget: f.priceTarget })),
+                { cost: Number(vehicleModel.standardCost) || 0, selling: Number(vehicleModel.price) || 0 }
+              ).toLocaleString('th-TH', { maximumFractionDigits: 2 })}{' '}
+              บาท
+            </span>
+          </div>
+        )}
 
         {isAdding && (
           <FormulaForm

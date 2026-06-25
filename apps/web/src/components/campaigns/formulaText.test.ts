@@ -7,9 +7,10 @@ import {
 } from './formulaText';
 
 describe('formulaText', () => {
-  test('OPERATOR_OPTIONS covers all five operators', () => {
+  test('OPERATOR_OPTIONS covers all six operators', () => {
     expect(OPERATOR_OPTIONS.map((o) => o.operator).sort()).toEqual([
       'ADD',
+      'FIXED',
       'MULTIPLY',
       'PERCENT',
       'PERCENT_SUBTRACT',
@@ -37,5 +38,11 @@ describe('formulaText', () => {
     const ops = ['ADD', 'SUBTRACT', 'MULTIPLY', 'PERCENT', 'PERCENT_SUBTRACT'];
     expect(FORMULA_PRESETS).toHaveLength(4);
     for (const p of FORMULA_PRESETS) expect(ops).toContain(p.operator);
+  });
+
+  test('FIXED is offered and described without a base', () => {
+    expect(OPERATOR_OPTIONS.map((o) => o.operator)).toContain('FIXED');
+    expect(operatorUnitSuffix('FIXED')).toBe('฿');
+    expect(describeFormula('FIXED', 20000, 'COST_PRICE')).toBe('จำนวนเงินตายตัว 20,000 บาท');
   });
 });
