@@ -19,6 +19,13 @@ import {
   X,
   Calculator,
 } from 'lucide-react';
+import { applyFormulaStep } from '@car-stock/shared/formulas';
+import {
+  OPERATOR_OPTIONS,
+  operatorUnitSuffix,
+  priceTargetLabel,
+  describeFormula,
+} from './formulaText';
 
 const operatorSymbols: Record<FormulaOperator, string> = {
   ADD: '+',
@@ -28,25 +35,8 @@ const operatorSymbols: Record<FormulaOperator, string> = {
   PERCENT_SUBTRACT: '-',
 };
 
-// The form lets the user pick a "unit" (฿ / % / ×) and a direction (เพิ่ม/ลด)
-// independently, then maps that pair onto the stored operator. This keeps the
-// data model unchanged while making percent-based steps (incl. "ลด %") obvious.
-type FormulaUnit = 'BAHT' | 'PERCENT' | 'MULTIPLY';
-
 const isPercentOperator = (op: FormulaOperator): boolean =>
   op === 'PERCENT' || op === 'PERCENT_SUBTRACT';
-
-const unitFromOperator = (op: FormulaOperator): FormulaUnit =>
-  isPercentOperator(op) ? 'PERCENT' : op === 'MULTIPLY' ? 'MULTIPLY' : 'BAHT';
-
-const isSubtractOperator = (op: FormulaOperator): boolean =>
-  op === 'SUBTRACT' || op === 'PERCENT_SUBTRACT';
-
-const buildOperator = (unit: FormulaUnit, subtract: boolean): FormulaOperator => {
-  if (unit === 'MULTIPLY') return 'MULTIPLY';
-  if (unit === 'BAHT') return subtract ? 'SUBTRACT' : 'ADD';
-  return subtract ? 'PERCENT_SUBTRACT' : 'PERCENT';
-};
 
 const priceTargetLabels: Record<FormulaPriceTarget, string> = {
   COST_PRICE: 'ราคาทุน',
@@ -60,6 +50,7 @@ interface FormulaFormProps {
   onCancel: () => void;
   submitLabel: string;
   isPending: boolean;
+  vehicleModel: VehicleModelSummary;
 }
 
 const FormulaForm: React.FC<FormulaFormProps> = ({
@@ -69,13 +60,10 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
   onCancel,
   submitLabel,
   isPending,
+  vehicleModel,
 }) => {
-  const unit = unitFromOperator(formData.operator);
-  const subtract = isSubtractOperator(formData.operator);
-
-  // Keep the value field as raw text while typing so it can be cleared and
-  // accept decimals. Coercing to a number on every keystroke (the old
-  // `parseFloat(...) || 0`) made the field stick at 0 and reject normal input.
+  // Keep the value as raw text while typing so it can be cleared and accept
+  // decimals (coercing on every keystroke makes the field stick at 0).
   const [valueText, setValueText] = useState(() =>
     Number.isFinite(formData.value) && formData.value !== 0 ? String(formData.value) : ''
   );
@@ -87,104 +75,98 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
     setFormData((prev) => ({ ...prev, value: Number.isFinite(n) ? n : 0 }));
   };
 
-  const setUnit = (next: FormulaUnit) =>
-    setFormData((prev) => ({
-      ...prev,
-      operator: buildOperator(next, isSubtractOperator(prev.operator)),
-    }));
-  const setSubtract = (next: boolean) =>
-    setFormData((prev) => ({
-      ...prev,
-      operator: buildOperator(unitFromOperator(prev.operator), next),
-    }));
-
-  const unitSuffix = unit === 'PERCENT' ? '%' : unit === 'MULTIPLY' ? '×' : '฿';
-  const targetLabel = formData.priceTarget === 'COST_PRICE' ? 'ราคาทุน' : 'ราคาขาย';
+  const suffix = operatorUnitSuffix(formData.operator);
+  const targetLabel = priceTargetLabel(formData.priceTarget);
   const valNum = Number.isFinite(formData.value) ? formData.value : 0;
-  const preview =
-    unit === 'MULTIPLY'
-      ? `คูณ${targetLabel}ด้วย ${valNum}`
-      : unit === 'PERCENT'
-        ? `${subtract ? 'ลด' : 'เพิ่ม'} ${valNum}% ของ${targetLabel}`
-        : `${subtract ? 'ลด' : 'เพิ่ม'} ${valNum.toLocaleString('th-TH')} บาท จาก${targetLabel}`;
+
+  // Real-number preview against the model's actual price for the chosen target.
+  const base =
+    formData.priceTarget === 'COST_PRICE'
+      ? Number(vehicleModel.standardCost)
+      : Number(vehicleModel.price);
+  const hasBase = Number.isFinite(base) && base > 0;
+  const result = hasBase ? applyFormulaStep(base, formData.operator, valNum) : 0;
+  const delta = result - base;
+  const fmt = (n: number) => n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
 
   return (
-    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสูตร</label>
+    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">ตั้งชื่อสูตร</label>
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="เช่น ส่วนลดพิเศษ, คอมมิชชั่นเพิ่ม"
+        />
+      </div>
+
+      {/* Sentence row: เอา [ราคา] มา [การกระทำ] [ค่า] */}
+      <div className="flex flex-wrap items-end gap-2 text-base">
+        <span className="pb-2 text-gray-700">เอา</span>
+        <select
+          value={formData.priceTarget}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, priceTarget: e.target.value as FormulaPriceTarget }))
+          }
+          className="px-3 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="SELLING_PRICE">ราคาขาย</option>
+          <option value="COST_PRICE">ราคาทุน</option>
+        </select>
+        <span className="pb-2 text-gray-700">มา</span>
+        <select
+          value={formData.operator}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, operator: e.target.value as FormulaOperator }))
+          }
+          className="px-3 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
+        >
+          {OPERATOR_OPTIONS.map((o) => (
+            <option key={o.operator} value={o.operator}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <div className="relative">
           <input
             type="text"
-            value={formData.name}
-            onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="เช่น ส่วนลดพิเศษ, คอมมิชชั่นเพิ่ม"
+            inputMode="decimal"
+            value={valueText}
+            onChange={(e) => handleValueChange(e.target.value)}
+            className="w-28 px-3 py-2 pr-9 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
+            placeholder="0"
           />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">เป้าหมายราคา</label>
-          <select
-            value={formData.priceTarget}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                priceTarget: e.target.value as FormulaPriceTarget,
-              }))
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="SELLING_PRICE">ราคาขาย</option>
-            <option value="COST_PRICE">ราคาทุน</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">การกระทำ</label>
-          <select
-            value={subtract ? 'SUBTRACT' : 'ADD'}
-            onChange={(e) => setSubtract(e.target.value === 'SUBTRACT')}
-            disabled={unit === 'MULTIPLY'}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
-          >
-            <option value="ADD">เพิ่ม (+)</option>
-            <option value="SUBTRACT">ลด (−)</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">หน่วย</label>
-          <select
-            value={unit}
-            onChange={(e) => setUnit(e.target.value as FormulaUnit)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="BAHT">บาท (฿)</option>
-            <option value="PERCENT">เปอร์เซ็นต์ (%)</option>
-            <option value="MULTIPLY">คูณด้วยตัวเลข (×)</option>
-          </select>
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">ค่า</label>
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="decimal"
-              value={valueText}
-              onChange={(e) => handleValueChange(e.target.value)}
-              className="w-full px-3 py-2 pr-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="0"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">
-              {unitSuffix}
-            </span>
-          </div>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">
+            {suffix}
+          </span>
         </div>
       </div>
-      <p className="text-xs text-purple-700 bg-purple-50 rounded-md px-3 py-1.5">
-        ตัวอย่าง: {preview}
-      </p>
+
+      {/* Real-number live preview */}
+      <div className="rounded-lg bg-purple-50 px-4 py-3 text-purple-900">
+        {hasBase ? (
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-sm">{targetLabel}</span>
+            <span className="font-semibold">{fmt(base)}</span>
+            <span className="text-sm text-purple-700">
+              → {describeFormula(formData.operator, valNum, formData.priceTarget)} ({delta >= 0 ? '+' : ''}
+              {fmt(delta)}) →
+            </span>
+            <span className="text-lg font-bold">{fmt(result)} บาท</span>
+          </div>
+        ) : (
+          <div className="text-sm text-purple-700">
+            รุ่นนี้ยังไม่ได้ตั้ง{targetLabel} จึงยังไม่แสดงตัวอย่างเป็นตัวเลข
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-2 justify-end">
         <button
           onClick={onCancel}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+          className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
         >
           <X className="w-4 h-4 inline mr-1" />
           ยกเลิก
@@ -192,7 +174,7 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
         <button
           onClick={onSubmit}
           disabled={!formData.name.trim() || isPending}
-          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           <Save className="w-4 h-4 inline mr-1" />
           {submitLabel}
@@ -361,6 +343,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
                 onCancel={resetForm}
                 submitLabel="บันทึก"
                 isPending={updateMutation.isPending}
+                vehicleModel={vehicleModel}
               />
             ) : (
               <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
@@ -441,6 +424,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
             onCancel={resetForm}
             submitLabel="เพิ่ม"
             isPending={createMutation.isPending}
+            vehicleModel={vehicleModel}
           />
         )}
       </div>
