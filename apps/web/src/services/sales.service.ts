@@ -73,7 +73,8 @@ export interface Sale {
   downPayment?: number;
   financeAmount?: number;
   financeProvider?: string;
-  carDiscount?: number;
+  carDiscount?: string | number | null;
+  campaignSubsidySnapshot?: string | number | null;
   downPaymentDiscount?: number;
   interestRate?: number;
   numberOfTerms?: number;

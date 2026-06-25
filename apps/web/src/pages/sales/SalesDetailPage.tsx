@@ -735,10 +735,10 @@ export default function SalesDetailPage() {
             )}
 
             {/* Discounts - ADMIN/ACCOUNTANT only */}
-            {canDiscount && sale.carDiscount != null && sale.carDiscount > 0 && (
+            {canDiscount && sale.carDiscount != null && Number(sale.carDiscount) > 0 && (
               <div className="flex justify-between text-orange-700">
                 <dt className="text-sm">ส่วนลดตัวรถ</dt>
-                <dd className="text-sm font-medium">- {formatCurrency(sale.carDiscount)}</dd>
+                <dd className="text-sm font-medium">- {formatCurrency(Number(sale.carDiscount))}</dd>
               </div>
             )}
             {canDiscount && sale.downPaymentDiscount != null && sale.downPaymentDiscount > 0 && (
@@ -998,6 +998,14 @@ export default function SalesDetailPage() {
               <p className="text-sm font-medium">{sale.campaign.name}</p>
               {sale.discountSnapshot && (
                 <p className="text-sm text-green-600">ส่วนลด: {formatCurrency(sale.discountSnapshot)}</p>
+              )}
+              {sale.campaignSubsidySnapshot != null && Number(sale.campaignSubsidySnapshot) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">แคมเปญคันนี้ (ต่อคัน)</span>
+                  <span className="font-semibold text-purple-700">
+                    {Number(sale.campaignSubsidySnapshot).toLocaleString('th-TH', { maximumFractionDigits: 2 })} บาท
+                  </span>
+                </div>
               )}
             </div>
           )}
