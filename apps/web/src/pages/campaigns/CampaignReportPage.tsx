@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { campaignService } from '../../services/campaign.service';
@@ -104,6 +104,14 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
               <br />
               ต่อคัน
             </th>
+            <th
+              className="border border-gray-300 px-2 py-1.5 text-center bg-teal-50 text-teal-900"
+              rowSpan={2}
+            >
+              ค่าคอม
+              <br />
+              ไฟแนนซ์
+            </th>
           </tr>
           <tr className="bg-gray-50">
             {/* Formula sub-headers */}
@@ -144,7 +152,7 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
             <tr>
               <td
                 colSpan={
-                  7 + group.formulas.length + (allGroups.length > 1 ? allGroups.length : 0) + 3
+                  7 + group.formulas.length + (allGroups.length > 1 ? allGroups.length : 0) + 4
                 }
                 className="border border-gray-300 px-2 py-4 text-center text-gray-400"
               >
@@ -202,6 +210,9 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
                 <td className="border border-gray-300 px-2 py-1 text-right bg-amber-50 text-amber-900 font-medium">
                   {formatCurrency(sale.rebatePerCar)}
                 </td>
+                <td className="border border-gray-300 px-2 py-1 text-right bg-teal-50 text-teal-900">
+                  {formatCurrency(sale.financeCommission)}
+                </td>
               </tr>
             ))
           )}
@@ -232,6 +243,9 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
               <td className="border border-gray-300 px-2 py-1.5 text-right bg-amber-50 text-amber-900">
                 {formatCurrency(group.totalRebate)}
               </td>
+              <td className="border border-gray-300 px-2 py-1.5 text-right bg-teal-50 text-teal-900">
+                {formatCurrency(group.totalFinanceCommission)}
+              </td>
             </tr>
           )}
         </tbody>
@@ -256,6 +270,43 @@ export const CampaignReportPage: React.FC = () => {
   });
 
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  // The report is as wide as the data: 7 fixed columns + one per formula + one
+  // per model + 4 trailing. With many formulas/models it grows past the A4
+  // landscape printable width, and the browser print path (window.print) does
+  // NOT auto-scale — the rightmost columns (Rebate, ค่าคอมไฟแนนซ์) get clipped.
+  // Measure the real width at print time and scale the whole report to fit, so
+  // every column is printed regardless of how many there are. (The server-side
+  // "ส่งออก PDF" already fits on its own.)
+  useEffect(() => {
+    // A4 landscape printable width ≈ (297mm − 2×10mm @page margin) at 96dpi.
+    const PRINTABLE_PX = 1040;
+    const scaleForPrint = () => {
+      const el = printRef.current;
+      if (!el) return;
+      el.style.transform = '';
+      el.style.width = '';
+      const natural = el.scrollWidth;
+      if (natural > PRINTABLE_PX) {
+        el.style.transformOrigin = 'top left';
+        el.style.transform = `scale(${PRINTABLE_PX / natural})`;
+        el.style.width = `${natural}px`;
+      }
+    };
+    const resetScale = () => {
+      const el = printRef.current;
+      if (!el) return;
+      el.style.transform = '';
+      el.style.width = '';
+      el.style.transformOrigin = '';
+    };
+    window.addEventListener('beforeprint', scaleForPrint);
+    window.addEventListener('afterprint', resetScale);
+    return () => {
+      window.removeEventListener('beforeprint', scaleForPrint);
+      window.removeEventListener('afterprint', resetScale);
+    };
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -323,6 +374,16 @@ export const CampaignReportPage: React.FC = () => {
             max-width: 1400px;
             margin: 0 auto;
             padding: 24px;
+          }
+          /* Wide reports must scroll horizontally on screen instead of running
+             off the page (customer report: "เลื่อนดูไม่ได้"). */
+          .report-scroll {
+            overflow-x: auto;
+          }
+        }
+        @media print {
+          .report-scroll {
+            overflow: visible !important;
           }
         }
       `}</style>
@@ -404,12 +465,20 @@ export const CampaignReportPage: React.FC = () => {
             </div>
             <div className="text-gray-700">Rebate ที่ขอเบิก (บาท)</div>
           </div>
+          <div className="bg-teal-50 px-4 py-2 rounded-lg text-center">
+            <div className="text-teal-700 font-bold text-lg">
+              {formatCurrency(report.summary.totalFinanceCommission)}
+            </div>
+            <div className="text-gray-600">ค่าคอมไฟแนนซ์รวม (บาท)</div>
+          </div>
         </div>
 
         {/* Report Tables — grouped by vehicle model */}
-        {report.groups.map((group) => (
-          <ReportTable key={group.vehicleModelId} group={group} allGroups={report.groups} />
-        ))}
+        <div className="report-scroll">
+          {report.groups.map((group) => (
+            <ReportTable key={group.vehicleModelId} group={group} allGroups={report.groups} />
+          ))}
+        </div>
 
         {/* Grand Total — supplier-facing claim summary */}
         <div className="mt-4 border-t-2 border-gray-400 pt-3">
@@ -427,6 +496,12 @@ export const CampaignReportPage: React.FC = () => {
                 <td className="px-2 py-2 text-right">รวม Rebate ที่ขอเบิกจาก Supplier:</td>
                 <td className="px-2 py-2 text-right">
                   {formatCurrency(report.summary.totalRebate)} บาท
+                </td>
+              </tr>
+              <tr className="font-bold text-sm bg-teal-50 text-teal-900">
+                <td className="px-2 py-2 text-right">รวมค่าคอมไฟแนนซ์ (จากบริษัทไฟแนนซ์):</td>
+                <td className="px-2 py-2 text-right">
+                  {formatCurrency(report.summary.totalFinanceCommission)} บาท
                 </td>
               </tr>
             </tbody>

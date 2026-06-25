@@ -138,6 +138,8 @@ export interface CampaignReportSaleItem {
   sellingPriceDiff: number;
   /** Rebate the dealership claims from supplier for this sale (positive = supplier owes). */
   rebatePerCar: number;
+  /** Finance commission (ค่าคอมไฟแนนซ์) earned from the finance company for this sale. */
+  financeCommission: number;
   formulaResults: {
     formulaId: string;
     name: string;
@@ -165,6 +167,8 @@ export interface CampaignReportGroup {
   totalAmount: number;
   /** Sum of rebatePerCar across this group's sales. */
   totalRebate: number;
+  /** Sum of financeCommission across this group's sales. */
+  totalFinanceCommission: number;
 }
 
 export interface CampaignReport {
@@ -186,6 +190,8 @@ export interface CampaignReport {
     totalAmount: number;
     /** Grand total rebate amount to claim from the supplier. */
     totalRebate: number;
+    /** Grand total finance commission across all sales in the campaign. */
+    totalFinanceCommission: number;
   };
 }
 
