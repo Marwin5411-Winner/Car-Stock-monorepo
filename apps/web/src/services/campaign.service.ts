@@ -7,6 +7,7 @@ export interface VehicleModelSummary {
   variant?: string;
   year: number;
   price?: string | number;
+  standardCost?: string | number;
   type?: string;
 }
 
