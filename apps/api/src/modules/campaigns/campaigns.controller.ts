@@ -90,9 +90,14 @@ function prepareCampaignReportForPdf(report: any) {
       (sum: number, s: any) => sum + (Number(s.rebatePerCar) || 0),
       0
     );
+    const financeCommissionSubtotal = sales.reduce(
+      (sum: number, s: any) => sum + (Number(s.financeCommission) || 0),
+      0
+    );
 
     const subtotalLeftColspan = 7 + formulas.length;
-    const emptyRowColspan = subtotalLeftColspan + (hasMultipleGroups ? allGroupsCount : 0) + 3;
+    // Trailing columns: รวมรับเงิน, วันที่แจ้งขาย, Rebate, ค่าคอมไฟแนนซ์ = 4.
+    const emptyRowColspan = subtotalLeftColspan + (hasMultipleGroups ? allGroupsCount : 0) + 4;
 
     return {
       ...group,
@@ -104,6 +109,7 @@ function prepareCampaignReportForPdf(report: any) {
       subtotalLeftColspan,
       emptyRowColspan,
       rebateSubtotal,
+      financeCommissionSubtotal,
     };
   });
 

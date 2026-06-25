@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '../../lib/errors';
 import { Prisma, CampaignStatus } from '@prisma/client';
 import { campaignFormulasService } from './campaign-formulas.service';
+import { diffModelSet } from './campaign-model-set.helpers';
 
 /**
  * Derive the display status of a campaign at read time. The stored
@@ -360,15 +361,26 @@ class CampaignsService {
     }
 
     const campaign = await db.$transaction(async (tx) => {
-      // If vehicleModelIds provided, update the relations atomically
+      // Diff the model set instead of wiping it. A blanket deleteMany +
+      // recreate cascade-deletes every CampaignModelFormula (the relation is
+      // onDelete: Cascade), so any edit to the campaign — even one that leaves
+      // the model list unchanged — silently destroyed all saved formulas.
+      // Only touch rows that actually changed; unchanged models keep theirs.
       if (vehicleModelIds !== undefined) {
-        await tx.campaignVehicleModel.deleteMany({
-          where: { campaignId: id },
-        });
+        const { toAdd, toRemove } = diffModelSet(
+          current.vehicleModels.map((vm) => vm.vehicleModelId),
+          vehicleModelIds
+        );
 
-        if (vehicleModelIds.length > 0) {
+        if (toRemove.length > 0) {
+          await tx.campaignVehicleModel.deleteMany({
+            where: { campaignId: id, vehicleModelId: { in: toRemove } },
+          });
+        }
+
+        if (toAdd.length > 0) {
           await tx.campaignVehicleModel.createMany({
-            data: vehicleModelIds.map((vehicleModelId) => ({
+            data: toAdd.map((vehicleModelId) => ({
               campaignId: id,
               vehicleModelId,
             })),
@@ -873,6 +885,12 @@ class CampaignsService {
         totalAmount: Number(sale.totalAmount),
         paymentMode: sale.paymentMode,
         financeProvider: sale.financeProvider || '-',
+        // Finance commission (ค่าคอมไฟแนนซ์) the dealership earns from the
+        // finance company for arranging the loan. Stored per-sale (entered on
+        // the sale form); surfaced here so the campaign report shows it. It is
+        // NOT part of the supplier rebate — different payer — so it gets its
+        // own column/total rather than being folded into rebatePerCar.
+        financeCommission: Number(sale.financeCommission) || 0,
         // Price calculations
         originalCostPrice: costPrice,
         originalSellingPrice: sellingPrice,
@@ -909,6 +927,7 @@ class CampaignsService {
           totalSales: salesItems.length,
           totalAmount: salesItems.reduce((sum, s) => sum + s.totalAmount, 0),
           totalRebate: salesItems.reduce((sum, s) => sum + s.rebatePerCar, 0),
+          totalFinanceCommission: salesItems.reduce((sum, s) => sum + s.financeCommission, 0),
         };
       }
     );
@@ -934,6 +953,10 @@ class CampaignsService {
         totalSales: sales.length,
         totalAmount: sales.reduce((sum, s) => sum + Number(s.totalAmount), 0),
         totalRebate: reportGroups.reduce((sum, g) => sum + g.totalRebate, 0),
+        totalFinanceCommission: reportGroups.reduce(
+          (sum, g) => sum + g.totalFinanceCommission,
+          0
+        ),
       },
     };
   }

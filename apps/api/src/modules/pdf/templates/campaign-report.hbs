@@ -44,6 +44,10 @@
     <div class="summary-value">{{formatCurrency summary.totalRebate false}}</div>
     <div class="summary-label">Rebate ที่ขอเบิก (บาท)</div>
   </div>
+  <div class="summary-card teal">
+    <div class="summary-value">{{formatCurrency summary.totalFinanceCommission false}}</div>
+    <div class="summary-label">ค่าคอมไฟแนนซ์รวม (บาท)</div>
+  </div>
 </div>
 
 {{! One table per vehicle model group }}
@@ -71,6 +75,7 @@
         <th rowspan="2">รวมรับเงิน</th>
         <th rowspan="2">วันที่แจ้งขาย</th>
         <th rowspan="2" class="cell-rebate">Rebate<br>ต่อคัน</th>
+        <th rowspan="2" class="cell-fincom">ค่าคอม<br>ไฟแนนซ์</th>
       </tr>
       <tr>
         {{#each formulas}}
@@ -109,6 +114,7 @@
         <td class="tr strong">{{formatCurrency totalAmount false}}</td>
         <td class="tc">{{formatThaiDate soldDate 'short'}}</td>
         <td class="tr cell-rebate strong">{{formatCurrency rebatePerCar false}}</td>
+        <td class="tr cell-fincom">{{formatCurrency financeCommission false}}</td>
       </tr>
       {{/each}}
       {{! Subtotal row }}
@@ -122,6 +128,7 @@
         <td class="tr">{{formatCurrency totalAmount false}}</td>
         <td></td>
         <td class="tr cell-rebate">{{formatCurrency rebateSubtotal false}}</td>
+        <td class="tr cell-fincom">{{formatCurrency financeCommissionSubtotal false}}</td>
       </tr>
       {{else}}
       <tr>
@@ -144,6 +151,10 @@
       <td class="tr label">รวม Rebate ที่ขอเบิกจาก Supplier:</td>
       <td class="tr value">{{formatCurrency summary.totalRebate false}} บาท</td>
     </tr>
+    <tr class="row-fincom-total">
+      <td class="tr label">รวมค่าคอมไฟแนนซ์ (จากบริษัทไฟแนนซ์):</td>
+      <td class="tr value">{{formatCurrency summary.totalFinanceCommission false}} บาท</td>
+    </tr>
   </table>
 </div>
 
@@ -159,11 +170,13 @@
   .summary-card.green { background: #dcfce7; }
   .summary-card.purple { background: #f3e8ff; }
   .summary-card.amber { background: #fef3c7; }
+  .summary-card.teal { background: #ccfbf1; }
   .summary-card .summary-value { font-size: 14px; font-weight: bold; }
   .summary-card.blue .summary-value { color: #1d4ed8; }
   .summary-card.green .summary-value { color: #15803d; }
   .summary-card.purple .summary-value { color: #7e22ce; }
   .summary-card.amber .summary-value { color: #b45309; }
+  .summary-card.teal .summary-value { color: #0f766e; }
   .summary-card .summary-label { font-size: 9px; color: #555; }
 
   .report-group { margin-bottom: 12px; page-break-inside: avoid; }
@@ -182,6 +195,7 @@
   .campaign-table th.cell-model, .campaign-table td.cell-model { background: #eff6ff; }
   .campaign-table th.cell-hl, .campaign-table td.cell-hl { background: #fefce8; }
   .campaign-table th.cell-rebate, .campaign-table td.cell-rebate { background: #fef3c7; color: #92400e; }
+  .campaign-table th.cell-fincom, .campaign-table td.cell-fincom { background: #ccfbf1; color: #0f766e; }
   .campaign-table .sub { font-size: 8px; color: #6b7280; font-weight: normal; }
   .campaign-table .tc { text-align: center; }
   .campaign-table .tr { text-align: right; }
@@ -195,6 +209,7 @@
   .grand-total td.label { width: 70%; font-weight: bold; font-size: 12px; padding: 4px 8px; }
   .grand-total td.value { font-weight: bold; font-size: 12px; padding: 4px 8px; }
   .grand-total .row-rebate-total td { background: #fef3c7; color: #92400e; font-size: 13px; }
+  .grand-total .row-fincom-total td { background: #ccfbf1; color: #0f766e; font-size: 13px; }
 
   .campaign-footer {
     display: flex;
