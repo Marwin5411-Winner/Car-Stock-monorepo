@@ -22,26 +22,11 @@ import {
 import { applyFormulaStep } from '@car-stock/shared/formulas';
 import {
   OPERATOR_OPTIONS,
+  FORMULA_PRESETS,
   operatorUnitSuffix,
   priceTargetLabel,
   describeFormula,
 } from './formulaText';
-
-const operatorSymbols: Record<FormulaOperator, string> = {
-  ADD: '+',
-  SUBTRACT: '-',
-  MULTIPLY: '×',
-  PERCENT: '+',
-  PERCENT_SUBTRACT: '-',
-};
-
-const isPercentOperator = (op: FormulaOperator): boolean =>
-  op === 'PERCENT' || op === 'PERCENT_SUBTRACT';
-
-const priceTargetLabels: Record<FormulaPriceTarget, string> = {
-  COST_PRICE: 'ราคาทุน',
-  SELLING_PRICE: 'ราคาขาย',
-};
 
 interface FormulaFormProps {
   formData: CreateFormulaData;
@@ -195,7 +180,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateFormulaData>({
     name: '',
-    operator: 'ADD',
+    operator: 'PERCENT_SUBTRACT',
     value: 0,
     priceTarget: 'SELLING_PRICE',
   });
@@ -243,7 +228,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
   });
 
   const resetForm = () => {
-    setFormData({ name: '', operator: 'ADD', value: 0, priceTarget: 'SELLING_PRICE' });
+    setFormData({ name: '', operator: 'PERCENT_SUBTRACT', value: 0, priceTarget: 'SELLING_PRICE' });
     setIsAdding(false);
     setEditingId(null);
   };
@@ -266,6 +251,17 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
       operator: formula.operator,
       value: formula.value,
       priceTarget: formula.priceTarget,
+    });
+  };
+
+  const startWithPreset = (preset: (typeof FORMULA_PRESETS)[number]) => {
+    setEditingId(null);
+    setIsAdding(true);
+    setFormData({
+      name: preset.defaultName,
+      operator: preset.operator,
+      value: 0,
+      priceTarget: preset.priceTarget,
     });
   };
 
@@ -314,7 +310,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
             onClick={() => {
               setIsAdding(true);
               setEditingId(null);
-              setFormData({ name: '', operator: 'ADD', value: 0, priceTarget: 'SELLING_PRICE' });
+              setFormData({ name: '', operator: 'PERCENT_SUBTRACT', value: 0, priceTarget: 'SELLING_PRICE' });
             }}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
@@ -323,13 +319,38 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
           </button>
         )}
       </div>
+      {!isAdding && !editingId && (
+        <div className="flex flex-wrap gap-2 px-4 pt-3 pb-1">
+          <span className="text-xs text-gray-500 self-center">แนะนำ:</span>
+          {FORMULA_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => startWithPreset(p)}
+              className="px-3 py-1.5 text-sm rounded-full border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="p-4 space-y-3">
         {isLoading && <div className="text-center text-sm text-gray-500 py-4">กำลังโหลด...</div>}
 
         {!isLoading && formulas.length === 0 && !isAdding && (
-          <div className="text-center text-sm text-gray-500 py-4">
-            ยังไม่มีสูตร — กดปุ่ม "เพิ่มสูตร" เพื่อเริ่มต้น
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-500 mb-3">ยังไม่มีสูตรสำหรับรุ่นนี้</p>
+            <button
+              onClick={() => {
+                setIsAdding(true);
+                setEditingId(null);
+                setFormData({ name: '', operator: 'PERCENT_SUBTRACT', value: 0, priceTarget: 'SELLING_PRICE' });
+              }}
+              className="inline-flex items-center gap-1 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              เพิ่มสูตรแรก
+            </button>
           </div>
         )}
 
@@ -379,16 +400,11 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
                           : 'bg-blue-100 text-blue-700'
                       }`}
                     >
-                      {priceTargetLabels[formula.priceTarget]}
+                      {priceTargetLabel(formula.priceTarget)}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600 mt-0.5">
-                    <span className="font-mono font-bold text-purple-600">
-                      {operatorSymbols[formula.operator]}
-                    </span>{' '}
-                    {isPercentOperator(formula.operator)
-                      ? `${formula.value}%`
-                      : formula.value.toLocaleString('th-TH')}
+                  <div className="text-sm text-gray-700 mt-0.5">
+                    {describeFormula(formula.operator, formula.value, formula.priceTarget)}
                   </div>
                 </div>
 
