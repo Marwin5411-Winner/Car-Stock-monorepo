@@ -485,6 +485,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
           t.Literal('MULTIPLY'),
           t.Literal('PERCENT'),
           t.Literal('PERCENT_SUBTRACT'),
+          t.Literal('FIXED'),
         ]),
         value: t.Number(),
         priceTarget: t.Union([t.Literal('COST_PRICE'), t.Literal('SELLING_PRICE')]),
@@ -522,6 +523,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
             t.Literal('MULTIPLY'),
             t.Literal('PERCENT'),
             t.Literal('PERCENT_SUBTRACT'),
+            t.Literal('FIXED'),
           ])
         ),
         value: t.Optional(t.Number()),
