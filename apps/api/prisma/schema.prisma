@@ -224,6 +224,9 @@ model Sale {
   completedDate          DateTime?     @map("completed_date")
   campaignId             String?       @map("campaign_id")
   discountSnapshot       Decimal?      @map("discount_snapshot") @db.Decimal(15, 2)
+  // Per-car campaign subsidy total, frozen at sale create/update (sum of the
+  // campaign's editable formulas for this model). Null when no campaign.
+  campaignSubsidySnapshot Decimal?     @map("campaign_subsidy_snapshot") @db.Decimal(15, 2)
   freebiesSnapshot       String?       @map("freebies_snapshot")
   paymentMode            PaymentMode   @default(CASH) @map("payment_mode")
   downPayment            Decimal?      @map("down_payment") @db.Decimal(15, 2)
@@ -560,6 +563,7 @@ enum FormulaOperator {
   MULTIPLY         // *
   PERCENT          // + n% of base
   PERCENT_SUBTRACT // - n% of base
+  FIXED            // flat baht/car subsidy (no base) — campaign subsidy sum only
 }
 
 enum FormulaPriceTarget {
