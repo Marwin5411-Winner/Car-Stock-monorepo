@@ -1,7 +1,7 @@
 import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
 import { FormulaOperator, FormulaPriceTarget } from '@prisma/client';
-import { applyFormulaStep } from '@car-stock/shared/formulas';
+import { applyFormulaStep, sumCampaignSubsidies } from '@car-stock/shared/formulas';
 
 interface CreateFormulaData {
   campaignId: string;
@@ -239,6 +239,47 @@ class CampaignFormulasService {
     const formulas = await this.getFormulas(campaignId, vehicleModelId);
     const applied = this.applyLoadedFormulas(formulas, costPrice, sellingPrice);
     return { ...applied, formulas };
+  }
+
+  /**
+   * Per-car campaign subsidy total for a sale, or null when there is no
+   * campaign / model. cost = stock.baseCost, selling = vehicleModel.price.
+   */
+  async computeSaleSubsidySnapshot(params: {
+    campaignId: string | null | undefined;
+    vehicleModelId: string | null | undefined;
+    stockId: string | null | undefined;
+  }): Promise<number | null> {
+    const { campaignId } = params;
+    if (!campaignId) return null;
+
+    let vehicleModelId = params.vehicleModelId ?? null;
+    let cost = 0;
+    if (params.stockId) {
+      const stock = await db.stock.findUnique({
+        where: { id: params.stockId },
+        select: { baseCost: true, vehicleModelId: true },
+      });
+      cost = stock ? Number(stock.baseCost) : 0;
+      vehicleModelId = vehicleModelId ?? stock?.vehicleModelId ?? null;
+    }
+    if (!vehicleModelId) return null;
+
+    const [formulas, vm] = await Promise.all([
+      this.getFormulas(campaignId, vehicleModelId),
+      db.vehicleModel.findUnique({ where: { id: vehicleModelId }, select: { price: true } }),
+    ]);
+    if (formulas.length === 0) return 0;
+
+    const selling = vm ? Number(vm.price) : 0;
+    return sumCampaignSubsidies(
+      formulas.map((f) => ({
+        operator: f.operator,
+        value: Number(f.value),
+        priceTarget: f.priceTarget,
+      })),
+      { cost, selling }
+    );
   }
 }
 

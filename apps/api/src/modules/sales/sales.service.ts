@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { CreateSaleSchema, UpdateSaleSchema, SaleFilterSchema } from '@car-stock/shared/schemas';
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
+import { campaignFormulasService } from '../campaigns/campaign-formulas.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
 
@@ -40,6 +41,7 @@ function serializeSale(sale: any): any {
     interestRate: toNumberOrNull(sale.interestRate),
     monthlyInstallment: toNumberOrNull(sale.monthlyInstallment),
     discountSnapshot: toNumberOrNull(sale.discountSnapshot),
+    campaignSubsidySnapshot: toNumberOrNull(sale.campaignSubsidySnapshot),
     refundAmount: toNumberOrNull(sale.refundAmount),
     ...(sale.stock?.vehicleModel?.price != null && {
       stock: {
@@ -401,6 +403,12 @@ export class SalesService {
       }
     }
 
+    const campaignSubsidySnapshot = await campaignFormulasService.computeSaleSubsidySnapshot({
+      campaignId: validated.campaignId,
+      vehicleModelId: validated.vehicleModelId ?? null,
+      stockId: validated.stockId ?? null,
+    });
+
     // Generate sale number
     const saleNumber = await this.generateSaleNumber();
 
@@ -420,6 +428,7 @@ export class SalesService {
           ...validated,
           saleNumber,
           remainingAmount,
+          campaignSubsidySnapshot,
           createdById: currentUser.id,
         },
       });
@@ -477,7 +486,7 @@ export class SalesService {
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id },
-      select: { id: true, status: true, stockId: true },
+      select: { id: true, status: true, stockId: true, campaignId: true, vehicleModelId: true },
     });
 
     if (!existingSale) {
@@ -576,10 +585,16 @@ export class SalesService {
       validated.remainingAmount = newRemaining;
     }
 
+    const campaignSubsidySnapshot = await campaignFormulasService.computeSaleSubsidySnapshot({
+      campaignId: validated.campaignId ?? existingSale.campaignId,
+      vehicleModelId: validated.vehicleModelId ?? existingSale.vehicleModelId,
+      stockId: validated.stockId ?? existingSale.stockId,
+    });
+
     // Update sale
     const sale = await db.sale.update({
       where: { id },
-      data: validated,
+      data: { ...validated, campaignSubsidySnapshot },
     });
 
     // Log activity
