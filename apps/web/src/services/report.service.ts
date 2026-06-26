@@ -286,14 +286,12 @@ class ReportService {
     year: number;
     month: number;
     brand: string;
-    tier?: number;
   }): Promise<CampaignClaimReportResponse> {
     const qs = new URLSearchParams({
       year: String(params.year),
       month: String(params.month),
       brand: params.brand,
     });
-    if (params.tier != null) qs.set('tier', String(params.tier));
     const url = `/api/reports/campaign-claims?${qs.toString()}`;
     const response = await api.get<ApiResponse<CampaignClaimReportResponse>>(url);
     if (!response.success || !response.data) {
@@ -306,17 +304,12 @@ class ReportService {
     year: number;
     month: number;
     brand: string;
-    tier?: number;
-    constructionCost?: number;
   }): Promise<Blob> {
     const qs = new URLSearchParams({
       year: String(params.year),
       month: String(params.month),
       brand: params.brand,
     });
-    if (params.tier != null) qs.set('tier', String(params.tier));
-    if (params.constructionCost != null)
-      qs.set('constructionCost', String(params.constructionCost));
     const url = `/api/pdf/campaign-claims?${qs.toString()}`;
     return api.getBlob(url);
   }
