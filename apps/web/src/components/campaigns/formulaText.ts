@@ -1,67 +1,50 @@
 import type { FormulaOperator, FormulaPriceTarget } from '@car-stock/shared/formulas';
 
-export interface OperatorOption {
-  operator: FormulaOperator;
-  label: string;
+/** The two expense kinds the new setup UI writes. */
+export type ExpenseKind = 'PERCENT' | 'FIXED';
+
+/**
+ * Map any operator (incl. legacy rows) to its expense kind. Percent operators
+ * are "% of a base"; everything else is treated as a flat baht amount, mirroring
+ * how `formulaSubsidyAmount` interprets them.
+ */
+export function operatorToKind(operator: FormulaOperator): ExpenseKind {
+  return operator === 'PERCENT' || operator === 'PERCENT_SUBTRACT' ? 'PERCENT' : 'FIXED';
 }
 
-// Ordered with the customer's common cases (% and ×) first.
-export const OPERATOR_OPTIONS: OperatorOption[] = [
-  { operator: 'PERCENT_SUBTRACT', label: 'ลดเป็นเปอร์เซ็นต์ (%)' },
-  { operator: 'PERCENT', label: 'เพิ่มเป็นเปอร์เซ็นต์ (%)' },
-  { operator: 'MULTIPLY', label: 'คูณด้วยตัวเลข (×)' },
-  { operator: 'SUBTRACT', label: 'ลดเป็นบาท (฿)' },
-  { operator: 'ADD', label: 'เพิ่มเป็นบาท (฿)' },
-  { operator: 'FIXED', label: 'จำนวนเงินตายตัว (฿)' },
-];
-
 export function operatorUnitSuffix(operator: FormulaOperator): string {
-  if (operator === 'PERCENT' || operator === 'PERCENT_SUBTRACT') return '%';
-  if (operator === 'MULTIPLY') return '×';
-  return '฿';
+  return operatorToKind(operator) === 'PERCENT' ? '%' : '฿';
 }
 
 export function priceTargetLabel(priceTarget: FormulaPriceTarget): string {
   return priceTarget === 'COST_PRICE' ? 'ราคาทุน' : 'ราคาขาย';
 }
 
-/** Plain-language description, e.g. "ลด 5% ของราคาขาย". */
+/** Expense-model phrasing, e.g. "1% ของราคาขาย" or "จำนวนเงินคงที่ 3,000 บาท". */
 export function describeFormula(
   operator: FormulaOperator,
   value: number,
   priceTarget: FormulaPriceTarget
 ): string {
-  const target = priceTargetLabel(priceTarget);
   const n = Number.isFinite(value) ? value : 0;
-  switch (operator) {
-    case 'PERCENT_SUBTRACT':
-      return `ลด ${n}% ของ${target}`;
-    case 'PERCENT':
-      return `เพิ่ม ${n}% ของ${target}`;
-    case 'MULTIPLY':
-      return `คูณ${target}ด้วย ${n}`;
-    case 'SUBTRACT':
-      return `ลด ${n.toLocaleString('th-TH')} บาท จาก${target}`;
-    case 'ADD':
-      return `เพิ่ม ${n.toLocaleString('th-TH')} บาท จาก${target}`;
-    case 'FIXED':
-      return `จำนวนเงินตายตัว ${n.toLocaleString('th-TH')} บาท`;
-    default:
-      return '';
-  }
+  if (operator === 'MULTIPLY') return 'ไม่คิดเป็นค่าใช้จ่าย';
+  if (operatorToKind(operator) === 'PERCENT') return `${n}% ของ${priceTargetLabel(priceTarget)}`;
+  return `จำนวนเงินคงที่ ${n.toLocaleString('th-TH')} บาท`;
 }
 
 export interface FormulaPreset {
   label: string;
-  operator: FormulaOperator;
+  operator: FormulaOperator; // always PERCENT for presets
   priceTarget: FormulaPriceTarget;
+  value: number; // default percentage to prefill
   defaultName: string;
 }
 
-// Basic 4-chip set, weighted toward % and × (the customer's common usage).
+// Brand-standard expense lines (rates mirror the report's DEFAULT_SUBSIDY_RATES;
+// the user edits the % and deletes chips that don't apply).
 export const FORMULA_PRESETS: FormulaPreset[] = [
-  { label: 'ลดราคาขาย %', operator: 'PERCENT_SUBTRACT', priceTarget: 'SELLING_PRICE', defaultName: 'ส่วนลด' },
-  { label: 'เพิ่มราคาขาย %', operator: 'PERCENT', priceTarget: 'SELLING_PRICE', defaultName: 'ค่าคอม' },
-  { label: 'คูณราคาทุน ×', operator: 'MULTIPLY', priceTarget: 'COST_PRICE', defaultName: 'คูณ' },
-  { label: 'ลดราคาทุน บาท', operator: 'SUBTRACT', priceTarget: 'COST_PRICE', defaultName: 'ส่วนลดทุน' },
+  { label: 'เปิดบูธ 0.5%', operator: 'PERCENT', priceTarget: 'SELLING_PRICE', value: 0.5, defaultName: 'เปิดบูธ' },
+  { label: 'Marketing 1%', operator: 'PERCENT', priceTarget: 'COST_PRICE', value: 1, defaultName: 'Marketing' },
+  { label: 'After Sales 0.25%', operator: 'PERCENT', priceTarget: 'SELLING_PRICE', value: 0.25, defaultName: 'After Sales' },
+  { label: 'เป้าขาย 1%', operator: 'PERCENT', priceTarget: 'COST_PRICE', value: 1, defaultName: 'เป้าขาย' },
 ];
