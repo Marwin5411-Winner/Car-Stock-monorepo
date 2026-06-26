@@ -1,5 +1,5 @@
 import type { FormulaOperator, FormulaPriceTarget } from '@prisma/client';
-import { campaignFormulasService } from '../campaigns/campaign-formulas.service';
+import { sumCampaignSubsidies } from '@car-stock/shared/formulas';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const toNum = (v: { toString(): string } | number | null | undefined): number =>
@@ -175,24 +175,27 @@ export function buildCampaignClaimReport(
         ? round2(toNum(sale.carDiscount))
         : round2(toNum(sale.discountSnapshot));
 
-    // Commission = supplier rebate from the shared formula engine.
+    // Commission = the sum of this model's per-car expense line items (each a
+    // % of the chosen base, or a flat baht amount). Without a stock there is no
+    // real cost base, so cost-based % lines resolve to 0 automatically.
     let baseCommission = 0;
     const vmId = vm?.id ?? null;
     const cvm = vmId
       ? sale.campaign?.vehicleModels.find((m) => m.vehicleModelId === vmId)
       : undefined;
     if (cvm && cvm.formulas.length > 0 && vm) {
-      const costPrice = sale.stock ? toNum(sale.stock.baseCost) : 0;
-      const sellingPrice = toNum(vm.price);
-      const applied = campaignFormulasService.applyLoadedFormulas(
-        cvm.formulas,
-        costPrice,
-        sellingPrice
+      const bases = {
+        cost: sale.stock ? toNum(sale.stock.baseCost) : 0,
+        selling: toNum(vm.price),
+      };
+      baseCommission = sumCampaignSubsidies(
+        cvm.formulas.map((f) => ({
+          operator: f.operator,
+          value: toNum(f.value),
+          priceTarget: f.priceTarget,
+        })),
+        bases
       );
-      // Without a stock there is no real cost base, so a cost-side rebate is meaningless.
-      baseCommission = sale.stock
-        ? round2(-(applied.costPriceDiff + applied.sellingPriceDiff))
-        : round2(-applied.sellingPriceDiff);
     }
 
     const claimTotal = round2(promotionDiscount + baseCommission);

@@ -88,6 +88,30 @@ describe('buildCampaignClaimReport', () => {
     expect(report.rows[0].claimTotal).toBe(10000); // commission only
   });
 
+  test('baseCommission sums expense lines: % of selling + fixed baht', () => {
+    const report = buildCampaignClaimReport([
+      baseSale({
+        carDiscount: 0,
+        campaign: {
+          id: 'camp1',
+          name: 'Expense campaign',
+          vehicleModels: [
+            {
+              vehicleModelId: 'vm1',
+              formulas: [
+                { id: 'p', name: 'Marketing', operator: 'PERCENT' as const, value: 1, priceTarget: 'SELLING_PRICE' as const, sortOrder: 1 },
+                { id: 'f', name: 'ค่าขนส่ง', operator: 'FIXED' as const, value: 3000, priceTarget: 'SELLING_PRICE' as const, sortOrder: 2 },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+    // 1% of 500,000 = 5,000 + fixed 3,000 = 8,000
+    expect(report.rows[0].baseCommission).toBe(8000);
+    expect(report.rows[0].claimTotal).toBe(8000); // carDiscount 0
+  });
+
   test('null carDiscount falls back to discountSnapshot', () => {
     const report = buildCampaignClaimReport([
       baseSale({ carDiscount: null, discountSnapshot: 7000 }),
@@ -144,9 +168,10 @@ describe('buildCampaignClaimReport', () => {
     expect(report.summary.grandTotal).toBe(27000);
   });
 
-  test('sale without stock still gets selling-side rebate, cost-side dropped', () => {
+  test('no stock: cost-based % yields 0 (no cost base), selling-based % still counts', () => {
     const report = buildCampaignClaimReport([
       baseSale({
+        carDiscount: 0,
         stock: null,
         campaign: {
           id: 'camp1',
@@ -155,33 +180,17 @@ describe('buildCampaignClaimReport', () => {
             {
               vehicleModelId: 'vm1',
               formulas: [
-                {
-                  id: 'f-cost',
-                  name: 'ส่วนลดทุน',
-                  operator: 'SUBTRACT' as const,
-                  value: 10000,
-                  priceTarget: 'COST_PRICE' as const,
-                  sortOrder: 1,
-                },
-                {
-                  id: 'f-sell',
-                  name: 'ส่วนลดราคาขาย',
-                  operator: 'SUBTRACT' as const,
-                  value: 3000,
-                  priceTarget: 'SELLING_PRICE' as const,
-                  sortOrder: 2,
-                },
+                { id: 'c', name: 'Marketing', operator: 'PERCENT' as const, value: 1, priceTarget: 'COST_PRICE' as const, sortOrder: 1 },
+                { id: 's', name: 'เปิดบูธ', operator: 'PERCENT' as const, value: 1, priceTarget: 'SELLING_PRICE' as const, sortOrder: 2 },
               ],
             },
           ],
         },
       }),
     ]);
-    const row = report.rows[0];
-    // selling-side: 500000 - 3000 → sellingPriceDiff = -3000 → rebate 3000
-    // cost-side dropped entirely (no stock → no cost base)
-    expect(row.baseCommission).toBe(3000);
-    expect(row.claimTotal).toBe(8000); // 5000 discount + 3000 commission
+    // no stock → cost base 0 → cost-based % = 0 ; selling 1% of 500,000 = 5,000
+    expect(report.rows[0].baseCommission).toBe(5000);
+    expect(report.rows[0].claimTotal).toBe(5000);
   });
 
   test('empty input produces empty rows and zero totals', () => {
