@@ -5,7 +5,7 @@ import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
 import { campaignService } from '../../services/campaign.service';
 import type { Campaign } from '../../services/campaign.service';
-import { Plus, Search, Eye, Edit, Trash2, Calendar, BarChart3 } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Calendar, BarChart3, Copy } from 'lucide-react';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
 
@@ -49,6 +49,14 @@ export const CampaignsListPage: React.FC = () => {
     mutationFn: (id: string) => campaignService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => campaignService.duplicate(id),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      navigate(`/campaigns/${created.id}/edit`);
     },
   });
 
@@ -232,6 +240,16 @@ export const CampaignsListPage: React.FC = () => {
                               title="แก้ไข"
                             >
                               <Edit className="w-5 h-5" />
+                            </button>
+                          )}
+                          {canCreate && (
+                            <button
+                              onClick={() => duplicateMutation.mutate(campaign.id)}
+                              disabled={duplicateMutation.isPending}
+                              className="text-gray-600 hover:text-blue-600 disabled:opacity-50"
+                              title="ทำสำเนา"
+                            >
+                              <Copy className="w-5 h-5" />
                             </button>
                           )}
                           {canDelete && (
