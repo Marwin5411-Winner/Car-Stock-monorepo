@@ -43,8 +43,32 @@ export interface FormulaPreset {
 // Brand-standard expense lines (rates mirror the report's DEFAULT_SUBSIDY_RATES;
 // the user edits the % and deletes chips that don't apply).
 export const FORMULA_PRESETS: FormulaPreset[] = [
-  { label: 'เปิดบูธ 0.5%', operator: 'PERCENT', priceTarget: 'SELLING_PRICE', value: 0.5, defaultName: 'เปิดบูธ' },
-  { label: 'Marketing 1%', operator: 'PERCENT', priceTarget: 'COST_PRICE', value: 1, defaultName: 'Marketing' },
-  { label: 'After Sales 0.25%', operator: 'PERCENT', priceTarget: 'SELLING_PRICE', value: 0.25, defaultName: 'After Sales' },
-  { label: 'เป้าขาย 1%', operator: 'PERCENT', priceTarget: 'COST_PRICE', value: 1, defaultName: 'เป้าขาย' },
+  {
+    label: 'เปิดบูธ 0.5%',
+    operator: 'PERCENT',
+    priceTarget: 'SELLING_PRICE',
+    value: 0.5,
+    defaultName: 'เปิดบูธ',
+  },
+  {
+    label: 'Marketing 1%',
+    operator: 'PERCENT',
+    priceTarget: 'COST_PRICE',
+    value: 1,
+    defaultName: 'Marketing',
+  },
+  {
+    label: 'After Sales 0.25%',
+    operator: 'PERCENT',
+    priceTarget: 'SELLING_PRICE',
+    value: 0.25,
+    defaultName: 'After Sales',
+  },
+  {
+    label: 'เป้าขาย 1%',
+    operator: 'PERCENT',
+    priceTarget: 'COST_PRICE',
+    value: 1,
+    defaultName: 'เป้าขาย',
+  },
 ];
