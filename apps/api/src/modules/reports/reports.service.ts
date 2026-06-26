@@ -10,7 +10,7 @@ import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
 import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
 import { buildCampaignClaimReport } from './campaign-claim.helpers';
-import { buildSalespersonBreakdown } from './sales-summary.helpers';
+import { buildSalespersonBreakdown, computeSaleMoney } from './sales-summary.helpers';
 
 // Helper functions
 const toNumber = (val: Decimal | number | null | undefined): number => {
@@ -742,10 +742,19 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     const financeCommission = toNumber(sale.financeCommission) || 0;
     const salesCommission = toNumber(sale.salesCommission) || 0;
     const salesExpense = toNumber(sale.salesExpense) || 0;
-    // Spec: netProfit = gross profit + finance commission − staff commission − sales expense.
-    // Buyer-charged fees are pass-through and excluded.
-    const netProfit =
-      sellingPrice - totalCostWithInterest + financeCommission - salesCommission - salesExpense;
+    const discountAmount =
+      sale.carDiscount != null ? toNumber(sale.carDiscount) : toNumber(sale.discountSnapshot) || 0;
+    // Per-car campaign subsidy folds into net profit (brand reimbursement) and
+    // offsets the car discount for display. See computeSaleMoney + B5 spec.
+    const { campaignSubsidy, netCarDiscount, netProfit } = computeSaleMoney({
+      sellingPrice,
+      totalCostWithInterest,
+      carDiscount: discountAmount,
+      campaignSubsidy: toNumber(sale.campaignSubsidySnapshot),
+      financeCommission,
+      salesCommission,
+      salesExpense,
+    });
     const interestCost = Math.round(accumulatedInterest * 100) / 100;
 
     return {
@@ -766,10 +775,9 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
         PAYMENT_MODE_LABELS[sale.paymentMode as keyof typeof PAYMENT_MODE_LABELS] ||
         sale.paymentMode,
       totalAmount: sellingPrice,
-      discountAmount:
-        sale.carDiscount != null
-          ? toNumber(sale.carDiscount)
-          : toNumber(sale.discountSnapshot) || 0,
+      discountAmount,
+      campaignSubsidy,
+      netCarDiscount,
       downPaymentDiscount: toNumber(sale.downPaymentDiscount) || 0,
       downPayment: toNumber(sale.downPayment) || toNumber(sale.depositAmount) || 0,
       financeAmount: toNumber(sale.financeAmount) || 0,
@@ -828,6 +836,8 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
   const totalSalesExpense = sumField('salesExpense');
   const totalInsurancePremium = sumField('insurancePremium');
   const totalNetProfit = sumField('netProfit');
+  const totalCampaignSubsidy = sumField('campaignSubsidy');
+  const totalNetCarDiscount = sumField('netCarDiscount');
 
   // ยอดมูลค่าขาย/ภาษีขาย from selling price; ยอดมูลค่าต้นทุน/ภาษีซื้อ from base cost
   const saleVat = saleItems.reduce(
@@ -943,6 +953,8 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       byStatus,
       byPaymentMode,
       totalCarDiscount,
+      totalCampaignSubsidy,
+      totalNetCarDiscount,
       totalDownPaymentDiscount,
       totalDownPayment,
       totalFinanceAmount,
