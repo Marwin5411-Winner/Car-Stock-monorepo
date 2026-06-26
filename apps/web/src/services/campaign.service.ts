@@ -260,6 +260,11 @@ class CampaignService {
     return response.data;
   }
 
+  async duplicate(id: string): Promise<Campaign> {
+    const res = await api.post<ApiResponse<Campaign>>(`/api/campaigns/${id}/duplicate`, {});
+    return res.data;
+  }
+
   async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
     const response = await api.put<ApiResponse<Campaign>>(`/api/campaigns/${id}`, data);
     return response.data;

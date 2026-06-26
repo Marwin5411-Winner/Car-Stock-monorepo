@@ -370,6 +370,19 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       },
     }
   )
+  // Duplicate campaign (ADMIN only)
+  .post(
+    '/:id/duplicate',
+    async ({ params, set, requester }) => {
+      const campaign = await campaignsService.duplicate(params.id, requester.id);
+      set.status = 201;
+      return { success: true, data: campaign, message: 'Campaign duplicated' };
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_CREATE')],
+      detail: { tags: ['Campaigns'], summary: 'Duplicate a campaign' },
+    }
+  )
   // Delete campaign (ADMIN only)
   .delete(
     '/:id',

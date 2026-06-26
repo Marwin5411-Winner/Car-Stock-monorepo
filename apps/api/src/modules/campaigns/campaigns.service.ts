@@ -3,6 +3,7 @@ import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '.
 import { Prisma, CampaignStatus } from '@prisma/client';
 import { campaignFormulasService } from './campaign-formulas.service';
 import { diffModelSet } from './campaign-model-set.helpers';
+import { buildClonedCampaign, type CloneSource } from './campaign-duplicate.helpers';
 
 /**
  * Derive the display status of a campaign at read time. The stored
@@ -267,6 +268,73 @@ class CampaignsService {
       ...campaign,
       vehicleModels: campaign.vehicleModels.map((vm) => vm.vehicleModel),
     };
+  }
+
+  /** Clone a campaign (models + formulas), next-month dates, status DRAFT. */
+  async duplicate(id: string, userId: string) {
+    const source = await db.campaign.findUnique({
+      where: { id },
+      include: {
+        vehicleModels: { include: { formulas: true } },
+      },
+    });
+    if (!source) throw new NotFoundError('ไม่พบแคมเปญ');
+
+    const cloneSource: CloneSource = {
+      name: source.name,
+      description: source.description,
+      branch: source.branch,
+      notes: source.notes,
+      startDate: source.startDate,
+      endDate: source.endDate,
+      vehicleModelIds: source.vehicleModels.map((vm) => vm.vehicleModelId),
+      formulas: source.vehicleModels.flatMap((vm) =>
+        vm.formulas.map((f) => ({
+          vehicleModelId: f.vehicleModelId,
+          name: f.name,
+          operator: f.operator,
+          value: Number(f.value),
+          priceTarget: f.priceTarget,
+          sortOrder: f.sortOrder,
+        }))
+      ),
+    };
+
+    const cloned = buildClonedCampaign(cloneSource);
+
+    const created = await db.$transaction(async (tx) => {
+      const campaign = await tx.campaign.create({
+        data: {
+          name: cloned.name,
+          description: cloned.description,
+          branch: cloned.branch,
+          notes: cloned.notes,
+          status: cloned.status,
+          startDate: cloned.startDate,
+          endDate: cloned.endDate,
+          createdById: userId,
+          vehicleModels: {
+            create: cloned.vehicleModelIds.map((vehicleModelId) => ({ vehicleModelId })),
+          },
+        },
+      });
+      if (cloned.formulas.length) {
+        await tx.campaignModelFormula.createMany({
+          data: cloned.formulas.map((f) => ({
+            campaignId: campaign.id,
+            vehicleModelId: f.vehicleModelId,
+            name: f.name,
+            operator: f.operator,
+            value: f.value,
+            priceTarget: f.priceTarget,
+            sortOrder: f.sortOrder,
+          })),
+        });
+      }
+      return campaign;
+    });
+
+    return this.getById(created.id);
   }
 
   /**
