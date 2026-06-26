@@ -217,6 +217,23 @@ export interface SalesSummaryItem {
   priceNet?: number;
   priceVat?: number;
   priceGross?: number;
+  // Money breakdown — always returned by getSalesSummaryReport (reports.service.ts),
+  // previously untyped on the web. Mirrors the server PDF columns (sales-summary-report.hbs).
+  discountAmount?: number; // ส่วนลดตัวรถ
+  campaignSubsidy?: number; // เงินสนับสนุน (brand rebate)
+  netCarDiscount?: number; // ส่วนลดตัวรถ สุทธิ (discount − subsidy)
+  downPayment?: number; // เงินดาวน์
+  downPaymentDiscount?: number; // ส่วนลดดาวน์
+  financeAmount?: number; // ยอดจัด
+  financeReturn?: number; // ค่าคอมไฟแนนซ์ (= sale.financeCommission)
+  interestCost?: number; // ดอกเบี้ย
+  transportFee?: number; // ทะเบียน/พรบ/ขนส่ง (registrationFee + compulsoryInsuranceFee)
+  totalCost?: number; // ต้นทุน
+  campaignName?: string; // แคมเปญขาย
+  salesCommission?: number; // คอมฯ พนักงานขาย
+  salesExpense?: number; // ค่าใช้จ่ายในการขาย
+  insurancePremium?: number; // ค่าเบี้ยประกัน (= sale.insuranceFee)
+  netProfit?: number; // กำไรสุทธิ
 }
 
 export interface SalespersonSummary {
