@@ -1,7 +1,7 @@
 import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '../../lib/errors';
 import { Prisma, CampaignStatus } from '@prisma/client';
-import { campaignFormulasService } from './campaign-formulas.service';
+import { formulaSubsidyAmount, sumCampaignSubsidies } from '@car-stock/shared/formulas';
 import { diffModelSet } from './campaign-model-set.helpers';
 import { buildClonedCampaign, type CloneSource } from './campaign-duplicate.helpers';
 
@@ -948,26 +948,35 @@ class CampaignsService {
       const costPrice = sale.stock ? Number(sale.stock.baseCost) : 0;
       const sellingPrice = Number(vmInfo.vehicleModel.price);
 
-      // Delegate to the shared formula engine so the report and any other
-      // caller (analytics, future quotation preview, etc.) all compute the
-      // same rebate from the same code path — no drift, no per-step
-      // rounding mismatch.
-      const applied = campaignFormulasService.applyLoadedFormulas(
-        vmInfo.formulas,
-        costPrice,
-        sellingPrice
+      // Per-car claim = the sum of independent expense line items (each a % of
+      // the chosen base, or a flat baht amount). No chaining: each line stands
+      // alone, computed by the shared sum engine so the editor, this report,
+      // and the claim PDF never drift.
+      const bases = { cost: costPrice, selling: sellingPrice };
+      const formulaResults = vmInfo.formulas.map((f: any) => ({
+        formulaId: f.id,
+        name: f.name,
+        operator: f.operator,
+        value: Number(f.value),
+        priceTarget: f.priceTarget,
+        sortOrder: f.sortOrder,
+        resultValue: formulaSubsidyAmount(f.operator, Number(f.value), f.priceTarget, bases),
+      }));
+      const rebatePerCar = sumCampaignSubsidies(
+        vmInfo.formulas.map((f: any) => ({
+          operator: f.operator,
+          value: Number(f.value),
+          priceTarget: f.priceTarget,
+        })),
+        bases
       );
-      const adjustedCostPrice = applied.adjustedCostPrice;
-      const adjustedSellingPrice = applied.adjustedSellingPrice;
-      const formulaResults = applied.formulaResults;
 
-      // Rebate per car = the supplier-owed amount the dealership claims.
-      // Convention: when formulas REDUCE the cost/selling price (a typical
-      // supplier incentive), the diff is negative; the rebate is its
-      // negation so a positive number always means "supplier pays dealership".
-      const costPriceDiff = applied.costPriceDiff;
-      const sellingPriceDiff = applied.sellingPriceDiff;
-      const rebatePerCar = -(costPriceDiff + sellingPriceDiff);
+      // Chain-era fields are no longer meaningful under the additive model;
+      // keep them in the payload (web does not render them) as neutral values.
+      const adjustedCostPrice = costPrice;
+      const adjustedSellingPrice = sellingPrice;
+      const costPriceDiff = 0;
+      const sellingPriceDiff = 0;
 
       const saleReportItem = {
         saleId: sale.id,
