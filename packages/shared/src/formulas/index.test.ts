@@ -42,3 +42,27 @@ describe('sumCampaignSubsidies', () => {
   test('empty list is 0', () =>
     expect(sumCampaignSubsidies([], { cost: 1, selling: 1 })).toBe(0));
 });
+
+describe('expense-model contract (locks downstream repoints)', () => {
+  test('PERCENT of SELLING_PRICE is % of selling', () =>
+    expect(
+      formulaSubsidyAmount('PERCENT', 1, 'SELLING_PRICE', { cost: 800_000, selling: 1_000_000 })
+    ).toBe(10_000));
+
+  test('worked example: 1% + 5% of selling + FIXED 3,000 = 63,000', () => {
+    const total = sumCampaignSubsidies(
+      [
+        { operator: 'PERCENT', value: 1, priceTarget: 'SELLING_PRICE' },
+        { operator: 'PERCENT', value: 5, priceTarget: 'SELLING_PRICE' },
+        { operator: 'FIXED', value: 3_000, priceTarget: 'SELLING_PRICE' },
+      ],
+      { cost: 800_000, selling: 1_000_000 }
+    );
+    expect(total).toBe(63_000);
+  });
+
+  test('no cost base (cost=0): a cost-based PERCENT contributes 0', () =>
+    expect(
+      formulaSubsidyAmount('PERCENT', 1, 'COST_PRICE', { cost: 0, selling: 1_000_000 })
+    ).toBe(0));
+});
