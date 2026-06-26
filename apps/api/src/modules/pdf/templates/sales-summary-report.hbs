@@ -78,7 +78,7 @@
 <div class="section">
   <table style="font-size: 8px; width: 100%; table-layout: fixed;">
     <colgroup>
-      <col style="width: 3%"><col style="width: 8%"><col style="width: 7%"><col style="width: 6%"><col style="width: 3%"><col style="width: 3%"><col style="width: 5%"><col style="width: 3%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 6%"><col style="width: 5%"><col style="width: 6%"><col style="width: 5%"><col style="width: 5%"><col style="width: 3%"><col style="width: 3%"><col style="width: 3%"><col style="width: 6%">
+      <col style="width: 3%"><col style="width: 7%"><col style="width: 6%"><col style="width: 5%"><col style="width: 4%"><col style="width: 4%"><col style="width: 3%"><col style="width: 5%"><col style="width: 3%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 6%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 3%"><col style="width: 3%"><col style="width: 3%"><col style="width: 5%">
     </colgroup>
     <thead>
       <tr class="header-row">
@@ -87,6 +87,7 @@
         <th style="width: 8%">เลขเครื่อง</th>
         <th rowspan="2" style="width: 5%">ราคารถ</th>
         <th rowspan="2" style="width: 4%">ส่วนลด<br>ตัวรถ</th>
+        <th rowspan="2" style="width: 4%">เงินสนับสนุน</th>
         <th rowspan="2" style="width: 4%">ดอกเบี้ย</th>
         <th rowspan="2" style="width: 5%">เงินดาวน์</th>
         <th rowspan="2" style="width: 4%">ส่วนลด<br>ดาวน์</th>
@@ -124,7 +125,11 @@
           <span style="color: #666;">{{chassisNumber}}</span>
         </td>
         <td class="text-right">{{formatInt totalAmount}}</td>
-        <td class="text-right">{{formatInt discountAmount}}</td>
+        <td class="text-right">
+          {{formatInt discountAmount}}
+          {{#if campaignSubsidy}}<br><span style="color: #888; font-size: 7px;">สุทธิ {{formatInt netCarDiscount}}</span>{{/if}}
+        </td>
+        <td class="text-right">{{formatInt campaignSubsidy}}</td>
         <td class="text-right">{{formatInt interestCost}}</td>
         <td class="text-right">{{formatInt downPayment}}</td>
         <td class="text-right">{{formatInt downPaymentDiscount}}</td>
@@ -146,7 +151,11 @@
       <tr style="font-weight: bold; background-color: #eee;">
         <td colspan="3" class="text-right">รวมทั้งสิ้น ({{summary.totalSales}} คัน)</td>
         <td class="text-right">{{formatInt summary.totalAmount}}</td>
-        <td class="text-right">{{formatInt summary.totalCarDiscount}}</td>
+        <td class="text-right">
+          {{formatInt summary.totalCarDiscount}}
+          {{#if summary.totalCampaignSubsidy}}<br><span style="color: #888; font-size: 7px;">สุทธิ {{formatInt summary.totalNetCarDiscount}}</span>{{/if}}
+        </td>
+        <td class="text-right">{{formatInt summary.totalCampaignSubsidy}}</td>
         <td class="text-right"></td>
         <td class="text-right">{{formatInt summary.totalDownPayment}}</td>
         <td class="text-right">{{formatInt summary.totalDownPaymentDiscount}}</td>
