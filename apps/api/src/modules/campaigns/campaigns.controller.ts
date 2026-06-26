@@ -6,12 +6,15 @@ import { pdfService } from '../pdf/pdf.service';
 import { formatThaiDate, formatCurrency } from '../pdf/helpers';
 import { db } from '../../lib/db';
 
+// Expense model: percent rows show a bare "n%", fixed rows a bare baht amount.
+// Legacy SUBTRACT keeps its minus sign for old rows.
 const OPERATOR_SYMBOLS: Record<string, string> = {
-  ADD: '+',
+  ADD: '',
   SUBTRACT: '-',
   MULTIPLY: '×',
-  PERCENT: '+',
-  PERCENT_SUBTRACT: '-',
+  PERCENT: '',
+  PERCENT_SUBTRACT: '',
+  FIXED: '',
 };
 
 async function getCompanyHeader(): Promise<any> {

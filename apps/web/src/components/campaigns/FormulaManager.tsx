@@ -1,32 +1,17 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formulaSubsidyAmount, sumCampaignSubsidies } from '@car-stock/shared/formulas';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Calculator, Edit, Plus, Save, Trash2, X } from 'lucide-react';
+import type React from 'react';
+import { useState } from 'react';
 import { campaignService } from '../../services/campaign.service';
 import type {
   CampaignFormula,
   CreateFormulaData,
-  FormulaOperator,
-  FormulaPriceTarget,
   VehicleModelSummary,
 } from '../../services/campaign.service';
-import {
-  Plus,
-  Trash2,
-  Edit,
-  GripVertical,
-  ArrowUp,
-  ArrowDown,
-  Save,
-  X,
-  Calculator,
-} from 'lucide-react';
-import { applyFormulaStep, sumCampaignSubsidies } from '@car-stock/shared/formulas';
-import {
-  OPERATOR_OPTIONS,
-  FORMULA_PRESETS,
-  operatorUnitSuffix,
-  priceTargetLabel,
-  describeFormula,
-} from './formulaText';
+import { FORMULA_PRESETS, describeFormula, operatorToKind, priceTargetLabel } from './formulaText';
+
+const fmt = (n: number) => n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
 
 interface FormulaFormProps {
   formData: CreateFormulaData;
@@ -47,8 +32,7 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
   isPending,
   vehicleModel,
 }) => {
-  // Keep the value as raw text while typing so it can be cleared and accept
-  // decimals (coercing on every keystroke makes the field stick at 0).
+  // Keep the value as raw text while typing so it can be cleared and accept decimals.
   const [valueText, setValueText] = useState(() =>
     Number.isFinite(formData.value) && formData.value !== 0 ? String(formData.value) : ''
   );
@@ -56,110 +40,123 @@ const FormulaForm: React.FC<FormulaFormProps> = ({
   const handleValueChange = (raw: string) => {
     if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return; // digits + one dot only
     setValueText(raw);
-    const n = parseFloat(raw);
+    const n = Number.parseFloat(raw);
     setFormData((prev) => ({ ...prev, value: Number.isFinite(n) ? n : 0 }));
   };
 
-  const suffix = operatorUnitSuffix(formData.operator);
-  const targetLabel = priceTargetLabel(formData.priceTarget);
+  const isPercent = operatorToKind(formData.operator) === 'PERCENT';
   const valNum = Number.isFinite(formData.value) ? formData.value : 0;
 
-  // Real-number preview against the model's actual price for the chosen target.
-  const base =
-    formData.priceTarget === 'COST_PRICE'
-      ? Number(vehicleModel.standardCost)
-      : Number(vehicleModel.price);
+  const cost = Number(vehicleModel.standardCost);
+  const selling = Number(vehicleModel.price);
+  const base = formData.priceTarget === 'COST_PRICE' ? cost : selling;
   const hasBase = Number.isFinite(base) && base > 0;
-  const result = hasBase ? applyFormulaStep(base, formData.operator, valNum) : 0;
-  const delta = result - base;
-  const fmt = (n: number) => n.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+  const amount = formulaSubsidyAmount(formData.operator, valNum, formData.priceTarget, {
+    cost: Number.isFinite(cost) ? cost : 0,
+    selling: Number.isFinite(selling) ? selling : 0,
+  });
+
+  // Radio group names must be unique per model so multiple open editors don't collide.
+  const kindName = `kind-${vehicleModel.id}`;
+  const baseName = `base-${vehicleModel.id}`;
 
   return (
     <div className="bg-gray-50 rounded-lg p-4 space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">ตั้งชื่อสูตร</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อรายการ</label>
         <input
           type="text"
           value={formData.name}
           onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="เช่น ส่วนลดพิเศษ, คอมมิชชั่นเพิ่ม"
+          placeholder="เช่น เปิดบูธ, Marketing, ค่าขนส่ง"
         />
       </div>
 
-      {/* Sentence row: เอา [ราคา] มา [การกระทำ] [ค่า] */}
-      <div className="flex flex-wrap items-end gap-2 text-base">
-        {formData.operator !== 'FIXED' && (
-          <>
-            <span className="pb-2 text-gray-700">เอา</span>
-            <select
-              value={formData.priceTarget}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  priceTarget: e.target.value as FormulaPriceTarget,
-                }))
-              }
-              className="px-3 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="SELLING_PRICE">ราคาขาย</option>
-              <option value="COST_PRICE">ราคาทุน</option>
-            </select>
-            <span className="pb-2 text-gray-700">มา</span>
-          </>
-        )}
-        {formData.operator === 'FIXED' && (
-          <span className="pb-2 text-gray-700">ตั้งเป็นจำนวนเงิน</span>
-        )}
-        <select
-          value={formData.operator}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, operator: e.target.value as FormulaOperator }))
-          }
-          className="px-3 py-2 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
-        >
-          {OPERATOR_OPTIONS.map((o) => (
-            <option key={o.operator} value={o.operator}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+      {/* คิดจาก: % ของราคา หรือ จำนวนเงินคงที่ */}
+      <div className="flex flex-wrap items-center gap-4 text-base">
+        <span className="text-gray-700">คิดจาก:</span>
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="radio"
+            name={kindName}
+            checked={isPercent}
+            onChange={() => setFormData((prev) => ({ ...prev, operator: 'PERCENT' }))}
+          />
+          <span>% ของราคา</span>
+        </label>
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="radio"
+            name={kindName}
+            checked={!isPercent}
+            onChange={() => setFormData((prev) => ({ ...prev, operator: 'FIXED' }))}
+          />
+          <span>จำนวนเงินคงที่</span>
+        </label>
+      </div>
+
+      {/* ฐาน (เฉพาะแบบ %) */}
+      {isPercent && (
+        <div className="flex flex-wrap items-center gap-4 text-base">
+          <span className="text-gray-700">ฐาน:</span>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              name={baseName}
+              checked={formData.priceTarget === 'SELLING_PRICE'}
+              onChange={() => setFormData((prev) => ({ ...prev, priceTarget: 'SELLING_PRICE' }))}
+            />
+            <span>ราคาขาย</span>
+          </label>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              name={baseName}
+              checked={formData.priceTarget === 'COST_PRICE'}
+              onChange={() => setFormData((prev) => ({ ...prev, priceTarget: 'COST_PRICE' }))}
+            />
+            <span>ราคาทุน</span>
+          </label>
+        </div>
+      )}
+
+      {/* ค่า */}
+      <div className="flex items-center gap-2">
+        <span className="text-gray-700">{isPercent ? 'เปอร์เซ็นต์:' : 'จำนวนเงิน:'}</span>
         <div className="relative">
           <input
             type="text"
             inputMode="decimal"
             value={valueText}
             onChange={(e) => handleValueChange(e.target.value)}
-            className="w-28 px-3 py-2 pr-9 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
+            className="w-32 px-3 py-2 pr-9 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500"
             placeholder="0"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">
-            {suffix}
+            {isPercent ? '%' : '฿'}
           </span>
         </div>
       </div>
 
-      {/* Real-number live preview */}
+      {/* ตัวอย่างค่าใช้จ่ายต่อคัน */}
       <div className="rounded-lg bg-purple-50 px-4 py-3 text-purple-900">
-        {formData.operator === 'FIXED' ? (
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-sm text-purple-700">
-              {describeFormula(formData.operator, valNum, formData.priceTarget)}
-            </span>
+        {!isPercent ? (
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-sm text-purple-700">จำนวนเงินคงที่</span>
+            <span className="text-lg font-bold">{fmt(valNum)} บาท</span>
           </div>
         ) : hasBase ? (
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-sm">{targetLabel}</span>
-            <span className="font-semibold">{fmt(base)}</span>
-            <span className="text-sm text-purple-700">
-              → {describeFormula(formData.operator, valNum, formData.priceTarget)} ({delta >= 0 ? '+' : ''}
-              {fmt(delta)}) →
+            <span className="text-sm">
+              {valNum}% ของ{priceTargetLabel(formData.priceTarget)} {fmt(base)}
             </span>
-            <span className="text-lg font-bold">{fmt(result)} บาท</span>
+            <span className="text-sm text-purple-700">=</span>
+            <span className="text-lg font-bold">{fmt(amount)} บาท</span>
           </div>
         ) : (
           <div className="text-sm text-purple-700">
-            รุ่นนี้ยังไม่ได้ตั้ง{targetLabel} จึงยังไม่แสดงตัวอย่างเป็นตัวเลข
+            รุ่นนี้ยังไม่ได้ตั้ง{priceTargetLabel(formData.priceTarget)} จึงยังไม่แสดงตัวอย่างเป็นตัวเลข
           </div>
         )}
       </div>
@@ -190,23 +187,29 @@ interface FormulaManagerProps {
   vehicleModel: VehicleModelSummary;
 }
 
+const EMPTY_FORM: CreateFormulaData = {
+  name: '',
+  operator: 'PERCENT',
+  value: 0,
+  priceTarget: 'SELLING_PRICE',
+};
+
 export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehicleModel }) => {
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateFormulaData>({
-    name: '',
-    operator: 'PERCENT_SUBTRACT',
-    value: 0,
-    priceTarget: 'SELLING_PRICE',
-  });
+  const [formData, setFormData] = useState<CreateFormulaData>(EMPTY_FORM);
 
   const queryKey = ['campaign-formulas', campaignId, vehicleModel.id];
 
-  const { data: formulas = [], isLoading } = useQuery({
+  const { data: rawFormulas = [], isLoading } = useQuery({
     queryKey,
     queryFn: () => campaignService.getFormulas(campaignId, vehicleModel.id),
   });
+  // The API serialises Prisma Decimal `value` as a string (e.g. "1"); coerce it
+  // once so the shared engine + describeFormula (which guard with
+  // Number.isFinite) see real numbers — otherwise every saved row renders as 0.
+  const formulas = rawFormulas.map((f) => ({ ...f, value: Number(f.value) }));
 
   const createMutation = useMutation({
     mutationFn: (data: CreateFormulaData) =>
@@ -235,16 +238,8 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
     },
   });
 
-  const reorderMutation = useMutation({
-    mutationFn: (items: { formulaId: string; sortOrder: number }[]) =>
-      campaignService.reorderFormulas(campaignId, vehicleModel.id, items),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
-
   const resetForm = () => {
-    setFormData({ name: '', operator: 'PERCENT_SUBTRACT', value: 0, priceTarget: 'SELLING_PRICE' });
+    setFormData(EMPTY_FORM);
     setIsAdding(false);
     setEditingId(null);
   };
@@ -276,37 +271,14 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
     setFormData({
       name: preset.defaultName,
       operator: preset.operator,
-      value: 0,
+      value: preset.value,
       priceTarget: preset.priceTarget,
     });
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const items = formulas.map((f, i) => ({
-      formulaId: f.id,
-      sortOrder:
-        i === index
-          ? formulas[index - 1].sortOrder
-          : i === index - 1
-            ? formulas[index].sortOrder
-            : f.sortOrder,
-    }));
-    reorderMutation.mutate(items);
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index === formulas.length - 1) return;
-    const items = formulas.map((f, i) => ({
-      formulaId: f.id,
-      sortOrder:
-        i === index
-          ? formulas[index + 1].sortOrder
-          : i === index + 1
-            ? formulas[index].sortOrder
-            : f.sortOrder,
-    }));
-    reorderMutation.mutate(items);
+  const bases = {
+    cost: Number(vehicleModel.standardCost) || 0,
+    selling: Number(vehicleModel.price) || 0,
   };
 
   return (
@@ -318,7 +290,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
             {vehicleModel.brand} {vehicleModel.model} {vehicleModel.variant || ''}
           </h3>
           <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-            {formulas.length} สูตร
+            {formulas.length} รายการ
           </span>
         </div>
         {!isAdding && !editingId && (
@@ -326,17 +298,20 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
             onClick={() => {
               setIsAdding(true);
               setEditingId(null);
-              setFormData({ name: '', operator: 'PERCENT_SUBTRACT', value: 0, priceTarget: 'SELLING_PRICE' });
+              setFormData(EMPTY_FORM);
             }}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            เพิ่มสูตร
+            เพิ่มรายการ
           </button>
         )}
       </div>
+
+      <p className="px-4 pt-3 text-xs text-gray-500">รายการค่าใช้จ่ายแต่ละรายการต่อคัน</p>
+
       {!isAdding && !editingId && (
-        <div className="flex flex-wrap gap-2 px-4 pt-3 pb-1">
+        <div className="flex flex-wrap gap-2 px-4 pt-2 pb-1">
           <span className="text-xs text-gray-500 self-center">แนะนำ:</span>
           {FORMULA_PRESETS.map((p) => (
             <button
@@ -355,22 +330,22 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
 
         {!isLoading && formulas.length === 0 && !isAdding && (
           <div className="text-center py-6">
-            <p className="text-sm text-gray-500 mb-3">ยังไม่มีสูตรสำหรับรุ่นนี้</p>
+            <p className="text-sm text-gray-500 mb-3">ยังไม่มีรายการค่าใช้จ่ายสำหรับรุ่นนี้</p>
             <button
               onClick={() => {
                 setIsAdding(true);
                 setEditingId(null);
-                setFormData({ name: '', operator: 'PERCENT_SUBTRACT', value: 0, priceTarget: 'SELLING_PRICE' });
+                setFormData(EMPTY_FORM);
               }}
               className="inline-flex items-center gap-1 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              เพิ่มสูตรแรก
+              เพิ่มรายการแรก
             </button>
           </div>
         )}
 
-        {formulas.map((formula, index) => (
+        {formulas.map((formula) => (
           <div key={formula.id}>
             {editingId === formula.id ? (
               <FormulaForm
@@ -384,44 +359,36 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
               />
             ) : (
               <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={() => handleMoveUp(index)}
-                    disabled={index === 0 || reorderMutation.isPending}
-                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                  >
-                    <ArrowUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleMoveDown(index)}
-                    disabled={index === formulas.length - 1 || reorderMutation.isPending}
-                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                  >
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <GripVertical className="w-4 h-4" />
-                  <span>#{index + 1}</span>
-                </div>
-
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900 text-sm">{formula.name}</span>
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded-full ${
-                        formula.priceTarget === 'COST_PRICE'
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}
-                    >
-                      {priceTargetLabel(formula.priceTarget)}
-                    </span>
+                    {operatorToKind(formula.operator) === 'PERCENT' && (
+                      <span
+                        className={`px-2 py-0.5 text-xs rounded-full ${
+                          formula.priceTarget === 'COST_PRICE'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {priceTargetLabel(formula.priceTarget)}
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-700 mt-0.5">
                     {describeFormula(formula.operator, formula.value, formula.priceTarget)}
                   </div>
+                </div>
+
+                <div className="text-base font-semibold text-purple-700 whitespace-nowrap">
+                  {fmt(
+                    formulaSubsidyAmount(
+                      formula.operator,
+                      formula.value,
+                      formula.priceTarget,
+                      bases
+                    )
+                  )}{' '}
+                  บาท
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -433,7 +400,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm('ต้องการลบสูตรนี้?')) {
+                      if (confirm('ต้องการลบรายการนี้?')) {
                         deleteMutation.mutate(formula.id);
                       }
                     }}
@@ -450,12 +417,18 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
 
         {formulas.length > 0 && (
           <div className="mt-2 flex items-baseline justify-between border-t border-gray-200 pt-2">
-            <span className="text-sm text-gray-600">ยอดรวมแคมเปญต่อคัน</span>
+            <span className="text-sm text-gray-600">รวมต้องเบิกต่อคัน</span>
             <span className="text-lg font-bold text-purple-700">
-              {sumCampaignSubsidies(
-                formulas.map((f) => ({ operator: f.operator, value: f.value, priceTarget: f.priceTarget })),
-                { cost: Number(vehicleModel.standardCost) || 0, selling: Number(vehicleModel.price) || 0 }
-              ).toLocaleString('th-TH', { maximumFractionDigits: 2 })}{' '}
+              {fmt(
+                sumCampaignSubsidies(
+                  formulas.map((f) => ({
+                    operator: f.operator,
+                    value: f.value,
+                    priceTarget: f.priceTarget,
+                  })),
+                  bases
+                )
+              )}{' '}
               บาท
             </span>
           </div>

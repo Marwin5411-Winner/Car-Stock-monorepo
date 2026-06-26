@@ -259,18 +259,19 @@ export const CampaignDetailPage: React.FC = () => {
         {/* Formula Management — full width below the grid for more room */}
         {campaign.vehicleModels.length === 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">สูตรคำนวณราคา / คอมมิชชั่น</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">ค่าใช้จ่ายแคมเปญต่อคัน</h2>
             <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center bg-gray-50">
               <p className="text-sm text-gray-600">ยังไม่มีรุ่นรถยนต์ในแคมเปญนี้</p>
-              <p className="text-xs text-gray-500 mt-1">เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดสูตรคำนวณ Rebate</p>
+              <p className="text-xs text-gray-500 mt-1">เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดรายการค่าใช้จ่ายต่อคัน</p>
             </div>
           </div>
         )}
         {campaign.vehicleModels.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">สูตรคำนวณราคา / คอมมิชชั่น</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">ค่าใช้จ่ายแคมเปญต่อคัน</h2>
             <p className="text-sm text-gray-500 mb-4">
-              กำหนดสูตรคำนวณสำหรับแต่ละรุ่นรถยนต์ สามารถเพิ่ม +, -, ×, % และเรียงลำดับการคำนวณได้
+              กำหนดรายการค่าใช้จ่ายต่อคันของแต่ละรุ่น คิดเป็น % ของราคาขาย/ราคาทุน หรือจำนวนเงินคงที่
+              แล้วรวมเป็นยอดที่ต้องเบิกต่อคัน
             </p>
             <div className="space-y-4">
               {campaign.vehicleModels.map((model) => (
