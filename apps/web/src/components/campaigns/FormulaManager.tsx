@@ -202,10 +202,14 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
 
   const queryKey = ['campaign-formulas', campaignId, vehicleModel.id];
 
-  const { data: formulas = [], isLoading } = useQuery({
+  const { data: rawFormulas = [], isLoading } = useQuery({
     queryKey,
     queryFn: () => campaignService.getFormulas(campaignId, vehicleModel.id),
   });
+  // The API serialises Prisma Decimal `value` as a string (e.g. "1"); coerce it
+  // once so the shared engine + describeFormula (which guard with
+  // Number.isFinite) see real numbers — otherwise every saved row renders as 0.
+  const formulas = rawFormulas.map((f) => ({ ...f, value: Number(f.value) }));
 
   const createMutation = useMutation({
     mutationFn: (data: CreateFormulaData) =>
