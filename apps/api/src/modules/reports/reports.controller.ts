@@ -797,13 +797,10 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         return { success: false, error: 'BadRequest', message: 'brand is required' };
       }
 
-      const tier = query.tier != null && query.tier !== '' ? Number(query.tier) : undefined;
-
       const result = await reportsService.getCampaignClaimReport({
         year,
         month,
         brand: query.brand,
-        retailTargetTier: Number.isFinite(tier) ? tier : undefined,
       });
 
       set.status = 200;
@@ -815,7 +812,6 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         year: t.String(),
         month: t.String(),
         brand: t.String(),
-        tier: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Reports'],
