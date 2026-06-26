@@ -679,7 +679,8 @@ export const MonthlyPurchasesResponseSchema = z.object({
 // Campaign Claim Report (new)
 // ============================================================================
 
-// Brand reimbursement subsidy buckets (mirrors the customer's claim form).
+// @deprecated Brand-bucket subsidy shape. No longer part of the claim report
+// response (now editor-driven). Retained for the computeCampaignSubsidies unit test.
 export const CampaignSubsidySchema = z.object({
   stockLevel: z.number(), // MSRP × 0.5%
   afterSalesNoComplaint: z.number(), // MSRP × 0.25%
@@ -702,12 +703,10 @@ export const CampaignClaimRowSchema = z.object({
   notifyDate: z.string().nullable(),
   campaignName: z.string(),
   salePrice: z.number(),
-  promotionDiscount: z.number(),
-  baseCommission: z.number(),
-  claimTotal: z.number(),
-  subsidies: CampaignSubsidySchema,
-  // One slot per modelColumns entry; claimTotal in the car's column, null elsewhere.
-  modelAmounts: z.array(z.number().nullable()),
+  // Per-car expense amounts, aligned 1:1 to expenseColumns; null = the car's
+  // model does not define that expense line.
+  cells: z.array(z.number().nullable()),
+  total: z.number(), // sum of this car's expense lines (ยอดเบิกต่อคัน)
 });
 
 export const CampaignClaimReportResponseSchema = z.object({
@@ -718,15 +717,13 @@ export const CampaignClaimReportResponseSchema = z.object({
     endDate: z.string(),
   }),
   brand: z.string(),
-  // Chosen เป้าขาย tier fraction echoed back (0.005 / 0.01 / 0.015).
-  retailTargetTier: z.number(),
-  modelColumns: z.array(z.object({ vehicleModelId: z.string(), label: z.string() })),
+  // Distinct expense-line names (union across the month's sales), report columns.
+  expenseColumns: z.array(z.string()),
   rows: z.array(CampaignClaimRowSchema),
   summary: z.object({
     totalCars: z.number(),
-    modelTotals: z.array(z.number()),
+    columnTotals: z.array(z.number()), // aligned 1:1 to expenseColumns
     grandTotal: z.number(),
-    subsidyTotals: CampaignSubsidySchema,
   }),
 });
 
