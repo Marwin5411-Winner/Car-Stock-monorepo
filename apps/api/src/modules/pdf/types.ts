@@ -632,10 +632,8 @@ export interface CampaignClaimReportData {
   };
   monthLabel: string; // e.g. 'พฤษภาคม 2569'
   brand: string;
-  /** Chosen เป้าขาย tier label e.g. '1.0%'. */
-  tierLabel: string;
-  /** Monthly construction/booth subsidy (ค่าก่อสร้าง) — manual, shown once. */
-  constructionCost: number;
+  /** Expense-line names; the dynamic columns of the table. */
+  expenseColumns: string[];
   rows: Array<{
     no: number;
     customerName: string;
@@ -645,16 +643,15 @@ export interface CampaignClaimReportData {
     financeProvider: string;
     saleDate: string | null; // ISO string, formatted in template
     notifyDate: string | null;
-    campaignName: string;
     salePrice: number;
-    promotionDiscount: number;
-    subsidies: CampaignSubsidyAmounts;
+    /** Aligned 1:1 to expenseColumns; null = model lacks that line. */
+    cells: Array<number | null>;
+    total: number;
   }>;
   summary: {
     totalCars: number;
-    subsidyTotals: CampaignSubsidyAmounts;
-    /** subsidyTotals.total + constructionCost. */
-    grandTotalWithConstruction: number;
+    columnTotals: number[]; // aligned 1:1 to expenseColumns
+    grandTotal: number;
   };
   printedAt: string;
 }
