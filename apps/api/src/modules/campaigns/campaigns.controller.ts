@@ -137,7 +137,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       const limit = parseInt(query.limit || '20');
       const search = query.search;
 
-      const result = await campaignsService.getAll(page, limit, search);
+      const result = await campaignsService.getAll(page, limit, search, query.branch);
       set.status = 200;
       return {
         success: true,
@@ -151,12 +151,25 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         search: t.Optional(t.String()),
+        branch: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Campaigns'],
         summary: 'Get all campaigns',
         description: 'Get campaigns with pagination and search (ADMIN only)',
       },
+    }
+  )
+  // Get distinct branch labels (must be before /:id)
+  .get(
+    '/branches',
+    async () => {
+      const branches = await campaignsService.getBranches();
+      return { success: true, data: branches };
+    },
+    {
+      beforeHandle: [authMiddleware],
+      detail: { tags: ['Campaigns'], summary: 'Distinct campaign branch labels' },
     }
   )
   // Get active campaigns (for sales - any authenticated user)
@@ -294,6 +307,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         startDate: t.String(),
         endDate: t.String(),
         notes: t.Optional(t.String()),
+        branch: t.Optional(t.String()),
         vehicleModelIds: t.Optional(t.Array(t.String())),
       }),
       detail: {
@@ -346,6 +360,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         startDate: t.Optional(t.String()),
         endDate: t.Optional(t.String()),
         notes: t.Optional(t.String()),
+        branch: t.Optional(t.String()),
         vehicleModelIds: t.Optional(t.Array(t.String())),
       }),
       detail: {

@@ -507,6 +507,7 @@ export const CampaignSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   notes: z.string().nullable(),
+  branch: z.string().nullable(),
   createdById: z.string(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -519,6 +520,7 @@ export const CreateCampaignSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   notes: z.string().optional(),
+  branch: z.string().trim().max(100).optional(),
   vehicleModelIds: z.array(z.string()).default([]),
 });
 

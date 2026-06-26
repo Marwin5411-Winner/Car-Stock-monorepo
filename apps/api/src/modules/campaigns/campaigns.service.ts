@@ -30,6 +30,7 @@ interface CreateCampaignData {
   startDate: Date;
   endDate: Date;
   notes?: string;
+  branch?: string | null;
   vehicleModelIds?: string[];
   createdById: string;
 }
@@ -41,6 +42,7 @@ interface UpdateCampaignData {
   startDate?: Date;
   endDate?: Date;
   notes?: string;
+  branch?: string | null;
   vehicleModelIds?: string[];
 }
 
@@ -63,16 +65,19 @@ class CampaignsService {
   /**
    * Get all campaigns with pagination
    */
-  async getAll(page: number = 1, limit: number = 20, search?: string) {
+  async getAll(page: number = 1, limit: number = 20, search?: string, branch?: string) {
     const skip = (page - 1) * limit;
-    const where: Prisma.CampaignWhereInput = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    const where: Prisma.CampaignWhereInput = {
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(branch ? { branch } : {}),
+    };
 
     const [campaigns, total] = await Promise.all([
       db.campaign.findMany({
@@ -127,6 +132,19 @@ class CampaignsService {
         hasPrevPage: page > 1,
       },
     };
+  }
+
+  /** Distinct, non-empty branch labels across all campaigns, sorted. */
+  async getBranches(): Promise<string[]> {
+    const rows = await db.campaign.findMany({
+      where: { branch: { not: null } },
+      distinct: ['branch'],
+      select: { branch: true },
+      orderBy: { branch: 'asc' },
+    });
+    return rows
+      .map((r) => r.branch)
+      .filter((b): b is string => !!b && b.trim().length > 0);
   }
 
   /**
