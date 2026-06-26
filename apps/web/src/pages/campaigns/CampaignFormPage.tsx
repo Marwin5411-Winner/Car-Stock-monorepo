@@ -24,6 +24,7 @@ export const CampaignFormPage: React.FC = () => {
     endDate: '',
     status: 'DRAFT' as 'DRAFT' | 'ACTIVE' | 'ENDED',
     notes: '',
+    branch: '',
     vehicleModelIds: [] as string[],
   });
 
@@ -44,6 +45,11 @@ export const CampaignFormPage: React.FC = () => {
 
   const vehicleModels = vehicleModelsData?.data || [];
 
+  const { data: branchOptions = [] } = useQuery({
+    queryKey: ['campaign-branches'],
+    queryFn: () => campaignService.getBranches(),
+  });
+
   // Initialize form data for edit
   useEffect(() => {
     if (campaign) {
@@ -54,6 +60,7 @@ export const CampaignFormPage: React.FC = () => {
         endDate: campaign.endDate.split('T')[0],
         status: campaign.status,
         notes: campaign.notes || '',
+        branch: campaign.branch || '',
         vehicleModelIds: campaign.vehicleModels.map((vm) => vm.id),
       });
     }
@@ -117,6 +124,7 @@ export const CampaignFormPage: React.FC = () => {
       startDate: formData.startDate,
       endDate: formData.endDate,
       notes: formData.notes || undefined,
+      branch: formData.branch.trim() || undefined,
       vehicleModelIds: formData.vehicleModelIds,
       ...(isEdit && { status: formData.status }),
     };
@@ -263,6 +271,23 @@ export const CampaignFormPage: React.FC = () => {
                 rows={2}
                 placeholder="หมายเหตุเพิ่มเติม"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">สาขา</label>
+              <input
+                type="text"
+                list="campaign-branch-options"
+                value={formData.branch}
+                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="เช่น สำนักงานใหญ่"
+              />
+              <datalist id="campaign-branch-options">
+                {branchOptions.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
             </div>
           </div>
 

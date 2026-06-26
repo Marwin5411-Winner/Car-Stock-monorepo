@@ -139,6 +139,13 @@ export const CampaignDetailPage: React.FC = () => {
                   </div>
                 )}
 
+                {campaign.branch && (
+                  <div>
+                    <span className="text-gray-500">สาขา</span>
+                    <p className="text-gray-900 mt-1">{campaign.branch}</p>
+                  </div>
+                )}
+
                 <div className="pt-4 border-t">
                   <div className="text-sm text-gray-500">
                     สร้างโดย: {campaign.createdBy.firstName} {campaign.createdBy.lastName}

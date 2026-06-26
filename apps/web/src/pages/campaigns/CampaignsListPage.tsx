@@ -33,10 +33,16 @@ export const CampaignsListPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
+
+  const { data: branchOptions = [] } = useQuery({
+    queryKey: ['campaign-branches'],
+    queryFn: () => campaignService.getBranches(),
+  });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['campaigns', page, search],
-    queryFn: () => campaignService.getAll({ page, limit: 20, search }),
+    queryKey: ['campaigns', page, search, branchFilter],
+    queryFn: () => campaignService.getAll({ page, limit: 20, search, branch: branchFilter || undefined }),
   });
 
   const deleteMutation = useMutation({
@@ -111,6 +117,16 @@ export const CampaignsListPage: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <select
+              value={branchFilter}
+              onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">ทุกสาขา</option>
+              {branchOptions.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
             <button
               type="submit"
               className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors"
@@ -145,6 +161,9 @@ export const CampaignsListPage: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       ยอดขาย
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      สาขา
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       การดำเนินการ
@@ -186,6 +205,9 @@ export const CampaignsListPage: React.FC = () => {
                         <span className="text-sm font-medium text-gray-900">
                           {campaign.salesCount} รายการ
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {campaign.branch || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end gap-2">
