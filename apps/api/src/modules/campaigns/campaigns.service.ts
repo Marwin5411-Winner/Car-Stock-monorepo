@@ -331,6 +331,19 @@ class CampaignsService {
           })),
         });
       }
+      await tx.activityLog.create({
+        data: {
+          userId,
+          action: 'CREATE_CAMPAIGN',
+          entity: 'CAMPAIGN',
+          entityId: campaign.id,
+          details: {
+            campaignName: campaign.name,
+            vehicleModelCount: cloned.vehicleModelIds.length,
+            duplicatedFrom: id,
+          },
+        },
+      });
       return campaign;
     });
 
