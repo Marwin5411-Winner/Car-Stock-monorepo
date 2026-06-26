@@ -1,8 +1,20 @@
 import type { SalesSummaryItem } from '@car-stock/shared/types';
-// Import from the leaf, NOT the `../../components/reports` barrel: the barrel
-// re-exports recharts-backed React components, which would drag React/recharts
-// into the pure Bun unit test for this descriptor.
-import { formatDate } from '../../components/reports/reportUtils';
+
+/**
+ * Numeric Thai date `DD/MM/BBBB` (Buddhist year), mirroring the server PDF's
+ * `formatThaiDate(date, 'numeric')` (apps/api/src/modules/pdf/helpers.ts) so the
+ * Excel `วันที่ขาย` column reads identically to the PDF. Uses the same local-time
+ * getters and `+ 543` Buddhist-year offset as the PDF helper.
+ */
+function formatNumericThaiDate(dateString: string | null | undefined): string {
+  if (!dateString) return '-';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '-';
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const buddhistYear = d.getFullYear() + 543;
+  return `${day}/${month}/${buddhistYear}`;
+}
 
 export interface SalesSummaryColumn {
   /** Thai header text — also used verbatim as the Excel column label. */
@@ -27,7 +39,7 @@ export const SALES_SUMMARY_COLUMNS: SalesSummaryColumn[] = [
   { key: 'ชื่อลูกค้า', value: (s) => s.customerName },
   { key: 'แบบรถ', value: (s) => s.vehicleModelName || s.vehicleInfo },
   { key: 'เลขเครื่อง', value: (s) => s.engineNumber || '-' },
-  { key: 'เลขคัซซี', value: (s) => s.chassisNumber || s.vin || '-' },
+  { key: 'เลขคัซซี', value: (s) => s.chassisNumber || '-' },
   { key: 'ราคารถ', value: (s) => s.totalAmount },
   { key: 'ส่วนลดตัวรถ', value: (s) => s.discountAmount ?? 0 },
   { key: 'เงินสนับสนุน', value: (s) => s.campaignSubsidy ?? 0 },
@@ -38,7 +50,7 @@ export const SALES_SUMMARY_COLUMNS: SalesSummaryColumn[] = [
   { key: 'ยอดจัด', value: (s) => s.financeAmount ?? 0 },
   { key: 'ค่าคอมไฟแนนซ์', value: (s) => s.financeReturn ?? 0 },
   { key: 'รวมรับเงิน', value: (s) => s.paidAmount },
-  { key: 'วันที่ขาย', value: (s) => (s.saleDate ? formatDate(s.saleDate) : '-') },
+  { key: 'วันที่ขาย', value: (s) => formatNumericThaiDate(s.saleDate) },
   { key: 'ทะเบียน/พรบ/ขนส่ง', value: (s) => s.transportFee ?? 0 },
   { key: 'ต้นทุน', value: (s) => s.totalCost ?? 0 },
   { key: 'แคมเปญขาย', value: (s) => s.campaignName || '-' },

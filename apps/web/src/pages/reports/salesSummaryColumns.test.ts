@@ -38,7 +38,7 @@ const EXPECTED_HEADERS = [
 const fullSale = {
   id: 's1',
   saleNumber: 'SL-2026-0001',
-  saleDate: '2026-06-15T00:00:00.000Z',
+  saleDate: '2026-06-15T12:00:00.000Z', // noon UTC → June 15 in any realistic timezone
   customerName: 'สมชาย ใจดี',
   customerType: 'INDIVIDUAL',
   vehicleInfo: 'Toyota Vios',
@@ -100,6 +100,14 @@ describe('SALES_SUMMARY_COLUMNS', () => {
   test('กำไรขั้นต้น is computed as ราคารถ − ต้นทุน', () => {
     const row = buildSalesSummaryExportRow(fullSale, 0);
     expect(row['กำไรขั้นต้น']).toBe(80000); // 700000 − 620000
+  });
+
+  test('วันที่ขาย matches the PDF numeric Buddhist-year format, with - for missing', () => {
+    const row = buildSalesSummaryExportRow(fullSale, 0);
+    // DD/MM/BBBB (2026 + 543) — mirrors the server PDF's formatThaiDate(date, 'numeric')
+    expect(row['วันที่ขาย']).toBe('15/06/2569');
+    const noDate = buildSalesSummaryExportRow({ ...fullSale, saleDate: '' } as SalesSummaryItem, 0);
+    expect(noDate['วันที่ขาย']).toBe('-');
   });
 
   test('missing financial fields default to 0 (null-safety)', () => {
