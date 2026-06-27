@@ -336,12 +336,23 @@ export default function PaymentsListPage() {
                         <TableCell>
                           <div className="max-w-[240px]">
                             {payment.sale ? (
-                              <Link
-                                to={`/sales/${payment.sale.id}`}
-                                className="text-blue-600 hover:text-blue-800 font-medium"
-                              >
-                                {payment.sale.saleNumber}
-                              </Link>
+                              <>
+                                <Link
+                                  to={`/sales/${payment.sale.id}`}
+                                  className="text-blue-600 hover:text-blue-800 font-medium"
+                                >
+                                  {payment.sale.saleNumber}
+                                </Link>
+                                {/* หมายเหตุ for sale-linked payments is stored in description (see PaymentFormPage sale mode) — always show it */}
+                                {payment.description && (
+                                  <div
+                                    className="text-xs text-gray-500 mt-1 whitespace-pre-wrap line-clamp-3"
+                                    title={payment.description}
+                                  >
+                                    {payment.description}
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <span
                                 className="text-gray-400 italic block line-clamp-1"
