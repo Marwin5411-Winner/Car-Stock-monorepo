@@ -984,7 +984,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/vehicle-card/:stockId',
-    async ({ params, set }) => {
+    async ({ params, query, set }) => {
       const stock = await db.stock.findUnique({
         where: { id: params.stockId },
         include: {
@@ -1072,6 +1072,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         location: stock.parkingSlot || '-',
       };
 
+      if (query.format === 'html') {
+        set.headers['Content-Type'] = 'text/html; charset=utf-8';
+        return await pdfService.renderVehicleCardHtml(data);
+      }
+
       const pdfBuffer = await pdfService.generateVehicleCard(data);
 
       set.headers['Content-Type'] = 'application/pdf';
@@ -1083,6 +1088,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
       params: t.Object({
         stockId: t.String(),
+      }),
+      query: t.Object({
+        format: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],
@@ -1097,7 +1105,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/vehicle-card-template/:stockId',
-    async ({ params, set }) => {
+    async ({ params, query, set }) => {
       const stock = await db.stock.findUnique({
         where: { id: params.stockId },
         include: {
@@ -1185,6 +1193,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         location: stock.parkingSlot || '-',
       };
 
+      if (query.format === 'html') {
+        set.headers['Content-Type'] = 'text/html; charset=utf-8';
+        return await pdfService.renderVehicleCardTemplateHtml(data);
+      }
+
       const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
 
       set.headers['Content-Type'] = 'application/pdf';
@@ -1197,6 +1210,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
       params: t.Object({
         stockId: t.String(),
+      }),
+      query: t.Object({
+        format: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],
