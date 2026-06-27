@@ -20,8 +20,8 @@ export function printBlob(blob: Blob): void {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
     } catch {
-      // Some browsers block programmatic iframe printing of PDFs — fall back
-      // to opening the PDF in a new tab so the user can print from the viewer.
+      // Some browsers block programmatic iframe printing of the document — fall back
+      // to opening it in a new tab so the user can print from the viewer.
       window.open(url, '_blank');
     }
     // Revoke late so the print dialog has time to read the document.

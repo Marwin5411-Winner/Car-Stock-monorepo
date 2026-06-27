@@ -284,11 +284,11 @@ export class PdfService {
 
     // For browser HTML printing: page size = physical paper, and a
     // higher-specificity !important override zeroes the template's own
-    // .page print padding so the @page margin is the sole edge gap.
+    // .page print padding AND cancels its forced page-break, so the @page margin is the sole edge gap and a single-page card does not emit a trailing blank page.
     const htmlPageCss = options.htmlPage
       ? `
     @page { size: ${options.htmlPage.size}; margin: ${options.htmlPage.margin}; }
-    @media print { html body .page { padding: 0 !important; } }
+    @media print { html body .page { padding: 0 !important; page-break-after: auto !important; } }
     `
       : '';
 
@@ -806,6 +806,7 @@ export class PdfService {
   public async renderVehicleCardHtml(data: VehicleCardData): Promise<string> {
     return this.renderHtml(PdfTemplateType.VEHICLE_CARD, data, {
       width: '26.85cm',
+      // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
       htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
@@ -818,6 +819,7 @@ export class PdfService {
   public async renderVehicleCardTemplateHtml(data: VehicleCardData): Promise<string> {
     return this.renderHtml(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
       width: '26.85cm',
+      // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
       htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },

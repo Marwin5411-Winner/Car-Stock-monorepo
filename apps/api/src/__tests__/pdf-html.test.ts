@@ -49,6 +49,7 @@ describe('Vehicle card HTML print', () => {
   it('neutralizes the template print padding so the @page margin is the sole gap', async () => {
     const html = await pdfService.renderVehicleCardHtml(cardData);
     expect(html).toContain('html body .page'); // higher-specificity override present
+    expect(html).toContain('page-break-after: auto'); // forced page-break cancelled to prevent trailing blank page
   });
 
   it('does NOT emit @page on the default PDF path (htmlPage opt-in gate is off by default)', async () => {
