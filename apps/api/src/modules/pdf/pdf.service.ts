@@ -597,42 +597,8 @@ export class PdfService {
     options: PdfOptions = {}
   ): Promise<Buffer> {
     try {
-      // Get and compile template
-      const template = this.getTemplate(templateType);
-
-      // Fetch company settings from DB
-      const dbSettings = await import('../settings/settings.service').then((m) =>
-        m.settingsService.getSettings()
-      );
-
-      // Add company header to data if not present
-      const providedHeader = (data as any).header || {};
-
-      // Construct header from DB settings or fallback
-      const dbHeader = dbSettings
-        ? {
-            companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
-            address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
-            address2: '',
-            phone:
-              `โทร. ${dbSettings.phone} ${dbSettings.fax ? `โทรสาร. ${dbSettings.fax}` : ''}`.trim(),
-            logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
-          }
-        : DEFAULT_COMPANY_HEADER;
-
-      const dataWithHeader = {
-        ...data,
-        header: {
-          ...dbHeader,
-          ...providedHeader,
-          logoBase64: providedHeader.logoBase64 || dbHeader.logoBase64 || this.logoBase64,
-        },
-        receiptBgBase64: this.receiptBgBase64,
-      };
-
-      // Render template with data
-      const content = template(dataWithHeader);
-      const html = this.getBaseHtml(content, options);
+      // Build the HTML (shared with the HTML print path)
+      const html = await this.renderHtml(templateType, data, options);
 
       // Generate PDF with Puppeteer
       const browser = await this.getBrowser();
