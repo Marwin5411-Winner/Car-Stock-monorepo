@@ -1,6 +1,38 @@
 import { Printer } from 'lucide-react';
 import { useState } from 'react';
 
+/**
+ * Load a blob (PDF or HTML) into a hidden iframe and open the print dialog on
+ * it, so what prints is exactly that document. Works for application/pdf and
+ * text/html alike.
+ */
+export function printBlob(blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  iframe.src = url;
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      // Some browsers block programmatic iframe printing of PDFs — fall back
+      // to opening the PDF in a new tab so the user can print from the viewer.
+      window.open(url, '_blank');
+    }
+    // Revoke late so the print dialog has time to read the document.
+    window.setTimeout(() => {
+      iframe.remove();
+      URL.revokeObjectURL(url);
+    }, 60_000);
+  };
+  document.body.appendChild(iframe);
+}
+
 interface PrintButtonProps {
   contentId?: string;
   title?: string;
@@ -74,34 +106,7 @@ const PRINT_STYLE_RULES = `
 export function PrintButton({ contentId, title, getPdf, disabled }: PrintButtonProps) {
   const [preparing, setPreparing] = useState(false);
 
-  // Load the server PDF into a hidden iframe and open the print dialog on it,
-  // so what prints is byte-for-byte the same document as "ส่งออก PDF".
-  const printPdfBlob = (blob: Blob) => {
-    const url = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    iframe.style.visibility = 'hidden';
-    iframe.src = url;
-    iframe.onload = () => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } catch {
-        // Some browsers block programmatic iframe printing of PDFs — fall back
-        // to opening the PDF in a new tab so the user can print from the viewer.
-        window.open(url, '_blank');
-      }
-      // Revoke late so the print dialog has time to read the document.
-      window.setTimeout(() => {
-        iframe.remove();
-        URL.revokeObjectURL(url);
-      }, 60_000);
-    };
-    document.body.appendChild(iframe);
-  };
+  const printPdfBlob = (blob: Blob) => printBlob(blob);
 
   const handlePrintPdf = async () => {
     if (!getPdf) return;

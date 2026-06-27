@@ -7,6 +7,7 @@ import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
 import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
+import { printBlob } from '../../components/reports/PrintButton';
 import {
   ArrowLeft,
   Edit,
@@ -101,33 +102,18 @@ export default function StockDetailPage() {
   const handlePrintVehicleCard = async () => {
     if (!stock) return;
     await executeQuery(
-      api.getBlob(`/api/pdf/vehicle-card/${stock.id}`).then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `vehicle-card-${stock.vin}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        // Release the blob so it does not leak for the session lifetime.
-        window.URL.revokeObjectURL(url);
-      })
+      api
+        .getBlob(`/api/pdf/vehicle-card/${stock.id}?format=html`)
+        .then((blob) => printBlob(blob))
     );
   };
 
   const handlePrintVehicleCardTemplate = async () => {
     if (!stock) return;
     await executeQuery(
-      api.getBlob(`/api/pdf/vehicle-card-template/${stock.id}`).then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `vehicle-card-template-${stock.vin}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      })
+      api
+        .getBlob(`/api/pdf/vehicle-card-template/${stock.id}?format=html`)
+        .then((blob) => printBlob(blob))
     );
   };
 
