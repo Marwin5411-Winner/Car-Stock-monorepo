@@ -358,6 +358,15 @@ export interface PdfOptions {
   landscape?: boolean;
   printBackground?: boolean;
   scale?: number; // Scale of the page rendering (0.1 - 2.0, default 1.0)
+  /**
+   * When set, render an HTML page for browser printing: emits an @page rule
+   * (size = physical paper) and neutralizes template .page print padding so
+   * the @page margin is the only edge gap.
+   */
+  htmlPage?: {
+    size: string; // CSS @page size, e.g. '27.94cm 21.59cm' (Letter landscape)
+    margin: string; // CSS @page margin shorthand, e.g. '1.7mm 5mm 5mm 1mm'
+  };
 }
 
 /**

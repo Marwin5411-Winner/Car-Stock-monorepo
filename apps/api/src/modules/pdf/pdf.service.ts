@@ -282,6 +282,16 @@ export class PdfService {
     // Padding (default 10mm)
     const padding = options.padding || '10mm';
 
+    // For browser HTML printing: page size = physical paper, and a
+    // higher-specificity !important override zeroes the template's own
+    // .page print padding so the @page margin is the sole edge gap.
+    const htmlPageCss = options.htmlPage
+      ? `
+    @page { size: ${options.htmlPage.size}; margin: ${options.htmlPage.margin}; }
+    @media print { html body .page { padding: 0 !important; } }
+    `
+      : '';
+
     return `
 <!DOCTYPE html>
 <html lang="th">
@@ -501,10 +511,15 @@ export class PdfService {
     @media print {
       .page {
         margin: 0;
+        /* NOTE: when options.htmlPage is set, htmlPageCss below overrides this
+           via a higher-specificity 'html body .page' padding:0 !important rule,
+           so the injected page-rule margin is the sole edge gap — do NOT
+           cargo-cult this 10mm into the htmlPage path. */
         padding: 10mm;
         page-break-after: always;
       }
     }
+    ${htmlPageCss}
   </style>
 </head>
 <body>
@@ -780,6 +795,32 @@ export class PdfService {
         bottom: '5mm',
         left: '5mm',
       },
+    });
+  }
+
+  /**
+   * Render Vehicle Card as HTML for browser printing (การ์ดรายละเอียดรถยนต์).
+   * @page is sized to the real paper (US Letter, landscape) so the browser
+   * does not scale; the @page margin is the single edge-gap tuning point.
+   */
+  public async renderVehicleCardHtml(data: VehicleCardData): Promise<string> {
+    return this.renderHtml(PdfTemplateType.VEHICLE_CARD, data, {
+      width: '26.85cm',
+      height: '20.71cm',
+      padding: '0mm',
+      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
+    });
+  }
+
+  /**
+   * Render the frameless Vehicle Card overlay as HTML for browser printing.
+   */
+  public async renderVehicleCardTemplateHtml(data: VehicleCardData): Promise<string> {
+    return this.renderHtml(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
+      width: '26.85cm',
+      height: '20.71cm',
+      padding: '0mm',
+      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
     });
   }
 

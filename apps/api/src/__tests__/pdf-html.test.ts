@@ -1,0 +1,63 @@
+import { describe, it, expect, mock } from 'bun:test';
+import type { VehicleCardData, CompanyHeader } from '../modules/pdf/types';
+import { PdfTemplateType } from '../modules/pdf/types';
+
+// Mock settings to avoid DB dependency (same pattern as pdf.test.ts)
+mock.module('../modules/settings/settings.service', () => ({
+  settingsService: { getSettings: () => Promise.resolve(null) },
+}));
+
+const { pdfService } = await import('../modules/pdf/pdf.service');
+
+const mockHeader: CompanyHeader = {
+  logoBase64: '',
+  companyName: 'Test Company',
+  address1: '123 Test St',
+  address2: 'Test City',
+  phone: '000-000-0000',
+};
+
+const cardData: VehicleCardData = {
+  header: mockHeader,
+  stockNumber: 'STK-HTML-001',
+  car: {
+    brand: 'Toyota',
+    model: 'Yaris Ativ',
+    engineNo: 'ENG-HTML',
+    chassisNo: 'CHS-HTML',
+    color: 'แดง',
+  },
+} as VehicleCardData;
+
+describe('Vehicle card HTML print', () => {
+  it('renderVehicleCardHtml returns a full HTML doc sized to Letter landscape with card data', async () => {
+    const html = await pdfService.renderVehicleCardHtml(cardData);
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('@page');
+    expect(html).toContain('27.94cm 21.59cm'); // Letter landscape size
+    expect(html).toContain('STK-HTML-001'); // data rendered
+    expect(html).toContain('การ์ดรายละเอียดรถยนต์'); // card title text present
+  });
+
+  it('renderVehicleCardTemplateHtml returns the frameless overlay HTML with @page', async () => {
+    const html = await pdfService.renderVehicleCardTemplateHtml(cardData);
+    expect(html).toContain('@page');
+    expect(html).toContain('27.94cm 21.59cm');
+    expect(html).toContain('STK-HTML-001');
+  });
+
+  it('neutralizes the template print padding so the @page margin is the sole gap', async () => {
+    const html = await pdfService.renderVehicleCardHtml(cardData);
+    expect(html).toContain('html body .page'); // higher-specificity override present
+  });
+
+  it('does NOT emit @page on the default PDF path (htmlPage opt-in gate is off by default)', async () => {
+    // Locks the "PDF path byte-for-byte unchanged" guarantee mechanically:
+    // calling renderHtml without an htmlPage option must never inject the
+    // @page rule (the only place that string is emitted by our code), while
+    // still producing a real render with the card data present.
+    const html = await pdfService.renderHtml(PdfTemplateType.VEHICLE_CARD, cardData);
+    expect(html).not.toContain('@page'); // opt-in gate off → no page-size rule injected
+    expect(html).toContain('STK-HTML-001'); // still a real render
+  });
+});
