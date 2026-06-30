@@ -130,12 +130,12 @@
       <th>ผู้ตรวจสอบ</th>
     </tr>
 
-    <!-- Row 1 -->
+    <!-- Row 1: ราคาก่อน VAT (value only — label is on the pre-printed form) -->
     <tr>
       <td></td>
       <td></td>
-      <td></td>
-      <td></td>
+      <td style="text-align: right;">{{costs.beforeVatInt}}</td>
+      <td style="text-align: center;">{{costs.beforeVatDec}}</td>
       <td></td>
       <td style="visibility: hidden;">ราคาขาย</td>
       <td></td>
@@ -143,12 +143,12 @@
       <td></td>
     </tr>
 
-    <!-- Row 2 -->
+    <!-- Row 2: VAT 7% (value only) -->
     <tr>
       <td></td>
       <td></td>
-      <td></td>
-      <td></td>
+      <td style="text-align: right;">{{costs.vatAmountInt}}</td>
+      <td style="text-align: center;">{{costs.vatAmountDec}}</td>
       <td></td>
       <td style="visibility: hidden;">หัก&nbsp;&nbsp;ส่วนลดเงินสด</td>
       <td></td>
@@ -195,11 +195,11 @@
       <td></td>
     </tr>
 
-    <!-- Row 6: รวม / คงเหลือเงินดาวน์ -->
+    <!-- Row 6: รวม / คงเหลือเงินดาวน์ (total value only) -->
     <tr>
       <td colspan="2"></td>
-      <td></td>
-      <td></td>
+      <td style="text-align: right; font-weight: bold;">{{costs.totalWithVatInt}}</td>
+      <td style="text-align: center; font-weight: bold;">{{costs.totalWithVatDec}}</td>
       <td></td>
       <td style="visibility: hidden;">คงเหลือเงินดาวน์</td>
       <td></td>

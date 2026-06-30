@@ -27,6 +27,22 @@ const cardData: VehicleCardData = {
     chassisNo: 'CHS-HTML',
     color: 'แดง',
   },
+  costs: {
+    baseCost: '535000',
+    beforeVat: '500,000.00',
+    beforeVatInt: '500,000',
+    beforeVatDec: '00',
+    vatAmount: '35,000.00',
+    vatAmountInt: '35,000',
+    vatAmountDec: '00',
+    totalWithVat: '535,000.00',
+    totalWithVatInt: '535,000',
+    totalWithVatDec: '00',
+    transportCost: '0',
+    accessoryCost: '0',
+    otherCosts: '0',
+    totalCost: '535000',
+  },
 } as VehicleCardData;
 
 describe('Vehicle card HTML print', () => {
@@ -44,6 +60,13 @@ describe('Vehicle card HTML print', () => {
     expect(html).toContain('@page');
     expect(html).toContain('27.94cm 21.59cm');
     expect(html).toContain('STK-HTML-001');
+  });
+
+  it('renders cost values onto the frameless overlay so they land on the pre-printed form', async () => {
+    const html = await pdfService.renderVehicleCardTemplateHtml(cardData);
+    expect(html).toContain('500,000'); // ราคาก่อน VAT
+    expect(html).toContain('35,000'); // VAT 7%
+    expect(html).toContain('535,000'); // รวม
   });
 
   it('neutralizes the template print padding so the @page margin is the sole gap', async () => {
