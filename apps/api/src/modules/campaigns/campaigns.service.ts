@@ -1,8 +1,9 @@
 import { db } from '../../lib/db';
 import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '../../lib/errors';
 import { Prisma, CampaignStatus } from '@prisma/client';
-import { campaignFormulasService } from './campaign-formulas.service';
+import { formulaSubsidyAmount, sumCampaignSubsidies } from '@car-stock/shared/formulas';
 import { diffModelSet } from './campaign-model-set.helpers';
+import { buildClonedCampaign, type CloneSource } from './campaign-duplicate.helpers';
 
 /**
  * Derive the display status of a campaign at read time. The stored
@@ -30,6 +31,7 @@ interface CreateCampaignData {
   startDate: Date;
   endDate: Date;
   notes?: string;
+  branch?: string | null;
   vehicleModelIds?: string[];
   createdById: string;
 }
@@ -41,6 +43,7 @@ interface UpdateCampaignData {
   startDate?: Date;
   endDate?: Date;
   notes?: string;
+  branch?: string | null;
   vehicleModelIds?: string[];
 }
 
@@ -63,16 +66,19 @@ class CampaignsService {
   /**
    * Get all campaigns with pagination
    */
-  async getAll(page: number = 1, limit: number = 20, search?: string) {
+  async getAll(page: number = 1, limit: number = 20, search?: string, branch?: string) {
     const skip = (page - 1) * limit;
-    const where: Prisma.CampaignWhereInput = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    const where: Prisma.CampaignWhereInput = {
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(branch ? { branch } : {}),
+    };
 
     const [campaigns, total] = await Promise.all([
       db.campaign.findMany({
@@ -127,6 +133,19 @@ class CampaignsService {
         hasPrevPage: page > 1,
       },
     };
+  }
+
+  /** Distinct, non-empty branch labels across all campaigns, sorted. */
+  async getBranches(): Promise<string[]> {
+    const rows = await db.campaign.findMany({
+      where: { branch: { not: null } },
+      distinct: ['branch'],
+      select: { branch: true },
+      orderBy: { branch: 'asc' },
+    });
+    return rows
+      .map((r) => r.branch)
+      .filter((b): b is string => !!b && b.trim().length > 0);
   }
 
   /**
@@ -249,6 +268,86 @@ class CampaignsService {
       ...campaign,
       vehicleModels: campaign.vehicleModels.map((vm) => vm.vehicleModel),
     };
+  }
+
+  /** Clone a campaign (models + formulas), next-month dates, status DRAFT. */
+  async duplicate(id: string, userId: string) {
+    const source = await db.campaign.findUnique({
+      where: { id },
+      include: {
+        vehicleModels: { include: { formulas: true } },
+      },
+    });
+    if (!source) throw new NotFoundError('ไม่พบแคมเปญ');
+
+    const cloneSource: CloneSource = {
+      name: source.name,
+      description: source.description,
+      branch: source.branch,
+      notes: source.notes,
+      startDate: source.startDate,
+      endDate: source.endDate,
+      vehicleModelIds: source.vehicleModels.map((vm) => vm.vehicleModelId),
+      formulas: source.vehicleModels.flatMap((vm) =>
+        vm.formulas.map((f) => ({
+          vehicleModelId: f.vehicleModelId,
+          name: f.name,
+          operator: f.operator,
+          value: Number(f.value),
+          priceTarget: f.priceTarget,
+          sortOrder: f.sortOrder,
+        }))
+      ),
+    };
+
+    const cloned = buildClonedCampaign(cloneSource);
+
+    const created = await db.$transaction(async (tx) => {
+      const campaign = await tx.campaign.create({
+        data: {
+          name: cloned.name,
+          description: cloned.description,
+          branch: cloned.branch,
+          notes: cloned.notes,
+          status: cloned.status,
+          startDate: cloned.startDate,
+          endDate: cloned.endDate,
+          createdById: userId,
+          vehicleModels: {
+            create: cloned.vehicleModelIds.map((vehicleModelId) => ({ vehicleModelId })),
+          },
+        },
+      });
+      if (cloned.formulas.length) {
+        await tx.campaignModelFormula.createMany({
+          data: cloned.formulas.map((f) => ({
+            campaignId: campaign.id,
+            vehicleModelId: f.vehicleModelId,
+            name: f.name,
+            operator: f.operator,
+            value: f.value,
+            priceTarget: f.priceTarget,
+            sortOrder: f.sortOrder,
+          })),
+        });
+      }
+      await tx.activityLog.create({
+        data: {
+          userId,
+          action: 'CREATE_CAMPAIGN',
+          entity: 'CAMPAIGN',
+          entityId: campaign.id,
+          details: {
+            campaignName: campaign.name,
+            vehicleModelCount: cloned.vehicleModelIds.length,
+            duplicatedFrom: id,
+          },
+        },
+      });
+      return campaign;
+    });
+
+    return this.getById(created.id);
   }
 
   /**
@@ -849,26 +948,35 @@ class CampaignsService {
       const costPrice = sale.stock ? Number(sale.stock.baseCost) : 0;
       const sellingPrice = Number(vmInfo.vehicleModel.price);
 
-      // Delegate to the shared formula engine so the report and any other
-      // caller (analytics, future quotation preview, etc.) all compute the
-      // same rebate from the same code path — no drift, no per-step
-      // rounding mismatch.
-      const applied = campaignFormulasService.applyLoadedFormulas(
-        vmInfo.formulas,
-        costPrice,
-        sellingPrice
+      // Per-car claim = the sum of independent expense line items (each a % of
+      // the chosen base, or a flat baht amount). No chaining: each line stands
+      // alone, computed by the shared sum engine so the editor, this report,
+      // and the claim PDF never drift.
+      const bases = { cost: costPrice, selling: sellingPrice };
+      const formulaResults = vmInfo.formulas.map((f: any) => ({
+        formulaId: f.id,
+        name: f.name,
+        operator: f.operator,
+        value: Number(f.value),
+        priceTarget: f.priceTarget,
+        sortOrder: f.sortOrder,
+        resultValue: formulaSubsidyAmount(f.operator, Number(f.value), f.priceTarget, bases),
+      }));
+      const rebatePerCar = sumCampaignSubsidies(
+        vmInfo.formulas.map((f: any) => ({
+          operator: f.operator,
+          value: Number(f.value),
+          priceTarget: f.priceTarget,
+        })),
+        bases
       );
-      const adjustedCostPrice = applied.adjustedCostPrice;
-      const adjustedSellingPrice = applied.adjustedSellingPrice;
-      const formulaResults = applied.formulaResults;
 
-      // Rebate per car = the supplier-owed amount the dealership claims.
-      // Convention: when formulas REDUCE the cost/selling price (a typical
-      // supplier incentive), the diff is negative; the rebate is its
-      // negation so a positive number always means "supplier pays dealership".
-      const costPriceDiff = applied.costPriceDiff;
-      const sellingPriceDiff = applied.sellingPriceDiff;
-      const rebatePerCar = -(costPriceDiff + sellingPriceDiff);
+      // Chain-era fields are no longer meaningful under the additive model;
+      // keep them in the payload (web does not render them) as neutral values.
+      const adjustedCostPrice = costPrice;
+      const adjustedSellingPrice = sellingPrice;
+      const costPriceDiff = 0;
+      const sellingPriceDiff = 0;
 
       const saleReportItem = {
         saleId: sale.id,

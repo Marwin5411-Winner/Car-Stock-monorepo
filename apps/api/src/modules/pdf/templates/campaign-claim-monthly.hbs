@@ -26,87 +26,48 @@
 <table class="claim-table">
   <thead>
     <tr>
-      <th rowspan="2">ลำดับ</th>
+      <th>ลำดับ</th>
       <th>ชื่อ - สกุล</th>
+      <th>แบบรถ</th>
       <th>เลขเครื่อง</th>
+      <th>เลขตัวรถ</th>
+      <th>ไฟแนนท์</th>
+      <th>วันที่ขาย</th>
       <th>ราคาขาย</th>
-      <th rowspan="2">ไฟแนนท์</th>
-      <th rowspan="2">ส่วนลด<br>การขาย</th>
-      <th rowspan="2">STOCK LEVEL<br>(MSRP)<br>0.5%</th>
-      <th colspan="2">After Sales Support (MSRP) 0.5%</th>
-      <th>การตลาด<br>MARKETING<br>(DNP) 1%</th>
-      <th>FLEET ,<br>TEST</th>
-      <th rowspan="2">เป้าขาย<br>(Retail Sales)<br>{{tierLabel}} DNP</th>
-      <th rowspan="2">ค่าก่อสร้าง</th>
-      <th>รวมรับเงิน</th>
-      <th rowspan="2" class="w-expense">ค่าใช้จ่ายในการ<br>ซื้อ/แลกรถ<br><span class="sub">ในการแลก/ซื้อรถกับดีเลอร์</span></th>
-    </tr>
-    <tr>
-      <th class="sub-h">แบบรถ</th>
-      <th class="sub-h">เลขตัวรถ</th>
-      <th class="sub-h">วันที่ขาย</th>
-      <th class="sub-h">ไม่ร้องเรียน<br>0.25%</th>
-      <th class="sub-h">ทำ GOOGLE<br>QR CODE 0.25%</th>
-      <th class="sub-h">วันที่รับเงิน</th>
-      <th class="sub-h">วันที่รับเงิน</th>
-      <th class="sub-h">วันที่แจ้งขาย</th>
+      {{#each expenseColumns}}<th>{{this}}</th>{{/each}}
+      <th>รวม/คัน</th>
+      <th>วันที่แจ้งขาย</th>
     </tr>
   </thead>
-  {{#each rows}}
-  <tbody class="sale-group">
-    <tr class="row-top">
-      <td rowspan="2" class="tc">{{no}}</td>
+  <tbody>
+    {{#each rows}}
+    <tr>
+      <td class="tc">{{no}}</td>
       <td>{{customerName}}</td>
-      <td class="tc mono">{{engineNumber}}</td>
-      <td class="tr">{{#if salePrice}}{{formatCurrency salePrice false}}{{/if}}</td>
-      <td rowspan="2" class="tc">{{financeProvider}}</td>
-      <td rowspan="2" class="tr">{{#if promotionDiscount}}{{formatCurrency promotionDiscount false}}{{/if}}</td>
-      <td rowspan="2" class="tr">{{#if subsidies.stockLevel}}{{formatCurrency subsidies.stockLevel false}}{{/if}}</td>
-      <td rowspan="2" class="tr">{{#if subsidies.afterSalesNoComplaint}}{{formatCurrency subsidies.afterSalesNoComplaint false}}{{/if}}</td>
-      <td rowspan="2" class="tr">{{#if subsidies.afterSalesQr}}{{formatCurrency subsidies.afterSalesQr false}}{{/if}}</td>
-      <td class="tr">{{#if subsidies.marketing}}{{formatCurrency subsidies.marketing false}}{{/if}}</td>
-      <td class="fill-cell"></td>
-      <td rowspan="2" class="tr">{{#if subsidies.retailTarget}}{{formatCurrency subsidies.retailTarget false}}{{/if}}</td>
-      <td rowspan="2" class="fill-cell"></td>
-      <td class="tr strong">{{#if subsidies.total}}{{formatCurrency subsidies.total false}}{{/if}}</td>
-      <td rowspan="2" class="fill-cell"></td>
-    </tr>
-    <tr class="row-bottom">
       <td>{{modelName}}</td>
+      <td class="tc mono">{{engineNumber}}</td>
       <td class="tc mono">{{vin}}</td>
+      <td class="tc">{{financeProvider}}</td>
       <td class="tc">{{#if saleDate}}{{formatThaiDate saleDate 'short'}}{{/if}}</td>
-      <td class="fill-cell"></td>
-      <td class="fill-cell"></td>
+      <td class="tr">{{#if salePrice}}{{formatCurrency salePrice false}}{{/if}}</td>
+      {{#each cells}}<td class="tr">{{#if this}}{{formatCurrency this false}}{{/if}}</td>{{/each}}
+      <td class="tr strong">{{#if total}}{{formatCurrency total false}}{{/if}}</td>
       <td class="tc">{{#if notifyDate}}{{formatThaiDate notifyDate 'short'}}{{/if}}</td>
     </tr>
-  </tbody>
-  {{else}}
-  <tbody>
+    {{else}}
     <tr>
-      <td colspan="15" class="tc muted">ไม่มีรายการเบิกแคมเปญในเดือนนี้</td>
+      <td colspan="10" class="tc muted">ไม่มีรายการเบิกแคมเปญในเดือนนี้</td>
     </tr>
-  </tbody>
-  {{/each}}
-  {{#if rows.length}}
-  <tbody>
+    {{/each}}
+    {{#if rows.length}}
     <tr class="row-total">
-      <td colspan="6" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
-      <td class="tr strong">{{formatCurrency summary.subsidyTotals.stockLevel false}}</td>
-      <td class="tr strong">{{formatCurrency summary.subsidyTotals.afterSalesNoComplaint false}}</td>
-      <td class="tr strong">{{formatCurrency summary.subsidyTotals.afterSalesQr false}}</td>
-      <td class="tr strong">{{formatCurrency summary.subsidyTotals.marketing false}}</td>
-      <td></td>
-      <td class="tr strong">{{formatCurrency summary.subsidyTotals.retailTarget false}}</td>
-      <td class="tr strong">{{#if constructionCost}}{{formatCurrency constructionCost false}}{{/if}}</td>
-      <td class="tr strong">{{formatCurrency summary.subsidyTotals.total false}}</td>
+      <td colspan="8" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
+      {{#each summary.columnTotals}}<td class="tr strong">{{formatCurrency this false}}</td>{{/each}}
+      <td class="tr strong">{{formatCurrency summary.grandTotal false}}</td>
       <td></td>
     </tr>
-    <tr class="row-grand">
-      <td colspan="13" class="tr strong">ยอดเบิกรวมทั้งสิ้น (รวมค่าก่อสร้าง)</td>
-      <td colspan="2" class="tr strong">{{formatCurrency summary.grandTotalWithConstruction false}}</td>
-    </tr>
+    {{/if}}
   </tbody>
-  {{/if}}
 </table>
 
 <div class="claim-footer">
@@ -144,19 +105,13 @@
     text-align: center;
     font-size: 8px;
   }
-  .claim-table th.sub-h { font-weight: normal; font-size: 7px; }
-  .claim-table th .sub { font-size: 6px; font-weight: normal; color: #4b5563; }
   .claim-table .tc { text-align: center; }
   .claim-table .tr { text-align: right; }
   .claim-table .mono { font-family: monospace; font-size: 7px; }
   .claim-table .strong { font-weight: bold; }
   .claim-table .muted { color: #6b7280; padding: 10px; }
-  .claim-table .w-expense { max-width: 70px; }
-  .claim-table .fill-cell { background: #fffdf5; }
-  .claim-table .row-top td { border-bottom-style: dotted; }
-  .claim-table .row-bottom td { border-top-style: dotted; font-size: 7px; color: #1f2937; }
-  .claim-table .row-total td, .claim-table .row-grand td { background: #f3f4f6 !important; }
-  .claim-table .sale-group { page-break-inside: avoid; break-inside: avoid; }
+  .claim-table .row-total td { background: #f3f4f6 !important; }
+  .claim-table tbody tr { page-break-inside: avoid; break-inside: avoid; }
   .claim-footer {
     display: flex;
     justify-content: space-around;

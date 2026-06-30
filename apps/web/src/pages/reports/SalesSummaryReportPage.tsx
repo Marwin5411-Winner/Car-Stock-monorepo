@@ -17,11 +17,11 @@ import {
   SummaryCard,
   SummaryCardsGrid,
   formatCurrency,
-  formatDate,
   formatNumber,
 } from '../../components/reports';
 import { exportMultiSheet } from '../../components/reports/exportUtils';
 import { reportService } from '../../services/report.service';
+import { buildSalesSummaryExportRow } from './salesSummaryColumns';
 
 export default function SalesSummaryReportPage() {
   const navigate = useNavigate();
@@ -55,23 +55,7 @@ export default function SalesSummaryReportPage() {
     }
   };
 
-  const toSaleExportRow = (s: SalesSummaryItem, idx: number) => ({
-    NO: idx + 1,
-    แบบรถ: s.vehicleModelName || s.vehicleInfo,
-    แชชซี่ส์: s.chassisNumber || s.vin || '-',
-    เลขเครื่อง: s.engineNumber || '-',
-    วันที่ขาย: s.saleDate ? formatDate(s.saleDate) : '-',
-    รับจาก: s.receivedFrom || '-',
-    'ราคาก่อน VAT': s.priceNet ?? 0,
-    VAT: s.priceVat ?? 0,
-    'ราคารวม VAT': s.priceGross ?? 0,
-    ชื่อลูกค้า: s.customerName,
-    สถานะ: s.statusLabel,
-    Sale: s.salesperson,
-    ยอดรวม: s.totalAmount,
-    ชำระแล้ว: s.paidAmount,
-    คงเหลือ: s.remainingAmount,
-  });
+  const toSaleExportRow = (s: SalesSummaryItem, idx: number) => buildSalesSummaryExportRow(s, idx);
 
   const handleExportExcel = async () => {
     if (!data) return;

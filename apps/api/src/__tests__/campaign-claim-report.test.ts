@@ -14,268 +14,134 @@ const model = (id: string, modelName: string, variant: string | null, price: num
   price,
 });
 
-// A campaign whose model `vmId` has one SUBTRACT-10000-from-cost formula
-// → rebate (commission) per car = 10,000.
-const campaignWith10kRebate = (vmId: string) => ({
-  id: 'camp1',
-  name: 'NETA Q2 Push',
-  vehicleModels: [
-    {
-      vehicleModelId: vmId,
-      formulas: [
-        {
-          id: 'f1',
-          name: 'คอมมิชชั่นพื้นฐาน',
-          operator: 'SUBTRACT' as const,
-          value: 10000,
-          priceTarget: 'COST_PRICE' as const,
-          sortOrder: 1,
-        },
-      ],
+type Fm = {
+  id: string;
+  name: string;
+  operator: 'PERCENT' | 'FIXED' | 'SUBTRACT' | 'ADD' | 'MULTIPLY' | 'PERCENT_SUBTRACT';
+  value: number;
+  priceTarget: 'SELLING_PRICE' | 'COST_PRICE';
+  sortOrder: number;
+};
+
+const saleWith = (args: {
+  id: string;
+  vmId: string;
+  modelName: string;
+  variant: string | null;
+  price: number;
+  baseCost: number | null; // null → no stock
+  soldDate: Date;
+  formulas: Fm[];
+}): ClaimSaleInput => {
+  const vm = model(args.vmId, args.modelName, args.variant, args.price);
+  return {
+    id: args.id,
+    saleNumber: args.id,
+    customer: { name: `cust-${args.id}` },
+    financeProvider: 'KTB',
+    carDiscount: 0,
+    discountSnapshot: 0,
+    completedDate: args.soldDate,
+    vehicleModelId: args.vmId,
+    vehicleModel: vm,
+    stock:
+      args.baseCost == null
+        ? null
+        : {
+            vin: `VIN-${args.id}`,
+            engineNumber: `ENG-${args.id}`,
+            soldDate: args.soldDate,
+            baseCost: args.baseCost,
+            vehicleModelId: args.vmId,
+            vehicleModel: vm,
+          },
+    campaign: {
+      id: 'camp1',
+      name: 'Expense campaign',
+      vehicleModels: [{ vehicleModelId: args.vmId, formulas: args.formulas }],
     },
-  ],
-});
+  };
+};
 
-const baseSale = (overrides: Partial<ClaimSaleInput> = {}): ClaimSaleInput => ({
-  id: 's1',
-  saleNumber: 'SL-2026-0001',
-  customer: { name: 'สมชาย ใจดี' },
-  financeProvider: 'KTB Leasing',
-  carDiscount: 5000,
-  discountSnapshot: 99999, // must be ignored when carDiscount is set
-  completedDate: new Date('2026-05-20T07:00:00Z'),
-  vehicleModelId: 'vm1',
-  vehicleModel: model('vm1', 'V', 'LITE', 500000),
-  stock: {
-    vin: 'VIN001',
-    engineNumber: 'ENG001',
+describe('buildCampaignClaimReport (expense columns)', () => {
+  // V (price 500,000): เปิดบูธ 1% sell = 5,000 ; Marketing 5% sell = 25,000
+  const saleV = saleWith({
+    id: 's1',
+    vmId: 'vm1',
+    modelName: 'V',
+    variant: 'LITE',
+    price: 500_000,
+    baseCost: 450_000,
+    soldDate: new Date('2026-05-10T07:00:00Z'),
+    formulas: [
+      { id: 'a', name: 'เปิดบูธ', operator: 'PERCENT', value: 1, priceTarget: 'SELLING_PRICE', sortOrder: 1 },
+      { id: 'b', name: 'Marketing', operator: 'PERCENT', value: 5, priceTarget: 'SELLING_PRICE', sortOrder: 2 },
+    ],
+  });
+  // X (price 700,000): เปิดบูธ 0.5% sell = 3,500 ; ค่าขนส่ง FIXED 3,000
+  const saleX = saleWith({
+    id: 's2',
+    vmId: 'vm2',
+    modelName: 'X',
+    variant: 'COMFORT',
+    price: 700_000,
+    baseCost: 650_000,
     soldDate: new Date('2026-05-15T07:00:00Z'),
-    baseCost: 450000,
-    vehicleModelId: 'vm1',
-    vehicleModel: model('vm1', 'V', 'LITE', 500000),
-  },
-  campaign: campaignWith10kRebate('vm1'),
-  ...overrides,
-});
-
-describe('buildCampaignClaimReport', () => {
-  test('maps a sale to a claim row with discount + commission and model column placement', () => {
-    const report = buildCampaignClaimReport([baseSale()]);
-
-    expect(report.modelColumns).toEqual([{ vehicleModelId: 'vm1', label: 'V LITE' }]);
-    expect(report.rows).toHaveLength(1);
-
-    const row = report.rows[0];
-    expect(row.no).toBe(1);
-    expect(row.customerName).toBe('สมชาย ใจดี');
-    expect(row.modelName).toBe('V LITE');
-    expect(row.engineNumber).toBe('ENG001');
-    expect(row.vin).toBe('VIN001');
-    expect(row.financeProvider).toBe('KTB Leasing');
-    expect(row.salePrice).toBe(500000); // from vehicle model price (MSRP incl VAT)
-    expect(row.promotionDiscount).toBe(5000);
-    expect(row.baseCommission).toBe(10000);
-    expect(row.claimTotal).toBe(15000);
-    // claim amount lands in the column of the car's model
-    expect(row.modelAmounts).toEqual([15000]);
-    expect(row.saleDate).toEqual(new Date('2026-05-15T07:00:00Z'));
-    expect(row.notifyDate).toEqual(new Date('2026-05-20T07:00:00Z'));
+    formulas: [
+      { id: 'c', name: 'เปิดบูธ', operator: 'PERCENT', value: 0.5, priceTarget: 'SELLING_PRICE', sortOrder: 1 },
+      { id: 'd', name: 'ค่าขนส่ง', operator: 'FIXED', value: 3000, priceTarget: 'SELLING_PRICE', sortOrder: 2 },
+    ],
   });
 
-  test('zero carDiscount does NOT fall back to discountSnapshot', () => {
-    const report = buildCampaignClaimReport([baseSale({ carDiscount: 0 })]);
-    expect(report.rows[0].promotionDiscount).toBe(0);
-    expect(report.rows[0].claimTotal).toBe(10000); // commission only
+  test('expenseColumns is the union of line names in first-appearance order', () => {
+    const r = buildCampaignClaimReport([saleV, saleX]);
+    expect(r.expenseColumns).toEqual(['เปิดบูธ', 'Marketing', 'ค่าขนส่ง']);
   });
 
-  test('null carDiscount falls back to discountSnapshot', () => {
-    const report = buildCampaignClaimReport([
-      baseSale({ carDiscount: null, discountSnapshot: 7000 }),
-    ]);
-    expect(report.rows[0].promotionDiscount).toBe(7000);
+  test('cells align to columns; missing line → null', () => {
+    const r = buildCampaignClaimReport([saleV, saleX]);
+    // rows sorted by soldDate ascending: V (05-10) then X (05-15)
+    expect(r.rows[0].modelName).toBe('V LITE');
+    expect(r.rows[0].cells).toEqual([5_000, 25_000, null]);
+    expect(r.rows[0].total).toBe(30_000);
+    expect(r.rows[1].modelName).toBe('X COMFORT');
+    expect(r.rows[1].cells).toEqual([3_500, null, 3_000]);
+    expect(r.rows[1].total).toBe(6_500);
   });
 
-  test('sale without stock uses sale.vehicleModel, blank VIN/engine, completedDate as sale date', () => {
-    const report = buildCampaignClaimReport([
-      baseSale({
-        stock: null,
-        // commission needs baseCost from stock; without stock the cost-side
-        // formula has no base → commission falls back to 0
-      }),
-    ]);
-    const row = report.rows[0];
-    expect(row.vin).toBe('');
-    expect(row.engineNumber).toBe('');
-    expect(row.modelName).toBe('V LITE');
-    expect(row.saleDate).toEqual(new Date('2026-05-20T07:00:00Z'));
-    expect(row.promotionDiscount).toBe(5000);
+  test('columnTotals + grandTotal, with the Σcolumns == grandTotal invariant', () => {
+    const r = buildCampaignClaimReport([saleV, saleX]);
+    expect(r.summary.columnTotals).toEqual([8_500, 25_000, 3_000]);
+    expect(r.summary.grandTotal).toBe(36_500);
+    expect(r.summary.columnTotals.reduce((a, b) => a + b, 0)).toBe(r.summary.grandTotal);
+    expect(r.summary.totalCars).toBe(2);
   });
 
-  test('builds distinct sorted model columns and per-column + grand totals', () => {
-    const saleB = baseSale({
-      id: 's2',
-      saleNumber: 'SL-2026-0002',
-      customer: { name: 'สมหญิง รักดี' },
-      carDiscount: 2000,
-      vehicleModelId: 'vm2',
-      vehicleModel: model('vm2', 'X', 'COMFORT', 700000),
-      stock: {
-        vin: 'VIN002',
-        engineNumber: 'ENG002',
-        soldDate: new Date('2026-05-10T07:00:00Z'),
-        baseCost: 650000,
-        vehicleModelId: 'vm2',
-        vehicleModel: model('vm2', 'X', 'COMFORT', 700000),
-      },
-      campaign: campaignWith10kRebate('vm2'),
+  test('no stock: a cost-based % cell resolves to 0', () => {
+    const noStock = saleWith({
+      id: 's3',
+      vmId: 'vm1',
+      modelName: 'V',
+      variant: 'LITE',
+      price: 500_000,
+      baseCost: null,
+      soldDate: new Date('2026-05-20T07:00:00Z'),
+      formulas: [
+        { id: 'm', name: 'Marketing', operator: 'PERCENT', value: 1, priceTarget: 'COST_PRICE', sortOrder: 1 },
+        { id: 's', name: 'เปิดบูธ', operator: 'PERCENT', value: 1, priceTarget: 'SELLING_PRICE', sortOrder: 2 },
+      ],
     });
-    const report = buildCampaignClaimReport([baseSale(), saleB]);
-
-    // sorted by label: V LITE, X COMFORT
-    expect(report.modelColumns.map((c) => c.label)).toEqual(['V LITE', 'X COMFORT']);
-    // rows sorted by sale date ascending → saleB (05-10) first
-    expect(report.rows[0].customerName).toBe('สมหญิง รักดี');
-    expect(report.rows[0].no).toBe(1);
-    expect(report.rows[0].modelAmounts).toEqual([null, 12000]);
-    expect(report.rows[1].modelAmounts).toEqual([15000, null]);
-
-    expect(report.summary.totalCars).toBe(2);
-    expect(report.summary.modelTotals).toEqual([15000, 12000]);
-    expect(report.summary.grandTotal).toBe(27000);
+    const r = buildCampaignClaimReport([noStock]);
+    expect(r.expenseColumns).toEqual(['Marketing', 'เปิดบูธ']);
+    expect(r.rows[0].cells).toEqual([0, 5_000]); // cost % → 0 ; selling 1% of 500,000 = 5,000
+    expect(r.rows[0].total).toBe(5_000);
   });
 
-  test('sale without stock still gets selling-side rebate, cost-side dropped', () => {
-    const report = buildCampaignClaimReport([
-      baseSale({
-        stock: null,
-        campaign: {
-          id: 'camp1',
-          name: 'NETA Q2 Push',
-          vehicleModels: [
-            {
-              vehicleModelId: 'vm1',
-              formulas: [
-                {
-                  id: 'f-cost',
-                  name: 'ส่วนลดทุน',
-                  operator: 'SUBTRACT' as const,
-                  value: 10000,
-                  priceTarget: 'COST_PRICE' as const,
-                  sortOrder: 1,
-                },
-                {
-                  id: 'f-sell',
-                  name: 'ส่วนลดราคาขาย',
-                  operator: 'SUBTRACT' as const,
-                  value: 3000,
-                  priceTarget: 'SELLING_PRICE' as const,
-                  sortOrder: 2,
-                },
-              ],
-            },
-          ],
-        },
-      }),
-    ]);
-    const row = report.rows[0];
-    // selling-side: 500000 - 3000 → sellingPriceDiff = -3000 → rebate 3000
-    // cost-side dropped entirely (no stock → no cost base)
-    expect(row.baseCommission).toBe(3000);
-    expect(row.claimTotal).toBe(8000); // 5000 discount + 3000 commission
-  });
-
-  test('empty input produces empty rows and zero totals', () => {
-    const report = buildCampaignClaimReport([]);
-    expect(report.rows).toEqual([]);
-    expect(report.modelColumns).toEqual([]);
-    expect(report.summary).toEqual({
-      totalCars: 0,
-      modelTotals: [],
-      grandTotal: 0,
-      subsidyTotals: {
-        stockLevel: 0,
-        afterSalesNoComplaint: 0,
-        afterSalesQr: 0,
-        marketing: 0,
-        retailTarget: 0,
-        total: 0,
-      },
-    });
-  });
-
-  test('summary.subsidyTotals sums each bucket across rows', () => {
-    const mk = (id: string) =>
-      baseSale({
-        id,
-        saleNumber: id,
-        vehicleModel: model('vm1', 'V', 'LITE', 535000),
-        stock: {
-          vin: `V${id}`,
-          engineNumber: `E${id}`,
-          soldDate: new Date('2026-05-15T07:00:00Z'),
-          baseCost: 450000,
-          vehicleModelId: 'vm1',
-          vehicleModel: model('vm1', 'V', 'LITE', 535000),
-        },
-      });
-    const report = buildCampaignClaimReport([mk('a'), mk('b')]);
-    expect(report.summary.subsidyTotals).toEqual({
-      stockLevel: 5000,
-      afterSalesNoComplaint: 2500,
-      afterSalesQr: 2500,
-      marketing: 9000,
-      retailTarget: 9000,
-      total: 28000,
-    });
-  });
-
-  test('retailTargetTier option overrides the default เป้าขาย tier', () => {
-    const sale = baseSale({
-      vehicleModel: model('vm1', 'V', 'LITE', 535000),
-      stock: {
-        vin: 'VIN001',
-        engineNumber: 'ENG001',
-        soldDate: new Date('2026-05-15T07:00:00Z'),
-        baseCost: 450000,
-        vehicleModelId: 'vm1',
-        vehicleModel: model('vm1', 'V', 'LITE', 535000),
-      },
-    });
-    const s = buildCampaignClaimReport([sale], { retailTargetTier: 0.015 }).rows[0].subsidies;
-    expect(s.retailTarget).toBe(6750); // 450000 × 1.5%
-    expect(s.total).toBe(16250); // 2500 + 1250 + 1250 + 4500 + 6750
-  });
-
-  test('each row carries computed subsidy buckets (MSRP from incl-VAT price, DNP from cost)', () => {
-    // price 535,000 incl VAT → MSRP 500,000; cost (DNP) 450,000; default tier 1%.
-    const sale = baseSale({
-      vehicleModel: model('vm1', 'V', 'LITE', 535000),
-      stock: {
-        vin: 'VIN001',
-        engineNumber: 'ENG001',
-        soldDate: new Date('2026-05-15T07:00:00Z'),
-        baseCost: 450000,
-        vehicleModelId: 'vm1',
-        vehicleModel: model('vm1', 'V', 'LITE', 535000),
-      },
-    });
-    const s = buildCampaignClaimReport([sale]).rows[0].subsidies;
-    expect(s.stockLevel).toBe(2500); // 500000 × 0.5%
-    expect(s.afterSalesNoComplaint).toBe(1250); // 500000 × 0.25%
-    expect(s.afterSalesQr).toBe(1250);
-    expect(s.marketing).toBe(4500); // 450000 × 1%
-    expect(s.retailTarget).toBe(4500); // 450000 × 1% (default tier)
-    expect(s.total).toBe(14000);
-  });
-
-  test('subsidy DNP buckets are zero without stock (no cost base), MSRP buckets still apply', () => {
-    const s = buildCampaignClaimReport([
-      baseSale({ stock: null, vehicleModel: model('vm1', 'V', 'LITE', 535000) }),
-    ]).rows[0].subsidies;
-    expect(s.stockLevel).toBe(2500); // MSRP from price still works
-    expect(s.marketing).toBe(0); // no cost → no DNP buckets
-    expect(s.retailTarget).toBe(0);
-    expect(s.total).toBe(5000); // 2500 + 1250 + 1250
+  test('empty input → empty columns/rows and zero totals', () => {
+    const r = buildCampaignClaimReport([]);
+    expect(r.expenseColumns).toEqual([]);
+    expect(r.rows).toEqual([]);
+    expect(r.summary).toEqual({ totalCars: 0, columnTotals: [], grandTotal: 0 });
   });
 });
 

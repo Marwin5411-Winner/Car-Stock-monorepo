@@ -97,3 +97,44 @@ export function buildSalespersonBreakdown(
     })
     .sort((a, b) => b.totalAmount - a.totalAmount);
 }
+
+/** One sale's money inputs needed for the report's net-discount + profit math. */
+export interface SaleMoneyInput {
+  sellingPrice: number;
+  totalCostWithInterest: number;
+  /** Already-resolved car discount (carDiscount ?? discountSnapshot ?? 0). */
+  carDiscount: number;
+  /** Per-car campaign subsidy snapshot; null/undefined → 0. */
+  campaignSubsidy?: number | null;
+  financeCommission?: number | null;
+  salesCommission?: number | null;
+  salesExpense?: number | null;
+}
+
+export interface SaleMoneyResult {
+  campaignSubsidy: number;
+  netCarDiscount: number;
+  netProfit: number;
+}
+
+/**
+ * Per-sale money math for the sales-summary report.
+ *
+ * The selling price is already post-discount, so the car discount is NOT
+ * subtracted again here. The campaign subsidy is brand money the dealership
+ * receives back, so it is ADDED to net profit. `netCarDiscount` is a display
+ * figure (carDiscount − subsidy) and may be negative when the subsidy exceeds
+ * the discount given.
+ */
+export function computeSaleMoney(input: SaleMoneyInput): SaleMoneyResult {
+  const campaignSubsidy = input.campaignSubsidy || 0;
+  const netCarDiscount = input.carDiscount - campaignSubsidy;
+  const netProfit =
+    input.sellingPrice -
+    input.totalCostWithInterest +
+    (input.financeCommission || 0) -
+    (input.salesCommission || 0) -
+    (input.salesExpense || 0) +
+    campaignSubsidy;
+  return { campaignSubsidy, netCarDiscount, netProfit };
+}

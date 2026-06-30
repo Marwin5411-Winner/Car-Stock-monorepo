@@ -1,10 +1,10 @@
 import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../../components/layout';
 import { campaignService } from '../../services/campaign.service';
 import { FormulaManager } from '../../components/campaigns/FormulaManager';
-import { ArrowLeft, Edit, BarChart3, Calendar, Car, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, BarChart3, Calendar, Car, FileText, Copy } from 'lucide-react';
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -21,6 +21,15 @@ const statusLabels = {
 export const CampaignDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const duplicateMutation = useMutation({
+    mutationFn: (campaignId: string) => campaignService.duplicate(campaignId),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      navigate(`/campaigns/${created.id}/edit`);
+    },
+  });
 
   const {
     data: campaign,
@@ -81,6 +90,13 @@ export const CampaignDetailPage: React.FC = () => {
               <BarChart3 className="w-5 h-5" />
               ดูสถิติ
             </Link>
+            <button
+              onClick={() => duplicateMutation.mutate(id!)}
+              disabled={duplicateMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <Copy className="w-5 h-5" /> ทำสำเนา
+            </button>
             <Link
               to={`/campaigns/${id}/edit`}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -136,6 +152,13 @@ export const CampaignDetailPage: React.FC = () => {
                   <div>
                     <label className="text-sm font-medium text-gray-500">หมายเหตุ</label>
                     <p className="text-gray-900 mt-1">{campaign.notes}</p>
+                  </div>
+                )}
+
+                {campaign.branch && (
+                  <div>
+                    <span className="text-gray-500">สาขา</span>
+                    <p className="text-gray-900 mt-1">{campaign.branch}</p>
                   </div>
                 )}
 
@@ -236,18 +259,19 @@ export const CampaignDetailPage: React.FC = () => {
         {/* Formula Management — full width below the grid for more room */}
         {campaign.vehicleModels.length === 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">สูตรคำนวณราคา / คอมมิชชั่น</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">ค่าใช้จ่ายแคมเปญต่อคัน</h2>
             <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center bg-gray-50">
               <p className="text-sm text-gray-600">ยังไม่มีรุ่นรถยนต์ในแคมเปญนี้</p>
-              <p className="text-xs text-gray-500 mt-1">เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดสูตรคำนวณ Rebate</p>
+              <p className="text-xs text-gray-500 mt-1">เพิ่มรุ่นรถยนต์ก่อนเพื่อกำหนดรายการค่าใช้จ่ายต่อคัน</p>
             </div>
           </div>
         )}
         {campaign.vehicleModels.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">สูตรคำนวณราคา / คอมมิชชั่น</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">ค่าใช้จ่ายแคมเปญต่อคัน</h2>
             <p className="text-sm text-gray-500 mb-4">
-              กำหนดสูตรคำนวณสำหรับแต่ละรุ่นรถยนต์ สามารถเพิ่ม +, -, ×, % และเรียงลำดับการคำนวณได้
+              กำหนดรายการค่าใช้จ่ายต่อคันของแต่ละรุ่น คิดเป็น % ของราคาขาย/ราคาทุน หรือจำนวนเงินคงที่
+              แล้วรวมเป็นยอดที่ต้องเบิกต่อคัน
             </p>
             <div className="space-y-4">
               {campaign.vehicleModels.map((model) => (

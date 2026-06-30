@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { splitVat } from '../modules/reports/reports.service';
+import { computeSaleMoney } from '../modules/reports/sales-summary.helpers';
 
 describe('splitVat', () => {
   it('returns zeros for gross = 0', () => {
@@ -29,5 +30,50 @@ describe('splitVat', () => {
       const { net, vat } = splitVat(gross);
       expect(Math.round((net + vat) * 100) / 100).toBe(gross);
     }
+  });
+});
+
+describe('computeSaleMoney', () => {
+  it('folds the subsidy into net profit and nets the car discount', () => {
+    const r = computeSaleMoney({
+      sellingPrice: 1_000_000,
+      totalCostWithInterest: 900_000,
+      carDiscount: 30_000,
+      campaignSubsidy: 20_000,
+      financeCommission: 15_000,
+      salesCommission: 5_000,
+      salesExpense: 3_000,
+    });
+    // 1,000,000 − 900,000 + 15,000 − 5,000 − 3,000 + 20,000 = 127,000
+    expect(r.netProfit).toBe(127_000);
+    expect(r.netCarDiscount).toBe(10_000); // 30,000 − 20,000
+    expect(r.campaignSubsidy).toBe(20_000);
+  });
+
+  it('treats a null subsidy as 0 (no campaign / historical sale)', () => {
+    const r = computeSaleMoney({
+      sellingPrice: 1_000_000,
+      totalCostWithInterest: 900_000,
+      carDiscount: 30_000,
+      campaignSubsidy: null,
+      financeCommission: null,
+      salesCommission: null,
+      salesExpense: null,
+    });
+    expect(r.netProfit).toBe(100_000); // unchanged by subsidy
+    expect(r.netCarDiscount).toBe(30_000); // equals gross discount
+    expect(r.campaignSubsidy).toBe(0);
+  });
+
+  it('allows a negative net car-discount when subsidy exceeds the discount', () => {
+    const r = computeSaleMoney({
+      sellingPrice: 500_000,
+      totalCostWithInterest: 450_000,
+      carDiscount: 10_000,
+      campaignSubsidy: 25_000,
+    });
+    expect(r.netCarDiscount).toBe(-15_000); // 10,000 − 25,000
+    expect(r.netProfit).toBe(75_000); // 50,000 + 25,000
+    expect(r.campaignSubsidy).toBe(25_000);
   });
 });

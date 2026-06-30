@@ -6,12 +6,15 @@ import { pdfService } from '../pdf/pdf.service';
 import { formatThaiDate, formatCurrency } from '../pdf/helpers';
 import { db } from '../../lib/db';
 
+// Expense model: percent rows show a bare "n%", fixed rows a bare baht amount.
+// Legacy SUBTRACT keeps its minus sign for old rows.
 const OPERATOR_SYMBOLS: Record<string, string> = {
-  ADD: '+',
+  ADD: '',
   SUBTRACT: '-',
   MULTIPLY: '×',
-  PERCENT: '+',
-  PERCENT_SUBTRACT: '-',
+  PERCENT: '',
+  PERCENT_SUBTRACT: '',
+  FIXED: '',
 };
 
 async function getCompanyHeader(): Promise<any> {
@@ -137,7 +140,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
       const limit = parseInt(query.limit || '20');
       const search = query.search;
 
-      const result = await campaignsService.getAll(page, limit, search);
+      const result = await campaignsService.getAll(page, limit, search, query.branch);
       set.status = 200;
       return {
         success: true,
@@ -151,12 +154,25 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         search: t.Optional(t.String()),
+        branch: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Campaigns'],
         summary: 'Get all campaigns',
         description: 'Get campaigns with pagination and search (ADMIN only)',
       },
+    }
+  )
+  // Get distinct branch labels (must be before /:id)
+  .get(
+    '/branches',
+    async () => {
+      const branches = await campaignsService.getBranches();
+      return { success: true, data: branches };
+    },
+    {
+      beforeHandle: [authMiddleware],
+      detail: { tags: ['Campaigns'], summary: 'Distinct campaign branch labels' },
     }
   )
   // Get active campaigns (for sales - any authenticated user)
@@ -294,6 +310,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         startDate: t.String(),
         endDate: t.String(),
         notes: t.Optional(t.String()),
+        branch: t.Optional(t.String()),
         vehicleModelIds: t.Optional(t.Array(t.String())),
       }),
       detail: {
@@ -346,6 +363,7 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         startDate: t.Optional(t.String()),
         endDate: t.Optional(t.String()),
         notes: t.Optional(t.String()),
+        branch: t.Optional(t.String()),
         vehicleModelIds: t.Optional(t.Array(t.String())),
       }),
       detail: {
@@ -353,6 +371,19 @@ export const campaignRoutes = new Elysia({ prefix: '/campaigns' })
         summary: 'Update campaign',
         description: 'Update an existing campaign (ADMIN only)',
       },
+    }
+  )
+  // Duplicate campaign (ADMIN only)
+  .post(
+    '/:id/duplicate',
+    async ({ params, set, requester }) => {
+      const campaign = await campaignsService.duplicate(params.id, requester.id);
+      set.status = 201;
+      return { success: true, data: campaign, message: 'Campaign duplicated' };
+    },
+    {
+      beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_CREATE')],
+      detail: { tags: ['Campaigns'], summary: 'Duplicate a campaign' },
     }
   )
   // Delete campaign (ADMIN only)

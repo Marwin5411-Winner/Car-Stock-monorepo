@@ -282,6 +282,16 @@ export class PdfService {
     // Padding (default 10mm)
     const padding = options.padding || '10mm';
 
+    // For browser HTML printing: page size = physical paper, and a
+    // higher-specificity !important override zeroes the template's own
+    // .page print padding AND cancels its forced page-break, so the @page margin is the sole edge gap and a single-page card does not emit a trailing blank page.
+    const htmlPageCss = options.htmlPage
+      ? `
+    @page { size: ${options.htmlPage.size}; margin: ${options.htmlPage.margin}; }
+    @media print { html body .page { padding: 0 !important; page-break-after: auto !important; } }
+    `
+      : '';
+
     return `
 <!DOCTYPE html>
 <html lang="th">
@@ -501,10 +511,15 @@ export class PdfService {
     @media print {
       .page {
         margin: 0;
+        /* NOTE: when options.htmlPage is set, htmlPageCss below overrides this
+           via a higher-specificity 'html body .page' padding:0 !important rule,
+           so the injected page-rule margin is the sole edge gap — do NOT
+           cargo-cult this 10mm into the htmlPage path. */
         padding: 10mm;
         page-break-after: always;
       }
     }
+    ${htmlPageCss}
   </style>
 </head>
 <body>
@@ -597,42 +612,8 @@ export class PdfService {
     options: PdfOptions = {}
   ): Promise<Buffer> {
     try {
-      // Get and compile template
-      const template = this.getTemplate(templateType);
-
-      // Fetch company settings from DB
-      const dbSettings = await import('../settings/settings.service').then((m) =>
-        m.settingsService.getSettings()
-      );
-
-      // Add company header to data if not present
-      const providedHeader = (data as any).header || {};
-
-      // Construct header from DB settings or fallback
-      const dbHeader = dbSettings
-        ? {
-            companyName: dbSettings.companyNameTh || DEFAULT_COMPANY_HEADER.companyName,
-            address1: dbSettings.addressTh || DEFAULT_COMPANY_HEADER.address1,
-            address2: '',
-            phone:
-              `โทร. ${dbSettings.phone} ${dbSettings.fax ? `โทรสาร. ${dbSettings.fax}` : ''}`.trim(),
-            logoBase64: dbSettings.logo || this.logoBase64 || DEFAULT_COMPANY_HEADER.logoBase64,
-          }
-        : DEFAULT_COMPANY_HEADER;
-
-      const dataWithHeader = {
-        ...data,
-        header: {
-          ...dbHeader,
-          ...providedHeader,
-          logoBase64: providedHeader.logoBase64 || dbHeader.logoBase64 || this.logoBase64,
-        },
-        receiptBgBase64: this.receiptBgBase64,
-      };
-
-      // Render template with data
-      const content = template(dataWithHeader);
-      const html = this.getBaseHtml(content, options);
+      // Build the HTML (shared with the HTML print path)
+      const html = await this.renderHtml(templateType, data, options);
 
       // Generate PDF with Puppeteer
       const browser = await this.getBrowser();
@@ -814,6 +795,34 @@ export class PdfService {
         bottom: '5mm',
         left: '5mm',
       },
+    });
+  }
+
+  /**
+   * Render Vehicle Card as HTML for browser printing (การ์ดรายละเอียดรถยนต์).
+   * @page is sized to the real paper (US Letter, landscape) so the browser
+   * does not scale; the @page margin is the single edge-gap tuning point.
+   */
+  public async renderVehicleCardHtml(data: VehicleCardData): Promise<string> {
+    return this.renderHtml(PdfTemplateType.VEHICLE_CARD, data, {
+      width: '26.85cm',
+      // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
+      height: '20.71cm',
+      padding: '0mm',
+      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
+    });
+  }
+
+  /**
+   * Render the frameless Vehicle Card overlay as HTML for browser printing.
+   */
+  public async renderVehicleCardTemplateHtml(data: VehicleCardData): Promise<string> {
+    return this.renderHtml(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
+      width: '26.85cm',
+      // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
+      height: '20.71cm',
+      padding: '0mm',
+      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
     });
   }
 

@@ -24,9 +24,11 @@ export const CampaignFormPage: React.FC = () => {
     endDate: '',
     status: 'DRAFT' as 'DRAFT' | 'ACTIVE' | 'ENDED',
     notes: '',
+    branch: '',
     vehicleModelIds: [] as string[],
   });
 
+  const [modelSearch, setModelSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Fetch existing campaign for edit
@@ -44,6 +46,11 @@ export const CampaignFormPage: React.FC = () => {
 
   const vehicleModels = vehicleModelsData?.data || [];
 
+  const { data: branchOptions = [] } = useQuery({
+    queryKey: ['campaign-branches'],
+    queryFn: () => campaignService.getBranches(),
+  });
+
   // Initialize form data for edit
   useEffect(() => {
     if (campaign) {
@@ -54,6 +61,7 @@ export const CampaignFormPage: React.FC = () => {
         endDate: campaign.endDate.split('T')[0],
         status: campaign.status,
         notes: campaign.notes || '',
+        branch: campaign.branch || '',
         vehicleModelIds: campaign.vehicleModels.map((vm) => vm.id),
       });
     }
@@ -117,6 +125,7 @@ export const CampaignFormPage: React.FC = () => {
       startDate: formData.startDate,
       endDate: formData.endDate,
       notes: formData.notes || undefined,
+      branch: formData.branch.trim() || undefined,
       vehicleModelIds: formData.vehicleModelIds,
       ...(isEdit && { status: formData.status }),
     };
@@ -126,6 +135,29 @@ export const CampaignFormPage: React.FC = () => {
         ? updateMutation.mutateAsync(data)
         : createMutation.mutateAsync(data)
     );
+  };
+
+  const filteredModels = vehicleModels.filter((m: VehicleModel) => {
+    const q = modelSearch.trim().toLowerCase();
+    if (!q) return true;
+    return `${m.brand} ${m.model} ${m.variant ?? ''}`.toLowerCase().includes(q);
+  });
+
+  const selectAllFiltered = () => {
+    setFormData((prev) => ({
+      ...prev,
+      vehicleModelIds: Array.from(
+        new Set([...prev.vehicleModelIds, ...filteredModels.map((m: VehicleModel) => m.id)])
+      ),
+    }));
+  };
+
+  const clearFiltered = () => {
+    const filteredIds = new Set(filteredModels.map((m: VehicleModel) => m.id));
+    setFormData((prev) => ({
+      ...prev,
+      vehicleModelIds: prev.vehicleModelIds.filter((id) => !filteredIds.has(id)),
+    }));
   };
 
   const toggleVehicleModel = (modelId: string) => {
@@ -264,6 +296,23 @@ export const CampaignFormPage: React.FC = () => {
                 placeholder="หมายเหตุเพิ่มเติม"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">สาขา</label>
+              <input
+                type="text"
+                list="campaign-branch-options"
+                value={formData.branch}
+                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="เช่น สำนักงานใหญ่"
+              />
+              <datalist id="campaign-branch-options">
+                {branchOptions.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
           </div>
 
           {/* Vehicle Models */}
@@ -281,8 +330,32 @@ export const CampaignFormPage: React.FC = () => {
               <p className="text-red-500 text-sm">{errors.vehicleModelIds}</p>
             )}
 
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={modelSearch}
+                onChange={(e) => setModelSearch(e.target.value)}
+                placeholder="ค้นหารุ่น..."
+                className="flex-1 min-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={selectAllFiltered}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                เลือกทั้งหมด
+              </button>
+              <button
+                type="button"
+                onClick={clearFiltered}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                ล้างทั้งหมด
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-              {vehicleModels.map((model: VehicleModel) => {
+              {filteredModels.map((model: VehicleModel) => {
                 const isSelected = formData.vehicleModelIds.includes(model.id);
                 return (
                   <div

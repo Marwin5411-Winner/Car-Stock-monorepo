@@ -984,7 +984,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/vehicle-card/:stockId',
-    async ({ params, set }) => {
+    async ({ params, query, set }) => {
       const stock = await db.stock.findUnique({
         where: { id: params.stockId },
         include: {
@@ -1072,6 +1072,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         location: stock.parkingSlot || '-',
       };
 
+      if (query.format === 'html') {
+        set.headers['Content-Type'] = 'text/html; charset=utf-8';
+        return await pdfService.renderVehicleCardHtml(data);
+      }
+
       const pdfBuffer = await pdfService.generateVehicleCard(data);
 
       set.headers['Content-Type'] = 'application/pdf';
@@ -1083,6 +1088,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
       params: t.Object({
         stockId: t.String(),
+      }),
+      query: t.Object({
+        format: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],
@@ -1097,7 +1105,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
    */
   .get(
     '/vehicle-card-template/:stockId',
-    async ({ params, set }) => {
+    async ({ params, query, set }) => {
       const stock = await db.stock.findUnique({
         where: { id: params.stockId },
         include: {
@@ -1185,6 +1193,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         location: stock.parkingSlot || '-',
       };
 
+      if (query.format === 'html') {
+        set.headers['Content-Type'] = 'text/html; charset=utf-8';
+        return await pdfService.renderVehicleCardTemplateHtml(data);
+      }
+
       const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
 
       set.headers['Content-Type'] = 'application/pdf';
@@ -1197,6 +1210,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       beforeHandle: [authMiddleware, requirePermission('DOC_CAR_DETAIL_CARD')],
       params: t.Object({
         stockId: t.String(),
+      }),
+      query: t.Object({
+        format: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],
@@ -1736,16 +1752,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         return 'brand is required';
       }
 
-      const tierNum = query.tier != null && query.tier !== '' ? Number(query.tier) : undefined;
-      const constructionCost =
-        query.constructionCost != null && query.constructionCost !== ''
-          ? Number(query.constructionCost)
-          : 0;
       const report = await reportsService.getCampaignClaimReport({
         year,
         month,
         brand: query.brand,
-        retailTargetTier: Number.isFinite(tierNum) ? tierNum : undefined,
       });
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -1775,26 +1785,21 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         financeProvider: r.financeProvider,
         saleDate: r.saleDate ? r.saleDate.toISOString() : null,
         notifyDate: r.notifyDate ? r.notifyDate.toISOString() : null,
-        campaignName: r.campaignName,
         salePrice: r.salePrice,
-        promotionDiscount: r.promotionDiscount,
-        subsidies: r.subsidies,
+        cells: r.cells,
+        total: r.total,
       }));
-
-      const tierLabel = `${(report.retailTargetTier * 100).toFixed(1)}%`;
 
       const pdfBuffer = await pdfService.generateCampaignClaimReportPdf({
         header,
         monthLabel,
         brand: report.brand,
-        tierLabel,
-        constructionCost,
+        expenseColumns: report.expenseColumns,
         rows,
         summary: {
           totalCars: report.summary.totalCars,
-          subsidyTotals: report.summary.subsidyTotals,
-          grandTotalWithConstruction:
-            Math.round((report.summary.subsidyTotals.total + constructionCost) * 100) / 100,
+          columnTotals: report.summary.columnTotals,
+          grandTotal: report.summary.grandTotal,
         },
         printedAt: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       });
@@ -1814,8 +1819,6 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         year: t.String(),
         month: t.String(),
         brand: t.String(),
-        tier: t.Optional(t.String()),
-        constructionCost: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],

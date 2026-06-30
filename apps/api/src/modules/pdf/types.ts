@@ -358,6 +358,15 @@ export interface PdfOptions {
   landscape?: boolean;
   printBackground?: boolean;
   scale?: number; // Scale of the page rendering (0.1 - 2.0, default 1.0)
+  /**
+   * When set, render an HTML page for browser printing: emits an @page rule
+   * (size = physical paper) and neutralizes template .page print padding so
+   * the @page margin is the only edge gap.
+   */
+  htmlPage?: {
+    size: string; // CSS @page size, e.g. '27.94cm 21.59cm' (Letter landscape)
+    margin: string; // CSS @page margin shorthand, e.g. '1.7mm 5mm 5mm 1mm'
+  };
 }
 
 /**
@@ -632,10 +641,8 @@ export interface CampaignClaimReportData {
   };
   monthLabel: string; // e.g. 'พฤษภาคม 2569'
   brand: string;
-  /** Chosen เป้าขาย tier label e.g. '1.0%'. */
-  tierLabel: string;
-  /** Monthly construction/booth subsidy (ค่าก่อสร้าง) — manual, shown once. */
-  constructionCost: number;
+  /** Expense-line names; the dynamic columns of the table. */
+  expenseColumns: string[];
   rows: Array<{
     no: number;
     customerName: string;
@@ -645,16 +652,15 @@ export interface CampaignClaimReportData {
     financeProvider: string;
     saleDate: string | null; // ISO string, formatted in template
     notifyDate: string | null;
-    campaignName: string;
     salePrice: number;
-    promotionDiscount: number;
-    subsidies: CampaignSubsidyAmounts;
+    /** Aligned 1:1 to expenseColumns; null = model lacks that line. */
+    cells: Array<number | null>;
+    total: number;
   }>;
   summary: {
     totalCars: number;
-    subsidyTotals: CampaignSubsidyAmounts;
-    /** subsidyTotals.total + constructionCost. */
-    grandTotalWithConstruction: number;
+    columnTotals: number[]; // aligned 1:1 to expenseColumns
+    grandTotal: number;
   };
   printedAt: string;
 }

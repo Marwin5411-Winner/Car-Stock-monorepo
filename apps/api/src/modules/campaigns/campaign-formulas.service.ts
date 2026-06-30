@@ -154,6 +154,9 @@ class CampaignFormulasService {
   }
 
   /**
+   * @deprecated Price-chain model. Production now uses the additive expense
+   * engine (`sumCampaignSubsidies`). Retained only for its direct unit tests.
+   *
    * Apply pre-loaded formulas to a (costPrice, sellingPrice) pair. Pure
    * computation — no DB access. Returns adjusted prices and a per-step
    * trace so callers that need to render the breakdown (e.g. the campaign
@@ -227,6 +230,8 @@ class CampaignFormulasService {
   }
 
   /**
+   * @deprecated See applyLoadedFormulas — superseded by the expense-sum engine.
+   *
    * Apply all formulas for a campaign vehicle model to cost and selling prices.
    * Thin wrapper that fetches formulas and delegates to applyLoadedFormulas.
    */

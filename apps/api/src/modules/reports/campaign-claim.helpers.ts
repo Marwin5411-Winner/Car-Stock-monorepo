@@ -1,5 +1,5 @@
 import type { FormulaOperator, FormulaPriceTarget } from '@prisma/client';
-import { campaignFormulasService } from '../campaigns/campaign-formulas.service';
+import { formulaSubsidyAmount } from '@car-stock/shared/formulas';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const toNum = (v: { toString(): string } | number | null | undefined): number =>
@@ -31,7 +31,7 @@ export interface SubsidyAmounts {
   total: number;
 }
 
-/** Brand-standard rates from the customer's template (เป้าขาย defaults to the 1% tier). */
+/** @deprecated Brand-bucket rates — no longer used by the claim report (now editor-driven). */
 export const DEFAULT_SUBSIDY_RATES: SubsidyRates = {
   stockLevel: 0.005,
   afterSalesNoComplaint: 0.0025,
@@ -41,6 +41,8 @@ export const DEFAULT_SUBSIDY_RATES: SubsidyRates = {
 };
 
 /**
+ * @deprecated Brand-bucket rates — no longer used by the claim report (now editor-driven).
+ *
  * Brand campaign reimbursement buckets, mirroring the customer's xls:
  *   STOCK LEVEL / After Sales = (ราคาขาย ÷ 1.07) × rate   (MSRP, ex-VAT)
  *   MARKETING / เป้าขาย       = ต้นทุน × rate              (DNP, as-is)
@@ -126,13 +128,10 @@ export interface ClaimRow {
   campaignName: string;
   /** ราคาขาย (MSRP incl VAT) from the vehicle model. */
   salePrice: number;
-  promotionDiscount: number;
-  baseCommission: number;
-  claimTotal: number;
-  /** Per-bucket brand reimbursement amounts (STOCK LEVEL / After Sales×2 / MARKETING / เป้าขาย). */
-  subsidies: SubsidyAmounts;
-  /** One slot per modelColumns entry; claimTotal in the car's column, null elsewhere. */
-  modelAmounts: Array<number | null>;
+  /** Per-car expense amounts aligned 1:1 to expenseColumns; null = model lacks that line. */
+  cells: Array<number | null>;
+  /** Sum of this car's expense lines (ยอดเบิกต่อคัน). */
+  total: number;
 }
 
 const modelLabel = (vm: ClaimVehicleModel): string =>
@@ -141,110 +140,68 @@ const modelLabel = (vm: ClaimVehicleModel): string =>
 const resolveModel = (sale: ClaimSaleInput): ClaimVehicleModel | null =>
   sale.stock?.vehicleModel ?? sale.vehicleModel;
 
-export function buildCampaignClaimReport(
-  sales: ClaimSaleInput[],
-  options: { retailTargetTier?: number } = {}
-) {
-  const rates: SubsidyRates =
-    options.retailTargetTier != null
-      ? { ...DEFAULT_SUBSIDY_RATES, retailTargetTier: options.retailTargetTier }
-      : DEFAULT_SUBSIDY_RATES;
-  // Distinct model columns from sales actually present, sorted by label.
-  const columnMap = new Map<string, { vehicleModelId: string; label: string }>();
-  for (const sale of sales) {
-    const vm = resolveModel(sale);
-    if (vm && !columnMap.has(vm.id)) {
-      columnMap.set(vm.id, { vehicleModelId: vm.id, label: modelLabel(vm) });
-    }
-  }
-  const modelColumns = [...columnMap.values()].sort((a, b) => a.label.localeCompare(b.label, 'th'));
-  const columnIndex = new Map(modelColumns.map((c, i) => [c.vehicleModelId, i]));
-
+export function buildCampaignClaimReport(sales: ClaimSaleInput[]) {
   const sorted = [...sales].sort((a, b) => {
     const da = a.stock?.soldDate ?? a.completedDate;
     const db = b.stock?.soldDate ?? b.completedDate;
     return (da?.getTime() ?? 0) - (db?.getTime() ?? 0);
   });
 
-  const rows: ClaimRow[] = sorted.map((sale, idx) => {
+  // Pass 1: per-sale amount map (name → baht) + the union of column names in
+  // first-appearance order.
+  const expenseColumns: string[] = [];
+  const seen = new Set<string>();
+  const perSale = sorted.map((sale) => {
     const vm = resolveModel(sale);
-
-    // Zero is a real value — only null/undefined falls back to the campaign snapshot.
-    const promotionDiscount =
-      sale.carDiscount != null
-        ? round2(toNum(sale.carDiscount))
-        : round2(toNum(sale.discountSnapshot));
-
-    // Commission = supplier rebate from the shared formula engine.
-    let baseCommission = 0;
     const vmId = vm?.id ?? null;
     const cvm = vmId
       ? sale.campaign?.vehicleModels.find((m) => m.vehicleModelId === vmId)
       : undefined;
-    if (cvm && cvm.formulas.length > 0 && vm) {
-      const costPrice = sale.stock ? toNum(sale.stock.baseCost) : 0;
-      const sellingPrice = toNum(vm.price);
-      const applied = campaignFormulasService.applyLoadedFormulas(
-        cvm.formulas,
-        costPrice,
-        sellingPrice
-      );
-      // Without a stock there is no real cost base, so a cost-side rebate is meaningless.
-      baseCommission = sale.stock
-        ? round2(-(applied.costPriceDiff + applied.sellingPriceDiff))
-        : round2(-applied.sellingPriceDiff);
+    const amounts = new Map<string, number>();
+    if (cvm && vm) {
+      const bases = {
+        cost: sale.stock ? toNum(sale.stock.baseCost) : 0,
+        selling: toNum(vm.price),
+      };
+      for (const f of cvm.formulas) {
+        const amt = formulaSubsidyAmount(f.operator, toNum(f.value), f.priceTarget, bases);
+        amounts.set(f.name, round2((amounts.get(f.name) ?? 0) + amt));
+        if (!seen.has(f.name)) {
+          seen.add(f.name);
+          expenseColumns.push(f.name);
+        }
+      }
     }
-
-    const claimTotal = round2(promotionDiscount + baseCommission);
-    const subsidies = computeCampaignSubsidies(
-      vm ? toNum(vm.price) : 0,
-      sale.stock ? toNum(sale.stock.baseCost) : 0,
-      rates
-    );
-    const modelAmounts: Array<number | null> = modelColumns.map(() => null);
-    const colIdx = vmId != null ? columnIndex.get(vmId) : undefined;
-    if (colIdx !== undefined) modelAmounts[colIdx] = claimTotal;
-
-    return {
-      no: idx + 1,
-      saleId: sale.id,
-      saleNumber: sale.saleNumber,
-      customerName: sale.customer?.name ?? '',
-      modelName: vm ? modelLabel(vm) : '',
-      engineNumber: sale.stock?.engineNumber ?? '',
-      vin: sale.stock?.vin ?? '',
-      financeProvider: sale.financeProvider ?? '',
-      saleDate: sale.stock?.soldDate ?? sale.completedDate,
-      notifyDate: sale.completedDate ?? sale.stock?.soldDate ?? null,
-      campaignName: sale.campaign?.name ?? '',
-      salePrice: vm ? toNum(vm.price) : 0,
-      promotionDiscount,
-      baseCommission,
-      claimTotal,
-      subsidies,
-      modelAmounts,
-    };
+    const total = round2([...amounts.values()].reduce((s, a) => s + a, 0));
+    return { sale, vm, amounts, total };
   });
 
-  const modelTotals = modelColumns.map((_, i) =>
-    round2(rows.reduce((sum, r) => sum + (r.modelAmounts[i] ?? 0), 0))
-  );
-  const grandTotal = round2(rows.reduce((sum, r) => sum + r.claimTotal, 0));
+  // Pass 2: align each row's cells to the now-complete column list.
+  const rows: ClaimRow[] = perSale.map(({ sale, vm, amounts, total }, idx) => ({
+    no: idx + 1,
+    saleId: sale.id,
+    saleNumber: sale.saleNumber,
+    customerName: sale.customer?.name ?? '',
+    modelName: vm ? modelLabel(vm) : '',
+    engineNumber: sale.stock?.engineNumber ?? '',
+    vin: sale.stock?.vin ?? '',
+    financeProvider: sale.financeProvider ?? '',
+    saleDate: sale.stock?.soldDate ?? sale.completedDate,
+    notifyDate: sale.completedDate ?? sale.stock?.soldDate ?? null,
+    campaignName: sale.campaign?.name ?? '',
+    salePrice: vm ? toNum(vm.price) : 0,
+    cells: expenseColumns.map((name) => (amounts.has(name) ? (amounts.get(name) as number) : null)),
+    total,
+  }));
 
-  const sumBucket = (pick: (s: SubsidyAmounts) => number) =>
-    round2(rows.reduce((sum, r) => sum + pick(r.subsidies), 0));
-  const subsidyTotals: SubsidyAmounts = {
-    stockLevel: sumBucket((s) => s.stockLevel),
-    afterSalesNoComplaint: sumBucket((s) => s.afterSalesNoComplaint),
-    afterSalesQr: sumBucket((s) => s.afterSalesQr),
-    marketing: sumBucket((s) => s.marketing),
-    retailTarget: sumBucket((s) => s.retailTarget),
-    total: sumBucket((s) => s.total),
-  };
+  const columnTotals = expenseColumns.map((_, j) =>
+    round2(rows.reduce((s, r) => s + (r.cells[j] ?? 0), 0))
+  );
+  const grandTotal = round2(rows.reduce((s, r) => s + r.total, 0));
 
   return {
-    modelColumns,
+    expenseColumns,
     rows,
-    summary: { totalCars: rows.length, modelTotals, grandTotal, subsidyTotals },
+    summary: { totalCars: rows.length, columnTotals, grandTotal },
   };
 }

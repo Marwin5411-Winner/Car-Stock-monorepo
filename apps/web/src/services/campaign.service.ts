@@ -19,6 +19,7 @@ export interface Campaign {
   startDate: string;
   endDate: string;
   notes?: string;
+  branch?: string;
   createdBy: {
     id: string;
     firstName: string;
@@ -36,6 +37,7 @@ export interface CreateCampaignData {
   startDate: string;
   endDate: string;
   notes?: string;
+  branch?: string;
   vehicleModelIds?: string[];
 }
 
@@ -46,6 +48,7 @@ export interface UpdateCampaignData {
   startDate?: string;
   endDate?: string;
   notes?: string;
+  branch?: string;
   vehicleModelIds?: string[];
 }
 
@@ -200,6 +203,7 @@ export interface CampaignFilters {
   page?: number;
   limit?: number;
   search?: string;
+  branch?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -227,12 +231,18 @@ class CampaignService {
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.search) params.append('search', filters.search);
+    if (filters.branch) params.append('branch', filters.branch);
 
     const response = await api.get<ApiResponse<Campaign[]>>(`/api/campaigns?${params.toString()}`);
     return {
       data: response.data,
       meta: response.meta!,
     };
+  }
+
+  async getBranches(): Promise<string[]> {
+    const res = await api.get<ApiResponse<string[]>>('/api/campaigns/branches');
+    return res.data;
   }
 
   async getById(id: string): Promise<Campaign> {
@@ -248,6 +258,11 @@ class CampaignService {
   async create(data: CreateCampaignData): Promise<Campaign> {
     const response = await api.post<ApiResponse<Campaign>>('/api/campaigns', data);
     return response.data;
+  }
+
+  async duplicate(id: string): Promise<Campaign> {
+    const res = await api.post<ApiResponse<Campaign>>(`/api/campaigns/${id}/duplicate`, {});
+    return res.data;
   }
 
   async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
