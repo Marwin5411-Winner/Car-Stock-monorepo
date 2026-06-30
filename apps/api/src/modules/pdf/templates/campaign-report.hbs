@@ -120,6 +120,9 @@
       {{! Subtotal row }}
       <tr class="row-subtotal">
         <td colspan="{{subtotalLeftColspan}}" class="tr">รวม {{modelFullName}} ({{totalSales}} คัน):</td>
+        {{#each formulaSubtotals}}
+        <td class="tr cell-formula">{{formatCurrency this false}}</td>
+        {{/each}}
         {{#if @root.hasMultipleGroups}}
         {{#each subtotalModelAmounts}}
         <td class="tr cell-model">{{#if this}}{{formatCurrency this false}}{{/if}}</td>

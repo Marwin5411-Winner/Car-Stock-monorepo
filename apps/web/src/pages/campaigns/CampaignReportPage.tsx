@@ -221,11 +221,22 @@ const ReportTable: React.FC<{ group: CampaignReportGroup; allGroups: CampaignRep
           {group.sales.length > 0 && (
             <tr className="bg-gray-100 font-bold">
               <td
-                colSpan={7 + group.formulas.length}
+                colSpan={7}
                 className="border border-gray-300 px-2 py-1.5 text-right"
               >
                 รวม {modelName} ({group.totalSales} คัน):
               </td>
+              {group.formulas.map((f) => {
+                const total = group.sales.reduce((sum, s) => {
+                  const r = s.formulaResults.find((r) => r.formulaId === f.id);
+                  return sum + (r?.resultValue ?? 0);
+                }, 0);
+                return (
+                  <td key={f.id} className="border border-gray-300 px-2 py-1.5 text-right bg-green-50">
+                    {formatCurrency(total)}
+                  </td>
+                );
+              })}
               {allGroups.length > 1 &&
                 allGroups.map((g) => (
                   <td
