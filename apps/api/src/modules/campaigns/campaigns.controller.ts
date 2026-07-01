@@ -98,17 +98,9 @@ function prepareCampaignReportForPdf(report: any) {
       0
     );
 
-    // Sum each formula column across all sales in the group.
-    const formulaSubtotals = formulas.map((f: any) =>
-      sales.reduce((sum: number, s: any) => {
-        const r = (s.formulaResults || []).find((r: any) => r.formulaId === f.id);
-        return sum + (r?.resultValue || 0);
-      }, 0)
-    );
-
-    const subtotalLeftColspan = 7; // fixed left columns before formula cells
+    const subtotalLeftColspan = 7 + formulas.length;
     // Trailing columns: รวมรับเงิน, วันที่แจ้งขาย, Rebate, ค่าคอมไฟแนนซ์ = 4.
-    const emptyRowColspan = subtotalLeftColspan + formulas.length + (hasMultipleGroups ? allGroupsCount : 0) + 4;
+    const emptyRowColspan = subtotalLeftColspan + (hasMultipleGroups ? allGroupsCount : 0) + 4;
 
     return {
       ...group,
@@ -116,7 +108,6 @@ function prepareCampaignReportForPdf(report: any) {
       hasFormulas: formulas.length > 0,
       formulas,
       sales,
-      formulaSubtotals,
       subtotalModelAmounts,
       subtotalLeftColspan,
       emptyRowColspan,
