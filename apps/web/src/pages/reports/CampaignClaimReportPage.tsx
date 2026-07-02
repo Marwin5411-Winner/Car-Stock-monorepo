@@ -4,35 +4,29 @@ import { useEffect, useMemo, useState } from 'react';
 import { MainLayout } from '../../components/layout';
 import { exportMultiSheet } from '../../components/reports/exportUtils';
 import { useToast } from '../../components/toast';
+import { campaignService } from '../../services/campaign.service';
 import { reportService } from '../../services/report.service';
 import { vehicleService } from '../../services/vehicle.service';
-
-const MONTH_NAMES_TH = [
-  'มกราคม',
-  'กุมภาพันธ์',
-  'มีนาคม',
-  'เมษายน',
-  'พฤษภาคม',
-  'มิถุนายน',
-  'กรกฎาคม',
-  'สิงหาคม',
-  'กันยายน',
-  'ตุลาคม',
-  'พฤศจิกายน',
-  'ธันวาคม',
-];
 
 const fmt = (n: number | null | undefined): string =>
   n == null || n === 0 ? '' : n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
 const fmtDate = (iso: string | null): string => (iso ? iso.split('T')[0] : '');
 
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+const toDateInputValue = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
 export function CampaignClaimReportPage(): React.ReactElement {
   const { addToast } = useToast();
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [startDate, setStartDate] = useState(() =>
+    toDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1))
+  );
+  const [endDate, setEndDate] = useState(() =>
+    toDateInputValue(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+  );
   const [brand, setBrand] = useState('');
+  const [campaignId, setCampaignId] = useState('');
 
   const { data: vehiclePage } = useQuery({
     queryKey: ['vehicle-models-for-brands'],
@@ -47,10 +41,36 @@ export function CampaignClaimReportPage(): React.ReactElement {
     if (!brand && brands.length > 0) setBrand(brands[0]);
   }, [brand, brands]);
 
+  const { data: campaignsPage } = useQuery({
+    queryKey: ['campaigns-for-claim-filter'],
+    queryFn: () => campaignService.getAll({ limit: 200 }),
+  });
+  const campaignOptions = useMemo(() => {
+    const list = campaignsPage?.data ?? [];
+    return list.filter((c) => c.vehicleModels.some((vm) => vm.brand === brand));
+  }, [campaignsPage, brand]);
+
+  // Selecting a brand can drop the previously chosen campaign out of the
+  // (brand-scoped) option list — reset back to "ทั้งหมด" rather than keep an
+  // invalid, invisible selection.
+  useEffect(() => {
+    if (campaignId && !campaignOptions.some((c) => c.id === campaignId)) {
+      setCampaignId('');
+    }
+  }, [campaignId, campaignOptions]);
+
+  const validRange = startDate <= endDate;
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['campaign-claims', year, month, brand],
-    queryFn: () => reportService.getCampaignClaimReport({ year, month, brand }),
-    enabled: !!brand,
+    queryKey: ['campaign-claims', startDate, endDate, brand, campaignId],
+    queryFn: () =>
+      reportService.getCampaignClaimReport({
+        startDate,
+        endDate,
+        brand,
+        campaignId: campaignId || undefined,
+      }),
+    enabled: !!brand && validRange,
   });
 
   const handleExportExcel = () => {
@@ -76,7 +96,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
     try {
       exportMultiSheet({
         sheets: [{ name: 'เบิกแคมเปญ', data: data.rows.map(toRow) }],
-        filename: `campaign-claims_${brand}_${year}-${String(month).padStart(2, '0')}`,
+        filename: `campaign-claims_${brand}_${startDate}_to_${endDate}`,
       });
       addToast('ดาวน์โหลด Excel สำเร็จ', 'success');
     } catch {
@@ -86,11 +106,16 @@ export function CampaignClaimReportPage(): React.ReactElement {
 
   const handleDownloadPdf = async () => {
     try {
-      const blob = await reportService.getCampaignClaimReportPdf({ year, month, brand });
+      const blob = await reportService.getCampaignClaimReportPdf({
+        startDate,
+        endDate,
+        brand,
+        campaignId: campaignId || undefined,
+      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `campaign-claims-${brand}-${year}-${String(month).padStart(2, '0')}.pdf`;
+      link.download = `campaign-claims-${brand}-${startDate}_to_${endDate}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -116,29 +141,22 @@ export function CampaignClaimReportPage(): React.ReactElement {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 print-hide">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">ปี:</label>
+              <label className="text-sm font-medium">วันที่เริ่ม:</label>
               <input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-24"
-                min={2000}
-                max={3000}
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">เดือน:</label>
-              <select
-                value={month}
-                onChange={(e) => setMonth(Number(e.target.value))}
+              <label className="text-sm font-medium">ถึงวันที่:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
                 className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
-              >
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <option key={m} value={m}>
-                    {MONTH_NAMES_TH[m - 1]}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">ยี่ห้อ:</label>
@@ -150,6 +168,21 @@ export function CampaignClaimReportPage(): React.ReactElement {
                 {brands.map((b) => (
                   <option key={b} value={b}>
                     {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">แคมเปญ:</label>
+              <select
+                value={campaignId}
+                onChange={(e) => setCampaignId(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              >
+                <option value="">ทั้งหมด</option>
+                {campaignOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -171,10 +204,13 @@ export function CampaignClaimReportPage(): React.ReactElement {
           </div>
         </div>
 
-        {isLoading && <div className="p-6 animate-pulse">กำลังโหลด...</div>}
-        {error != null && <div className="p-6 text-red-600">ไม่สามารถโหลดรายงานได้</div>}
+        {!validRange && (
+          <div className="p-6 text-red-600">ช่วงวันที่ไม่ถูกต้อง: วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด</div>
+        )}
+        {validRange && isLoading && <div className="p-6 animate-pulse">กำลังโหลด...</div>}
+        {validRange && error != null && <div className="p-6 text-red-600">ไม่สามารถโหลดรายงานได้</div>}
 
-        {data && (
+        {validRange && data && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
