@@ -211,11 +211,20 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
   // Number.isFinite) see real numbers — otherwise every saved row renders as 0.
   const formulas = rawFormulas.map((f) => ({ ...f, value: Number(f.value) }));
 
+  // Formulas feed the campaign report and monthly claim report, which cache
+  // under separate query keys with a 5min staleTime — without this, editing a
+  // formula here leaves an already-cached report screen showing stale columns.
+  const invalidateDownstreamReports = () => {
+    queryClient.invalidateQueries({ queryKey: ['campaign-report', campaignId] });
+    queryClient.invalidateQueries({ queryKey: ['campaign-claims'] });
+  };
+
   const createMutation = useMutation({
     mutationFn: (data: CreateFormulaData) =>
       campaignService.createFormula(campaignId, vehicleModel.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
+      invalidateDownstreamReports();
       resetForm();
     },
   });
@@ -225,6 +234,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
       campaignService.updateFormula(campaignId, vehicleModel.id, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
+      invalidateDownstreamReports();
       setEditingId(null);
       resetForm();
     },
@@ -235,6 +245,7 @@ export const FormulaManager: React.FC<FormulaManagerProps> = ({ campaignId, vehi
       campaignService.deleteFormula(campaignId, vehicleModel.id, formulaId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
+      invalidateDownstreamReports();
     },
   });
 
