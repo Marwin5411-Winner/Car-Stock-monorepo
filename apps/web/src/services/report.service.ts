@@ -283,15 +283,17 @@ class ReportService {
   // Campaign Claim Report
   // ============================================
   async getCampaignClaimReport(params: {
-    year: number;
-    month: number;
+    startDate: string;
+    endDate: string;
     brand: string;
+    campaignId?: string;
   }): Promise<CampaignClaimReportResponse> {
     const qs = new URLSearchParams({
-      year: String(params.year),
-      month: String(params.month),
+      startDate: params.startDate,
+      endDate: params.endDate,
       brand: params.brand,
     });
+    if (params.campaignId) qs.set('campaignId', params.campaignId);
     const url = `/api/reports/campaign-claims?${qs.toString()}`;
     const response = await api.get<ApiResponse<CampaignClaimReportResponse>>(url);
     if (!response.success || !response.data) {
@@ -301,15 +303,17 @@ class ReportService {
   }
 
   async getCampaignClaimReportPdf(params: {
-    year: number;
-    month: number;
+    startDate: string;
+    endDate: string;
     brand: string;
+    campaignId?: string;
   }): Promise<Blob> {
     const qs = new URLSearchParams({
-      year: String(params.year),
-      month: String(params.month),
+      startDate: params.startDate,
+      endDate: params.endDate,
       brand: params.brand,
     });
+    if (params.campaignId) qs.set('campaignId', params.campaignId);
     const url = `/api/pdf/campaign-claims?${qs.toString()}`;
     return api.getBlob(url);
   }
