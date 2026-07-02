@@ -786,11 +786,11 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         };
       }
 
-      const year = Number(query.year);
-      const month = Number(query.month);
-      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      const startDate = new Date(`${query.startDate}T00:00:00`);
+      const endDate = new Date(`${query.endDate}T00:00:00`);
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate) {
         set.status = 400;
-        return { success: false, error: 'BadRequest', message: 'year/month invalid' };
+        return { success: false, error: 'BadRequest', message: 'startDate/endDate invalid' };
       }
       if (!query.brand) {
         set.status = 400;
@@ -798,9 +798,10 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       }
 
       const result = await reportsService.getCampaignClaimReport({
-        year,
-        month,
+        startDate,
+        endDate,
         brand: query.brand,
+        campaignId: query.campaignId || undefined,
       });
 
       set.status = 200;
@@ -809,15 +810,16 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
     {
       beforeHandle: authMiddleware,
       query: t.Object({
-        year: t.String(),
-        month: t.String(),
+        startDate: t.String(),
+        endDate: t.String(),
         brand: t.String(),
+        campaignId: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Reports'],
         summary: 'Monthly campaign claim report',
         description:
-          'Campaign claim rows for a month, filtered by vehicle brand, in brand submission format',
+          'Campaign claim rows for a date range, filtered by vehicle brand and optionally by campaign, in brand submission format',
       },
     }
   );
