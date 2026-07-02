@@ -639,7 +639,7 @@ export interface CampaignClaimReportData {
     address2: string;
     phone: string;
   };
-  monthLabel: string; // e.g. 'พฤษภาคม 2569'
+  periodLabel: string; // e.g. '1 กรกฎาคม 2569 - 31 กรกฎาคม 2569'
   brand: string;
   /** Expense-line names; the dynamic columns of the table. */
   expenseColumns: string[];

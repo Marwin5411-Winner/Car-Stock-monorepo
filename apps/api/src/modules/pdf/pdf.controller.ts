@@ -1741,11 +1741,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
   .get(
     '/campaign-claims',
     async ({ query, set }) => {
-      const year = Number(query.year);
-      const month = Number(query.month);
-      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      const startDate = new Date(`${query.startDate}T00:00:00`);
+      const endDate = new Date(`${query.endDate}T00:00:00`);
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate) {
         set.status = 400;
-        return 'Invalid year/month';
+        return 'Invalid startDate/endDate';
       }
       if (!query.brand) {
         set.status = 400;
@@ -1753,28 +1753,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       }
 
       const report = await reportsService.getCampaignClaimReport({
-        year,
-        month,
+        startDate,
+        endDate,
         brand: query.brand,
+        campaignId: query.campaignId || undefined,
       });
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
-      const THAI_MONTHS = [
-        'มกราคม',
-        'กุมภาพันธ์',
-        'มีนาคม',
-        'เมษายน',
-        'พฤษภาคม',
-        'มิถุนายน',
-        'กรกฎาคม',
-        'สิงหาคม',
-        'กันยายน',
-        'ตุลาคม',
-        'พฤศจิกายน',
-        'ธันวาคม',
-      ];
-      const monthLabel = `${THAI_MONTHS[month - 1]} ${year + 543}`;
+      const periodLabel = `${formatThaiDate(startDate, 'full')} - ${formatThaiDate(endDate, 'full')}`;
 
       const rows = report.rows.map((r) => ({
         no: r.no,
@@ -1792,7 +1779,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       const pdfBuffer = await pdfService.generateCampaignClaimReportPdf({
         header,
-        monthLabel,
+        periodLabel,
         brand: report.brand,
         expenseColumns: report.expenseColumns,
         rows,
@@ -1804,9 +1791,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         printedAt: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       });
       const safeBrand = query.brand.replace(/[^A-Za-z0-9_-]/g, '_');
-      const baseName = `campaign-claims-${safeBrand}-${year}-${String(month).padStart(2, '0')}.pdf`;
+      const baseName = `campaign-claims-${safeBrand}-${query.startDate}_to_${query.endDate}.pdf`;
       const utf8Name = encodeURIComponent(
-        `campaign-claims-${query.brand}-${year}-${String(month).padStart(2, '0')}.pdf`
+        `campaign-claims-${query.brand}-${query.startDate}_to_${query.endDate}.pdf`
       );
       set.headers['Content-Type'] = 'application/pdf';
       set.headers['Content-Disposition'] =
@@ -1816,9 +1803,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
     {
       beforeHandle: [authMiddleware, requirePermission('CAMPAIGN_VIEW')],
       query: t.Object({
-        year: t.String(),
-        month: t.String(),
+        startDate: t.String(),
+        endDate: t.String(),
         brand: t.String(),
+        campaignId: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Documents'],
