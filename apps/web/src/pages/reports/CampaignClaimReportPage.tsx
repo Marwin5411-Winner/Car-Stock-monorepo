@@ -59,7 +59,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
     }
   }, [campaignId, campaignOptions]);
 
-  const validRange = startDate <= endDate;
+  const validRange = !!startDate && !!endDate && startDate <= endDate;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['campaign-claims', startDate, endDate, brand, campaignId],
@@ -133,7 +133,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
       <div className="p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">
-            รายงานเบิกแคมเปญเงินส่งเสริมการขายประจำเดือน
+            รายงานเบิกแคมเปญเงินส่งเสริมการขายประจำงวด
           </h1>
           <p className="text-gray-600 mt-1">รายการเบิกเงินส่งเสริมการขายสำหรับส่งบริษัทรถ (Brand)</p>
         </div>
@@ -278,7 +278,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
                         colSpan={10 + expenseColumns.length}
                         className="px-2 py-6 text-center text-gray-500"
                       >
-                        ไม่มีรายการเบิกแคมเปญในเดือนนี้
+                        ไม่มีรายการเบิกแคมเปญในช่วงเวลานี้
                       </td>
                     </tr>
                   )}
