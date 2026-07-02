@@ -1676,14 +1676,23 @@ export async function getBankInterestReport(params: { cycleStart: Date; cycleEnd
 }
 
 export async function getCampaignClaimReport(params: {
-  year: number;
-  month: number;
+  startDate: Date;
+  endDate: Date;
   brand: string;
+  campaignId?: string;
 }) {
-  const { year, month, brand } = params;
-  // Half-open interval: [startDate, endDate) — same convention as monthly purchases.
-  const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
-  const endDate = new Date(year, month, 1, 0, 0, 0, 0);
+  const { startDate, endDate, brand, campaignId } = params;
+  // endDate is the last INCLUDED day; the query needs a half-open exclusive
+  // upper bound at the start of the next day — same convention as monthly purchases.
+  const endDateExclusive = new Date(
+    endDate.getFullYear(),
+    endDate.getMonth(),
+    endDate.getDate() + 1,
+    0,
+    0,
+    0,
+    0
+  );
 
   const vehicleModelSelect = {
     select: { id: true, brand: true, model: true, variant: true, price: true },
@@ -1691,16 +1700,16 @@ export async function getCampaignClaimReport(params: {
 
   const sales = await db.sale.findMany({
     where: {
-      campaignId: { not: null },
+      campaignId: campaignId ? campaignId : { not: null },
       status: { notIn: ['CANCELLED'] },
       // Third branch covers stocked sales whose soldDate hasn't been stamped yet
       // (builder falls back to completedDate).
       OR: [
-        { stock: { is: { soldDate: { gte: startDate, lt: endDate } } } },
-        { stock: { is: null }, completedDate: { gte: startDate, lt: endDate } },
+        { stock: { is: { soldDate: { gte: startDate, lt: endDateExclusive } } } },
+        { stock: { is: null }, completedDate: { gte: startDate, lt: endDateExclusive } },
         {
           stock: { is: { soldDate: null } },
-          completedDate: { gte: startDate, lt: endDate },
+          completedDate: { gte: startDate, lt: endDateExclusive },
         },
       ],
     },
@@ -1743,8 +1752,6 @@ export async function getCampaignClaimReport(params: {
 
   return {
     period: {
-      year,
-      month,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     },

@@ -711,8 +711,6 @@ export const CampaignClaimRowSchema = z.object({
 
 export const CampaignClaimReportResponseSchema = z.object({
   period: z.object({
-    year: z.number(),
-    month: z.number(),
     startDate: z.string(),
     endDate: z.string(),
   }),
