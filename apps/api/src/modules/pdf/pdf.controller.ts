@@ -1402,9 +1402,10 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           ? PdfTemplateType.TEMPORARY_RECEIPT
           : PdfTemplateType.TEMPORARY_RECEIPT_BG;
 
-      // Data-only overlay: prints just the values onto the PRE-PRINTED form's
-      // boxes. padding 0 so overlay coordinates map directly to the paper origin
-      // (no scaling — @page 9×5.5in is passed straight to the dot-matrix driver).
+      // padding 0 for both templates: the overlay needs its coordinates to map
+      // directly to the paper origin of the PRE-PRINTED form; the full form
+      // draws its own frame and spacing. @page 9×5.5in comes from the template
+      // and is passed straight to the dot-matrix driver (no scaling).
       const html = await pdfService.renderHtml(templateType, data, {
         width: '9in',
         height: '5.5in',
