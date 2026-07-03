@@ -230,44 +230,30 @@ class PaymentService {
   }
 
   /**
-   * Download payment receipt PDF
-   */
-  async downloadReceipt(id: string, lateFee?: number): Promise<void> {
-    try {
-      const qs = lateFee ? `?lateFee=${lateFee}` : '';
-      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}${qs}`);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `temporary-receipt-${id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Download error:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Print temporary receipt directly via browser window.print().
    * Browser passes the @page size (9×5.5 in) from the HTML to the printer driver,
    * so the EPSON Dot Matrix needs no per-machine paper-size setup.
+   *
+   * withForm=true renders the full CSS-drawn form (for blank continuous paper);
+   * default is the data-only overlay for pre-printed forms.
    *
    * Popup is opened synchronously inside the user-gesture (button onClick) so
    * it isn't blocked. The fetched HTML is wrapped in a Blob URL and assigned
    * to popup.location — the popup loads it as a real document, executing the
    * embedded auto-print script naturally without document.write.
    */
-  async printReceiptDirect(id: string, lateFee?: number): Promise<void> {
+  async printReceiptDirect(id: string, lateFee?: number, withForm?: boolean): Promise<void> {
     const popup = window.open('about:blank', '_blank', 'width=900,height=600');
     if (!popup) {
       throw new Error('Popup blocked — please allow popups for this site to print receipts.');
     }
 
     try {
-      const qs = lateFee ? `?lateFee=${lateFee}` : '';
+      const params = new URLSearchParams();
+      if (lateFee) params.set('lateFee', String(lateFee));
+      if (withForm) params.set('withForm', 'true');
+      const qsStr = params.toString();
+      const qs = qsStr ? `?${qsStr}` : '';
       const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}/html${qs}`);
       const htmlBlob =
         blob.type === 'text/html' ? blob : new Blob([await blob.text()], { type: 'text/html' });
@@ -277,29 +263,6 @@ class PaymentService {
     } catch (error) {
       popup.close();
       console.error('Print receipt error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Download the A4 "with form" receipt PDF (full CSS-drawn form/frame).
-   * Uses /temporary-receipt (the full-form template) — NOT /temporary-receipt-bg,
-   * which is the frameless data-only overlay meant for pre-printed dot-matrix forms.
-   */
-  async downloadReceiptBg(id: string, lateFee?: number): Promise<void> {
-    try {
-      const qs = lateFee ? `?lateFee=${lateFee}` : '';
-      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}${qs}`);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipt-${id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Download error:', error);
       throw error;
     }
   }

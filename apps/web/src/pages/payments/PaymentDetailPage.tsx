@@ -81,7 +81,7 @@ export default function PaymentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [voiding, setVoiding] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [downloadingBg, setDownloadingBg] = useState(false);
+  const [printingForm, setPrintingForm] = useState(false);
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [lateFee, setLateFee] = useState(0);
@@ -158,11 +158,13 @@ export default function PaymentDetailPage() {
     setDownloading(false);
   };
 
-  const handlePrintBg = async () => {
+  const handlePrintForm = async () => {
     if (!payment) return;
-    setDownloadingBg(true);
-    await executeDownload(paymentService.downloadReceiptBg(payment.id, lateFee || undefined));
-    setDownloadingBg(false);
+    setPrintingForm(true);
+    await executeDownload(
+      paymentService.printReceiptDirect(payment.id, lateFee || undefined, true)
+    );
+    setPrintingForm(false);
   };
 
   if (loading) {
@@ -248,13 +250,13 @@ export default function PaymentDetailPage() {
                     {downloading ? 'กำลังโหลด...' : 'ใบเสร็จ Dot Matrix'}
                   </button>
                   <button
-                    onClick={handlePrintBg}
-                    disabled={downloadingBg}
-                    title="สำหรับเครื่อง Laser/Inkjet + กระดาษ A4 เปล่า (มีฟอร์มในไฟล์ PDF)"
+                    onClick={handlePrintForm}
+                    disabled={printingForm}
+                    title="สำหรับเครื่อง Dot Matrix + กระดาษต่อเนื่องเปล่า — พิมพ์ฟอร์มพร้อมข้อมูล (9×5.5 นิ้ว)"
                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
                     <Printer className="h-4 w-4 mr-2" />
-                    {downloadingBg ? 'กำลังโหลด...' : 'ใบเสร็จ A4 (มีฟอร์ม)'}
+                    {printingForm ? 'กำลังโหลด...' : 'ใบเสร็จ Dot Matrix (มีฟอร์ม)'}
                   </button>
                   <button
                     onClick={() => setShowVoidModal(true)}
