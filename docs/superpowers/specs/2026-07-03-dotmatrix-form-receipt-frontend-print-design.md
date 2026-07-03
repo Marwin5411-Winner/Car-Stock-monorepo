@@ -28,9 +28,13 @@ margin: 3mm }`); the "A4" button label is stale.
 - When `withForm === 'true'`, render `PdfTemplateType.TEMPORARY_RECEIPT`
   (full form) instead of `TEMPORARY_RECEIPT_BG`. Everything else — data
   object, auto-print script injection, headers — is shared unchanged.
-- `renderHtml` options for the form variant: `width: '9in'`, `padding: '0mm'`,
-  zero margins (same as overlay call). The template's own `@page` rule governs
-  the print size/margins.
+- `renderHtml` options for the form variant: pass the same options as the
+  overlay call (`width: '9in'`, `padding: '0mm'`, zero margins). These are
+  effectively inert here — the template's root is `.receipt-container`, not
+  `.page`, so none of the base `.page` rules (screen width/padding, print
+  `10mm` padding, forced `page-break-after`) apply. The template's own
+  `@page { size: 9in 5.5in; margin: 3mm }` governs printing; no `htmlPage`
+  option needed, and no trailing-blank-page risk.
 - The `bankAccount` field is overlay-only; harmless to pass for both.
 - No changes to the PDF endpoints (`/temporary-receipt/:id`,
   `/temporary-receipt-bg/:id`).
@@ -38,9 +42,10 @@ margin: 3mm }`); the "A4" button label is stale.
 ### Frontend — `apps/web/src/services/payment.service.ts`
 
 - `printReceiptDirect(id, lateFee?, withForm?)`: when `withForm` is true,
-  append `withForm=true` to the query string. Same popup/blob flow otherwise.
-- Delete `downloadReceiptBg` (replaced by the print flow) and
-  `downloadReceipt` if a caller grep confirms it is dead code.
+  add `withForm=true` to the query string. Build the qs with `URLSearchParams`
+  so `lateFee` and `withForm` combine correctly. Same popup/blob flow otherwise.
+- Delete `downloadReceiptBg` (its only caller is the button being switched)
+  and `downloadReceipt` (verified: zero callers anywhere in `apps/web/src`).
 
 ### Frontend — `apps/web/src/pages/payments/PaymentDetailPage.tsx`
 
