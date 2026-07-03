@@ -52,3 +52,7 @@ bun.lockb
 # Worktrees
 .worktrees/
 .superpowers/
+
+.claude/
+.playwright-mcp/
+.understand-anything/
