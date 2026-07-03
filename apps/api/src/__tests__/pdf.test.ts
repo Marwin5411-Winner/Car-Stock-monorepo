@@ -1,13 +1,13 @@
-import { describe, it, expect, afterAll, mock } from 'bun:test';
+import { afterAll, describe, expect, it, mock } from 'bun:test';
 import { PdfTemplateType } from '../modules/pdf/types';
 import type {
+  CompanyHeader,
+  DailyPaymentReportData,
   DeliveryReceiptData,
   DepositReceiptData,
-  VehicleCardData,
-  TemporaryReceiptData,
-  DailyPaymentReportData,
   StockReportData,
-  CompanyHeader,
+  TemporaryReceiptData,
+  VehicleCardData,
 } from '../modules/pdf/types';
 
 /**
@@ -276,6 +276,40 @@ describe('PdfService — Puppeteer engine', () => {
       await pdfService.closeBrowser();
       // Should not throw
       await pdfService.closeBrowser();
+    });
+  });
+
+  describe('renderHtml — temporary receipt HTML print path', () => {
+    // Same fixture shape as the existing generateTemporaryReceipt test above.
+    const data: TemporaryReceiptData = {
+      header: mockHeader,
+      receiptNumber: 'TR-2026-0002',
+      date: '2026-07-03',
+      customerName: 'ทดสอบ ระบบ',
+      amount: '10,000.00',
+      amountText: 'หนึ่งหมื่นบาทถ้วน',
+      description: 'ค่ามัดจำรถ',
+      paymentMethod: 'เงินสด',
+      receiverName: 'พนักงาน ทดสอบ',
+    };
+    // Mirrors the options the /html endpoint passes for both templates.
+    const options = {
+      width: '9in',
+      height: '5.5in',
+      padding: '0mm',
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+    };
+
+    it('full-form template renders the CSS-drawn form (receipt-container)', async () => {
+      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT, data, options);
+      expect(html).toContain('receipt-container'); // form's root — form template only
+      expect(html).not.toContain('f-receipt-no'); // overlay-only positioned cell
+    });
+
+    it('overlay template renders data-only cells (f-receipt-no), no form container', async () => {
+      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, options);
+      expect(html).toContain('f-receipt-no');
+      expect(html).not.toContain('receipt-container');
     });
   });
 });

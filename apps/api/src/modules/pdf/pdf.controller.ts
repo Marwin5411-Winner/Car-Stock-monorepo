@@ -1330,7 +1330,11 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       params,
       query,
       set,
-    }: { params: { paymentId: string }; query: { lateFee?: string }; set: any }) => {
+    }: {
+      params: { paymentId: string };
+      query: { lateFee?: string; withForm?: string };
+      set: any;
+    }) => {
       const payment = await db.payment.findUnique({
         where: { id: params.paymentId },
         include: {
@@ -1391,10 +1395,17 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         note: payment.notes || undefined,
       };
 
+      // withForm=true prints the CSS-drawn form too (for blank continuous paper);
+      // default remains the data-only overlay for pre-printed SIAMK forms.
+      const templateType =
+        query.withForm === 'true'
+          ? PdfTemplateType.TEMPORARY_RECEIPT
+          : PdfTemplateType.TEMPORARY_RECEIPT_BG;
+
       // Data-only overlay: prints just the values onto the PRE-PRINTED form's
       // boxes. padding 0 so overlay coordinates map directly to the paper origin
       // (no scaling — @page 9×5.5in is passed straight to the dot-matrix driver).
-      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, {
+      const html = await pdfService.renderHtml(templateType, data, {
         width: '9in',
         height: '5.5in',
         padding: '0mm',
@@ -1424,12 +1435,12 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({ paymentId: t.String() }),
-      query: t.Object({ lateFee: t.Optional(t.String()) }),
+      query: t.Object({ lateFee: t.Optional(t.String()), withForm: t.Optional(t.String()) }),
       detail: {
         tags: ['Documents'],
         summary: 'Render Temporary Receipt HTML (auto-print)',
         description:
-          'Returns standalone HTML that auto-prints itself via window.print(). Browser passes 9×5.5 in size to printer driver via CSS @page — no per-machine setup needed.',
+          'Returns standalone HTML that auto-prints itself via window.print(). Browser passes 9×5.5 in size to printer driver via CSS @page — no per-machine setup needed. withForm=true renders the full CSS-drawn form (blank paper) instead of the data-only overlay.',
       },
     }
   )
