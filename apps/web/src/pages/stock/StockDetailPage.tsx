@@ -485,7 +485,7 @@ export default function StockDetailPage() {
                 className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                พิมพ์การ์ดรถยนต์แบบพิมพ์ล่วงหน้า
+                พิมพ์การ์ดรถยนต์ลงฟอร์ม
               </button>
             </div>
           </div>
