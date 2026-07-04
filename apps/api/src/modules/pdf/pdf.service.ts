@@ -817,7 +817,9 @@ export class PdfService {
       // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
-      htmlPage: { size: '26.9cm 20.9cm', margin: '5mm 8mm 5mm 15mm' },
+      // Calibrated against the customer's pre-printed form 2026-07-04:
+      // top 10mm (was 5, print sat 5mm too high), left 14mm (was 15, 1mm right).
+      htmlPage: { size: '26.9cm 20.9cm', margin: '10mm 9mm 5mm 14mm' },
     });
   }
 
@@ -832,7 +834,9 @@ export class PdfService {
       // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
-      htmlPage: { size: '26.9cm 20.9cm', margin: '5mm 8mm 5mm 15mm' },
+      // Calibrated against the customer's pre-printed form 2026-07-04:
+      // top 10mm (was 5, print sat 5mm too high), left 14mm (was 15, 1mm right).
+      htmlPage: { size: '26.9cm 20.9cm', margin: '10mm 9mm 5mm 14mm' },
     });
   }
 

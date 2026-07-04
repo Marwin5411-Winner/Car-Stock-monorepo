@@ -70,7 +70,7 @@
     </tr>
     <tr>
       <td style="height: 14px;"></td>
-      <td style="text-align: center;">{{car.model}}</td>
+      <td style="text-align: center;">{{car.model}}{{#if car.variant}} {{car.variant}}{{/if}}</td>
       <td style="text-align: center;">{{car.engineNo}}</td>
       <td style="text-align: center;">{{car.chassisNo}}</td>
       <td style="text-align: center;">{{car.color}}</td>
@@ -98,9 +98,10 @@
       <td style="width: 25%; font-weight: bold;">พนักงานขาย</td>
     </tr>
     <tr>
-      <td style="height: 14px;"></td>
+      <td style="height: 14px; text-align: center;">{{orderDate}}</td>
       <td></td>
-      <td style="text-align: center;">{{date}}</td>
+      {{! วันที่ขาย stays blank — customer fills it in by hand at sale time }}
+      <td></td>
       <td></td>
     </tr>
   </table>

@@ -1061,6 +1061,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         header,
         stockNumber: stock.stockNumber || '-',
         date: formatThaiDate(new Date()),
+        orderDate: stock.orderDate ? formatThaiDate(stock.orderDate) : '',
         car: {
           brand: stock.vehicleModel?.brand || '-',
           model: stock.vehicleModel?.model || '-',
@@ -1183,6 +1184,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         header,
         stockNumber: stock.stockNumber || '-',
         date: formatThaiDate(new Date()),
+        orderDate: stock.orderDate ? formatThaiDate(stock.orderDate) : '',
         car: {
           brand: stock.vehicleModel?.brand || '-',
           model: stock.vehicleModel?.model || '-',

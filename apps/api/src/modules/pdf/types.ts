@@ -446,6 +446,7 @@ export interface VehicleCardData {
   header: CompanyHeader;
   stockNumber: string; // VIN or Stock No
   date: string;
+  orderDate?: string; // วันที่สั่งซื้อ (Stock.orderDate, Thai-formatted; '' when unset)
   car: {
     brand: string;
     model: string;
