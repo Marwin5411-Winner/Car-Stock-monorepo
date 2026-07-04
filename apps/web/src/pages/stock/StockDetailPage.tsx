@@ -7,7 +7,7 @@ import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
 import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
-import { printBlob } from '../../components/reports/PrintButton';
+import { printHtmlViaPopup } from '../../components/reports/PrintButton';
 import {
   ArrowLeft,
   Edit,
@@ -99,21 +99,19 @@ export default function StockDetailPage() {
     );
   };
 
-  const handlePrintVehicleCard = async () => {
+  // Open the popup synchronously (inside the click gesture) so it isn't
+  // popup-blocked; the server HTML auto-prints and self-closes.
+  const handlePrintVehicleCard = () => {
     if (!stock) return;
-    await executeQuery(
-      api
-        .getBlob(`/api/pdf/vehicle-card/${stock.id}?format=html`)
-        .then((blob) => printBlob(blob))
+    return executeQuery(
+      printHtmlViaPopup(() => api.getBlob(`/api/pdf/vehicle-card/${stock.id}?format=html`))
     );
   };
 
-  const handlePrintVehicleCardTemplate = async () => {
+  const handlePrintVehicleCardTemplate = () => {
     if (!stock) return;
-    await executeQuery(
-      api
-        .getBlob(`/api/pdf/vehicle-card-template/${stock.id}?format=html`)
-        .then((blob) => printBlob(blob))
+    return executeQuery(
+      printHtmlViaPopup(() => api.getBlob(`/api/pdf/vehicle-card-template/${stock.id}?format=html`))
     );
   };
 

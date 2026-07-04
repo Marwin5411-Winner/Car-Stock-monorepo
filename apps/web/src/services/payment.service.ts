@@ -1,3 +1,4 @@
+import { printHtmlViaPopup } from '../components/reports/PrintButton';
 import { api } from '../lib/api';
 
 // Types
@@ -243,28 +244,12 @@ class PaymentService {
    * embedded auto-print script naturally without document.write.
    */
   async printReceiptDirect(id: string, lateFee?: number, withForm?: boolean): Promise<void> {
-    const popup = window.open('about:blank', '_blank', 'width=900,height=600');
-    if (!popup) {
-      throw new Error('Popup blocked — please allow popups for this site to print receipts.');
-    }
-
-    try {
-      const params = new URLSearchParams();
-      if (lateFee) params.set('lateFee', String(lateFee));
-      if (withForm) params.set('withForm', 'true');
-      const qsStr = params.toString();
-      const qs = qsStr ? `?${qsStr}` : '';
-      const blob = await api.getBlob(`/api/pdf/temporary-receipt/${id}/html${qs}`);
-      const htmlBlob =
-        blob.type === 'text/html' ? blob : new Blob([await blob.text()], { type: 'text/html' });
-      const blobUrl = URL.createObjectURL(htmlBlob);
-      popup.location.replace(blobUrl);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-    } catch (error) {
-      popup.close();
-      console.error('Print receipt error:', error);
-      throw error;
-    }
+    const params = new URLSearchParams();
+    if (lateFee) params.set('lateFee', String(lateFee));
+    if (withForm) params.set('withForm', 'true');
+    const qsStr = params.toString();
+    const qs = qsStr ? `?${qsStr}` : '';
+    return printHtmlViaPopup(() => api.getBlob(`/api/pdf/temporary-receipt/${id}/html${qs}`));
   }
 }
 

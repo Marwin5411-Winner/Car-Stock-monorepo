@@ -33,6 +33,35 @@ export function printBlob(blob: Blob): void {
   document.body.appendChild(iframe);
 }
 
+/**
+ * Fetch a server-rendered HTML document and print it in a popup window. The
+ * server HTML carries its own @page size and an auto-print script (fires the
+ * print dialog on load, closes on afterprint), so nothing is triggered here.
+ *
+ * The popup is opened synchronously — call this directly from a click handler,
+ * before any await — so it isn't caught by the popup blocker.
+ */
+export async function printHtmlViaPopup(fetchHtml: () => Promise<Blob>): Promise<void> {
+  const popup = window.open('about:blank', '_blank', 'width=900,height=600');
+  if (!popup) {
+    throw new Error('Popup blocked — please allow popups for this site to print.');
+  }
+  try {
+    const blob = await fetchHtml();
+    const htmlBlob =
+      blob.type === 'text/html' ? blob : new Blob([await blob.text()], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(htmlBlob);
+    // Load the fetched HTML as a real document so its embedded auto-print
+    // script runs naturally (no document.write). Revoke late so the print
+    // dialog has time to read the document.
+    popup.location.replace(blobUrl);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } catch (error) {
+    popup.close();
+    throw error;
+  }
+}
+
 interface PrintButtonProps {
   contentId?: string;
   title?: string;

@@ -29,6 +29,26 @@ import {
   type VehicleCardData,
 } from './types';
 
+// Inject a self-print + self-close script so a browser tab/popup that loads this
+// HTML fires the print dialog on load and closes after `afterprint`. Shared by
+// every auto-print /html document: the temporary receipt and both vehicle cards.
+// setTimeout gives the browser one tick to lay out fonts before print().
+function injectAutoPrint(html: string): string {
+  const autoPrint = `
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      window.focus();
+      window.print();
+    }, 250);
+  });
+  window.addEventListener('afterprint', function () {
+    window.close();
+  });
+</script>`;
+  return html.replace('</body>', `${autoPrint}</body>`);
+}
+
 // Build paymentMethod block for temporary-receipt templates from a Payment row.
 // Snapshot fields (receivingBankName/receivingAccountNumber/receivingBranch) take
 // precedence; legacy `receivingBank` is the fallback for rows created before the
@@ -1074,7 +1094,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       if (query.format === 'html') {
         set.headers['Content-Type'] = 'text/html; charset=utf-8';
-        return await pdfService.renderVehicleCardHtml(data);
+        set.headers['Cache-Control'] = 'no-store';
+        return injectAutoPrint(await pdfService.renderVehicleCardHtml(data));
       }
 
       const pdfBuffer = await pdfService.generateVehicleCard(data);
@@ -1195,7 +1216,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       if (query.format === 'html') {
         set.headers['Content-Type'] = 'text/html; charset=utf-8';
-        return await pdfService.renderVehicleCardTemplateHtml(data);
+        set.headers['Cache-Control'] = 'no-store';
+        return injectAutoPrint(await pdfService.renderVehicleCardTemplateHtml(data));
       }
 
       const pdfBuffer = await pdfService.generateVehicleCardTemplate(data);
@@ -1413,25 +1435,9 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
       });
 
-      // Inject auto-print script. setTimeout gives the browser one tick to lay
-      // out fonts before print(); window.close() runs after the dialog closes.
-      const autoPrint = `
-<script>
-  window.addEventListener('load', function () {
-    setTimeout(function () {
-      window.focus();
-      window.print();
-    }, 250);
-  });
-  window.addEventListener('afterprint', function () {
-    window.close();
-  });
-</script>`;
-      const htmlWithAutoPrint = html.replace('</body>', `${autoPrint}</body>`);
-
       set.headers['Content-Type'] = 'text/html; charset=utf-8';
       set.headers['Cache-Control'] = 'no-store';
-      return htmlWithAutoPrint;
+      return injectAutoPrint(html);
     },
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
