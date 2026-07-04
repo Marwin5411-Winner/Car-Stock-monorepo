@@ -800,35 +800,39 @@ export class PdfService {
 
   /**
    * Render Vehicle Card as HTML for browser printing (การ์ดรายละเอียดรถยนต์).
-   * @page is sized to the real paper (US Letter, landscape) so the browser
-   * does not scale; the @page margin is the single edge-gap tuning point.
+   *
+   * The green-card stock is a CUSTOM CUT: 26.9 × 20.9 cm measured edge-to-edge
+   * (NOT Letter 27.94×21.59 and NOT A4 29.7×21.0 — a Letter/A4 @page makes the
+   * driver fall back to A4 and centre it on the smaller sheet, cutting ~1.4cm
+   * off each side). @page must stay the real paper size so the browser passes
+   * it straight to the driver with no scaling.
+   *
+   * The customer's pre-printed form grid is ≈24.6cm wide, starting ≈1.5cm from
+   * the paper's left edge — width + the @page margin (top right bottom left)
+   * mirror that. The margin is the single calibration knob for edge gaps.
    */
   public async renderVehicleCardHtml(data: VehicleCardData): Promise<string> {
     return this.renderHtml(PdfTemplateType.VEHICLE_CARD, data, {
-      width: '26.85cm',
+      width: '24.6cm',
       // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
-      // margin: top right bottom left. Left 5mm / right 1mm pushes the print
-      // RIGHT (bigger left margin = content starts further from the paper's left
-      // edge) — calibration for the printer that was shifting output left.
-      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 1mm 5mm 5mm' },
+      htmlPage: { size: '26.9cm 20.9cm', margin: '5mm 8mm 5mm 15mm' },
     });
   }
 
   /**
    * Render the frameless Vehicle Card overlay as HTML for browser printing.
+   * Same paper + grid geometry as renderVehicleCardHtml (see its comment) so
+   * the data-only overlay lands on the pre-printed form's cells.
    */
   public async renderVehicleCardTemplateHtml(data: VehicleCardData): Promise<string> {
     return this.renderHtml(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
-      width: '26.85cm',
+      width: '24.6cm',
       // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
-      // margin: top right bottom left. Left 5mm / right 1mm pushes the print
-      // RIGHT (bigger left margin = content starts further from the paper's left
-      // edge) — calibration for the printer that was shifting output left.
-      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 1mm 5mm 5mm' },
+      htmlPage: { size: '26.9cm 20.9cm', margin: '5mm 8mm 5mm 15mm' },
     });
   }
 
