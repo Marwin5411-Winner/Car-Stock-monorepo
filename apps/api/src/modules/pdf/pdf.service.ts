@@ -809,7 +809,10 @@ export class PdfService {
       // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
-      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
+      // margin: top right bottom left. Left 5mm / right 1mm pushes the print
+      // RIGHT (bigger left margin = content starts further from the paper's left
+      // edge) — calibration for the printer that was shifting output left.
+      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 1mm 5mm 5mm' },
     });
   }
 
@@ -822,7 +825,10 @@ export class PdfService {
       // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
       height: '20.71cm',
       padding: '0mm',
-      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 5mm 5mm 1mm' },
+      // margin: top right bottom left. Left 5mm / right 1mm pushes the print
+      // RIGHT (bigger left margin = content starts further from the paper's left
+      // edge) — calibration for the printer that was shifting output left.
+      htmlPage: { size: '27.94cm 21.59cm', margin: '1.7mm 1mm 5mm 5mm' },
     });
   }
 
