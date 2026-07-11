@@ -87,19 +87,29 @@ rollback() {
     git checkout "$BRANCH" 2>>"$LOG_FILE" || true
   fi
 
-  # Restore database if it was modified
+  # Restore database if it was modified.
+  # Drop+recreate only when we have a verified backup path; fail hard if
+  # restore fails so we never leave an empty DB after DROP.
   if [ "$DB_CHANGED" = true ] && [ -n "$BACKUP_FILE" ] && [ -f "$BACKUP_FILE" ]; then
     log "Restoring database from backup: $BACKUP_FILE"
     export PGPASSWORD="${POSTGRES_PASSWORD:-postgres}"
-    # Drop and recreate DB, then restore
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-      -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB_NAME' AND pid <> pg_backend_pid();" 2>>"$LOG_FILE" || true
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-      -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" 2>>"$LOG_FILE" || true
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-      -c "CREATE DATABASE \"$DB_NAME\";" 2>>"$LOG_FILE" || true
-    pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$BACKUP_FILE" 2>>"$LOG_FILE" || true
-    log "Database restored successfully"
+    if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
+      -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB_NAME' AND pid <> pg_backend_pid();" 2>>"$LOG_FILE"; then
+      log "WARNING: Could not terminate all DB connections (continuing restore)"
+    fi
+    if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
+      -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" 2>>"$LOG_FILE"; then
+      log "ERROR: DROP DATABASE failed — leaving current DB in place"
+    elif ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
+      -c "CREATE DATABASE \"$DB_NAME\";" 2>>"$LOG_FILE"; then
+      log "ERROR: CREATE DATABASE failed after DROP — manual recovery required from $BACKUP_FILE"
+    elif ! pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$BACKUP_FILE" 2>>"$LOG_FILE"; then
+      log "ERROR: pg_restore failed — database may be empty. Restore manually from $BACKUP_FILE"
+    else
+      log "Database restored successfully"
+    fi
+  elif [ "$DB_CHANGED" = true ]; then
+    log "WARNING: DB was changed but no backup file available — cannot restore"
   fi
 
   # Rebuild from rolled-back source

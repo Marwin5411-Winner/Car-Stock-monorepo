@@ -88,22 +88,36 @@ main() {
     exit 1
   }
 
-  # Step 2: Restore database (if backup available)
+  # Step 2: Restore database (if backup available).
+  # Only DROP after we know the backup file exists; do not swallow restore errors.
   if [ -n "$BACKUP_FILE" ] && [ -f "$BACKUP_FILE" ]; then
     log "Step 2: Restoring database from $BACKUP_FILE"
     export PGPASSWORD="${POSTGRES_PASSWORD:-postgres}"
 
     psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
       -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB_NAME' AND pid <> pg_backend_pid();" 2>>"$LOG_FILE" || true
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-      -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" 2>>"$LOG_FILE" || true
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-      -c "CREATE DATABASE \"$DB_NAME\";" 2>>"$LOG_FILE" || true
-    pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$BACKUP_FILE" 2>>"$LOG_FILE" || true
+
+    if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
+      -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" 2>>"$LOG_FILE"; then
+      log "ERROR: DROP DATABASE failed"
+      write_status "Rollback failed" "error" "DROP DATABASE failed"
+      exit 1
+    fi
+    if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
+      -c "CREATE DATABASE \"$DB_NAME\";" 2>>"$LOG_FILE"; then
+      log "ERROR: CREATE DATABASE failed after DROP — restore manually from $BACKUP_FILE"
+      write_status "Rollback failed" "error" "CREATE DATABASE failed; backup at $BACKUP_FILE"
+      exit 1
+    fi
+    if ! pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$BACKUP_FILE" 2>>"$LOG_FILE"; then
+      log "ERROR: pg_restore failed — database may be empty. Restore manually from $BACKUP_FILE"
+      write_status "Rollback failed" "error" "pg_restore failed; backup at $BACKUP_FILE"
+      exit 1
+    fi
 
     log "Database restored"
   else
-    log "Step 2: No backup file found, skipping database restore"
+    log "Step 2: No backup file found, skipping database restore (DB left unchanged)"
   fi
 
   # Step 3: Rebuild containers
