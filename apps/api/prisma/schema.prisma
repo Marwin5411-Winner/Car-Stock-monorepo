@@ -245,6 +245,8 @@ model Sale {
   interestRate           Decimal?      @map("interest_rate") @db.Decimal(5, 4)
   numberOfTerms          Int?          @map("number_of_terms")
   monthlyInstallment     Decimal?      @map("monthly_installment") @db.Decimal(15, 2)
+  financeEditedKeys      String[]          @default([]) @map("finance_edited_keys")
+  financeLines           SaleFinanceLine[]
   refundPolicy           RefundPolicy  @default(FULL) @map("refund_policy")
   refundAmount           Decimal?      @map("refund_amount") @db.Decimal(15, 2)
   notes                  String?
@@ -270,6 +272,24 @@ model Sale {
   @@index([createdById])
   @@index([createdAt])
   @@map("sales")
+}
+
+model SaleFinanceLine {
+  id        String   @id @default(cuid())
+  saleId    String   @map("sale_id")
+  key       String   // custom:<cuid>
+  label     String
+  group     String   // CUSTOMER_CHARGE | DEALER | INFO
+  amount    Decimal  @db.Decimal(15, 2)
+  source    String   @default("CUSTOM") // MANUAL | CUSTOM
+  sortOrder Int      @default(0) @map("sort_order")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("sale_finance_lines")
 }
 
 model Quotation {
