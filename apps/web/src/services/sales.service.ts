@@ -10,6 +10,16 @@ export type PaymentType = 'DEPOSIT' | 'DOWN_PAYMENT' | 'FINANCE_PAYMENT' | 'OTHE
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'CREDIT_CARD';
 export type PaymentStatus = 'ACTIVE' | 'VOIDED';
 
+export interface SaleFinanceCustomLine {
+  id?: string;
+  key?: string;
+  label: string;
+  group: 'CUSTOMER_CHARGE' | 'DEALER' | 'INFO';
+  amount: number;
+  notes?: string;
+  sortOrder?: number;
+}
+
 export interface Sale {
   id: string;
   saleNumber: string;
@@ -83,6 +93,8 @@ export interface Sale {
   refundAmount?: number;
   notes?: string;
   cancellationReason?: string;
+  financeEditedKeys?: string[];
+  customLines?: SaleFinanceCustomLine[];
   createdBy?: {
     id: string;
     username: string;
@@ -159,6 +171,8 @@ export interface CreateSaleData {
   monthlyInstallment?: number;
   refundPolicy?: RefundPolicy;
   notes?: string;
+  financeEditedKeys?: string[];
+  customLines?: SaleFinanceCustomLine[];
 }
 
 export interface UpdateSaleData {
@@ -192,6 +206,8 @@ export interface UpdateSaleData {
   monthlyInstallment?: number;
   refundPolicy?: RefundPolicy;
   notes?: string;
+  financeEditedKeys?: string[];
+  customLines?: SaleFinanceCustomLine[];
 }
 
 export interface SaleFilters {
