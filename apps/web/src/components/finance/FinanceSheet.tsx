@@ -6,7 +6,7 @@ import {
   type FinanceSheetRow,
   type SystemFinanceKey,
 } from '@car-stock/shared/finance';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,7 @@ export function FinanceSheet({
   const visibleRows = result.rows.filter((row) => {
     if (row.source === 'hidden') return false;
     if (row.group === 'DEALER' && !canEditDealerFields) return false;
+    if (row.group === 'DISCOUNT' && !canEditDiscounts) return false;
     if (row.isCustom && row.group === 'DEALER' && !canEditDealerFields) return false;
     return true;
   });
@@ -111,7 +112,6 @@ export function FinanceSheet({
 
   const rowDisabled = (row: FinanceSheetRow): boolean => {
     if (readOnly) return true;
-    if (row.group === 'DISCOUNT' && !canEditDiscounts) return true;
     if (row.group === 'DEALER' && !canEditDealerFields) return true;
     if (row.key === 'car_price') return true;
     return false;
@@ -119,8 +119,8 @@ export function FinanceSheet({
 
   const handlePaymentMode = (mode: PaymentMode) => {
     if (readOnly || mode === paymentMode) return;
-    // Soft-keep finance values — only switch mode
-    onChange({ ...value, paymentMode: mode });
+    // Soft-keep values but recompute salePatch for the new mode
+    emitFromInput({ ...engineInput, paymentMode: mode });
   };
 
   const handleSystemAmount = (key: SystemFinanceKey, raw: string) => {
@@ -166,6 +166,20 @@ export function FinanceSheet({
     emitFromInput({ ...engineInput, customLines: lines });
   };
 
+  const handleRemoveCustom = (index: number) => {
+    if (readOnly) return;
+    const lines = (engineInput.customLines as SaleFinanceCustomLine[]).filter(
+      (_, i) => i !== index
+    );
+    if (selectedKey) {
+      const removedKey =
+        (engineInput.customLines[index] as SaleFinanceCustomLine | undefined)?.key ??
+        `custom:${(engineInput.customLines[index] as SaleFinanceCustomLine | undefined)?.id ?? index}`;
+      if (selectedKey === removedKey) setSelectedKey(null);
+    }
+    emitFromInput({ ...engineInput, customLines: lines });
+  };
+
   const formatDisplay = (row: FinanceSheetRow) => {
     if (isTextKey(row.key)) return row.textValue || '';
     if (row.key === 'interest_rate') return String(row.amount);
@@ -176,7 +190,9 @@ export function FinanceSheet({
   const totalDisplay = result.totals.totalAmount;
   const paid = paidAmount ?? 0;
   const remaining =
-    remainingAmount !== undefined ? remainingAmount : Math.max(0, totalDisplay - paid);
+    remainingAmount !== undefined
+      ? remainingAmount
+      : Math.max(0, totalDisplay + result.totals.buyerFees - paid);
 
   // Index custom rows against customLines for edit mapping
   const customKeyToIndex = useMemo(() => {
@@ -265,14 +281,26 @@ export function FinanceSheet({
                     >
                       <td className="px-3 py-2 text-gray-900">
                         {row.isCustom && !disabled ? (
-                          <Input
-                            value={row.label}
-                            className="h-8 max-w-[200px]"
-                            onChange={(e) =>
-                              customIdx !== undefined &&
-                              handleCustomChange(customIdx, { label: e.target.value })
-                            }
-                          />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={row.label}
+                              className="h-8 max-w-[200px]"
+                              onChange={(e) =>
+                                customIdx !== undefined &&
+                                handleCustomChange(customIdx, { label: e.target.value })
+                              }
+                            />
+                            {customIdx !== undefined && (
+                              <button
+                                type="button"
+                                title="ลบรายการ"
+                                className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                onClick={() => handleRemoveCustom(customIdx)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <span className="font-medium">{row.label}</span>
                         )}
