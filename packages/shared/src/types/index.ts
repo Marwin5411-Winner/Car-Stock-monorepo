@@ -14,6 +14,7 @@ import type {
   CustomerTypeSchema,
   DebtStatusSchema,
   DocumentTypeSchema,
+  FinanceCustomLineSchema,
   InterestBaseSchema,
   LoginSchema,
   PaginationSchema,
@@ -96,6 +97,7 @@ export type CreateStockInput = z.infer<typeof CreateStockSchema>;
 export type UpdateStockInput = z.infer<typeof UpdateStockSchema>;
 export type CreateSaleInput = z.infer<typeof CreateSaleSchema>;
 export type UpdateSaleInput = z.infer<typeof UpdateSaleSchema>;
+export type FinanceCustomLine = z.infer<typeof FinanceCustomLineSchema>;
 export type CreatePaymentInput = z.infer<typeof CreatePaymentSchema>;
 export type VoidPaymentInput = z.infer<typeof VoidPaymentSchema>;
 export type CreateCampaignInput = z.infer<typeof CreateCampaignSchema>;
