@@ -66,6 +66,8 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     expect(r.remaining).toBe(480_000); // still shows price after discount
     expect(r.financeAmount).toBe(0);
     expect(r.monthlyPayment).toBe(0);
+    // CASH: remaining − deposit (0) = 480,000
+    expect(r.totalDelivery).toBe(480_000);
   });
 
   test('finance sale with zero terms does not divide by zero', () => {
@@ -81,7 +83,7 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     expect(r.monthlyPayment).toBe(0);
   });
 
-  test('รวมเงินออกรถ = down - downDiscount + insurance + act + registration', () => {
+  test('FINANCE รวมเงินออกรถ = down - downDiscount + insurance + act + registration', () => {
     const r = computeThankYouFinancials({
       sellingPrice: 800_000,
       carDiscount: 0,
@@ -98,16 +100,33 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     expect(r.totalDelivery).toBe(168_600);
   });
 
-  test('totalDelivery defaults missing fee fields to 0', () => {
+  test('CASH รวมเงินออกรถ = remaining - deposit (ราคาขายหักส่วนลด หักจอง)', () => {
     const r = computeThankYouFinancials({
-      sellingPrice: 500_000,
-      carDiscount: 0,
-      downPayment: 100_000,
+      sellingPrice: 1_000_000,
+      carDiscount: 50_000,
+      downPayment: 0,
+      deposit: 20_000,
       interestRatePercentPerYear: 0,
       termMonths: 0,
       isFinanced: false,
     });
-    expect(r.totalDelivery).toBe(100_000); // only downPayment present
+    expect(r.remaining).toBe(950_000);
+    expect(r.totalDelivery).toBe(930_000);
+  });
+
+  test('CASH totalDelivery ignores downPayment/fees when not financed', () => {
+    const r = computeThankYouFinancials({
+      sellingPrice: 500_000,
+      carDiscount: 0,
+      downPayment: 100_000,
+      deposit: 0,
+      insurance: 25_000,
+      interestRatePercentPerYear: 0,
+      termMonths: 0,
+      isFinanced: false,
+    });
+    // remaining 500k − deposit 0 (not down+fees)
+    expect(r.totalDelivery).toBe(500_000);
   });
 
   test('rounds money fields to 2 decimals (no float drift)', () => {

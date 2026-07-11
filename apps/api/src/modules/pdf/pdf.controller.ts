@@ -359,14 +359,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       // ส่วนลดตัวรถ lives on sale.carDiscount (manual sale-form entry); discountSnapshot
       // is only set on quotation→sale conversion. See resolveCarDiscount for the precedence.
       const carDiscount = resolveCarDiscount(sale.carDiscount, sale.discountSnapshot);
-      // เงินดาวน์ = sale.downPayment only. The booking deposit (sale.depositAmount) is
-      // shown on its own เงินจอง row and, per the .ods ขอบคุณ sheet, is NOT summed into
-      // รวมเงินออกรถ — so the down-payment block (ดาวน์ + fees) keeps reconciling.
+      // เงินดาวน์ = sale.downPayment only. เงินจอง = depositAmount (own row).
+      // CASH รวมเงินออกรถ = คงเหลือ − เงินจอง; FINANCE = ดาวน์ − ส่วนลดดาวน์ + fees.
       const downPayment = Number(sale.downPayment ?? 0);
+      const deposit = Number(sale.depositAmount ?? 0);
       const financials = computeThankYouFinancials({
         sellingPrice,
         carDiscount,
         downPayment,
+        deposit,
         downPaymentDiscount: Number(sale.downPaymentDiscount) || 0,
         insurance: Number(sale.insuranceFee) || 0,
         actInsurance: Number(sale.compulsoryInsuranceFee) || 0,
