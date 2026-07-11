@@ -18,4 +18,11 @@ describe('FINANCE_DOCUMENT_REGISTRY', () => {
   test('custom keys return empty maps', () => {
     expect(getDocumentMapsForKey('custom:abc')).toEqual([]);
   });
+
+  test('delivery_total maps to sales-record รวมเงินออกรถ', () => {
+    const maps = getDocumentMapsForKey('delivery_total');
+    expect(maps.some((m) => m.doc === 'sales-record' && m.fieldLabel === 'รวมเงินออกรถ')).toBe(
+      true
+    );
+  });
 });

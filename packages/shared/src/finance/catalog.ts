@@ -85,6 +85,15 @@ export const SYSTEM_ROW_CATALOG: SystemRowDef[] = [
     defaultSource: 'auto',
   },
   {
+    key: 'delivery_total',
+    label: 'รวมเงินออกรถ',
+    group: 'SUMMARY',
+    /** Preview-only — not a Sale column; computed by engine */
+    saleField: 'deliveryTotal',
+    visibleWhen: always,
+    defaultSource: 'auto',
+  },
+  {
     key: 'down_payment',
     label: 'เงินดาวน์',
     group: 'FINANCE',

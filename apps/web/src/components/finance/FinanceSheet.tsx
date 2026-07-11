@@ -114,6 +114,8 @@ export function FinanceSheet({
     if (row.key === 'car_price') return true;
     // Locked at 9% of car list price
     if (row.key === 'sales_commission') return true;
+    // Mode-dependent delivery total (preview only)
+    if (row.key === 'delivery_total') return true;
     return false;
   };
 

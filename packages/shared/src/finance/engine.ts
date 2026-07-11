@@ -50,6 +50,38 @@ export function previewFinanceCommission(
   return Math.round(beforeVat * (interestRatePercent / 100) * cappedYears * 0.08 * 100) / 100;
 }
 
+export type DeliveryTotalInput = {
+  paymentMode: 'CASH' | 'FINANCE' | 'MIXED';
+  /** Resolved total (after car discount + CUSTOMER_CHARGE custom lines). */
+  totalAmount: number;
+  deposit: number;
+  downPayment: number;
+  downPaymentDiscount: number;
+  insuranceFee: number;
+  compulsoryInsuranceFee: number;
+  registrationFee: number;
+};
+
+/**
+ * รวมเงินออกรถ — mode-dependent (customer / sales-record rules).
+ * - CASH: totalAmount − deposit (ราคาขายหักส่วนลด แล้วหักจอง)
+ * - FINANCE/MIXED: down − downDiscount + insurance + act + registration
+ */
+export function computeDeliveryTotal(input: DeliveryTotalInput): number {
+  const financed = input.paymentMode === 'FINANCE' || input.paymentMode === 'MIXED';
+  if (!financed) {
+    return Math.max(0, n(input.totalAmount) - n(input.deposit));
+  }
+  return Math.max(
+    0,
+    n(input.downPayment) -
+      n(input.downPaymentDiscount) +
+      n(input.insuranceFee) +
+      n(input.compulsoryInsuranceFee) +
+      n(input.registrationFee)
+  );
+}
+
 export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineResult {
   const { paymentMode, carPrice, values, editedKeys, customLines } = input;
   const financed = paymentMode === 'FINANCE' || paymentMode === 'MIXED';
@@ -96,15 +128,30 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
   // Locked formula — always 9% of car list price (not overridable via editedKeys).
   const sales_commission = previewSalesCommission(n(carPrice));
 
+  const deposit = n(values.deposit);
+  const down_payment_discount = n(values.down_payment_discount);
+  // Locked formula — mode-dependent delivery cash due (not overridable).
+  const delivery_total = computeDeliveryTotal({
+    paymentMode,
+    totalAmount: total_amount,
+    deposit,
+    downPayment: down_payment,
+    downPaymentDiscount: down_payment_discount,
+    insuranceFee: insurance_fee,
+    compulsoryInsuranceFee: compulsory_insurance_fee,
+    registrationFee: registration_fee,
+  });
+
   const resolved: Record<SystemFinanceKey, number | string> = {
     car_price: n(carPrice),
     car_discount,
-    down_payment_discount: n(values.down_payment_discount),
+    down_payment_discount,
     insurance_fee,
     compulsory_insurance_fee,
     registration_fee,
-    deposit: n(values.deposit),
+    deposit,
     total_amount,
+    delivery_total,
     down_payment,
     finance_amount,
     finance_provider: String(values.finance_provider ?? ''),
@@ -122,13 +169,16 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
     const visible = def.visibleWhen(paymentMode);
     let source: FinanceSheetRow['source'] = 'hidden';
     if (visible) {
-      if (isEdited(editedKeys, def.key) && def.key !== 'sales_commission') source = 'edit';
+      const lockedAuto =
+        def.key === 'sales_commission' || def.key === 'delivery_total' || def.key === 'car_price';
+      if (isEdited(editedKeys, def.key) && !lockedAuto) source = 'edit';
       else source = def.defaultSource;
-      // auto keys that we compute (sales_commission is locked — never 'edit'):
+      // auto keys that we compute (locked autos never 'edit'):
       if (
         source !== 'edit' &&
         (def.key === 'car_price' ||
           def.key === 'total_amount' ||
+          def.key === 'delivery_total' ||
           def.key === 'finance_amount' ||
           def.key === 'monthly_installment' ||
           def.key === 'finance_commission' ||
@@ -170,9 +220,9 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
 
   const salePatch: FinanceEngineResult['salePatch'] = {
     totalAmount: total_amount,
-    depositAmount: n(values.deposit),
+    depositAmount: deposit,
     carDiscount: car_discount,
-    downPaymentDiscount: n(values.down_payment_discount),
+    downPaymentDiscount: down_payment_discount,
     insuranceFee: insurance_fee,
     compulsoryInsuranceFee: compulsory_insurance_fee,
     registrationFee: registration_fee,

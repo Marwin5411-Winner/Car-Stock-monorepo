@@ -22,6 +22,7 @@ export type SystemFinanceKey =
   | 'registration_fee'
   | 'deposit'
   | 'total_amount'
+  | 'delivery_total'
   | 'down_payment'
   | 'finance_amount'
   | 'finance_provider'

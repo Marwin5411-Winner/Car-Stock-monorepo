@@ -119,6 +119,39 @@ describe('computeFinanceSheet', () => {
     expect(row?.amount).toBe(108_000);
     expect(row?.source).toBe('auto');
   });
+
+  test('CASH delivery_total = totalAmount - deposit (ราคาขายหักส่วนลด หักจอง)', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 1_000_000,
+      values: { car_discount: 50_000, deposit: 20_000 },
+      editedKeys: [],
+      customLines: [],
+    });
+    // total 950_000 − deposit 20_000
+    const row = result.rows.find((r) => r.key === 'delivery_total');
+    expect(row?.amount).toBe(930_000);
+    expect(row?.source).toBe('auto');
+  });
+
+  test('FINANCE delivery_total = down - downDisc + fees', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'FINANCE',
+      carPrice: 1_200_000,
+      values: {
+        down_payment: 200_000,
+        down_payment_discount: 0,
+        insurance_fee: 20_000,
+        compulsory_insurance_fee: 3_000,
+        registration_fee: 2_000,
+      },
+      editedKeys: [],
+      customLines: [],
+    });
+    const row = result.rows.find((r) => r.key === 'delivery_total');
+    expect(row?.amount).toBe(225_000);
+    expect(row?.source).toBe('auto');
+  });
 });
 
 describe('withEditedValue', () => {

@@ -54,6 +54,9 @@ export const FINANCE_DOCUMENT_REGISTRY: Record<SystemFinanceKey, FinanceDocMapEn
     { doc: 'thank-you-letter', fieldLabel: 'ราคาขาย', path: 'detailsTable.sellingPrice' },
     { doc: 'sales-record', fieldLabel: 'ยอดขาย' },
   ],
+  delivery_total: [
+    { doc: 'sales-record', fieldLabel: 'รวมเงินออกรถ', path: 'pricing.totalDelivery' },
+  ],
   down_payment: [
     { doc: 'thank-you-letter', fieldLabel: 'เงินดาวน์', path: 'detailsTable.downPayment' },
     { doc: 'sales-confirmation', fieldLabel: 'ดาวน์' },

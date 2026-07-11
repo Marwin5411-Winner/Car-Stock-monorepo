@@ -4,6 +4,7 @@
  */
 
 import { PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from '@car-stock/shared/constants';
+import { computeDeliveryTotal } from '@car-stock/shared/finance';
 import { Elysia, t } from 'elysia';
 import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
 import { db } from '../../lib/db';
@@ -528,10 +529,20 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           const insurance = Number(sale.insuranceFee ?? 0);
           const actInsurance = Number(sale.compulsoryInsuranceFee ?? 0);
           const registrationFee = Number(sale.registrationFee ?? 0);
-          // รวมเงินออกรถ = sum of the delivery-day column on the paper form:
-          // เงินดาวน์ − ส่วนลดดาวน์ + ประกันชั้น 1 + พรบ. + จดทะเบียน
-          const totalDelivery =
-            downPayment - downPaymentDiscount + insurance + actInsurance + registrationFee;
+          const totalAmount = Number(sale.totalAmount ?? 0);
+          const deposit = Number(sale.depositAmount ?? 0);
+          // CASH: total − deposit; FINANCE/MIXED: down − downDisc + fees
+          // (same helper as FinanceSheet delivery_total)
+          const totalDelivery = computeDeliveryTotal({
+            paymentMode: sale.paymentMode as 'CASH' | 'FINANCE' | 'MIXED',
+            totalAmount,
+            deposit,
+            downPayment,
+            downPaymentDiscount,
+            insuranceFee: insurance,
+            compulsoryInsuranceFee: actInsurance,
+            registrationFee,
+          });
           return {
             sellingPrice: sale.totalAmount?.toString() || '0',
             remaining: sale.remainingAmount?.toString() || '0',
