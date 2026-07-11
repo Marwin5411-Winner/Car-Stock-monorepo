@@ -145,6 +145,23 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),
         refundPolicy: t.Optional(t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])),
         notes: t.Optional(t.String()),
+        financeEditedKeys: t.Optional(t.Array(t.String())),
+        customLines: t.Optional(
+          t.Array(
+            t.Object({
+              id: t.Optional(t.String()),
+              label: t.String({ minLength: 1 }),
+              group: t.Union([
+                t.Literal('CUSTOMER_CHARGE'),
+                t.Literal('DEALER'),
+                t.Literal('INFO'),
+              ]),
+              amount: t.Number(),
+              notes: t.Optional(t.String()),
+              sortOrder: t.Optional(t.Number()),
+            })
+          )
+        ),
       }),
       detail: {
         tags: ['Sales'],
@@ -205,6 +222,23 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),
         refundPolicy: t.Optional(t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])),
         notes: t.Optional(t.String()),
+        financeEditedKeys: t.Optional(t.Array(t.String())),
+        customLines: t.Optional(
+          t.Array(
+            t.Object({
+              id: t.Optional(t.String()),
+              label: t.String({ minLength: 1 }),
+              group: t.Union([
+                t.Literal('CUSTOMER_CHARGE'),
+                t.Literal('DEALER'),
+                t.Literal('INFO'),
+              ]),
+              amount: t.Number(),
+              notes: t.Optional(t.String()),
+              sortOrder: t.Optional(t.Number()),
+            })
+          )
+        ),
       }),
       detail: {
         tags: ['Sales'],

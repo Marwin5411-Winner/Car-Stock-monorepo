@@ -22,8 +22,9 @@ const toNumberOrNull = (val: Decimal | number | null | undefined): number | null
  * Convert Prisma Decimal fields to plain numbers for JSON serialization
  */
 function serializeSale(sale: any): any {
+  const { financeLines, ...rest } = sale;
   return {
-    ...sale,
+    ...rest,
     totalAmount: toNumber(sale.totalAmount),
     depositAmount: toNumber(sale.depositAmount),
     paidAmount: toNumber(sale.paidAmount),
@@ -43,6 +44,16 @@ function serializeSale(sale: any): any {
     discountSnapshot: toNumberOrNull(sale.discountSnapshot),
     campaignSubsidySnapshot: toNumberOrNull(sale.campaignSubsidySnapshot),
     refundAmount: toNumberOrNull(sale.refundAmount),
+    financeEditedKeys: sale.financeEditedKeys ?? [],
+    customLines: (financeLines ?? []).map((l: any) => ({
+      id: l.id,
+      key: l.key,
+      label: l.label,
+      group: l.group,
+      amount: toNumber(l.amount),
+      notes: l.notes,
+      sortOrder: l.sortOrder,
+    })),
     ...(sale.stock?.vehicleModel?.price != null && {
       stock: {
         ...sale.stock,
@@ -67,6 +78,37 @@ function serializeSale(sale: any): any {
       },
     }),
   };
+}
+
+/** Persist CUSTOM finance lines for a sale (caller owns the transaction). */
+async function createFinanceLines(
+  tx: any,
+  saleId: string,
+  customLines: Array<{
+    id?: string;
+    label: string;
+    group: string;
+    amount: number;
+    notes?: string;
+    sortOrder?: number;
+  }>
+) {
+  for (const [i, line] of customLines.entries()) {
+    const id = line.id ?? crypto.randomUUID();
+    await tx.saleFinanceLine.create({
+      data: {
+        id,
+        saleId,
+        key: `custom:${id}`,
+        label: line.label,
+        group: line.group,
+        amount: line.amount,
+        source: 'CUSTOM',
+        sortOrder: line.sortOrder ?? i,
+        notes: line.notes ?? null,
+      },
+    });
+  }
 }
 
 export class SalesService {
@@ -280,6 +322,9 @@ export class SalesService {
           },
           orderBy: { createdAt: 'desc' },
         },
+        financeLines: {
+          orderBy: { sortOrder: 'asc' },
+        },
       },
     });
 
@@ -412,26 +457,35 @@ export class SalesService {
     // Generate sale number
     const saleNumber = await this.generateSaleNumber();
 
+    // Strip non-column finance payload fields (custom lines live in SaleFinanceLine)
+    const { customLines = [], financeEditedKeys = [], ...saleData } = validated;
+
     // Calculate remaining amount.
     // Buyer-charged fees (insurance / พรบ / registration) are part of what the
     // customer owes: remaining = total + fees − settled.
+    // Custom customer charges are already folded into totalAmount by the client engine.
     const createFees =
       (validated.insuranceFee || 0) +
       (validated.compulsoryInsuranceFee || 0) +
       (validated.registrationFee || 0);
     const remainingAmount = validated.totalAmount + createFees - (validated.depositAmount || 0);
 
-    // Create sale + reserve stock + history + activity log in transaction
+    // Create sale + finance lines + reserve stock + history + activity log in transaction
     const sale = await db.$transaction(async (tx) => {
       const created = await tx.sale.create({
         data: {
-          ...validated,
+          ...saleData,
           saleNumber,
           remainingAmount,
           campaignSubsidySnapshot,
+          financeEditedKeys,
           createdById: currentUser.id,
         },
       });
+
+      if (customLines.length > 0) {
+        await createFinanceLines(tx, created.id, customLines);
+      }
 
       // If stock is provided, reserve it
       if (validated.stockId) {
@@ -469,7 +523,7 @@ export class SalesService {
       return created;
     });
 
-    return sale;
+    return this.getSaleById(sale.id, currentUser);
   }
 
   /**
@@ -482,6 +536,18 @@ export class SalesService {
     }
 
     const validated = UpdateSaleSchema.parse(data);
+
+    // Presence on the raw body — Zod defaults on UpdateSaleSchema must NOT wipe
+    // financeEditedKeys / custom lines when the client omits those fields.
+    const hasCustomLines =
+      Object.prototype.hasOwnProperty.call(data, 'customLines') && data.customLines !== undefined;
+    const hasFinanceEditedKeys =
+      Object.prototype.hasOwnProperty.call(data, 'financeEditedKeys') &&
+      data.financeEditedKeys !== undefined;
+
+    // Strip non-column fields; re-apply financeEditedKeys only when provided
+    const { customLines: _customLines, financeEditedKeys: _financeEditedKeys, ...saleFields } =
+      validated;
 
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
@@ -512,8 +578,12 @@ export class SalesService {
         'insuranceFee', 'compulsoryInsuranceFee', 'registrationFee',
         'salesCommission', 'salesExpense', 'financeCommission',
         'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
+        'financeEditedKeys', 'customLines',
       ];
-      const disallowed = Object.keys(validated).filter(k => !allowedFields.includes(k));
+      // Use keys actually present on the request body so Zod defaults don't
+      // invent disallowed fields for accountants.
+      const providedKeys = Object.keys(data).filter((k) => data[k] !== undefined);
+      const disallowed = providedKeys.filter((k) => !allowedFields.includes(k));
       if (disallowed.length > 0) {
         throw new BadRequestError(
           `Cannot modify these fields on a completed sale: ${disallowed.join(', ')}`
@@ -543,11 +613,11 @@ export class SalesService {
     // `depositAmount` is still validated to be ≤ `totalAmount` so the form
     // can't accept nonsensical values, but it does not influence `remaining`.
     const feeFields = ['insuranceFee', 'compulsoryInsuranceFee', 'registrationFee'] as const;
-    const feeChanged = feeFields.some((f) => validated[f] !== undefined);
+    const feeChanged = feeFields.some((f) => saleFields[f] !== undefined);
 
     if (
-      validated.totalAmount !== undefined ||
-      validated.depositAmount !== undefined ||
+      saleFields.totalAmount !== undefined ||
+      saleFields.depositAmount !== undefined ||
       feeChanged
     ) {
       const currentSale = await db.sale.findUnique({
@@ -562,12 +632,12 @@ export class SalesService {
         },
       });
 
-      const newTotal = validated.totalAmount !== undefined ? validated.totalAmount : toNumber(currentSale!.totalAmount);
-      const newDeposit = validated.depositAmount !== undefined ? validated.depositAmount : toNumber(currentSale!.depositAmount);
+      const newTotal = saleFields.totalAmount !== undefined ? saleFields.totalAmount : toNumber(currentSale!.totalAmount);
+      const newDeposit = saleFields.depositAmount !== undefined ? saleFields.depositAmount : toNumber(currentSale!.depositAmount);
       const paid = toNumber(currentSale!.paidAmount);
       const newFees = feeFields.reduce(
         (sum, f) =>
-          sum + (validated[f] !== undefined ? (validated[f] as number) : (toNumberOrNull(currentSale![f]) || 0)),
+          sum + (saleFields[f] !== undefined ? (saleFields[f] as number) : (toNumberOrNull(currentSale![f]) || 0)),
         0
       );
 
@@ -582,19 +652,36 @@ export class SalesService {
         );
       }
 
-      validated.remainingAmount = newRemaining;
+      (saleFields as any).remainingAmount = newRemaining;
     }
 
     const campaignSubsidySnapshot = await campaignFormulasService.computeSaleSubsidySnapshot({
-      campaignId: validated.campaignId ?? existingSale.campaignId,
-      vehicleModelId: validated.vehicleModelId ?? existingSale.vehicleModelId,
-      stockId: validated.stockId ?? existingSale.stockId,
+      campaignId: saleFields.campaignId ?? existingSale.campaignId,
+      vehicleModelId: saleFields.vehicleModelId ?? existingSale.vehicleModelId,
+      stockId: saleFields.stockId ?? existingSale.stockId,
     });
 
-    // Update sale
-    const sale = await db.sale.update({
-      where: { id },
-      data: { ...validated, campaignSubsidySnapshot },
+    const updateData: any = {
+      ...saleFields,
+      campaignSubsidySnapshot,
+    };
+    if (hasFinanceEditedKeys) {
+      updateData.financeEditedKeys = validated.financeEditedKeys ?? [];
+    }
+
+    // Update sale (+ replace custom finance lines when explicitly provided)
+    const sale = await db.$transaction(async (tx) => {
+      const updated = await tx.sale.update({
+        where: { id },
+        data: updateData,
+      });
+
+      if (hasCustomLines) {
+        await tx.saleFinanceLine.deleteMany({ where: { saleId: id } });
+        await createFinanceLines(tx, id, validated.customLines ?? []);
+      }
+
+      return updated;
     });
 
     // Log activity
@@ -606,12 +693,16 @@ export class SalesService {
         entityId: sale.id,
         details: {
           saleNumber: sale.saleNumber,
-          changes: validated,
+          changes: {
+            ...saleFields,
+            ...(hasFinanceEditedKeys && { financeEditedKeys: validated.financeEditedKeys }),
+            ...(hasCustomLines && { customLines: validated.customLines }),
+          },
         },
       },
     });
 
-    return sale;
+    return this.getSaleById(sale.id, currentUser);
   }
 
   /**
