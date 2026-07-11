@@ -14,11 +14,20 @@ const n = (v: unknown, fallback = 0): number => {
 const isEdited = (editedKeys: string[], key: string) => editedKeys.includes(key);
 
 function monthlyInstallment(finance: number, ratePercent: number, terms: number): number {
-  if (finance <= 0 || terms <= 0 || ratePercent < 0) return 0;
+  if (finance <= 0 || terms <= 0 || ratePercent <= 0) return 0;
   const years = terms / 12;
   const totalInterest = finance * (ratePercent / 100) * years;
   return Math.round((finance + totalInterest) / terms);
 }
+
+/** Keys the engine auto-computes; only these enter editedKeys when user overrides. */
+const AUTO_EDITABLE_KEYS = new Set<SystemFinanceKey>([
+  'car_price',
+  'total_amount',
+  'finance_amount',
+  'monthly_installment',
+  'finance_commission',
+]);
 
 /** 8% finance commission preview (same structure as SalesDetailPage). */
 export function previewFinanceCommission(
@@ -183,13 +192,22 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
   };
 }
 
-/** Apply a user edit: set value + mark edited (except pure manual keys that stay manual). */
+/**
+ * Apply a user edit: update `values`.
+ * Only auto-computed keys (total_amount, finance_amount, monthly_installment,
+ * finance_commission, car_price) are added to `editedKeys` so overrides stick.
+ * Pure manual keys (deposit, fees, discounts, etc.) update values only.
+ */
 export function withEditedValue(
   input: FinanceEngineInput,
   key: SystemFinanceKey,
   value: number | string
 ): FinanceEngineInput {
-  const editedKeys = input.editedKeys.includes(key) ? input.editedKeys : [...input.editedKeys, key];
+  const shouldTrackEdit = AUTO_EDITABLE_KEYS.has(key);
+  const editedKeys =
+    shouldTrackEdit && !input.editedKeys.includes(key)
+      ? [...input.editedKeys, key]
+      : input.editedKeys;
   return {
     ...input,
     values: { ...input.values, [key]: value },

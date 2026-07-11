@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { computeFinanceSheet } from './engine';
+import { computeFinanceSheet, withEditedValue } from './engine';
+import type { FinanceEngineInput } from './types';
 
 describe('computeFinanceSheet', () => {
   test('CASH: auto total = carPrice - car_discount (fees stay separate)', () => {
@@ -86,5 +87,46 @@ describe('computeFinanceSheet', () => {
       customLines: [],
     });
     expect(result.salePatch.totalAmount).toBe(500_000);
+  });
+
+  test('FINANCE: interest_rate 0 yields monthlyInstallment 0', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'FINANCE',
+      carPrice: 1_200_000,
+      values: {
+        down_payment: 200_000,
+        interest_rate: 0,
+        number_of_terms: 48,
+      },
+      editedKeys: [],
+      customLines: [],
+    });
+    expect(result.salePatch.monthlyInstallment).toBeNull();
+    const installmentRow = result.rows.find((r) => r.key === 'monthly_installment');
+    expect(installmentRow?.amount).toBe(0);
+  });
+});
+
+describe('withEditedValue', () => {
+  const base: FinanceEngineInput = {
+    paymentMode: 'CASH',
+    carPrice: 1_000_000,
+    values: {},
+    editedKeys: [],
+    customLines: [],
+  };
+
+  test('manual key deposit does not enter editedKeys; row source stays manual', () => {
+    const next = withEditedValue(base, 'deposit', 50_000);
+    expect(next.editedKeys).not.toContain('deposit');
+    expect(next.values.deposit).toBe(50_000);
+    const result = computeFinanceSheet(next);
+    const depositRow = result.rows.find((r) => r.key === 'deposit');
+    expect(depositRow?.source).toBe('manual');
+  });
+
+  test('auto key total_amount is tracked in editedKeys', () => {
+    const next = withEditedValue(base, 'total_amount', 999_000);
+    expect(next.editedKeys).toContain('total_amount');
   });
 });
