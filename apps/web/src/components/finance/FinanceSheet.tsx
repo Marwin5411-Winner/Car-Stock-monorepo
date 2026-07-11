@@ -1,23 +1,23 @@
-import {
-  computeFinanceSheet,
-  getDocumentMapsForKey,
-  withEditedValue,
-  withResetKey,
-  type FinanceSheetRow,
-  type SystemFinanceKey,
-} from '@car-stock/shared/finance';
-import { Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn, formatCurrency } from '@/lib/utils';
+import {
+  type FinanceSheetRow,
+  type SystemFinanceKey,
+  computeFinanceSheet,
+  getDocumentMapsForKey,
+  withEditedValue,
+  withResetKey,
+} from '@car-stock/shared/finance';
+import { Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { PaymentMode, SaleFinanceCustomLine } from '../../services/sales.service';
 import { FinanceDocPanel } from './FinanceDocPanel';
 import {
+  type FinanceSheetValue,
   engineInputToSheetValue,
   saleToEngineInput,
-  type FinanceSheetValue,
 } from './financeSheetHelpers';
 
 export type { FinanceSheetValue };
@@ -104,9 +104,7 @@ export function FinanceSheet({
     return true;
   });
 
-  const selectedRow = selectedKey
-    ? (result.rows.find((r) => r.key === selectedKey) ?? null)
-    : null;
+  const selectedRow = selectedKey ? (result.rows.find((r) => r.key === selectedKey) ?? null) : null;
 
   const editedCount = engineInput.editedKeys.length;
 
@@ -309,7 +307,8 @@ export function FinanceSheet({
                         {GROUP_LABELS[row.group] ?? row.group}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {disabled || (row.isCustom ? false : !isSystemEditable(row) && !isTextKey(row.key)) ? (
+                        {disabled ||
+                        (row.isCustom ? false : !isSystemEditable(row) && !isTextKey(row.key)) ? (
                           isTextKey(row.key) ? (
                             <span className="text-gray-800">{row.textValue || '—'}</span>
                           ) : isPercentOrTermsKey(row.key) ? (
@@ -384,9 +383,7 @@ export function FinanceSheet({
                       <td className="px-3 py-2 text-center">
                         <button
                           type="button"
-                          onClick={() =>
-                            setSelectedKey((k) => (k === row.key ? null : row.key))
-                          }
+                          onClick={() => setSelectedKey((k) => (k === row.key ? null : row.key))}
                           className={cn(
                             'inline-flex min-w-[2rem] items-center justify-center rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors',
                             selectedKey === row.key

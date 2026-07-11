@@ -1,13 +1,13 @@
 import { Elysia, t } from 'elysia';
-import { salesService } from './sales.service';
-import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { BadRequestError } from '../../lib/errors';
+import { authMiddleware, requirePermission } from '../auth/auth.middleware';
+import { salesService } from './sales.service';
 
 // Helper to safely parse float - moved to module scope
 const safeParseFloat = (value: unknown): number => {
   if (typeof value !== 'string') return value as number;
-  const parsed = parseFloat(value);
-  if (isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
+  const parsed = Number.parseFloat(value);
+  if (Number.isNaN(parsed)) throw new BadRequestError(`Invalid number format: ${value}`);
   return parsed;
 };
 
@@ -99,14 +99,32 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
       const processedBody = {
         ...body,
         totalAmount: safeParseFloat(body.totalAmount),
-        depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : body.depositAmount,
-        discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : body.discountSnapshot,
-        downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : body.downPayment,
-        financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : body.financeAmount,
-        carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : body.carDiscount,
-        downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : body.downPaymentDiscount,
-        interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : body.interestRate,
-        monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : body.monthlyInstallment,
+        depositAmount:
+          body.depositAmount !== undefined
+            ? safeParseFloat(body.depositAmount)
+            : body.depositAmount,
+        discountSnapshot:
+          body.discountSnapshot !== undefined
+            ? safeParseFloat(body.discountSnapshot)
+            : body.discountSnapshot,
+        downPayment:
+          body.downPayment !== undefined ? safeParseFloat(body.downPayment) : body.downPayment,
+        financeAmount:
+          body.financeAmount !== undefined
+            ? safeParseFloat(body.financeAmount)
+            : body.financeAmount,
+        carDiscount:
+          body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : body.carDiscount,
+        downPaymentDiscount:
+          body.downPaymentDiscount !== undefined
+            ? safeParseFloat(body.downPaymentDiscount)
+            : body.downPaymentDiscount,
+        interestRate:
+          body.interestRate !== undefined ? safeParseFloat(body.interestRate) : body.interestRate,
+        monthlyInstallment:
+          body.monthlyInstallment !== undefined
+            ? safeParseFloat(body.monthlyInstallment)
+            : body.monthlyInstallment,
       };
 
       const sale = await salesService.createSale(processedBody, requester);
@@ -134,7 +152,9 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         campaignId: t.Optional(t.String()),
         discountSnapshot: t.Optional(t.Union([t.String(), t.Number()])),
         freebiesSnapshot: t.Optional(t.String()),
-        paymentMode: t.Optional(t.Union([t.Literal('CASH'), t.Literal('FINANCE'), t.Literal('MIXED')])),
+        paymentMode: t.Optional(
+          t.Union([t.Literal('CASH'), t.Literal('FINANCE'), t.Literal('MIXED')])
+        ),
         downPayment: t.Optional(t.Union([t.String(), t.Number()])),
         financeAmount: t.Optional(t.Union([t.String(), t.Number()])),
         financeProvider: t.Optional(t.String()),
@@ -143,7 +163,9 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         interestRate: t.Optional(t.Union([t.String(), t.Number()])),
         numberOfTerms: t.Optional(t.Number()),
         monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),
-        refundPolicy: t.Optional(t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])),
+        refundPolicy: t.Optional(
+          t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])
+        ),
         notes: t.Optional(t.String()),
         financeEditedKeys: t.Optional(t.Array(t.String())),
         customLines: t.Optional(
@@ -177,14 +199,24 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
       const processedBody = {
         ...body,
         totalAmount: body.totalAmount !== undefined ? safeParseFloat(body.totalAmount) : undefined,
-        depositAmount: body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : undefined,
-        discountSnapshot: body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : undefined,
+        depositAmount:
+          body.depositAmount !== undefined ? safeParseFloat(body.depositAmount) : undefined,
+        discountSnapshot:
+          body.discountSnapshot !== undefined ? safeParseFloat(body.discountSnapshot) : undefined,
         downPayment: body.downPayment !== undefined ? safeParseFloat(body.downPayment) : undefined,
-        financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : undefined,
+        financeAmount:
+          body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : undefined,
         carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : undefined,
-        downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : undefined,
-        interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : undefined,
-        monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : undefined,
+        downPaymentDiscount:
+          body.downPaymentDiscount !== undefined
+            ? safeParseFloat(body.downPaymentDiscount)
+            : undefined,
+        interestRate:
+          body.interestRate !== undefined ? safeParseFloat(body.interestRate) : undefined,
+        monthlyInstallment:
+          body.monthlyInstallment !== undefined
+            ? safeParseFloat(body.monthlyInstallment)
+            : undefined,
       };
 
       const sale = await salesService.updateSale(params.id, processedBody, requester);
@@ -211,7 +243,9 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         campaignId: t.Optional(t.String()),
         discountSnapshot: t.Optional(t.Union([t.String(), t.Number()])),
         freebiesSnapshot: t.Optional(t.String()),
-        paymentMode: t.Optional(t.Union([t.Literal('CASH'), t.Literal('FINANCE'), t.Literal('MIXED')])),
+        paymentMode: t.Optional(
+          t.Union([t.Literal('CASH'), t.Literal('FINANCE'), t.Literal('MIXED')])
+        ),
         downPayment: t.Optional(t.Union([t.String(), t.Number()])),
         financeAmount: t.Optional(t.Union([t.String(), t.Number()])),
         financeProvider: t.Optional(t.String()),
@@ -220,7 +254,9 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         interestRate: t.Optional(t.Union([t.String(), t.Number()])),
         numberOfTerms: t.Optional(t.Number()),
         monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),
-        refundPolicy: t.Optional(t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])),
+        refundPolicy: t.Optional(
+          t.Union([t.Literal('FULL'), t.Literal('PARTIAL'), t.Literal('NO_REFUND')])
+        ),
         notes: t.Optional(t.String()),
         financeEditedKeys: t.Optional(t.Array(t.String())),
         customLines: t.Optional(

@@ -1,45 +1,42 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { usePermission } from '../../hooks/usePermission';
-import { useErrorHandler } from '../../hooks/useErrorHandler';
-import { useToast } from '../../components/toast';
 import {
-  salesService,
+  AlertCircle,
+  ArrowLeft,
+  Calendar,
+  Car,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  DollarSign,
+  Download,
+  Edit,
+  FileText,
+  History,
+  Loader2,
+  Package,
+  Plus,
+  Printer,
+  RefreshCw,
+  Save,
+  Truck,
+  User,
+  X,
+  XCircle,
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { FinanceSheet, type FinanceSheetValue } from '../../components/finance/FinanceSheet';
+import { MainLayout } from '../../components/layout';
+import { useToast } from '../../components/toast';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { usePermission } from '../../hooks/usePermission';
+import { api } from '../../lib/api';
+import {
   type Sale,
   type SaleStatus,
   type UpdateSaleData,
+  salesService,
 } from '../../services/sales.service';
-import { stockService, type Stock } from '../../services/stock.service';
-import { MainLayout } from '../../components/layout';
-import {
-  FinanceSheet,
-  type FinanceSheetValue,
-} from '../../components/finance/FinanceSheet';
-import { api } from '../../lib/api';
-import {
-  ArrowLeft,
-  Edit,
-  User,
-  Car,
-  Calendar,
-  DollarSign,
-  FileText,
-  Clock,
-  CreditCard,
-  History,
-  Download,
-  Printer,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Truck,
-  Package,
-  Plus,
-  RefreshCw,
-  X,
-  Loader2,
-  Save,
-} from 'lucide-react';
+import { type Stock, stockService } from '../../services/stock.service';
 
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_LABELS: Record<SaleStatus, string> = {
@@ -114,14 +111,17 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     title: 'สัญญาจองรถยนต์',
     description: 'สัญญาหลักระหว่างผู้จำหน่ายและลูกค้า',
     endpoint: '/api/pdf/contract',
-    getAvailable: (sale) => ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
+    getAvailable: (sale) =>
+      ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
   },
   {
     id: 'deposit-receipt',
     title: 'ใบรับเงินมัดจำ',
     description: 'ใบรับเงินมัดจำ',
     endpoint: '/api/pdf/deposit-receipt',
-    getAvailable: (sale) => sale.depositAmount > 0 && !!sale.payments?.some(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
+    getAvailable: (sale) =>
+      sale.depositAmount > 0 &&
+      !!sale.payments?.some((p) => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
     usePaymentId: true,
   },
   {
@@ -144,7 +144,8 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     title: 'ใบยืนยันรายละเอียดการขาย',
     description: 'สรุปราคา/ส่วนลด + รายการของแถม (สำหรับลูกค้า)',
     endpoint: '/api/pdf/sales-confirmation-form',
-    getAvailable: (sale) => ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
+    getAvailable: (sale) =>
+      ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
   },
 
   {
@@ -235,7 +236,10 @@ export default function SalesDetailPage() {
     setLoading(true);
     let found = false;
     await executeQuery(
-      salesService.getById(saleId).then((data) => { setSale(data); found = true; })
+      salesService.getById(saleId).then((data) => {
+        setSale(data);
+        found = true;
+      })
     );
     if (!found) navigate('/sales');
     setLoading(false);
@@ -359,7 +363,7 @@ export default function SalesDetailPage() {
   const getDepositPaymentId = useCallback((): string | null => {
     if (!sale?.payments) return null;
     const depositPayment = sale.payments.find(
-      p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'
+      (p) => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'
     );
     return depositPayment?.id || null;
   }, [sale?.payments]);
@@ -482,7 +486,7 @@ export default function SalesDetailPage() {
     const statuses = statusTransitions[currentStatus] || [];
     // Only users with SALE_CANCEL permission can cancel sales
     if (!canCancel) {
-      return statuses.filter(s => s !== 'CANCELLED');
+      return statuses.filter((s) => s !== 'CANCELLED');
     }
     return statuses;
   };
@@ -524,10 +528,7 @@ export default function SalesDetailPage() {
               <h3 className="text-lg font-semibold">
                 {sale.stock ? 'เปลี่ยน Stock' : 'กำหนด Stock'}
               </h3>
-              <button
-                onClick={closeStockModal}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
+              <button onClick={closeStockModal} className="p-1 hover:bg-gray-100 rounded">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -535,16 +536,17 @@ export default function SalesDetailPage() {
               {loadingStocks ? (
                 <div className="text-center py-8 text-gray-700">กำลังโหลด...</div>
               ) : availableStocks.length === 0 ? (
-                <div className="text-center py-8 text-gray-700">
-                  ไม่พบ Stock ที่พร้อมใช้งาน
-                </div>
+                <div className="text-center py-8 text-gray-700">ไม่พบ Stock ที่พร้อมใช้งาน</div>
               ) : (
                 <div className="space-y-2">
                   {availableStocks.map((stock) => (
                     <label
                       key={stock.id}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${selectedStockId === stock.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                        }`}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                        selectedStockId === stock.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200'
+                      }`}
                     >
                       <input
                         type="radio"
@@ -600,21 +602,26 @@ export default function SalesDetailPage() {
               <div key={status} className="flex-1 flex items-center">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${isCurrent
-                      ? STATUS_COLORS[status]
-                      : isCompleted
-                        ? 'bg-green-100 text-green-600 border-green-300'
-                        : 'bg-gray-100 text-gray-700 border-gray-300'
-                      }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                      isCurrent
+                        ? STATUS_COLORS[status]
+                        : isCompleted
+                          ? 'bg-green-100 text-green-600 border-green-300'
+                          : 'bg-gray-100 text-gray-700 border-gray-300'
+                    }`}
                   >
                     {isCompleted ? <CheckCircle className="h-5 w-5" /> : STATUS_ICONS[status]}
                   </div>
-                  <span className={`text-xs mt-2 text-center ${isCurrent ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                  <span
+                    className={`text-xs mt-2 text-center ${isCurrent ? 'font-medium text-gray-900' : 'text-gray-700'}`}
+                  >
                     {STATUS_LABELS[status]}
                   </span>
                 </div>
                 {index < STATUS_FLOW.length - 1 && (
-                  <div className={`h-1 flex-1 mx-2 ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}`} />
+                  <div
+                    className={`h-1 flex-1 mx-2 ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}`}
+                  />
                 )}
               </div>
             );
@@ -629,10 +636,11 @@ export default function SalesDetailPage() {
                 key={nextStatus}
                 onClick={() => handleStatusChange(nextStatus)}
                 disabled={updatingStatus}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${nextStatus === 'CANCELLED'
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                  : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                  } disabled:opacity-50`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  nextStatus === 'CANCELLED'
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
+                } disabled:opacity-50`}
               >
                 {nextStatus === 'CANCELLED' ? 'ยกเลิก' : `เปลี่ยนเป็น ${STATUS_LABELS[nextStatus]}`}
               </button>
@@ -845,13 +853,9 @@ export default function SalesDetailPage() {
                 : sale.paymentMode
             }
             carPrice={Number(sale.stock?.vehicleModel?.price ?? 0)}
-            value={
-              financeEditing && financeDraft
-                ? financeDraft
-                : saleToFinanceSheetValue(sale)
-            }
+            value={financeEditing && financeDraft ? financeDraft : saleToFinanceSheetValue(sale)}
             paidAmount={sale.paidAmount}
-            remainingAmount={sale.remainingAmount}
+            remainingAmount={financeEditing ? undefined : sale.remainingAmount}
             canEditDiscounts={canDiscount}
             canEditDealerFields={canDiscount}
             onChange={(next) => {
@@ -862,7 +866,7 @@ export default function SalesDetailPage() {
         </div>
 
         {/* Payment Breakdown Table */}
-        {sale.payments && sale.payments.filter(p => p.status === 'ACTIVE').length > 0 && (
+        {sale.payments && sale.payments.filter((p) => p.status === 'ACTIVE').length > 0 && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b">
               <h3 className="text-lg font-semibold flex items-center">
@@ -873,31 +877,52 @@ export default function SalesDetailPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วันที่</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ประเภท</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วิธีชำระ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">จำนวนเงิน</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    วันที่
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    ประเภท
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    วิธีชำระ
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">
+                    จำนวนเงิน
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sale.payments
-                  .filter(p => p.status === 'ACTIVE')
+                  .filter((p) => p.status === 'ACTIVE')
                   .map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-sm text-gray-700">{formatDate(payment.paymentDate)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{PAYMENT_TYPE_LABELS[payment.paymentType] || payment.paymentType}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}</td>
-                      <td className="px-6 py-3 text-sm font-medium text-right">{formatCurrency(payment.amount)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {formatDate(payment.paymentDate)}
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {PAYMENT_TYPE_LABELS[payment.paymentType] || payment.paymentType}
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}
+                      </td>
+                      <td className="px-6 py-3 text-sm font-medium text-right">
+                        {formatCurrency(payment.amount)}
+                      </td>
                     </tr>
                   ))}
               </tbody>
               <tfoot className="bg-gray-50">
                 <tr>
-                  <td colSpan={3} className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">รวมชำระแล้ว</td>
+                  <td
+                    colSpan={3}
+                    className="px-6 py-3 text-sm font-semibold text-gray-900 text-right"
+                  >
+                    รวมชำระแล้ว
+                  </td>
                   <td className="px-6 py-3 text-sm font-bold text-green-600 text-right">
                     {formatCurrency(
                       sale.payments
-                        .filter(p => p.status === 'ACTIVE')
+                        .filter((p) => p.status === 'ACTIVE')
                         .reduce((sum, p) => sum + p.amount, 0)
                     )}
                   </td>
@@ -927,7 +952,9 @@ export default function SalesDetailPage() {
             {sale.hasExpiration && sale.expirationDate && (
               <div>
                 <dt className="text-sm text-gray-700">วันหมดอายุการจอง</dt>
-                <dd className="text-sm font-medium text-yellow-600">{formatDate(sale.expirationDate)}</dd>
+                <dd className="text-sm font-medium text-yellow-600">
+                  {formatDate(sale.expirationDate)}
+                </dd>
               </div>
             )}
             {sale.deliveryDate && (
@@ -939,7 +966,9 @@ export default function SalesDetailPage() {
             {sale.completedDate && (
               <div>
                 <dt className="text-sm text-gray-700">วันที่เสร็จสิ้น</dt>
-                <dd className="text-sm font-medium text-green-600">{formatDate(sale.completedDate)}</dd>
+                <dd className="text-sm font-medium text-green-600">
+                  {formatDate(sale.completedDate)}
+                </dd>
               </div>
             )}
           </dl>
@@ -955,13 +984,18 @@ export default function SalesDetailPage() {
               <p className="text-sm text-gray-700">แคมเปญ</p>
               <p className="text-sm font-medium">{sale.campaign.name}</p>
               {sale.discountSnapshot && (
-                <p className="text-sm text-green-600">ส่วนลด: {formatCurrency(sale.discountSnapshot)}</p>
+                <p className="text-sm text-green-600">
+                  ส่วนลด: {formatCurrency(sale.discountSnapshot)}
+                </p>
               )}
               {sale.campaignSubsidySnapshot != null && Number(sale.campaignSubsidySnapshot) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">แคมเปญคันนี้ (ต่อคัน)</span>
                   <span className="font-semibold text-purple-700">
-                    {Number(sale.campaignSubsidySnapshot).toLocaleString('th-TH', { maximumFractionDigits: 2 })} บาท
+                    {Number(sale.campaignSubsidySnapshot).toLocaleString('th-TH', {
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    บาท
                   </span>
                 </div>
               )}
@@ -971,9 +1005,13 @@ export default function SalesDetailPage() {
             <div className="mb-4">
               <p className="text-sm text-gray-700">รายการของแถม</p>
               <ul className="text-sm text-blue-600 list-disc list-inside">
-                {sale.freebiesSnapshot.split(/[\n,]/).map((g) => g.trim()).filter(Boolean).map((gift) => (
-                  <li key={gift}>{gift}</li>
-                ))}
+                {sale.freebiesSnapshot
+                  .split(/[\n,]/)
+                  .map((g) => g.trim())
+                  .filter(Boolean)
+                  .map((gift) => (
+                    <li key={gift}>{gift}</li>
+                  ))}
               </ul>
             </div>
           )}
@@ -1041,7 +1079,7 @@ export default function SalesDetailPage() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h3 className="text-lg font-semibold">ประวัติการชำระเงิน</h3>
-          {(canCreatePayment) && (
+          {canCreatePayment && (
             <Link
               to={`/payments/new?saleId=${sale.id}`}
               className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 text-sm"
@@ -1055,24 +1093,48 @@ export default function SalesDetailPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">เลขที่ใบเสร็จ</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ประเภท</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วิธีชำระ</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">จำนวน</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วันที่</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">สถานะ</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  เลขที่ใบเสร็จ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  ประเภท
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  วิธีชำระ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  จำนวน
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  วันที่
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  สถานะ
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {sale.payments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-blue-600">{payment.receiptNumber}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{PAYMENT_TYPE_LABELS[payment.paymentType]}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{PAYMENT_METHOD_LABELS[payment.paymentMethod]}</td>
-                  <td className="px-6 py-4 text-sm font-medium">{formatCurrency(payment.amount)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{formatDate(payment.paymentDate)}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-blue-600">
+                    {payment.receiptNumber}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {PAYMENT_TYPE_LABELS[payment.paymentType]}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {PAYMENT_METHOD_LABELS[payment.paymentMethod]}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium">
+                    {formatCurrency(payment.amount)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {formatDate(payment.paymentDate)}
+                  </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[payment.status]}`}>
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[payment.status]}`}
+                    >
                       {payment.status === 'ACTIVE' ? 'ใช้งาน' : 'ยกเลิก'}
                     </span>
                   </td>
@@ -1081,9 +1143,7 @@ export default function SalesDetailPage() {
             </tbody>
           </table>
         ) : (
-          <div className="px-6 py-8 text-center text-gray-700">
-            ยังไม่มีการชำระเงิน
-          </div>
+          <div className="px-6 py-8 text-center text-gray-700">ยังไม่มีการชำระเงิน</div>
         )}
       </div>
     </div>
@@ -1117,9 +1177,7 @@ export default function SalesDetailPage() {
                         </span>
                       )}
                     </div>
-                    {item.notes && (
-                      <p className="text-sm text-gray-700 mt-1">{item.notes}</p>
-                    )}
+                    {item.notes && <p className="text-sm text-gray-700 mt-1">{item.notes}</p>}
                     <p className="text-xs text-gray-700 mt-1">{formatDateTime(item.createdAt)}</p>
                   </div>
                 </div>
@@ -1128,9 +1186,7 @@ export default function SalesDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="px-6 py-8 text-center text-gray-700">
-          ยังไม่มีประวัติการเปลี่ยนแปลง
-        </div>
+        <div className="px-6 py-8 text-center text-gray-700">ยังไม่มีประวัติการเปลี่ยนแปลง</div>
       )}
     </div>
   );
@@ -1189,10 +1245,11 @@ export default function SalesDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600 font-medium'
-                  : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600 font-medium'
+                    : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
                 {tab.icon}
                 {tab.label}
@@ -1230,9 +1287,7 @@ function DocumentItem({ config, available, isLoading, onDownload, onPrint }: Doc
         <div>
           <p className="text-sm font-medium text-gray-900">{title}</p>
           <p className="text-xs text-gray-700">{description}</p>
-          {restricted && (
-            <span className="text-xs text-orange-600">จำกัดสิทธิ์การเข้าถึง</span>
-          )}
+          {restricted && <span className="text-xs text-orange-600">จำกัดสิทธิ์การเข้าถึง</span>}
         </div>
       </div>
       {available ? (

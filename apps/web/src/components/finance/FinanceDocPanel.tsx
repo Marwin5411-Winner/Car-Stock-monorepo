@@ -1,11 +1,11 @@
+import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/utils';
 import {
   FINANCE_DOC_LABELS,
-  getDocumentMapsForKey,
   type FinanceSheetRow,
+  getDocumentMapsForKey,
 } from '@car-stock/shared/finance';
 import { FileText, X } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 
 export interface FinanceDocPanelProps {
   row: FinanceSheetRow | null;
@@ -74,9 +74,7 @@ export function FinanceDocPanel({ row, onClose }: FinanceDocPanelProps) {
               key={`${m.doc}-${m.fieldLabel}`}
               className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm"
             >
-              <div className="font-medium text-gray-900">
-                {FINANCE_DOC_LABELS[m.doc] ?? m.doc}
-              </div>
+              <div className="font-medium text-gray-900">{FINANCE_DOC_LABELS[m.doc] ?? m.doc}</div>
               <div className="mt-0.5 text-gray-600">
                 ฟิลด์บนเอกสาร: <span className="font-medium">{m.fieldLabel}</span>
               </div>

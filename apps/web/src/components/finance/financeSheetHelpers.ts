@@ -28,7 +28,10 @@ export type SaleLikeForEngine = FinanceSheetValue & {
   paymentMode: PaymentMode;
 };
 
-export function saleToEngineInput(saleLike: SaleLikeForEngine, carPrice: number): FinanceEngineInput {
+export function saleToEngineInput(
+  saleLike: SaleLikeForEngine,
+  carPrice: number
+): FinanceEngineInput {
   const num = (v: unknown) => (v == null || v === '' ? 0 : Number(v));
   return {
     paymentMode: saleLike.paymentMode,

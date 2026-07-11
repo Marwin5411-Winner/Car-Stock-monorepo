@@ -176,9 +176,7 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
       : n(values.monthly_installment) || null,
     salesCommission: n(values.sales_commission) || null,
     salesExpense: n(values.sales_expense) || null,
-    financeCommission: financed
-      ? finance_commission || null
-      : n(values.finance_commission) || null,
+    financeCommission: financed ? finance_commission || null : n(values.finance_commission) || null,
   };
 
   return {

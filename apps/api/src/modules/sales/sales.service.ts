@@ -1,10 +1,10 @@
-import { db } from '../../lib/db';
-import { CreateSaleSchema, UpdateSaleSchema, SaleFilterSchema } from '@car-stock/shared/schemas';
 import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
+import { CreateSaleSchema, SaleFilterSchema, UpdateSaleSchema } from '@car-stock/shared/schemas';
+import type { Decimal } from '@prisma/client/runtime/library';
+import { db } from '../../lib/db';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
 import { authService } from '../auth/auth.service';
 import { campaignFormulasService } from '../campaigns/campaign-formulas.service';
-import { Decimal } from '@prisma/client/runtime/library';
-import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
 
 const toNumber = (val: Decimal | number | null | undefined): number => {
   if (val === null || val === undefined) return 0;
@@ -546,8 +546,11 @@ export class SalesService {
       data.financeEditedKeys !== undefined;
 
     // Strip non-column fields; re-apply financeEditedKeys only when provided
-    const { customLines: _customLines, financeEditedKeys: _financeEditedKeys, ...saleFields } =
-      validated;
+    const {
+      customLines: _customLines,
+      financeEditedKeys: _financeEditedKeys,
+      ...saleFields
+    } = validated;
 
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
@@ -565,20 +568,38 @@ export class SalesService {
     }
 
     // Only ADMIN and ACCOUNTANT can update completed sale
-    if (existingSale.status === 'COMPLETED' && !['ADMIN', 'ACCOUNTANT'].includes(currentUser.role)) {
+    if (
+      existingSale.status === 'COMPLETED' &&
+      !['ADMIN', 'ACCOUNTANT'].includes(currentUser.role)
+    ) {
       throw new BadRequestError('Cannot update completed sale');
     }
 
     // ACCOUNTANT can only edit financial fields on completed sales
     if (existingSale.status === 'COMPLETED' && currentUser.role === 'ACCOUNTANT') {
       const allowedFields = [
-        'totalAmount', 'depositAmount', 'paymentMode', 'downPayment',
-        'financeAmount', 'financeProvider', 'carDiscount', 'downPaymentDiscount',
-        'discountSnapshot', 'freebiesSnapshot',
-        'insuranceFee', 'compulsoryInsuranceFee', 'registrationFee',
-        'salesCommission', 'salesExpense', 'financeCommission',
-        'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
-        'financeEditedKeys', 'customLines',
+        'totalAmount',
+        'depositAmount',
+        'paymentMode',
+        'downPayment',
+        'financeAmount',
+        'financeProvider',
+        'carDiscount',
+        'downPaymentDiscount',
+        'discountSnapshot',
+        'freebiesSnapshot',
+        'insuranceFee',
+        'compulsoryInsuranceFee',
+        'registrationFee',
+        'salesCommission',
+        'salesExpense',
+        'financeCommission',
+        'interestRate',
+        'numberOfTerms',
+        'monthlyInstallment',
+        'notes',
+        'financeEditedKeys',
+        'customLines',
       ];
       // Use keys actually present on the request body so Zod defaults don't
       // invent disallowed fields for accountants.
@@ -632,12 +653,21 @@ export class SalesService {
         },
       });
 
-      const newTotal = saleFields.totalAmount !== undefined ? saleFields.totalAmount : toNumber(currentSale!.totalAmount);
-      const newDeposit = saleFields.depositAmount !== undefined ? saleFields.depositAmount : toNumber(currentSale!.depositAmount);
+      const newTotal =
+        saleFields.totalAmount !== undefined
+          ? saleFields.totalAmount
+          : toNumber(currentSale!.totalAmount);
+      const newDeposit =
+        saleFields.depositAmount !== undefined
+          ? saleFields.depositAmount
+          : toNumber(currentSale!.depositAmount);
       const paid = toNumber(currentSale!.paidAmount);
       const newFees = feeFields.reduce(
         (sum, f) =>
-          sum + (saleFields[f] !== undefined ? (saleFields[f] as number) : (toNumberOrNull(currentSale![f]) || 0)),
+          sum +
+          (saleFields[f] !== undefined
+            ? (saleFields[f] as number)
+            : toNumberOrNull(currentSale![f]) || 0),
         0
       );
 
@@ -724,7 +754,14 @@ export class SalesService {
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id },
-      select: { id: true, status: true, stockId: true, remainingAmount: true, reservedDate: true, deliveryDate: true },
+      select: {
+        id: true,
+        status: true,
+        stockId: true,
+        remainingAmount: true,
+        reservedDate: true,
+        deliveryDate: true,
+      },
     });
 
     if (!existingSale) {
@@ -750,15 +787,15 @@ export class SalesService {
 
     const allowed = validTransitions[existingSale.status] || [];
     if (!allowed.includes(status)) {
-      throw new BadRequestError(
-        `ไม่สามารถเปลี่ยนสถานะจาก ${existingSale.status} เป็น ${status} ได้`
-      );
+      throw new BadRequestError(`ไม่สามารถเปลี่ยนสถานะจาก ${existingSale.status} เป็น ${status} ได้`);
     }
 
     // Validate stock assignment when moving to DELIVERED
     if (status === 'DELIVERED') {
       if (!existingSale.stockId) {
-        throw new BadRequestError('Cannot deliver sale without assigned stock car. Please assign a stock vehicle before marking as delivered.');
+        throw new BadRequestError(
+          'Cannot deliver sale without assigned stock car. Please assign a stock vehicle before marking as delivered.'
+        );
       }
     }
 
@@ -935,10 +972,10 @@ export class SalesService {
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id: saleId },
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         saleNumber: true,
-        status: true, 
+        status: true,
         stockId: true,
         vehicleModelId: true,
       },
@@ -973,7 +1010,9 @@ export class SalesService {
     // Optionally validate that stock matches the vehicle model preference
     if (existingSale.vehicleModelId && newStock.vehicleModelId !== existingSale.vehicleModelId) {
       // This is a warning, not an error - allow assignment but log it
-      console.warn(`Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`);
+      console.warn(
+        `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
+      );
     }
 
     // Determine stock status based on sale status
@@ -1014,8 +1053,8 @@ export class SalesService {
           action: existingSale.stockId ? 'CHANGE_STOCK' : 'ASSIGN_STOCK',
           fromStatus: existingSale.status,
           toStatus: existingSale.status,
-          notes: existingSale.stockId 
-            ? `Changed stock from ${existingSale.stockId} to ${stockId}` 
+          notes: existingSale.stockId
+            ? `Changed stock from ${existingSale.stockId} to ${stockId}`
             : `Assigned stock ${stockId}`,
           createdById: currentUser.id,
         },
@@ -1053,7 +1092,14 @@ export class SalesService {
     }
 
     // Updated: Removed INQUIRY and QUOTED counts - now handled by Quotation module
-    const [totalSales, reservedSales, preparingSales, deliveredSales, completedSales, cancelledSales] = await Promise.all([
+    const [
+      totalSales,
+      reservedSales,
+      preparingSales,
+      deliveredSales,
+      completedSales,
+      cancelledSales,
+    ] = await Promise.all([
       db.sale.count(),
       db.sale.count({ where: { status: 'RESERVED' } }),
       db.sale.count({ where: { status: 'PREPARING' } }),

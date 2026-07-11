@@ -1,30 +1,27 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  salesService,
-  type CreateSaleData,
-  type UpdateSaleData,
-  type PaymentMode,
-  type SaleFinanceCustomLine,
-} from '../../services/sales.service';
-import { usePermission } from '../../hooks/usePermission';
-import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
-import { useToast } from '../../components/toast';
-import { customerService, type Customer } from '../../services/customer.service';
-import { stockService, type Stock } from '../../services/stock.service';
+import { ArrowLeft, Calendar, Car, DollarSign, Save, User } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { type PriceSource, PriceSourceModal } from '../../components/PriceSourceModal';
+import { FinanceSheet } from '../../components/finance/FinanceSheet';
 import { MainLayout } from '../../components/layout';
+import { useToast } from '../../components/toast';
 import { DatePicker } from '../../components/ui/date-picker';
 import {
-  ArrowLeft,
-  User,
-  Car,
-  Calendar,
-  DollarSign,
-  Save
-} from 'lucide-react';
-import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
-import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
-import { FinanceSheet } from '../../components/finance/FinanceSheet';
+  AsyncSearchSelect,
+  SearchSelect,
+  type SearchSelectOption,
+} from '../../components/ui/search-select';
+import { useErrorHandler, useMutationHandler } from '../../hooks/useErrorHandler';
+import { usePermission } from '../../hooks/usePermission';
+import { type Customer, customerService } from '../../services/customer.service';
+import {
+  type CreateSaleData,
+  type PaymentMode,
+  type SaleFinanceCustomLine,
+  type UpdateSaleData,
+  salesService,
+} from '../../services/sales.service';
+import { type Stock, stockService } from '../../services/stock.service';
 
 // Note: This form is now for Direct Sales only
 // Reservation Sales should be created via Quotation conversion
@@ -64,7 +61,8 @@ export default function SalesFormPage() {
   const { hasPermission, user } = usePermission();
   const canDiscount = hasPermission('SALE_DISCOUNT');
   const [saleStatus, setSaleStatus] = useState<string | null>(null);
-  const isCompletedAsAccountant = isEditing && saleStatus === 'COMPLETED' && user?.role === 'ACCOUNTANT';
+  const isCompletedAsAccountant =
+    isEditing && saleStatus === 'COMPLETED' && user?.role === 'ACCOUNTANT';
 
   const { addToast } = useToast();
   const { execute: executeMutation, clearFieldErrors } = useMutationHandler(
@@ -80,7 +78,7 @@ export default function SalesFormPage() {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [pendingStock, setPendingStock] = useState<Stock | null>(null);
-  
+
   // Simplified form data for Direct Sale
   const [formData, setFormData] = useState<FormData>({
     customerId: '',
@@ -165,7 +163,9 @@ export default function SalesFormPage() {
           interestRate: Number(sale.interestRate) || 0,
           numberOfTerms: Number(sale.numberOfTerms) || 0,
           monthlyInstallment: Number(sale.monthlyInstallment) || 0,
-          deliveryDate: sale.deliveryDate ? new Date(sale.deliveryDate).toISOString().slice(0, 10) : '',
+          deliveryDate: sale.deliveryDate
+            ? new Date(sale.deliveryDate).toISOString().slice(0, 10)
+            : '',
           notes: sale.notes || '',
           freebiesSnapshot: sale.freebiesSnapshot || '',
           financeEditedKeys: sale.financeEditedKeys ?? [],
@@ -183,23 +183,26 @@ export default function SalesFormPage() {
   };
 
   // Async customer search for SearchSelect
-  const loadCustomerOptions = useCallback(async (query: string): Promise<SearchSelectOption<Customer>[]> => {
-    const response = await customerService.getAll({ search: query, limit: 10 });
-    return response.data.map((customer: Customer) => ({
-      value: customer.id,
-      label: customer.name,
-      description: `${customer.code} • ${customer.phone}`,
-      data: customer,
-    }));
-  }, []);
+  const loadCustomerOptions = useCallback(
+    async (query: string): Promise<SearchSelectOption<Customer>[]> => {
+      const response = await customerService.getAll({ search: query, limit: 10 });
+      return response.data.map((customer: Customer) => ({
+        value: customer.id,
+        label: customer.name,
+        description: `${customer.code} • ${customer.phone}`,
+        data: customer,
+      }));
+    },
+    []
+  );
 
   const handleCustomerSelect = (value: string, option?: SearchSelectOption<Customer>) => {
     if (option?.data) {
       setSelectedCustomer(option.data);
-      setFormData(prev => ({ ...prev, customerId: value }));
+      setFormData((prev) => ({ ...prev, customerId: value }));
     } else {
       setSelectedCustomer(null);
-      setFormData(prev => ({ ...prev, customerId: '' }));
+      setFormData((prev) => ({ ...prev, customerId: '' }));
     }
   };
 
@@ -208,7 +211,9 @@ export default function SalesFormPage() {
     return availableStocks.map((stock) => ({
       value: stock.id,
       label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})`,
-      description: stock.expectedSalePrice ? `ราคา: ฿${stock.expectedSalePrice.toLocaleString()}` : undefined,
+      description: stock.expectedSalePrice
+        ? `ราคา: ฿${stock.expectedSalePrice.toLocaleString()}`
+        : undefined,
       data: stock,
     }));
   }, [availableStocks]);
@@ -302,11 +307,13 @@ export default function SalesFormPage() {
 
     // Direct Sale data - always DIRECT_SALE type
     const data: CreateSaleData | UpdateSaleData = {
-      ...(isCompletedAsAccountant ? {} : {
-        type: 'DIRECT_SALE' as const,
-        customerId: formData.customerId,
-        stockId: formData.stockId,
-      }),
+      ...(isCompletedAsAccountant
+        ? {}
+        : {
+            type: 'DIRECT_SALE' as const,
+            customerId: formData.customerId,
+            stockId: formData.stockId,
+          }),
       totalAmount: formData.totalAmount,
       depositAmount: formData.depositAmount || undefined,
       paymentMode: formData.paymentMode,
@@ -338,8 +345,7 @@ export default function SalesFormPage() {
   };
 
   // Vehicle list price for the finance engine (not sale totalAmount)
-  const carPrice =
-    Number(selectedStock?.vehicleModel?.price) || formData.totalAmount || 0;
+  const carPrice = Number(selectedStock?.vehicleModel?.price) || formData.totalAmount || 0;
 
   if (loading) {
     return (
@@ -357,6 +363,7 @@ export default function SalesFormPage() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <button
+            type="button"
             onClick={() => navigate('/sales')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
@@ -379,9 +386,7 @@ export default function SalesFormPage() {
               <Car className="h-5 w-5 text-blue-600" />
               <span className="font-medium text-blue-800">ขายตรง (Direct Sale)</span>
             </div>
-            <p className="text-sm text-blue-600 mt-1">
-              เลือกรถจาก Stock ที่มีอยู่ → รับเงิน → ส่งมอบรถ
-            </p>
+            <p className="text-sm text-blue-600 mt-1">เลือกรถจาก Stock ที่มีอยู่ → รับเงิน → ส่งมอบรถ</p>
           </div>
 
           {/* Customer Selection */}
@@ -390,7 +395,7 @@ export default function SalesFormPage() {
               <User className="h-5 w-5 mr-2 text-blue-600" />
               ข้อมูลลูกค้า
             </h2>
-            
+
             <AsyncSearchSelect<Customer>
               value={formData.customerId}
               onChange={handleCustomerSelect}
@@ -424,7 +429,7 @@ export default function SalesFormPage() {
               <Car className="h-5 w-5 mr-2 text-blue-600" />
               ข้อมูลรถยนต์
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Stock Selection - Required for Direct Sale */}
               <div className="md:col-span-2">
@@ -440,7 +445,9 @@ export default function SalesFormPage() {
                   disabled={isCompletedAsAccountant}
                 />
                 {availableStocks.length === 0 && (
-                  <p className="text-yellow-600 text-sm mt-1">ไม่มี Stock ที่พร้อมขาย กรุณาเพิ่ม Stock ก่อน</p>
+                  <p className="text-yellow-600 text-sm mt-1">
+                    ไม่มี Stock ที่พร้อมขาย กรุณาเพิ่ม Stock ก่อน
+                  </p>
                 )}
               </div>
             </div>
@@ -525,7 +532,7 @@ export default function SalesFormPage() {
             <div className="max-w-xs">
               <DatePicker
                 value={formData.deliveryDate}
-                onChange={(v) => setFormData(prev => ({ ...prev, deliveryDate: v }))}
+                onChange={(v) => setFormData((prev) => ({ ...prev, deliveryDate: v }))}
                 inputClassName="w-full"
                 clearable
               />
@@ -539,10 +546,15 @@ export default function SalesFormPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4 text-black">หมายเหตุ</h2>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-black mb-1">รายการของแถม</label>
+              <label htmlFor="sale-freebies" className="block text-sm font-medium text-black mb-1">
+                รายการของแถม
+              </label>
               <textarea
+                id="sale-freebies"
                 value={formData.freebiesSnapshot}
-                onChange={(e) => setFormData(prev => ({ ...prev, freebiesSnapshot: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, freebiesSnapshot: e.target.value }))
+                }
                 rows={4}
                 placeholder={'พิมพ์ของแถมบรรทัดละ 1 รายการ เช่น\nฟิล์มกรองแสง\nพรมปูพื้น'}
                 className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -551,7 +563,7 @@ export default function SalesFormPage() {
             </div>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
               rows={3}
               placeholder="หมายเหตุเพิ่มเติม..."
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
@@ -580,7 +592,7 @@ export default function SalesFormPage() {
       </div>
 
       {/* Price Source Selection Modal */}
-      {pendingStock && pendingStock.vehicleModel && (
+      {pendingStock?.vehicleModel && (
         <PriceSourceModal
           open={priceModalOpen}
           onClose={() => {
