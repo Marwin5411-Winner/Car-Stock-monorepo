@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../../components/layout';
 import { campaignService } from '../../services/campaign.service';
 import { FormulaManager } from '../../components/campaigns/FormulaManager';
-import { ArrowLeft, Edit, BarChart3, Calendar, Car, FileText, Copy } from 'lucide-react';
+import { ArrowLeft, Edit, BarChart3, Calendar, Car, FileText, Copy, Printer } from 'lucide-react';
 
 const statusColors = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -82,7 +82,14 @@ export const CampaignDetailPage: React.FC = () => {
               <p className="text-gray-600 mt-1">รายละเอียดแคมเปญ</p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to={`/campaigns/${id}/report`}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Printer className="w-5 h-5" />
+              ดูรายงาน
+            </Link>
             <Link
               to={`/campaigns/${id}/analytics`}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -237,6 +244,13 @@ export const CampaignDetailPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">การดำเนินการ</h2>
               <div className="space-y-3">
+                <Link
+                  to={`/campaigns/${id}/report`}
+                  className="flex items-center gap-2 w-full px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                >
+                  <Printer className="w-5 h-5" />
+                  ดูรายงานยอดขาย
+                </Link>
                 <Link
                   to={`/campaigns/${id}/analytics`}
                   className="flex items-center gap-2 w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"

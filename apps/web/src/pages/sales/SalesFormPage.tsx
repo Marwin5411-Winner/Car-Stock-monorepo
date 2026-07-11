@@ -28,6 +28,14 @@ const PAYMENT_MODE_OPTIONS: { value: PaymentMode; label: string }[] = [
   { value: 'MIXED', label: 'ผสม' },
 ];
 
+/** Local calendar day as yyyy-MM-dd (not UTC from toISOString). */
+function toLocalYmd(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // Updated form data for Direct Sale only
 interface FormData {
   customerId: string;
@@ -49,6 +57,7 @@ interface FormData {
   interestRate: number;
   numberOfTerms: number;
   monthlyInstallment: number;
+  createdAt: string;
   deliveryDate: string;
   notes: string;
   freebiesSnapshot: string;
@@ -99,6 +108,7 @@ export default function SalesFormPage() {
     interestRate: 0,
     numberOfTerms: 0,
     monthlyInstallment: 0,
+    createdAt: toLocalYmd(),
     deliveryDate: '',
     notes: '',
     freebiesSnapshot: '',
@@ -160,7 +170,8 @@ export default function SalesFormPage() {
           interestRate: Number(sale.interestRate) || 0,
           numberOfTerms: Number(sale.numberOfTerms) || 0,
           monthlyInstallment: Number(sale.monthlyInstallment) || 0,
-          deliveryDate: sale.deliveryDate ? new Date(sale.deliveryDate).toISOString().slice(0, 10) : '',
+          createdAt: sale.createdAt ? toLocalYmd(new Date(sale.createdAt)) : toLocalYmd(),
+          deliveryDate: sale.deliveryDate ? toLocalYmd(new Date(sale.deliveryDate)) : '',
           notes: sale.notes || '',
           freebiesSnapshot: sale.freebiesSnapshot || '',
         });
@@ -279,6 +290,10 @@ export default function SalesFormPage() {
       newErrors.financeProvider = 'กรุณาระบุบริษัทไฟแนนซ์';
     }
 
+    if (!formData.createdAt) {
+      newErrors.createdAt = 'กรุณาระบุวันที่สร้างรายการ';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -317,7 +332,8 @@ export default function SalesFormPage() {
       interestRate: formData.interestRate || undefined,
       numberOfTerms: formData.numberOfTerms || undefined,
       monthlyInstallment: formData.monthlyInstallment || undefined,
-      deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : undefined,
+      createdAt: formData.createdAt || undefined,
+      deliveryDate: formData.deliveryDate || undefined,
       notes: formData.notes || undefined,
       freebiesSnapshot: formData.freebiesSnapshot,
     };
@@ -766,22 +782,43 @@ export default function SalesFormPage() {
             )}
           </div>
 
-          {/* Delivery Date */}
+          {/* Dates */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center text-black">
               <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-              วันที่ลูกค้ารับรถ
+              วันที่สำคัญ
             </h2>
-            <div className="max-w-xs">
-              <DatePicker
-                value={formData.deliveryDate}
-                onChange={(v) => setFormData(prev => ({ ...prev, deliveryDate: v }))}
-                inputClassName="w-full"
-                clearable
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                สำหรับใบปล่อยรถและหนังสือยืนยันการซื้อ-ขาย — ถ้าไม่กรอกจะใช้วันที่คีย์ข้อมูล
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">
+                  วันที่สร้างรายการ <span className="text-red-500">*</span>
+                </label>
+                <DatePicker
+                  value={formData.createdAt}
+                  onChange={(v) => setFormData(prev => ({ ...prev, createdAt: v }))}
+                  inputClassName="w-full"
+                />
+                {errors.createdAt && (
+                  <p className="text-sm text-red-600 mt-1">{errors.createdAt}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  แสดงในรายการขายและรายงาน — เลือกวันย้อนหลังได้ถ้าคีย์ช้ากว่าวันขายจริง
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">
+                  วันที่ลูกค้ารับรถ
+                </label>
+                <DatePicker
+                  value={formData.deliveryDate}
+                  onChange={(v) => setFormData(prev => ({ ...prev, deliveryDate: v }))}
+                  inputClassName="w-full"
+                  clearable
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  สำหรับใบปล่อยรถและหนังสือยืนยันการซื้อ-ขาย — ถ้าไม่กรอกจะใช้วันที่คีย์ข้อมูล
+                </p>
+              </div>
             </div>
           </div>
 

@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '../../components/layout';
+import { CampaignModelPicker } from '../../components/campaigns/CampaignModelPicker';
 import { campaignService } from '../../services/campaign.service';
 import type { CreateCampaignData, UpdateCampaignData } from '../../services/campaign.service';
-import { vehicleService } from '../../services/vehicle.service';
-import type { VehicleModel } from '../../services/vehicle.service';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { DatePicker } from '../../components/ui/date-picker';
@@ -28,30 +27,19 @@ export const CampaignFormPage: React.FC = () => {
     vehicleModelIds: [] as string[],
   });
 
-  const [modelSearch, setModelSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch existing campaign for edit
   const { data: campaign, isLoading: loadingCampaign } = useQuery({
     queryKey: ['campaign', id],
     queryFn: () => campaignService.getById(id!),
     enabled: isEdit,
   });
 
-  // Fetch all vehicle models
-  const { data: vehicleModelsData } = useQuery({
-    queryKey: ['vehicles', 'all'],
-    queryFn: () => vehicleService.getAll({ limit: 100 }),
-  });
-
-  const vehicleModels = vehicleModelsData?.data || [];
-
   const { data: branchOptions = [] } = useQuery({
     queryKey: ['campaign-branches'],
     queryFn: () => campaignService.getBranches(),
   });
 
-  // Initialize form data for edit
   useEffect(() => {
     if (campaign) {
       setFormData({
@@ -89,17 +77,12 @@ export const CampaignFormPage: React.FC = () => {
     if (!formData.name.trim()) newErrors.name = 'กรุณากรอกชื่อแคมเปญ';
     if (!formData.startDate) newErrors.startDate = 'กรุณาเลือกวันเริ่มต้น';
     if (!formData.endDate) newErrors.endDate = 'กรุณาเลือกวันสิ้นสุด';
-    // Compare as Date objects — string compare worked only because the
-    // DatePicker happens to emit yyyy-MM-dd; this future-proofs against
-    // any format change.
     if (formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
       if (start > end) {
         newErrors.endDate = 'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น';
       }
-      // Block past endDate on create (matches the API guard for clearer UX
-      // — fail fast in the form rather than waiting for the round-trip).
       if (!isEdit) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -131,42 +114,8 @@ export const CampaignFormPage: React.FC = () => {
     };
 
     await executeQuery(
-      isEdit
-        ? updateMutation.mutateAsync(data)
-        : createMutation.mutateAsync(data)
+      isEdit ? updateMutation.mutateAsync(data) : createMutation.mutateAsync(data)
     );
-  };
-
-  const filteredModels = vehicleModels.filter((m: VehicleModel) => {
-    const q = modelSearch.trim().toLowerCase();
-    if (!q) return true;
-    return `${m.brand} ${m.model} ${m.variant ?? ''}`.toLowerCase().includes(q);
-  });
-
-  const selectAllFiltered = () => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicleModelIds: Array.from(
-        new Set([...prev.vehicleModelIds, ...filteredModels.map((m: VehicleModel) => m.id)])
-      ),
-    }));
-  };
-
-  const clearFiltered = () => {
-    const filteredIds = new Set(filteredModels.map((m: VehicleModel) => m.id));
-    setFormData((prev) => ({
-      ...prev,
-      vehicleModelIds: prev.vehicleModelIds.filter((id) => !filteredIds.has(id)),
-    }));
-  };
-
-  const toggleVehicleModel = (modelId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      vehicleModelIds: prev.vehicleModelIds.includes(modelId)
-        ? prev.vehicleModelIds.filter((id) => id !== modelId)
-        : [...prev.vehicleModelIds, modelId],
-    }));
   };
 
   if (isEdit && loadingCampaign) {
@@ -180,7 +129,6 @@ export const CampaignFormPage: React.FC = () => {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/campaigns')}
@@ -198,9 +146,7 @@ export const CampaignFormPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <h2 className="text-lg font-semibold text-gray-900">ข้อมูลแคมเปญ</h2>
 
@@ -221,9 +167,7 @@ export const CampaignFormPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                รายละเอียด
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -264,9 +208,7 @@ export const CampaignFormPage: React.FC = () => {
 
             {isEdit && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  สถานะ
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
                 <select
                   value={formData.status}
                   onChange={(e) =>
@@ -285,9 +227,7 @@ export const CampaignFormPage: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                หมายเหตุ
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">หมายเหตุ</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -315,96 +255,21 @@ export const CampaignFormPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Vehicle Models */}
-          <div className="bg-white rounded-lg shadow p-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">
-                รุ่นรถยนต์ในแคมเปญ <span className="text-red-500">*</span>
-              </h2>
-              <span className="text-sm text-gray-500">
-                เลือกแล้ว {formData.vehicleModelIds.length} รุ่น
-              </span>
-            </div>
-
-            {errors.vehicleModelIds && (
-              <p className="text-red-500 text-sm">{errors.vehicleModelIds}</p>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                placeholder="ค้นหารุ่น..."
-                className="flex-1 min-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                onClick={selectAllFiltered}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                เลือกทั้งหมด
-              </button>
-              <button
-                type="button"
-                onClick={clearFiltered}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                ล้างทั้งหมด
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-              {filteredModels.map((model: VehicleModel) => {
-                const isSelected = formData.vehicleModelIds.includes(model.id);
-                return (
-                  <div
-                    key={model.id}
-                    onClick={() => toggleVehicleModel(model.id)}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {model.brand} {model.model}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {model.variant} • {model.year}
-                        </div>
-                      </div>
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected
-                            ? 'border-blue-500 bg-blue-500'
-                            : 'border-gray-300'
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg
-                            className="w-3 h-3 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="bg-white rounded-lg shadow p-6 space-y-2">
+            <h2 className="text-lg font-semibold text-gray-900">
+              รุ่นรถยนต์ในแคมเปญ <span className="text-red-500">*</span>
+            </h2>
+            <p className="text-sm text-gray-500 mb-2">
+              ค้นหาหรือกรองยี่ห้อแล้วติ๊กเลือกรุ่น — รุ่นที่เลือกจะอยู่ด้านบนเสมอ แม้จะเปลี่ยนตัวกรอง
+            </p>
+            <CampaignModelPicker
+              selectedIds={formData.vehicleModelIds}
+              onChange={(ids) => setFormData((prev) => ({ ...prev, vehicleModelIds: ids }))}
+              initialSelectedModels={campaign?.vehicleModels}
+              error={errors.vehicleModelIds}
+            />
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-4">
             <button
               type="button"
@@ -420,9 +285,7 @@ export const CampaignFormPage: React.FC = () => {
               className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               <Save className="w-5 h-5" />
-              {createMutation.isPending || updateMutation.isPending
-                ? 'กำลังบันทึก...'
-                : 'บันทึก'}
+              {createMutation.isPending || updateMutation.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
           </div>
         </form>

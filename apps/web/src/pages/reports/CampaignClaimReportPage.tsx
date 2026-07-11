@@ -28,15 +28,17 @@ export function CampaignClaimReportPage(): React.ReactElement {
   const [brand, setBrand] = useState('');
   const [campaignId, setCampaignId] = useState('');
 
-  const { data: vehiclePage } = useQuery({
-    queryKey: ['vehicle-models-for-brands'],
-    queryFn: () => vehicleService.getAll({ limit: 200 }),
+  // Walk all pages so brand list is not capped at 200 models.
+  const { data: vehicleCatalog } = useQuery({
+    queryKey: ['vehicle-models-for-brands', 'all-pages'],
+    queryFn: () => vehicleService.getAllPages({}),
   });
   const brands = useMemo(() => {
-    const list = vehiclePage?.data?.map((v) => v.brand) ?? [];
-    return [...new Set(list)].sort();
-  }, [vehiclePage]);
+    const list = vehicleCatalog?.data?.map((v) => v.brand) ?? [];
+    return [...new Set(list)].filter(Boolean).sort((a, b) => a.localeCompare(b, 'th'));
+  }, [vehicleCatalog]);
 
+  // Default to first brand once catalog loads (API still requires brand).
   useEffect(() => {
     if (!brand && brands.length > 0) setBrand(brands[0]);
   }, [brand, brands]);
@@ -46,6 +48,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
     queryFn: () => campaignService.getAll({ limit: 200 }),
   });
   const campaignOptions = useMemo(() => {
+    if (!brand) return [];
     const list = campaignsPage?.data ?? [];
     return list.filter((c) => c.vehicleModels.some((vm) => vm.brand === brand));
   }, [campaignsPage, brand]);
@@ -60,6 +63,10 @@ export function CampaignClaimReportPage(): React.ReactElement {
   }, [campaignId, campaignOptions]);
 
   const validRange = !!startDate && !!endDate && startDate <= endDate;
+  const campaignLabel =
+    campaignId === ''
+      ? 'ทั้งหมด'
+      : (campaignOptions.find((c) => c.id === campaignId)?.name ?? campaignId);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['campaign-claims', startDate, endDate, brand, campaignId],
@@ -163,8 +170,9 @@ export function CampaignClaimReportPage(): React.ReactElement {
               <select
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm min-w-[8rem]"
               >
+                {brands.length === 0 && <option value="">— ยังไม่มียี่ห้อ —</option>}
                 {brands.map((b) => (
                   <option key={b} value={b}>
                     {b}
@@ -177,7 +185,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
               <select
                 value={campaignId}
                 onChange={(e) => setCampaignId(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm min-w-[10rem]"
               >
                 <option value="">ทั้งหมด</option>
                 {campaignOptions.map((c) => (
@@ -187,17 +195,24 @@ export function CampaignClaimReportPage(): React.ReactElement {
                 ))}
               </select>
             </div>
+            {brand && campaignOptions.length === 0 && (
+              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                ไม่มีแคมเปญที่มีรุ่นยี่ห้อ «{brand}» — แสดงเฉพาะใบขายที่ tag แล้ว
+              </span>
+            )}
             <button
               type="button"
               onClick={handleExportExcel}
-              className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
+              disabled={!data || data.rows.length === 0}
+              className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
               ดาวน์โหลด Excel
             </button>
             <button
               type="button"
               onClick={handleDownloadPdf}
-              className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700"
+              disabled={!brand || !validRange}
+              className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
             >
               ดาวน์โหลด PDF
             </button>
@@ -207,10 +222,42 @@ export function CampaignClaimReportPage(): React.ReactElement {
         {!validRange && (
           <div className="p-6 text-red-600">ช่วงวันที่ไม่ถูกต้อง: วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด</div>
         )}
-        {validRange && isLoading && <div className="p-6 animate-pulse">กำลังโหลด...</div>}
-        {validRange && error != null && <div className="p-6 text-red-600">ไม่สามารถโหลดรายงานได้</div>}
+        {validRange && !brand && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            เลือกยี่ห้อเพื่อโหลดรายงานเบิกแคมเปญ
+          </div>
+        )}
+        {validRange && !!brand && isLoading && <div className="p-6 animate-pulse">กำลังโหลด...</div>}
+        {validRange && !!brand && error != null && (
+          <div className="p-6 text-red-600">ไม่สามารถโหลดรายงานได้</div>
+        )}
 
-        {validRange && data && (
+        {validRange && data && data.rows.length === 0 && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6 space-y-3">
+            <p className="text-base font-medium text-gray-900">ไม่พบรายการเบิกตามตัวกรองนี้</p>
+            <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
+              <li>
+                ยี่ห้อ: <span className="font-medium text-gray-800">{brand}</span>
+              </li>
+              <li>
+                ช่วงวัน: <span className="font-medium text-gray-800">{startDate}</span> ถึง{' '}
+                <span className="font-medium text-gray-800">{endDate}</span>
+              </li>
+              <li>
+                แคมเปญ: <span className="font-medium text-gray-800">{campaignLabel}</span>
+              </li>
+            </ul>
+            <p className="text-sm text-gray-600">ลอง:</p>
+            <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
+              <li>เปลี่ยนยี่ห้อ (รายงานแยกตาม brand ที่ส่งบริษัท)</li>
+              <li>ขยายช่วงวันที่ — ใช้วันที่ขาย/ส่งมอบ ไม่ใช่วันสร้างใบขาย</li>
+              <li>เลือกแคมเปญเป็น «ทั้งหมด»</li>
+              <li>ตรวจว่าใบขายถูกผูกแคมเปญและสถานะไม่ถูกยกเลิก</li>
+            </ul>
+          </div>
+        )}
+
+        {validRange && data && data.rows.length > 0 && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -272,30 +319,18 @@ export function CampaignClaimReportPage(): React.ReactElement {
                       <td className="px-2 py-1">{fmtDate(r.notifyDate)}</td>
                     </tr>
                   ))}
-                  {data.rows.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={10 + expenseColumns.length}
-                        className="px-2 py-6 text-center text-gray-500"
-                      >
-                        ไม่มีรายการเบิกแคมเปญในช่วงเวลานี้
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="px-2 py-2" colSpan={8}>
+                      รวมทั้งสิ้น ({data.summary.totalCars} คัน)
+                    </td>
+                    {data.summary.columnTotals.map((t, j) => (
+                      <td key={expenseColumns[j]} className="px-2 py-2 text-right">
+                        {fmt(t)}
                       </td>
-                    </tr>
-                  )}
-                  {data.rows.length > 0 && (
-                    <tr className="bg-gray-50 font-semibold">
-                      <td className="px-2 py-2" colSpan={8}>
-                        รวมทั้งสิ้น ({data.summary.totalCars} คัน)
-                      </td>
-                      {data.summary.columnTotals.map((t, j) => (
-                        <td key={expenseColumns[j]} className="px-2 py-2 text-right">
-                          {fmt(t)}
-                        </td>
-                      ))}
-                      <td className="px-2 py-2 text-right">{fmt(data.summary.grandTotal)}</td>
-                      <td className="px-2 py-2" />
-                    </tr>
-                  )}
+                    ))}
+                    <td className="px-2 py-2 text-right">{fmt(data.summary.grandTotal)}</td>
+                    <td className="px-2 py-2" />
+                  </tr>
                 </tbody>
               </table>
             </div>

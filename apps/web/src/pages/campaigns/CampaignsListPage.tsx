@@ -5,7 +5,7 @@ import { MainLayout } from '../../components/layout';
 import { usePermission } from '../../hooks/usePermission';
 import { campaignService } from '../../services/campaign.service';
 import type { Campaign } from '../../services/campaign.service';
-import { Plus, Search, Eye, Edit, Trash2, Calendar, BarChart3, Copy } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Calendar, BarChart3, Copy, Printer } from 'lucide-react';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
 
@@ -225,6 +225,13 @@ export const CampaignsListPage: React.FC = () => {
                             title="ดูรายละเอียด"
                           >
                             <Eye className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/campaigns/${campaign.id}/report`)}
+                            className="text-purple-600 hover:text-purple-900 p-1"
+                            title="ดูรายงาน"
+                          >
+                            <Printer className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => navigate(`/campaigns/${campaign.id}/analytics`)}

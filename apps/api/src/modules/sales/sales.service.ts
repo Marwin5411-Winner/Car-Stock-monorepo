@@ -512,6 +512,7 @@ export class SalesService {
         'insuranceFee', 'compulsoryInsuranceFee', 'registrationFee',
         'salesCommission', 'salesExpense', 'financeCommission',
         'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
+        'createdAt', 'deliveryDate',
       ];
       const disallowed = Object.keys(validated).filter(k => !allowedFields.includes(k));
       if (disallowed.length > 0) {

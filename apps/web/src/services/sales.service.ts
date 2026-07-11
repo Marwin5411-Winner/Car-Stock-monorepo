@@ -138,7 +138,9 @@ export interface CreateSaleData {
   depositAmount?: number;
   expirationDate?: Date;
   hasExpiration?: boolean;
-  deliveryDate?: Date;
+  deliveryDate?: Date | string;
+  /** Business sale date (overrides default createdAt / now). ISO date or Date. */
+  createdAt?: Date | string;
   campaignId?: string;
   discountSnapshot?: number;
   freebiesSnapshot?: string;
@@ -171,7 +173,9 @@ export interface UpdateSaleData {
   depositAmount?: number;
   expirationDate?: Date;
   hasExpiration?: boolean;
-  deliveryDate?: Date;
+  deliveryDate?: Date | string;
+  /** Business sale date shown as วันที่สร้าง in the list. */
+  createdAt?: Date | string;
   campaignId?: string;
   discountSnapshot?: number;
   freebiesSnapshot?: string;

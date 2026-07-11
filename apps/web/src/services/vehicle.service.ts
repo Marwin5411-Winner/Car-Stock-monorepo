@@ -97,6 +97,33 @@ class VehicleService {
     };
   }
 
+  /**
+   * Walk every page and return the full list. Use for pickers / brand catalogs
+   * where a single page would silently drop models.
+   */
+  async getAllPages(
+    filters: Omit<VehicleFilters, 'page'> = {},
+    pageSize = 200
+  ): Promise<{ data: VehicleModel[]; total: number }> {
+    const limit = filters.limit ?? pageSize;
+    const all: VehicleModel[] = [];
+    let page = 1;
+    let total = 0;
+    let hasNextPage = true;
+
+    while (hasNextPage) {
+      const res = await this.getAll({ ...filters, page, limit });
+      all.push(...(res.data ?? []));
+      total = res.meta?.total ?? all.length;
+      hasNextPage = Boolean(res.meta?.hasNextPage);
+      page += 1;
+      // Safety cap — avoid infinite loops on a broken meta
+      if (page > 50) break;
+    }
+
+    return { data: all, total };
+  }
+
   async getById(id: string): Promise<VehicleModel> {
     const response = await api.get<ApiResponse<VehicleModel>>(`/api/vehicles/${id}`);
     return response.data;

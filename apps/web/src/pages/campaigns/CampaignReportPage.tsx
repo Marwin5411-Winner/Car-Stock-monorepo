@@ -476,6 +476,28 @@ export const CampaignReportPage: React.FC = () => {
 
         {/* Report Tables — grouped by vehicle model */}
         <div className="report-scroll">
+          {report.groups.length === 0 && (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center no-print">
+              <p className="text-sm font-medium text-gray-800">ยังไม่มีรุ่นรถยนต์ในแคมเปญนี้</p>
+              <p className="mt-1 text-xs text-gray-500">
+                ไปแก้ไขแคมเปญเพื่อเลือกรุ่น — รุ่นที่เลือกจะกลายเป็นกลุ่มในรายงานนี้
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate(`/campaigns/${id}/edit`)}
+                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+              >
+                แก้ไขแคมเปญ
+              </button>
+            </div>
+          )}
+          {report.groups.length > 0 &&
+            report.summary.totalSales === 0 && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 no-print">
+                ยังไม่มีใบขายที่ผูกกับแคมเปญนี้ — ตารางด้านล่างจะว่างจนกว่าจะมีใบขายที่ tag
+                แคมเปญ (สถานะ ACTIVE + รุ่นตรงกันตอนสร้างใบขาย)
+              </div>
+            )}
           {report.groups.map((group) => (
             <ReportTable key={group.vehicleModelId} group={group} allGroups={report.groups} />
           ))}

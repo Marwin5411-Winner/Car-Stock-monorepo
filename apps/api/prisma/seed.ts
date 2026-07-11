@@ -170,6 +170,345 @@ async function seed() {
   }
   console.log('✅ Number sequences initialized');
 
+  // -------------------------------------------------------------------------
+  // Campaign demo data — full path for report testing
+  // (campaign + models + formulas + customer + stocks + sales with campaignId)
+  // -------------------------------------------------------------------------
+  const models = await db.vehicleModel.findMany({
+    where: {
+      OR: [
+        { brand: 'VBeyond', model: 'VB-E1', variant: 'Standard Range', year: 2025 },
+        { brand: 'VBeyond', model: 'VB-E1', variant: 'Long Range', year: 2025 },
+      ],
+    },
+  });
+  const modelStd = models.find((m) => m.variant === 'Standard Range');
+  const modelLr = models.find((m) => m.variant === 'Long Range');
+
+  if (!modelStd || !modelLr) {
+    console.warn('⚠️  Skip campaign demo: VB-E1 Standard/Long Range models missing');
+  } else {
+    const customer =
+      (await db.customer.findFirst({ where: { code: 'CUST-DEMO-CAMP' } })) ??
+      (await db.customer.create({
+        data: {
+          code: 'CUST-DEMO-CAMP',
+          type: 'INDIVIDUAL',
+          salesType: 'NORMAL_SALES',
+          name: 'ลูกค้าทดสอบแคมเปญ',
+          houseNumber: '99',
+          street: 'ถนนทดสอบ',
+          subdistrict: 'ในเมือง',
+          district: 'เมือง',
+          province: 'นครราชสีมา',
+          postalCode: '30000',
+          phone: '0812345678',
+        },
+      }));
+    console.log('✅ Demo customer:', customer.code);
+
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59);
+
+    // --- A) FULL report: ACTIVE + 2 models + formulas on both + 2 tagged sales
+    let fullCampaign = await db.campaign.findFirst({
+      where: { name: 'DEMO รายงานแคมเปญครบ' },
+    });
+    if (!fullCampaign) {
+      fullCampaign = await db.campaign.create({
+        data: {
+          name: 'DEMO รายงานแคมเปญครบ',
+          description: 'Seed: รุ่น + สูตร + ใบขายผูกครบ — ใช้เทส /campaigns/:id/report',
+          status: 'ACTIVE',
+          startDate,
+          endDate,
+          branch: 'โคราช',
+          notes: 'seed demo full report',
+          createdById: admin.id,
+          vehicleModels: {
+            create: [{ vehicleModelId: modelStd.id }, { vehicleModelId: modelLr.id }],
+          },
+        },
+      });
+    } else {
+      // Ensure models are linked (idempotent)
+      for (const vmId of [modelStd.id, modelLr.id]) {
+        await db.campaignVehicleModel.upsert({
+          where: {
+            campaignId_vehicleModelId: {
+              campaignId: fullCampaign.id,
+              vehicleModelId: vmId,
+            },
+          },
+          update: {},
+          create: { campaignId: fullCampaign.id, vehicleModelId: vmId },
+        });
+      }
+    }
+    console.log('✅ Full campaign:', fullCampaign.id);
+
+    const formulaSpecs: Array<{
+      vehicleModelId: string;
+      name: string;
+      operator: 'PERCENT' | 'FIXED';
+      value: number;
+      priceTarget: 'SELLING_PRICE' | 'COST_PRICE';
+      sortOrder: number;
+    }> = [
+      {
+        vehicleModelId: modelStd.id,
+        name: 'Marketing 1%',
+        operator: 'PERCENT',
+        value: 1,
+        priceTarget: 'SELLING_PRICE',
+        sortOrder: 1,
+      },
+      {
+        vehicleModelId: modelStd.id,
+        name: 'เปิดบูธ',
+        operator: 'FIXED',
+        value: 5000,
+        priceTarget: 'SELLING_PRICE',
+        sortOrder: 2,
+      },
+      {
+        vehicleModelId: modelLr.id,
+        name: 'Marketing 1%',
+        operator: 'PERCENT',
+        value: 1,
+        priceTarget: 'SELLING_PRICE',
+        sortOrder: 1,
+      },
+      {
+        vehicleModelId: modelLr.id,
+        name: 'STOCK LEVEL 0.5%',
+        operator: 'PERCENT',
+        value: 0.5,
+        priceTarget: 'COST_PRICE',
+        sortOrder: 2,
+      },
+    ];
+
+    for (const f of formulaSpecs) {
+      const exists = await db.campaignModelFormula.findFirst({
+        where: {
+          campaignId: fullCampaign.id,
+          vehicleModelId: f.vehicleModelId,
+          name: f.name,
+        },
+      });
+      if (!exists) {
+        await db.campaignModelFormula.create({
+          data: {
+            campaignId: fullCampaign.id,
+            vehicleModelId: f.vehicleModelId,
+            name: f.name,
+            operator: f.operator,
+            value: f.value,
+            priceTarget: f.priceTarget,
+            sortOrder: f.sortOrder,
+          },
+        });
+      }
+    }
+    console.log('✅ Full campaign formulas seeded');
+
+    // Stocks + sales for each model
+    const stockDefs = [
+      {
+        vin: 'SEEDCAMPSTD0000001',
+        engineNumber: 'ENG-SEED-STD-01',
+        vehicleModelId: modelStd.id,
+        baseCost: 950000,
+        saleNumber: 'SL-SEED-CAMP-001',
+        totalAmount: 1299000,
+        financeCommission: 3000,
+      },
+      {
+        vin: 'SEEDCAMPLR00000001',
+        engineNumber: 'ENG-SEED-LR-01',
+        vehicleModelId: modelLr.id,
+        baseCost: 1150000,
+        saleNumber: 'SL-SEED-CAMP-002',
+        totalAmount: 1599000,
+        financeCommission: 4500,
+      },
+    ];
+
+    for (const def of stockDefs) {
+      let stock = await db.stock.findUnique({ where: { vin: def.vin } });
+      if (!stock) {
+        stock = await db.stock.create({
+          data: {
+            stockNumber: `STK-SEED-${def.vin}`,
+            vin: def.vin,
+            engineNumber: def.engineNumber,
+            vehicleModelId: def.vehicleModelId,
+            exteriorColor: 'Pearl White',
+            interiorColor: 'Black',
+            status: 'SOLD',
+            baseCost: def.baseCost,
+            actualSalePrice: def.totalAmount,
+            soldDate: now,
+            arrivalDate: startDate,
+          },
+        });
+      } else if (stock.status !== 'SOLD') {
+        stock = await db.stock.update({
+          where: { id: stock.id },
+          data: {
+            status: 'SOLD',
+            actualSalePrice: def.totalAmount,
+            soldDate: now,
+          },
+        });
+      }
+
+      const existingSale = await db.sale.findUnique({ where: { saleNumber: def.saleNumber } });
+      if (!existingSale) {
+        // stockId is unique on Sale — free any prior link to this stock
+        const linked = await db.sale.findFirst({ where: { stockId: stock.id } });
+        if (linked && linked.saleNumber !== def.saleNumber) {
+          console.warn(`⚠️  Stock ${def.vin} already linked to ${linked.saleNumber}, skip sale create`);
+          continue;
+        }
+        await db.sale.create({
+          data: {
+            saleNumber: def.saleNumber,
+            type: 'DIRECT_SALE',
+            status: 'COMPLETED',
+            customerId: customer.id,
+            stockId: stock.id,
+            vehicleModelId: def.vehicleModelId,
+            totalAmount: def.totalAmount,
+            depositAmount: 0,
+            paidAmount: def.totalAmount,
+            remainingAmount: 0,
+            completedDate: now,
+            campaignId: fullCampaign.id,
+            campaignSubsidySnapshot: 0,
+            paymentMode: 'FINANCE',
+            financeProvider: 'ธนาคารทดสอบ',
+            financeCommission: def.financeCommission,
+            createdById: admin.id,
+          },
+        });
+        console.log(`✅ Demo sale ${def.saleNumber} → campaign ${fullCampaign.id}`);
+      } else if (!existingSale.campaignId) {
+        await db.sale.update({
+          where: { id: existingSale.id },
+          data: { campaignId: fullCampaign.id },
+        });
+        console.log(`✅ Linked existing sale ${def.saleNumber} to full campaign`);
+      }
+    }
+
+    // --- B) INCOMPLETE: models + formulas, NO sales (report shows formula cols, empty rows)
+    let emptySalesCampaign = await db.campaign.findFirst({
+      where: { name: 'DEMO แคมเปญมีสูตรไม่มีขาย' },
+    });
+    if (!emptySalesCampaign) {
+      emptySalesCampaign = await db.campaign.create({
+        data: {
+          name: 'DEMO แคมเปญมีสูตรไม่มีขาย',
+          description: 'Seed: มีสูตรแต่ไม่มีใบขาย — รายงานจะว่างแถวรถ',
+          status: 'ACTIVE',
+          startDate,
+          endDate,
+          branch: 'โคราช',
+          createdById: admin.id,
+          vehicleModels: { create: [{ vehicleModelId: modelStd.id }] },
+        },
+      });
+      await db.campaignModelFormula.create({
+        data: {
+          campaignId: emptySalesCampaign.id,
+          vehicleModelId: modelStd.id,
+          name: 'Marketing 1%',
+          operator: 'PERCENT',
+          value: 1,
+          priceTarget: 'SELLING_PRICE',
+          sortOrder: 1,
+        },
+      });
+      console.log('✅ Empty-sales campaign:', emptySalesCampaign.id);
+    }
+
+    // --- C) INCOMPLETE: models + sale tagged, NO formulas (report shows car rows, no formula cols)
+    let noFormulaCampaign = await db.campaign.findFirst({
+      where: { name: 'DEMO แคมเปญมีขายไม่มีสูตร' },
+    });
+    if (!noFormulaCampaign) {
+      noFormulaCampaign = await db.campaign.create({
+        data: {
+          name: 'DEMO แคมเปญมีขายไม่มีสูตร',
+          description: 'Seed: มีใบขายแต่ไม่มีสูตร — รายงานไม่มีคอลัมน์สูตร',
+          status: 'ACTIVE',
+          startDate,
+          endDate,
+          branch: 'โคราช',
+          createdById: admin.id,
+          vehicleModels: { create: [{ vehicleModelId: modelLr.id }] },
+        },
+      });
+
+      const vin = 'SEEDCAMPNOFORMULA01';
+      let stock = await db.stock.findUnique({ where: { vin } });
+      if (!stock) {
+        stock = await db.stock.create({
+          data: {
+            stockNumber: 'STK-NOFORM',
+            vin,
+            engineNumber: 'ENG-SEED-NOFORM-01',
+            vehicleModelId: modelLr.id,
+            exteriorColor: 'Midnight Blue',
+            status: 'SOLD',
+            baseCost: 1150000,
+            actualSalePrice: 1599000,
+            soldDate: now,
+            arrivalDate: startDate,
+          },
+        });
+      }
+      const saleNo = 'SL-SEED-CAMP-NOFORM';
+      if (!(await db.sale.findUnique({ where: { saleNumber: saleNo } }))) {
+        const linked = await db.sale.findFirst({ where: { stockId: stock.id } });
+        if (!linked) {
+          await db.sale.create({
+            data: {
+              saleNumber: saleNo,
+              type: 'DIRECT_SALE',
+              status: 'COMPLETED',
+              customerId: customer.id,
+              stockId: stock.id,
+              vehicleModelId: modelLr.id,
+              totalAmount: 1599000,
+              depositAmount: 0,
+              paidAmount: 1599000,
+              remainingAmount: 0,
+              completedDate: now,
+              campaignId: noFormulaCampaign.id,
+              paymentMode: 'CASH',
+              createdById: admin.id,
+            },
+          });
+        }
+      }
+      console.log('✅ No-formula campaign:', noFormulaCampaign.id);
+    }
+
+    console.log('');
+    console.log('📌 Campaign report demos:');
+    console.log(`   FULL     → id=${fullCampaign.id}  name="DEMO รายงานแคมเปญครบ"`);
+    if (emptySalesCampaign) {
+      console.log(`   NO SALES → id=${emptySalesCampaign.id}`);
+    }
+    if (noFormulaCampaign) {
+      console.log(`   NO FORM  → id=${noFormulaCampaign.id}`);
+    }
+  }
+
   console.log('');
   console.log('🎉 Database seed completed!');
   console.log('');

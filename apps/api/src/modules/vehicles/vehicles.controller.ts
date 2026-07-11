@@ -21,8 +21,9 @@ export const vehicleRoutes = new Elysia({ prefix: '/vehicles' })
       const page = parseInt(query.page || '1');
       const limit = parseInt(query.limit || '20');
       const search = query.search;
+      const brand = query.brand;
 
-      const result = await vehiclesService.getAllVehicles(page, limit, search);
+      const result = await vehiclesService.getAllVehicles(page, limit, search, brand);
       set.status = 200;
       return {
         success: true,
@@ -36,6 +37,7 @@ export const vehicleRoutes = new Elysia({ prefix: '/vehicles' })
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         search: t.Optional(t.String()),
+        brand: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Vehicles'],

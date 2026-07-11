@@ -2,23 +2,34 @@ import { db } from '../../lib/db';
 import { CreateVehicleModelSchema, UpdateVehicleModelSchema } from '@car-stock/shared/schemas';
 import { authService } from '../auth/auth.service';
 import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
+import type { Prisma } from '@prisma/client';
 
 export class VehiclesService {
   /**
    * Get all vehicle models with pagination
    */
-  async getAllVehicles(page: number = 1, limit: number = 20, search?: string) {
+  async getAllVehicles(
+    page: number = 1,
+    limit: number = 20,
+    search?: string,
+    brand?: string
+  ) {
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { brand: { contains: search, mode: 'insensitive' } },
-            { model: { contains: search, mode: 'insensitive' } },
-            { variant: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    // brand + search are ANDed: brand narrows the catalog; search matches
+    // brand/model/variant within that slice (or the whole catalog).
+    const where: Prisma.VehicleModelWhereInput = {};
+    if (brand?.trim()) {
+      where.brand = { equals: brand.trim(), mode: 'insensitive' };
+    }
+    if (search?.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { brand: { contains: q, mode: 'insensitive' } },
+        { model: { contains: q, mode: 'insensitive' } },
+        { variant: { contains: q, mode: 'insensitive' } },
+      ];
+    }
 
     const [vehicles, total] = await Promise.all([
       db.vehicleModel.findMany({
@@ -38,7 +49,7 @@ export class VehiclesService {
         },
         skip,
         take: limit,
-        orderBy: { brand: 'asc' },
+        orderBy: [{ brand: 'asc' }, { model: 'asc' }],
       }),
       db.vehicleModel.count({ where }),
     ]);
