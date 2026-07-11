@@ -1,6 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { salesService, type CreateSaleData, type UpdateSaleData, type PaymentMode } from '../../services/sales.service';
+import {
+  salesService,
+  type CreateSaleData,
+  type UpdateSaleData,
+  type PaymentMode,
+  type SaleFinanceCustomLine,
+} from '../../services/sales.service';
 import { usePermission } from '../../hooks/usePermission';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
@@ -18,15 +24,10 @@ import {
 } from 'lucide-react';
 import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
+import { FinanceSheet } from '../../components/finance/FinanceSheet';
 
 // Note: This form is now for Direct Sales only
 // Reservation Sales should be created via Quotation conversion
-
-const PAYMENT_MODE_OPTIONS: { value: PaymentMode; label: string }[] = [
-  { value: 'CASH', label: 'เงินสด' },
-  { value: 'FINANCE', label: 'ไฟแนนซ์' },
-  { value: 'MIXED', label: 'ผสม' },
-];
 
 // Updated form data for Direct Sale only
 interface FormData {
@@ -52,6 +53,8 @@ interface FormData {
   deliveryDate: string;
   notes: string;
   freebiesSnapshot: string;
+  financeEditedKeys: string[];
+  customLines: SaleFinanceCustomLine[];
 }
 
 export default function SalesFormPage() {
@@ -102,6 +105,8 @@ export default function SalesFormPage() {
     deliveryDate: '',
     notes: '',
     freebiesSnapshot: '',
+    financeEditedKeys: [],
+    customLines: [],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -163,6 +168,8 @@ export default function SalesFormPage() {
           deliveryDate: sale.deliveryDate ? new Date(sale.deliveryDate).toISOString().slice(0, 10) : '',
           notes: sale.notes || '',
           freebiesSnapshot: sale.freebiesSnapshot || '',
+          financeEditedKeys: sale.financeEditedKeys ?? [],
+          customLines: sale.customLines ?? [],
         });
 
         setSelectedCustomer(sale.customer as Customer);
@@ -275,7 +282,7 @@ export default function SalesFormPage() {
       newErrors.depositAmount = 'เงินมัดจำต้องไม่เกินยอดรวม';
     }
 
-    if (formData.paymentMode === 'FINANCE' && !formData.financeProvider) {
+    if (formData.paymentMode !== 'CASH' && !formData.financeProvider) {
       newErrors.financeProvider = 'กรุณาระบุบริษัทไฟแนนซ์';
     }
 
@@ -320,6 +327,8 @@ export default function SalesFormPage() {
       deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : undefined,
       notes: formData.notes || undefined,
       freebiesSnapshot: formData.freebiesSnapshot,
+      financeEditedKeys: formData.financeEditedKeys,
+      customLines: formData.customLines,
     };
 
     await executeMutation(
@@ -328,8 +337,9 @@ export default function SalesFormPage() {
     setSaving(false);
   };
 
-  const buyerChargedFeesTotal =
-    formData.insuranceFee + formData.compulsoryInsuranceFee + formData.registrationFee;
+  // Vehicle list price for the finance engine (not sale totalAmount)
+  const carPrice =
+    Number(selectedStock?.vehicleModel?.price) || formData.totalAmount || 0;
 
   if (loading) {
     return (
@@ -457,312 +467,52 @@ export default function SalesFormPage() {
               <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
               ข้อมูลการเงิน
             </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  ยอดรวม (บาท) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={formData.totalAmount}
-                  onChange={(e) => setFormData(prev => ({ ...prev, totalAmount: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  step="0.01"
-                  className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                    errors.totalAmount ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.totalAmount && (
-                  <p className="text-red-500 text-sm mt-1">{errors.totalAmount}</p>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  เงินมัดจำ (บาท)
-                </label>
-                <input
-                  type="number"
-                  value={formData.depositAmount}
-                  onChange={(e) => setFormData(prev => ({ ...prev, depositAmount: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  step="0.01"
-                  className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                    errors.depositAmount ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.depositAmount && (
-                  <p className="text-red-500 text-sm mt-1">{errors.depositAmount}</p>
-                )}
-              </div>
+            <FinanceSheet
+              paymentMode={formData.paymentMode}
+              carPrice={carPrice}
+              value={formData}
+              canEditDiscounts={canDiscount}
+              canEditDealerFields={canDiscount}
+              onChange={(patch) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  ...patch,
+                  // Coerce nullable salePatch numbers into FormData numbers
+                  totalAmount: Number(patch.totalAmount ?? prev.totalAmount) || 0,
+                  depositAmount: Number(patch.depositAmount ?? prev.depositAmount) || 0,
+                  downPayment: Number(patch.downPayment ?? prev.downPayment) || 0,
+                  financeAmount: Number(patch.financeAmount ?? prev.financeAmount) || 0,
+                  financeProvider: patch.financeProvider ?? prev.financeProvider ?? '',
+                  carDiscount: Number(patch.carDiscount ?? prev.carDiscount) || 0,
+                  downPaymentDiscount:
+                    Number(patch.downPaymentDiscount ?? prev.downPaymentDiscount) || 0,
+                  insuranceFee: Number(patch.insuranceFee ?? prev.insuranceFee) || 0,
+                  compulsoryInsuranceFee:
+                    Number(patch.compulsoryInsuranceFee ?? prev.compulsoryInsuranceFee) || 0,
+                  registrationFee: Number(patch.registrationFee ?? prev.registrationFee) || 0,
+                  salesCommission: Number(patch.salesCommission ?? prev.salesCommission) || 0,
+                  salesExpense: Number(patch.salesExpense ?? prev.salesExpense) || 0,
+                  financeCommission: Number(patch.financeCommission ?? prev.financeCommission) || 0,
+                  interestRate: Number(patch.interestRate ?? prev.interestRate) || 0,
+                  numberOfTerms: Number(patch.numberOfTerms ?? prev.numberOfTerms) || 0,
+                  monthlyInstallment:
+                    Number(patch.monthlyInstallment ?? prev.monthlyInstallment) || 0,
+                  paymentMode: patch.paymentMode ?? prev.paymentMode,
+                  financeEditedKeys: patch.financeEditedKeys ?? prev.financeEditedKeys,
+                  customLines: patch.customLines ?? prev.customLines,
+                }))
+              }
+            />
 
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  รูปแบบการชำระ
-                </label>
-                <select
-                  value={formData.paymentMode}
-                  onChange={(e) => setFormData(prev => ({ ...prev, paymentMode: e.target.value as PaymentMode }))}
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                >
-                  {PAYMENT_MODE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Finance Details */}
-            {formData.paymentMode !== 'CASH' && (
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-1">
-                      เงินดาวน์ (บาท)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.downPayment}
-                      onChange={(e) => setFormData(prev => ({ ...prev, downPayment: parseFloat(e.target.value) || 0 }))}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-1">
-                      ยอดจัดไฟแนนซ์ (บาท)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.financeAmount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, financeAmount: parseFloat(e.target.value) || 0 }))}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-1">
-                      บริษัทไฟแนนซ์ <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.financeProvider}
-                      onChange={(e) => setFormData(prev => ({ ...prev, financeProvider: e.target.value }))}
-                      placeholder="ชื่อบริษัทไฟแนนซ์"
-                      className={`w-full px-4 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${
-                        errors.financeProvider ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    />
-                    {errors.financeProvider && (
-                      <p className="text-red-500 text-sm mt-1">{errors.financeProvider}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Interest rate and installment */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-1">
-                      อัตราดอกเบี้ย (% ต่อปี)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.interestRate}
-                      onChange={(e) => {
-                        const rate = parseFloat(e.target.value) || 0;
-                        const terms = formData.numberOfTerms;
-                        const finance = formData.financeAmount;
-                        let installment = formData.monthlyInstallment;
-                        if (rate > 0 && terms > 0 && finance > 0) {
-                          const years = terms / 12;
-                          const totalInterest = finance * (rate / 100) * years;
-                          installment = Math.round((finance + totalInterest) / terms);
-                        }
-                        setFormData(prev => ({ ...prev, interestRate: rate, monthlyInstallment: installment }));
-                      }}
-                      min="0"
-                      step="0.01"
-                      placeholder="เช่น 2.49"
-                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-1">
-                      จำนวนงวด (เดือน)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.numberOfTerms}
-                      onChange={(e) => {
-                        const terms = parseInt(e.target.value) || 0;
-                        const rate = formData.interestRate;
-                        const finance = formData.financeAmount;
-                        let installment = formData.monthlyInstallment;
-                        if (rate > 0 && terms > 0 && finance > 0) {
-                          const years = terms / 12;
-                          const totalInterest = finance * (rate / 100) * years;
-                          installment = Math.round((finance + totalInterest) / terms);
-                        }
-                        setFormData(prev => ({ ...prev, numberOfTerms: terms, monthlyInstallment: installment }));
-                      }}
-                      min="0"
-                      step="1"
-                      placeholder="เช่น 48"
-                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-1">
-                      ค่างวด/เดือน (บาท)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.monthlyInstallment}
-                      onChange={(e) => setFormData(prev => ({ ...prev, monthlyInstallment: parseFloat(e.target.value) || 0 }))}
-                      min="0"
-                      step="0.01"
-                      placeholder="คำนวณอัตโนมัติ"
-                      className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">คำนวณอัตโนมัติจากยอดจัด × ดอกเบี้ย × ปี ÷ งวด</p>
-                  </div>
-                </div>
-              </div>
+            {errors.totalAmount && (
+              <p className="text-red-500 text-sm mt-2">{errors.totalAmount}</p>
             )}
-
-            {/* Discount fields - visible for all payment modes */}
-            {canDiscount && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
-                <div className="md:col-span-2">
-                  <p className="text-xs font-medium text-yellow-700 mb-2">ส่วนลด (สำหรับบัญชี/กรรมการ)</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">
-                    ส่วนลดตัวรถ (บาท)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.carDiscount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, carDiscount: parseFloat(e.target.value) || 0 }))}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">
-                    ส่วนลดเงินดาวน์ (บาท)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.downPaymentDiscount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, downPaymentDiscount: parseFloat(e.target.value) || 0 }))}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
-                </div>
-              </div>
+            {errors.depositAmount && (
+              <p className="text-red-500 text-sm mt-2">{errors.depositAmount}</p>
             )}
-
-            {/* Buyer-charged fees — add to outstanding balance */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
-              <div className="md:col-span-3">
-                <p className="text-xs font-medium text-blue-700 mb-2">
-                  ค่าใช้จ่ายเรียกเก็บจากลูกค้า (รวมเข้ายอดค้างชำระ)
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">ค่าประกันชั้น 1 (บาท)</label>
-                <input
-                  type="number"
-                  value={formData.insuranceFee}
-                  onChange={(e) => setFormData(prev => ({ ...prev, insuranceFee: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">ค่าพรบ. (บาท)</label>
-                <input
-                  type="number"
-                  value={formData.compulsoryInsuranceFee}
-                  onChange={(e) => setFormData(prev => ({ ...prev, compulsoryInsuranceFee: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">ค่าจดทะเบียน (บาท)</label>
-                <input
-                  type="number"
-                  value={formData.registrationFee}
-                  onChange={(e) => setFormData(prev => ({ ...prev, registrationFee: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                />
-              </div>
-              <div className="md:col-span-3 text-right text-sm font-medium text-blue-800">
-                รวมค่าใช้จ่าย:{' '}
-                {buyerChargedFeesTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}{' '}บาท
-              </div>
-            </div>
-
-            {/* Dealer-side amounts — report profit only */}
-            {canDiscount && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4">
-                <div className="md:col-span-3">
-                  <p className="text-xs font-medium text-yellow-700 mb-2">
-                    ค่าใช้จ่าย/รายรับฝั่งบริษัท (สำหรับบัญชี/กรรมการ — ใช้ในรายงานกำไร)
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">คอมฯ พนักงานขาย (บาท)</label>
-                  <input
-                    type="number"
-                    value={formData.salesCommission}
-                    onChange={(e) => setFormData(prev => ({ ...prev, salesCommission: parseFloat(e.target.value) || 0 }))}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">ค่าใช้จ่ายในการขาย (บาท)</label>
-                  <input
-                    type="number"
-                    value={formData.salesExpense}
-                    onChange={(e) => setFormData(prev => ({ ...prev, salesExpense: parseFloat(e.target.value) || 0 }))}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">ค่าตอบไฟแนนซ์ (บาท)</label>
-                  <input
-                    type="number"
-                    value={formData.financeCommission}
-                    onChange={(e) => setFormData(prev => ({ ...prev, financeCommission: parseFloat(e.target.value) || 0 }))}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">รายรับจากบริษัทไฟแนนซ์ (บวกเข้ากำไร)</p>
-                </div>
-              </div>
+            {errors.financeProvider && (
+              <p className="text-red-500 text-sm mt-2">{errors.financeProvider}</p>
             )}
           </div>
 
