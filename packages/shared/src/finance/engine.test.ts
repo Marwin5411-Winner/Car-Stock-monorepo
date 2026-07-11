@@ -105,6 +105,20 @@ describe('computeFinanceSheet', () => {
     const installmentRow = result.rows.find((r) => r.key === 'monthly_installment');
     expect(installmentRow?.amount).toBe(0);
   });
+
+  test('sales_commission is locked at 9% of car price', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 1_200_000,
+      values: { sales_commission: 1 }, // stale / user attempt — ignored
+      editedKeys: ['sales_commission'],
+      customLines: [],
+    });
+    expect(result.salePatch.salesCommission).toBe(108_000);
+    const row = result.rows.find((r) => r.key === 'sales_commission');
+    expect(row?.amount).toBe(108_000);
+    expect(row?.source).toBe('auto');
+  });
 });
 
 describe('withEditedValue', () => {

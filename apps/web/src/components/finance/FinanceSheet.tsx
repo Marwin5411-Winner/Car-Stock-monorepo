@@ -112,6 +112,8 @@ export function FinanceSheet({
     if (readOnly) return true;
     if (row.group === 'DEALER' && !canEditDealerFields) return true;
     if (row.key === 'car_price') return true;
+    // Locked at 9% of car list price
+    if (row.key === 'sales_commission') return true;
     return false;
   };
 

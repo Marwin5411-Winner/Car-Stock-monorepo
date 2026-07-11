@@ -135,11 +135,11 @@ export const SYSTEM_ROW_CATALOG: SystemRowDef[] = [
   },
   {
     key: 'sales_commission',
-    label: 'คอมฯ พนักงานขาย',
+    label: 'คอมฯ พนักงานขาย (9%)',
     group: 'DEALER',
     saleField: 'salesCommission',
     visibleWhen: always,
-    defaultSource: 'manual',
+    defaultSource: 'auto',
     roleGated: true,
   },
   {

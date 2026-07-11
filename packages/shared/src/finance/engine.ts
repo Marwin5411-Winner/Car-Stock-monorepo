@@ -29,6 +29,14 @@ const AUTO_EDITABLE_KEYS = new Set<SystemFinanceKey>([
   'finance_commission',
 ]);
 
+/** Sales staff commission: locked at 9% of car list price. */
+export const SALES_COMMISSION_RATE = 0.09;
+
+export function previewSalesCommission(carPrice: number): number {
+  if (carPrice <= 0) return 0;
+  return Math.round(carPrice * SALES_COMMISSION_RATE);
+}
+
 /** 8% finance commission preview (same structure as SalesDetailPage). */
 export function previewFinanceCommission(
   financeAmount: number,
@@ -85,6 +93,9 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
     ? n(values.finance_commission, autoFinComm)
     : autoFinComm;
 
+  // Locked formula — always 9% of car list price (not overridable via editedKeys).
+  const sales_commission = previewSalesCommission(n(carPrice));
+
   const resolved: Record<SystemFinanceKey, number | string> = {
     car_price: n(carPrice),
     car_discount,
@@ -100,7 +111,7 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
     interest_rate,
     number_of_terms,
     monthly_installment,
-    sales_commission: n(values.sales_commission),
+    sales_commission,
     sales_expense: n(values.sales_expense),
     finance_commission,
   };
@@ -111,16 +122,17 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
     const visible = def.visibleWhen(paymentMode);
     let source: FinanceSheetRow['source'] = 'hidden';
     if (visible) {
-      if (isEdited(editedKeys, def.key)) source = 'edit';
+      if (isEdited(editedKeys, def.key) && def.key !== 'sales_commission') source = 'edit';
       else source = def.defaultSource;
-      // auto keys that we compute:
+      // auto keys that we compute (sales_commission is locked — never 'edit'):
       if (
         source !== 'edit' &&
         (def.key === 'car_price' ||
           def.key === 'total_amount' ||
           def.key === 'finance_amount' ||
           def.key === 'monthly_installment' ||
-          def.key === 'finance_commission')
+          def.key === 'finance_commission' ||
+          def.key === 'sales_commission')
       ) {
         source = 'auto';
       }
@@ -174,7 +186,7 @@ export function computeFinanceSheet(input: FinanceEngineInput): FinanceEngineRes
     monthlyInstallment: financed
       ? monthly_installment || null
       : n(values.monthly_installment) || null,
-    salesCommission: n(values.sales_commission) || null,
+    salesCommission: sales_commission || null,
     salesExpense: n(values.sales_expense) || null,
     financeCommission: financed ? finance_commission || null : n(values.finance_commission) || null,
   };
