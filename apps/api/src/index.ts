@@ -1,3 +1,5 @@
+import { existsSync, statSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
@@ -24,6 +26,47 @@ import { settingsRoutes } from './modules/settings/settings.controller';
 import { bankAccountsRoutes } from './modules/bank-accounts/bank-accounts.controller';
 import { systemRoutes } from './modules/system/system.controller';
 // import { documentRoutes } from './modules/documents/documents.controller';
+
+/**
+ * Resolve SPA static directory for portable / single-process production.
+ * When missing (Docker API-only + separate nginx web), API keeps JSON root.
+ */
+function resolveStaticDir(): string | null {
+  const candidates = [
+    process.env.STATIC_DIR,
+    join(process.cwd(), 'public'),
+    // Running from apps/api/src via bun
+    join(import.meta.dir, '..', 'public'),
+    // Running from apps/api/dist
+    join(import.meta.dir, 'public'),
+  ].filter((v): v is string => Boolean(v));
+
+  for (const dir of candidates) {
+    const resolved = resolve(dir);
+    if (existsSync(join(resolved, 'index.html'))) {
+      return resolved;
+    }
+  }
+  return null;
+}
+
+const STATIC_DIR = resolveStaticDir();
+
+/** Safe static file lookup under STATIC_DIR; null if missing or path escape. */
+function resolveStaticFile(pathname: string): string | null {
+  if (!STATIC_DIR) return null;
+  const decoded = decodeURIComponent(pathname.split('?')[0] || '/');
+  const relative = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
+  const filePath = resolve(join(STATIC_DIR, relative));
+  const rootWithSep = STATIC_DIR.endsWith(sep) ? STATIC_DIR : STATIC_DIR + sep;
+  if (filePath !== STATIC_DIR && !filePath.startsWith(rootWithSep)) {
+    return null;
+  }
+  if (existsSync(filePath) && statSync(filePath).isFile()) {
+    return filePath;
+  }
+  return null;
+}
 
 const app = new Elysia()
   // CORS configuration
@@ -77,13 +120,18 @@ const app = new Elysia()
       exp: '24h',
     })
   )
-  // Health check endpoint
-  .get('/', () => ({
-    name: 'VBeyond Car Sales API',
-    version: '1.0.0',
-    status: 'running',
-    timestamp: new Date().toISOString(),
-  }))
+  // Root: SPA index when public/ is present; otherwise API status JSON (Docker API-only)
+  .get('/', () => {
+    if (STATIC_DIR) {
+      return Bun.file(join(STATIC_DIR, 'index.html'));
+    }
+    return {
+      name: 'VBeyond Car Sales API',
+      version: '1.0.0',
+      status: 'running',
+      timestamp: new Date().toISOString(),
+    };
+  })
   // Health check with database
   .get('/health', async () => {
     try {
@@ -211,6 +259,43 @@ const app = new Elysia()
       .use(systemRoutes)
       // .use(documentRoutes)
   )
+  // Portable: serve built SPA assets + client-side router fallback
+  .get('/*', ({ request, set }) => {
+    if (!STATIC_DIR) {
+      set.status = 404;
+      return {
+        success: false,
+        error: 'NOT_FOUND',
+        message: 'The requested resource was not found',
+      };
+    }
+
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+
+    // Never hijack API or OpenAPI surfaces (belt-and-suspenders if routing changes)
+    if (
+      pathname.startsWith('/api') ||
+      pathname.startsWith('/docs') ||
+      pathname.startsWith('/swagger') ||
+      pathname === '/health'
+    ) {
+      set.status = 404;
+      return {
+        success: false,
+        error: 'NOT_FOUND',
+        message: 'The requested resource was not found',
+      };
+    }
+
+    const filePath = resolveStaticFile(pathname);
+    if (filePath) {
+      return Bun.file(filePath);
+    }
+
+    // SPA fallback for client routes (e.g. /sales, /settings)
+    return Bun.file(join(STATIC_DIR, 'index.html'));
+  })
   // Request logging
   .onRequest(({ request, store }) => {
     (store as any).startTime = Date.now();
@@ -233,8 +318,8 @@ console.log(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🌐 Server:  http://${app.server?.hostname}:${app.server?.port}
 📚 Docs:    http://${app.server?.hostname}:${app.server?.port}/docs
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${STATIC_DIR ? `📁 Static:  ${STATIC_DIR}\n` : ''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
-logger.info({ port: app.server?.port }, 'VBeyond Car Sales API started');
+logger.info({ port: app.server?.port, staticDir: STATIC_DIR }, 'VBeyond Car Sales API started');
 
 export type App = typeof app;

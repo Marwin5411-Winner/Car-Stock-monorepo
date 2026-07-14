@@ -161,6 +161,7 @@ export default function SystemUpdateSection() {
           if (
             res.data.status === 'success' ||
             res.data.status === 'error' ||
+            res.data.status === 'failed' ||
             res.data.status === 'rollback_complete' ||
             res.data.status === 'warning' ||
             res.data.status === 'idle'
@@ -346,7 +347,9 @@ export default function SystemUpdateSection() {
                     <div>
                       <span className="text-gray-500">เวอร์ชันใหม่:</span>
                       <span className="ml-2 font-mono font-semibold text-gray-900">
-                        {updateCheck.latestTag || updateCheck.latestCommit}
+                        {updateCheck.latestVersion ||
+                          updateCheck.latestTag ||
+                          updateCheck.latestCommit}
                       </span>
                     </div>
                     <div>
@@ -445,7 +448,7 @@ export default function SystemUpdateSection() {
               <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
             ) : updateStatus?.status === 'success' || updateStatus?.status === 'rollback_complete' ? (
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-            ) : updateStatus?.status === 'error' ? (
+            ) : updateStatus?.status === 'error' || updateStatus?.status === 'failed' ? (
               <XCircle className="w-5 h-5 text-red-600" />
             ) : updateStatus?.status === 'warning' ? (
               <AlertTriangle className="w-5 h-5 text-amber-600" />
@@ -457,7 +460,7 @@ export default function SystemUpdateSection() {
                 ? 'Rollback สำเร็จ'
                 : updateStatus?.status === 'success'
                 ? 'อัพเดทสำเร็จ!'
-                : updateStatus?.status === 'error'
+                : updateStatus?.status === 'error' || updateStatus?.status === 'failed'
                 ? 'อัพเดทล้มเหลว'
                 : 'กำลังอัพเดท...'}
             </p>
@@ -470,7 +473,9 @@ export default function SystemUpdateSection() {
                 const stepNum = i + 1;
                 const isCurrent = stepNum === updateStatus.step;
                 const isDone = stepNum < updateStatus.step;
-                const isFailed = isCurrent && updateStatus.status === 'error';
+                const isFailed =
+                  isCurrent &&
+                  (updateStatus.status === 'error' || updateStatus.status === 'failed');
                 return (
                   <div key={i} className="flex items-center gap-3 text-sm">
                     <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">

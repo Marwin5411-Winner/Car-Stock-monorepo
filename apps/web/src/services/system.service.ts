@@ -26,8 +26,12 @@ export interface UpdateCheckResult {
   latestFullCommit: string;
   latestDate: string;
   latestTag: string;
+  /** Portable / feed-based latest version (semver) */
+  latestVersion?: string;
   branch: string;
   commitCount: number;
+  notes?: string;
+  assetUrl?: string;
   changelog: ChangelogEntry[];
 }
 
@@ -35,11 +39,15 @@ export interface UpdateStatus {
   step: number;
   totalSteps: number;
   stepName: string;
-  status: 'idle' | 'running' | 'success' | 'error' | 'rolling_back' | 'rollback_complete' | 'warning';
+  status: 'idle' | 'running' | 'success' | 'error' | 'failed' | 'rolling_back' | 'rollback_complete' | 'warning';
   message: string;
   startedAt: string;
   updatedAt: string;
   logs: string[];
+  currentVersion?: string;
+  targetVersion?: string;
+  backupFile?: string | null;
+  error?: string | null;
 }
 
 export interface BackupInfo {

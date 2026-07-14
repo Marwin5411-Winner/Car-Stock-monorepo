@@ -1,0 +1,33 @@
+# Build portable Windows package layout on version tags.
+# Native Windows bun.exe / Prisma engines should be added on a windows-latest
+# job before customer ship; this produces the pack layout + web/api artifacts.
+
+name: Pack Windows portable
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Pack package folder
+        run: bash scripts/pack-windows.sh --zip
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbeyond-windows-package
+          path: |
+            dist/vbeyond-windows-v*.zip
+            dist/vbeyond-windows-v*/
+          if-no-files-found: error

@@ -7,7 +7,17 @@ A comprehensive car sales management system for VBeyond Innovation Co., Ltd.
 ### Prerequisites
 
 - [Bun](https://bun.sh/) runtime installed
-- [Docker](https://www.docker.com/products/docker-desktop/) installed and running
+- [Docker](https://www.docker.com/products/docker-desktop/) installed and running (for local Postgres or full stack)
+
+### Portable Windows (no Docker on customer server)
+
+For customer Windows Server installs with external PostgreSQL, click-to-run, auto-start service, and versioned zip updates:
+
+- **Install guide (TH):** [docs/portable-windows-install.md](docs/portable-windows-install.md)
+- **Technical contract:** [docs/portable-windows-contract.md](docs/portable-windows-contract.md)
+- **Pack release folder:** `bun run pack:windows` (or `bun run pack:windows:zip`)
+
+Docker production and the Docker auto-updater remain fully supported (see below).
 
 ### Development Setup
 

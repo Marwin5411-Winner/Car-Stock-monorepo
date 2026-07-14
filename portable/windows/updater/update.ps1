@@ -1,0 +1,322 @@
+# VBeyond portable Windows updater
+# Usage:
+#   .\update.ps1 -Action Check
+#   .\update.ps1 -Action Update [-Version 1.0.56] [-Force] [-DryRun]
+#   .\update.ps1 -Action Status
+#   .\update.ps1 -Action Rollback -Version 1.0.55 [-RestoreBackup path]
+#   .\update.ps1 -Action Backup
+
+param(
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('Check', 'Update', 'Status', 'Rollback', 'Backup')]
+    [string]$Action,
+
+    [string]$Version = '',
+    [switch]$Force,
+    [switch]$SkipBackup,
+    [switch]$DryRun,
+    [string]$RestoreBackup = ''
+)
+
+$ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\common.ps1"
+Initialize-VbPaths
+
+function Invoke-Check {
+    $current = Get-LocalVersion
+    $result = [ordered]@{
+        hasUpdate       = $false
+        currentVersion  = $current
+        latestVersion   = $current
+        notes           = $null
+        assetUrl        = $null
+        sha256          = $null
+        checkedAt       = (Get-Date).ToString('o')
+    }
+
+    try {
+        $feed = Get-UpdateFeed
+        $latest = if ($feed.latest) { $feed.latest } elseif ($feed.releases -and $feed.releases.Count -gt 0) { $feed.releases[0].version } else { $current }
+        $rel = $null
+        if ($feed.releases) {
+            $rel = $feed.releases | Where-Object { $_.version -eq $latest } | Select-Object -First 1
+            if (-not $rel) { $rel = $feed.releases | Select-Object -First 1 }
+        }
+        $result.latestVersion = $latest
+        $result.hasUpdate = (Compare-SemVer $latest $current) -gt 0
+        if ($rel) {
+            $result.notes = $rel.notes
+            $result.assetUrl = $rel.assetUrl
+            $result.sha256 = $rel.sha256
+        }
+    } catch {
+        Write-UpdaterLog "Check failed: $($_.Exception.Message)" 'ERROR' | Out-Null
+        $json = ($result | ConvertTo-Json -Compress)
+        Write-Output $json
+        exit 1
+    }
+
+    $json = ($result | ConvertTo-Json -Compress)
+    $tmp = "$($script:LastCheckFile).tmp"
+    $json | Set-Content -LiteralPath $tmp -Encoding UTF8
+    Move-Item -LiteralPath $tmp -Destination $script:LastCheckFile -Force
+    Write-Output $json
+    exit 0
+}
+
+function Invoke-BackupOnly {
+    $path = Invoke-PgDumpBackup -Suffix 'manual'
+    $item = Get-Item -LiteralPath $path
+    $out = [ordered]@{
+        message  = 'Backup completed'
+        dump     = $path
+        dumpSize = ('{0:N1} MB' -f ($item.Length / 1MB))
+        sql      = ''
+        sqlSize  = ''
+    }
+    Write-Output ($out | ConvertTo-Json -Compress)
+    exit 0
+}
+
+function Invoke-Status {
+    if (Test-Path -LiteralPath $script:StatusFile) {
+        Get-Content -LiteralPath $script:StatusFile -Raw
+    } else {
+        Write-Output (@{
+            step = 0; totalSteps = 10; stepName = 'Idle'; status = 'idle'
+            message = 'No update in progress'; startedAt = ''; updatedAt = (Get-Date).ToString('o'); logs = @()
+        } | ConvertTo-Json -Compress)
+    }
+    exit 0
+}
+
+function Restore-AppFromRelease {
+    param([string]$VersionDir)
+    if (Test-Path -LiteralPath $script:AppDir) {
+        $failed = Join-Path $script:ReleasesDir ("{0}-failed-{1:yyyyMMdd_HHmmss}" -f (Get-LocalVersion), (Get-Date))
+        Move-Item -LiteralPath $script:AppDir -Destination $failed -Force
+    }
+    Copy-Item -LiteralPath $VersionDir -Destination $script:AppDir -Recurse -Force
+}
+
+function Invoke-Rollback {
+    if (-not $Version) {
+        throw 'Rollback requires -Version (folder under releases\)'
+    }
+    $src = Join-Path $script:ReleasesDir $Version
+    if (-not (Test-Path -LiteralPath $src)) {
+        throw "Release folder not found: $src"
+    }
+
+    try {
+        Acquire-UpdateLock
+    } catch {
+        Write-Error $_.Exception.Message
+        exit 10
+    }
+
+    try {
+        Write-UpdateStatus -Step 1 -StepName 'Rollback' -Status 'rolling_back' -Message "Rolling back to $Version" -TargetVersion $Version -ExtraLog @((Write-UpdaterLog "Rollback to $Version"))
+        $null = Invoke-PgDumpBackup -Suffix 'pre-rollback'
+        Stop-VbApp
+        Start-Sleep -Seconds 2
+        Restore-AppFromRelease -VersionDir $src
+
+        if ($RestoreBackup -and (Test-Path -LiteralPath $RestoreBackup)) {
+            Write-UpdaterLog "Restoring DB from $RestoreBackup (manual)" 'WARN' | Out-Null
+            $pgRestore = Get-Command pg_restore -ErrorAction SilentlyContinue
+            if ($pgRestore) {
+                & $pgRestore.Source --dbname="$($env:DATABASE_URL)" --clean --if-exists $RestoreBackup
+            }
+        }
+
+        Start-VbApp
+        if (-not (Wait-VbHealth)) {
+            throw 'Health check failed after rollback'
+        }
+        Write-UpdateStatus -Step 10 -StepName 'Finalize' -Status 'success' -Message "Rollback to $Version complete" -ExtraLog @((Write-UpdaterLog 'Rollback success'))
+        exit 0
+    } catch {
+        Write-UpdateStatus -Step 0 -StepName 'Rollback' -Status 'failed' -Message $_.Exception.Message -ErrorText $_.Exception.Message -ExtraLog @((Write-UpdaterLog $_.Exception.Message 'ERROR'))
+        exit 20
+    } finally {
+        Release-UpdateLock
+    }
+}
+
+function Invoke-Update {
+    $current = Get-LocalVersion
+    $target = $Version
+    $assetUrl = $null
+    $expectedSha = $null
+    $notes = $null
+
+    try {
+        Acquire-UpdateLock
+    } catch {
+        Write-Error $_.Exception.Message
+        exit 10
+    }
+
+    try {
+        Write-UpdateStatus -Step 1 -StepName 'Lock' -Status 'running' -Message 'Update lock acquired' -CurrentVersion $current -ExtraLog @((Write-UpdaterLog 'Update started'))
+
+        Write-UpdateStatus -Step 2 -StepName 'Resolve' -Status 'running' -Message 'Resolving target version'
+        if (-not $target -or -not $Force) {
+            $feed = Get-UpdateFeed
+            if (-not $target) {
+                $target = if ($feed.latest) { $feed.latest } else { $feed.releases[0].version }
+            }
+            $rel = $feed.releases | Where-Object { $_.version -eq $target } | Select-Object -First 1
+            if (-not $rel) { throw "Version $target not found in feed" }
+            $assetUrl = $rel.assetUrl
+            $expectedSha = $rel.sha256
+            $notes = $rel.notes
+        }
+
+        if (-not $Force -and (Compare-SemVer $target $current) -le 0) {
+            Write-UpdateStatus -Step 10 -StepName 'Finalize' -Status 'success' -Message 'Already on target version' -TargetVersion $target -ExtraLog @((Write-UpdaterLog 'Already current'))
+            exit 11
+        }
+
+        if (-not $assetUrl) {
+            if ($env:UPDATE_ASSET_URL_TEMPLATE) {
+                $assetUrl = $env:UPDATE_ASSET_URL_TEMPLATE.Replace('{version}', $target)
+            } else {
+                throw 'No assetUrl for target version'
+            }
+        }
+
+        Write-UpdateStatus -Step 3 -StepName 'Download' -Status 'running' -Message "Downloading $assetUrl" -TargetVersion $target -ExtraLog @((Write-UpdaterLog "Download $assetUrl"))
+        Get-ChildItem -LiteralPath $script:StagingDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        $zipPath = Join-Path $script:StagingDir "vbeyond-windows-v$target.zip"
+        $headers = @{}
+        if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)" }
+        Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath -Headers $headers
+
+        if ($expectedSha) {
+            $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($hash -ne $expectedSha.ToLowerInvariant()) {
+                throw "SHA256 mismatch: expected $expectedSha got $hash"
+            }
+        }
+
+        if ($DryRun) {
+            Write-UpdateStatus -Step 10 -StepName 'Finalize' -Status 'success' -Message 'DryRun: download verified' -ExtraLog @((Write-UpdaterLog 'DryRun complete'))
+            exit 0
+        }
+
+        Write-UpdateStatus -Step 4 -StepName 'Verify' -Status 'running' -Message 'Extracting package'
+        $extractRoot = Join-Path $script:StagingDir 'extracted'
+        Expand-Archive -LiteralPath $zipPath -DestinationPath $extractRoot -Force
+        # Zip may contain a single top-level folder
+        $newApp = $extractRoot
+        $children = Get-ChildItem -LiteralPath $extractRoot -Directory
+        if ((Test-Path (Join-Path $extractRoot 'VERSION')) -eq $false -and $children.Count -eq 1) {
+            $newApp = $children[0].FullName
+        }
+        # Prefer nested app\ if present
+        if (Test-Path (Join-Path $newApp 'app\VERSION')) {
+            $payloadRoot = $newApp
+            $newApp = Join-Path $newApp 'app'
+        } else {
+            $payloadRoot = $null
+        }
+        if (-not (Test-Path (Join-Path $newApp 'VERSION'))) {
+            throw 'Package missing VERSION'
+        }
+
+        # Merge updater scripts if present in payload
+        $updSrc = if ($payloadRoot) { Join-Path $payloadRoot 'updater' } else { Join-Path (Split-Path $newApp -Parent) 'updater' }
+        if (-not (Test-Path $updSrc)) {
+            $updSrc = Join-Path $extractRoot 'updater'
+        }
+
+        $backupFile = $null
+        if (-not $SkipBackup) {
+            Write-UpdateStatus -Step 5 -StepName 'BackupDB' -Status 'running' -Message 'Backing up database'
+            $backupFile = Invoke-PgDumpBackup -Suffix 'pre-update'
+            Write-UpdateStatus -Step 5 -StepName 'BackupDB' -Status 'running' -Message "Backup: $backupFile" -BackupFile $backupFile -ExtraLog @((Write-UpdaterLog "Backup $backupFile"))
+        } else {
+            Write-UpdateStatus -Step 5 -StepName 'BackupDB' -Status 'running' -Message 'Skipped backup (CI only)'
+        }
+
+        Write-UpdateStatus -Step 6 -StepName 'StopApp' -Status 'running' -Message 'Stopping application'
+        Stop-VbApp
+        Start-Sleep -Seconds 2
+
+        Write-UpdateStatus -Step 7 -StepName 'Swap' -Status 'running' -Message 'Swapping app directory'
+        $prevDir = Join-Path $script:ReleasesDir $current
+        if (Test-Path -LiteralPath $prevDir) {
+            Remove-Item -LiteralPath $prevDir -Recurse -Force
+        }
+        if (Test-Path -LiteralPath $script:AppDir) {
+            Move-Item -LiteralPath $script:AppDir -Destination $prevDir -Force
+        }
+        New-Item -ItemType Directory -Path $script:AppDir -Force | Out-Null
+        Copy-Item -Path (Join-Path $newApp '*') -Destination $script:AppDir -Recurse -Force
+
+        if ($updSrc -and (Test-Path $updSrc)) {
+            $updDst = Join-Path $script:VbHome 'updater'
+            Copy-Item -Path (Join-Path $updSrc '*') -Destination $updDst -Recurse -Force
+        }
+        # Refresh env example only
+        $envExample = if ($payloadRoot) { Join-Path $payloadRoot 'config\.env.example' } else { $null }
+        if ($envExample -and (Test-Path $envExample)) {
+            Copy-Item -LiteralPath $envExample -Destination (Join-Path $script:VbHome 'config\.env.example') -Force
+        }
+
+        Write-UpdateStatus -Step 8 -StepName 'Migrate' -Status 'running' -Message 'Running migrations' -PreviousAppDir $prevDir
+        try {
+            Invoke-MigrateDeploy
+        } catch {
+            Write-UpdaterLog "Migrate failed, restoring app from $prevDir" 'ERROR' | Out-Null
+            if (Test-Path $script:AppDir) { Remove-Item $script:AppDir -Recurse -Force }
+            Copy-Item -LiteralPath $prevDir -Destination $script:AppDir -Recurse -Force
+            throw
+        }
+
+        Write-UpdateStatus -Step 9 -StepName 'StartApp' -Status 'running' -Message 'Starting application'
+        Start-VbApp
+        if (-not (Wait-VbHealth -TimeoutSec 60)) {
+            Write-UpdaterLog 'Health failed; restoring previous app' 'ERROR' | Out-Null
+            Stop-VbApp
+            if (Test-Path $script:AppDir) { Remove-Item $script:AppDir -Recurse -Force }
+            Copy-Item -LiteralPath $prevDir -Destination $script:AppDir -Recurse -Force
+            Start-VbApp
+            throw 'Health check failed after update'
+        }
+
+        # Prune old releases
+        $keep = 3
+        if ($env:KEEP_RELEASES) { [int]$keep = $env:KEEP_RELEASES }
+        Get-ChildItem -LiteralPath $script:ReleasesDir -Directory |
+            Sort-Object Name -Descending |
+            Select-Object -Skip $keep |
+            ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+
+        Get-ChildItem -LiteralPath $script:StagingDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+        Write-UpdateStatus -Step 10 -StepName 'Finalize' -Status 'success' -Message "Updated to $target" -CurrentVersion $target -TargetVersion $target -ExtraLog @((Write-UpdaterLog "Success $current -> $target"))
+        exit 0
+    } catch {
+        $msg = $_.Exception.Message
+        Write-UpdateStatus -Step 0 -StepName 'Failed' -Status 'failed' -Message $msg -ErrorText $msg -ExtraLog @((Write-UpdaterLog $msg 'ERROR'))
+        if ($msg -match 'already running') { exit 10 }
+        if ($msg -match 'SHA256|Download') { exit 12 }
+        if ($msg -match 'pg_dump|Backup') { exit 13 }
+        if ($msg -match 'migrate') { exit 14 }
+        if ($msg -match 'Health') { exit 15 }
+        exit 1
+    } finally {
+        Release-UpdateLock
+    }
+}
+
+switch ($Action) {
+    'Check' { Invoke-Check }
+    'Update' { Invoke-Update }
+    'Status' { Invoke-Status }
+    'Rollback' { Invoke-Rollback }
+    'Backup' { Invoke-BackupOnly }
+}
