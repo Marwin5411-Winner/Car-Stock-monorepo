@@ -65,17 +65,30 @@ function Invoke-Check {
 }
 
 function Invoke-BackupOnly {
-    $path = Invoke-PgDumpBackup -Suffix 'manual'
-    $item = Get-Item -LiteralPath $path
-    $out = [ordered]@{
-        message  = 'Backup completed'
-        dump     = $path
-        dumpSize = ('{0:N1} MB' -f ($item.Length / 1MB))
-        sql      = ''
-        sqlSize  = ''
+    try {
+        Acquire-UpdateLock
+    } catch {
+        Write-Error $_.Exception.Message
+        exit 10
     }
-    Write-Output ($out | ConvertTo-Json -Compress)
-    exit 0
+    try {
+        $path = Invoke-PgDumpBackup -Suffix 'manual'
+        $item = Get-Item -LiteralPath $path
+        $out = [ordered]@{
+            message  = 'Backup completed'
+            dump     = $path
+            dumpSize = ('{0:N1} MB' -f ($item.Length / 1MB))
+            sql      = ''
+            sqlSize  = ''
+        }
+        Write-Output ($out | ConvertTo-Json -Compress)
+        exit 0
+    } catch {
+        Write-Error $_.Exception.Message
+        exit 13
+    } finally {
+        Release-UpdateLock
+    }
 }
 
 function Invoke-Status {
@@ -103,9 +116,12 @@ function Invoke-Rollback {
     if (-not $Version) {
         throw 'Rollback requires -Version (folder under releases\)'
     }
-    $src = Join-Path $script:ReleasesDir $Version
-    if (-not (Test-Path -LiteralPath $src)) {
-        throw "Release folder not found: $src"
+
+    try {
+        $src = Resolve-ReleaseDir -Version $Version
+    } catch {
+        Write-Error $_.Exception.Message
+        exit 1
     }
 
     try {
@@ -122,12 +138,11 @@ function Invoke-Rollback {
         Start-Sleep -Seconds 2
         Restore-AppFromRelease -VersionDir $src
 
-        if ($RestoreBackup -and (Test-Path -LiteralPath $RestoreBackup)) {
-            Write-UpdaterLog "Restoring DB from $RestoreBackup (manual)" 'WARN' | Out-Null
-            $pgRestore = Get-Command pg_restore -ErrorAction SilentlyContinue
-            if ($pgRestore) {
-                & $pgRestore.Source --dbname="$($env:DATABASE_URL)" --clean --if-exists $RestoreBackup
+        if ($RestoreBackup) {
+            if (-not (Test-Path -LiteralPath $RestoreBackup)) {
+                throw "Restore backup not found: $RestoreBackup"
             }
+            Invoke-PgRestoreBackup -DumpPath $RestoreBackup
         }
 
         Start-VbApp
@@ -270,19 +285,27 @@ function Invoke-Update {
         try {
             Invoke-MigrateDeploy
         } catch {
-            Write-UpdaterLog "Migrate failed, restoring app from $prevDir" 'ERROR' | Out-Null
-            if (Test-Path $script:AppDir) { Remove-Item $script:AppDir -Recurse -Force }
-            Copy-Item -LiteralPath $prevDir -Destination $script:AppDir -Recurse -Force
+            Write-UpdaterLog "Migrate failed; rolling back DB + app from $prevDir" 'ERROR' | Out-Null
+            try {
+                Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
+            } catch {
+                Write-UpdaterLog "Full rollback failed: $($_.Exception.Message)" 'ERROR' | Out-Null
+                throw "Migrate failed and rollback incomplete: $($_.Exception.Message)"
+            }
             throw
         }
 
         Write-UpdateStatus -Step 9 -StepName 'StartApp' -Status 'running' -Message 'Starting application'
         Start-VbApp
         if (-not (Wait-VbHealth -TimeoutSec 60)) {
-            Write-UpdaterLog 'Health failed; restoring previous app' 'ERROR' | Out-Null
+            Write-UpdaterLog 'Health failed; rolling back DB + previous app' 'ERROR' | Out-Null
             Stop-VbApp
-            if (Test-Path $script:AppDir) { Remove-Item $script:AppDir -Recurse -Force }
-            Copy-Item -LiteralPath $prevDir -Destination $script:AppDir -Recurse -Force
+            try {
+                Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
+            } catch {
+                Write-UpdaterLog "Full rollback failed: $($_.Exception.Message)" 'ERROR' | Out-Null
+                throw "Health check failed and rollback incomplete: $($_.Exception.Message)"
+            }
             Start-VbApp
             throw 'Health check failed after update'
         }

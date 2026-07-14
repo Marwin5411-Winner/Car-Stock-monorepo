@@ -55,7 +55,16 @@ const STATIC_DIR = resolveStaticDir();
 /** Safe static file lookup under STATIC_DIR; null if missing or path escape. */
 function resolveStaticFile(pathname: string): string | null {
   if (!STATIC_DIR) return null;
-  const decoded = decodeURIComponent(pathname.split('?')[0] || '/');
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname.split('?')[0] || '/');
+  } catch {
+    // Malformed percent-encoding → 404, not 500
+    return null;
+  }
+  if (decoded.includes('\0')) {
+    return null;
+  }
   const relative = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
   const filePath = resolve(join(STATIC_DIR, relative));
   const rootWithSep = STATIC_DIR.endsWith(sep) ? STATIC_DIR : STATIC_DIR + sep;

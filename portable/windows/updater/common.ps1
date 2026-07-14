@@ -224,6 +224,84 @@ function Invoke-PgDumpBackup {
     return $out
 }
 
+function Invoke-PgRestoreBackup {
+    param([Parameter(Mandatory = $true)][string]$DumpPath)
+    if (-not (Test-Path -LiteralPath $DumpPath)) {
+        throw "Backup file not found: $DumpPath"
+    }
+    if (-not $env:DATABASE_URL) {
+        throw 'DATABASE_URL not set'
+    }
+
+    $pgRestore = Get-Command pg_restore -ErrorAction SilentlyContinue
+    $toolRestore = Join-Path $script:AppDir 'tools\pg_restore.exe'
+    $exe = if ($pgRestore) { $pgRestore.Source } elseif (Test-Path $toolRestore) { $toolRestore } else { $null }
+    if (-not $exe) {
+        throw 'pg_restore not found. Install PostgreSQL client tools or place pg_restore.exe in app\tools\'
+    }
+
+    Write-UpdaterLog "Restoring database from $DumpPath" 'WARN' | Out-Null
+    & $exe --dbname="$($env:DATABASE_URL)" --clean --if-exists $DumpPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "pg_restore failed with exit $LASTEXITCODE"
+    }
+    return $true
+}
+
+function Assert-SafeReleaseVersion {
+    param([Parameter(Mandatory = $true)][string]$Version)
+    # Single path segment only — no traversal, separators, or drive letters
+    if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
+        throw "Invalid release version: $Version"
+    }
+    if ($Version.Contains('..') -or $Version.Contains('\') -or $Version.Contains('/')) {
+        throw "Invalid release version: $Version"
+    }
+}
+
+function Resolve-ReleaseDir {
+    param([Parameter(Mandatory = $true)][string]$Version)
+    Assert-SafeReleaseVersion -Version $Version
+    $candidate = Join-Path $script:ReleasesDir $Version
+    if (-not (Test-Path -LiteralPath $candidate)) {
+        throw "Release folder not found: $candidate"
+    }
+    $resolved = (Resolve-Path -LiteralPath $candidate).Path
+    $releasesRoot = (Resolve-Path -LiteralPath $script:ReleasesDir).Path
+    $rootWithSep = if ($releasesRoot.EndsWith('\')) { $releasesRoot } else { $releasesRoot + '\' }
+    if (-not ($resolved.Equals($releasesRoot, [StringComparison]::OrdinalIgnoreCase) -or
+            $resolved.StartsWith($rootWithSep, [StringComparison]::OrdinalIgnoreCase))) {
+        throw "Release path escapes releases\: $resolved"
+    }
+    return $resolved
+}
+
+function Restore-AppTree {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDir,
+        [string]$BackupFile = ''
+    )
+    # DB first when a dump exists — migrate may have already altered schema
+    if ($BackupFile) {
+        if (Test-Path -LiteralPath $BackupFile) {
+            Invoke-PgRestoreBackup -DumpPath $BackupFile
+        } else {
+            Write-UpdaterLog "Backup file missing, cannot restore DB: $BackupFile" 'ERROR' | Out-Null
+            throw "DB rollback required but backup missing: $BackupFile"
+        }
+    } else {
+        Write-UpdaterLog 'No pre-update backup; database was NOT rolled back' 'WARN' | Out-Null
+    }
+
+    if (Test-Path -LiteralPath $script:AppDir) {
+        Remove-Item -LiteralPath $script:AppDir -Recurse -Force
+    }
+    if (-not (Test-Path -LiteralPath $SourceDir)) {
+        throw "Previous app directory missing: $SourceDir"
+    }
+    Copy-Item -LiteralPath $SourceDir -Destination $script:AppDir -Recurse -Force
+}
+
 function Invoke-MigrateDeploy {
     $env:PRISMA_QUERY_ENGINE_LIBRARY = Join-Path $script:AppDir 'engines\query_engine-windows.dll.node'
     $env:PRISMA_SCHEMA_ENGINE_BINARY = Join-Path $script:AppDir 'engines\schema-engine-windows.exe'

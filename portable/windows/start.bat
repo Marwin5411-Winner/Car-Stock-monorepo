@@ -32,9 +32,24 @@ set "PIDFILE=%VB_HOME%\data\status\app.pid"
 
 if /I "%MODE%"=="check" goto :check_only
 
+REM Single-instance: treat lock as stale unless app.pid is a live process under VB_HOME\app
 if exist "%LOCK%" (
-  echo ERROR: App appears to be running ^(lock: data\status\app.lock^). Use stop.bat first.
-  exit /b 2
+  set "STALE=1"
+  if exist "%PIDFILE%" (
+    set /p OLD_PID=<"%PIDFILE%"
+    if defined OLD_PID (
+      powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$pidNum = [int]'!OLD_PID!'; try { $p = Get-Process -Id $pidNum -ErrorAction Stop; $path = $p.Path; if (-not $path) { exit 1 }; $root = [IO.Path]::GetFullPath('%VB_HOME%\app'); if ($path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { exit 0 } else { exit 1 } } catch { exit 1 }"
+      if !ERRORLEVEL! equ 0 set "STALE=0"
+    )
+  )
+  if "!STALE!"=="0" (
+    echo ERROR: App appears to be running ^(PID in data\status\app.pid^). Use stop.bat first.
+    exit /b 2
+  )
+  echo Clearing stale app.lock / app.pid
+  del "%LOCK%" 2>nul
+  del "%PIDFILE%" 2>nul
 )
 
 echo. > "%LOCK%"
@@ -61,12 +76,15 @@ set "PRISMA_CLI_QUERY_ENGINE_TYPE=library"
 
 cd /d "%VB_HOME%\app"
 
+REM Prefer compiled exe; else launch bundled bun.exe directly (not run.cmd) so PID path is under app\
+set "APP_ARGS="
 if exist "vbeyond-api.exe" (
   set "APP_CMD=%VB_HOME%\app\vbeyond-api.exe"
-) else if exist "run.cmd" (
-  set "APP_CMD=%VB_HOME%\app\run.cmd"
+) else if exist "bun.exe" (
+  set "APP_CMD=%VB_HOME%\app\bun.exe"
+  set "APP_ARGS=run dist\index.js"
 ) else (
-  echo ERROR: No vbeyond-api.exe or run.cmd in app\
+  echo ERROR: No vbeyond-api.exe or bun.exe in app\
   del "%LOCK%" 2>nul
   exit /b 1
 )
@@ -75,27 +93,24 @@ echo Starting VBeyond ^(mode=%MODE%^)...
 echo PORT=%PORT%  VB_HOME=%VB_HOME%
 
 if /I "%MODE%"=="service" (
-  REM NSSM / service: stay in foreground
-  "%APP_CMD%" >> "%VB_HOME%\data\logs\app\stdout.log" 2>> "%VB_HOME%\data\logs\app\stderr.log"
+  REM NSSM / service: start child, record its real PID, wait in foreground
+  powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$ErrorActionPreference='Stop'; $exe='%APP_CMD%'; $wd='%VB_HOME%\app'; $stdout='%VB_HOME%\data\logs\app\stdout.log'; $stderr='%VB_HOME%\data\logs\app\stderr.log'; $pidFile='%PIDFILE%'; $argLine='%APP_ARGS%'; $sp = @{ FilePath=$exe; WorkingDirectory=$wd; PassThru=$true; NoNewWindow=$true; RedirectStandardOutput=$stdout; RedirectStandardError=$stderr }; if ($argLine.Trim().Length -gt 0) { $sp['ArgumentList'] = $argLine.Split(' ', [StringSplitOptions]::RemoveEmptyEntries) }; $p = Start-Process @sp; Set-Content -LiteralPath $pidFile -Value $p.Id -Encoding ascii; $p.WaitForExit(); if ($null -eq $p.ExitCode) { exit 1 }; exit $p.ExitCode"
   set "EC=!ERRORLEVEL!"
   del "%LOCK%" 2>nul
   del "%PIDFILE%" 2>nul
   exit /b !EC!
 )
 
-REM Console: start process in background, write PID, wait for health
-start /b "" "%APP_CMD%" >> "%VB_HOME%\data\logs\app\stdout.log" 2>> "%VB_HOME%\data\logs\app\stderr.log"
-timeout /t 2 /nobreak >nul
-
-for /f "tokens=2" %%P in ('tasklist /FI "IMAGENAME eq vbeyond-api.exe" /NH 2^>nul') do (
-  echo %%P> "%PIDFILE%"
-  goto :pid_done
+REM Console: Start-Process -PassThru records the real child PID (not a global tasklist guess)
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference='Stop'; $exe='%APP_CMD%'; $wd='%VB_HOME%\app'; $stdout='%VB_HOME%\data\logs\app\stdout.log'; $stderr='%VB_HOME%\data\logs\app\stderr.log'; $pidFile='%PIDFILE%'; $argLine='%APP_ARGS%'; $sp = @{ FilePath=$exe; WorkingDirectory=$wd; PassThru=$true; WindowStyle='Hidden'; RedirectStandardOutput=$stdout; RedirectStandardError=$stderr }; if ($argLine.Trim().Length -gt 0) { $sp['ArgumentList'] = $argLine.Split(' ', [StringSplitOptions]::RemoveEmptyEntries) }; $p = Start-Process @sp; Set-Content -LiteralPath $pidFile -Value $p.Id -Encoding ascii; exit 0"
+if errorlevel 1 (
+  echo ERROR: Failed to start process.
+  del "%LOCK%" 2>nul
+  del "%PIDFILE%" 2>nul
+  exit /b 1
 )
-for /f "tokens=2" %%P in ('tasklist /FI "IMAGENAME eq bun.exe" /NH 2^>nul') do (
-  echo %%P> "%PIDFILE%"
-  goto :pid_done
-)
-:pid_done
 
 set /a ATTEMPT=0
 :health_loop

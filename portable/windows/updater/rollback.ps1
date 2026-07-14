@@ -4,9 +4,9 @@ param(
     [string]$Version,
     [string]$RestoreBackup = ''
 )
-$args = @('-Action', 'Rollback', '-Version', $Version)
+$updateArgs = @('-Action', 'Rollback', '-Version', $Version)
 if ($RestoreBackup) {
-    $args += @('-RestoreBackup', $RestoreBackup)
+    $updateArgs += @('-RestoreBackup', $RestoreBackup)
 }
-& "$PSScriptRoot\update.ps1" @args
+& "$PSScriptRoot\update.ps1" @updateArgs
 exit $LASTEXITCODE
