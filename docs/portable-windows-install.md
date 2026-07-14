@@ -189,14 +189,32 @@ CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 
 ## สำหรับทีมพัฒนา (สร้างแพ็กเกจ)
 
-จาก monorepo:
+จาก monorepo (macOS/Linux ได้ — cross-compile Windows):
 
 ```bash
+bun run pack:windows:zip
+# หรือ
 ./scripts/pack-windows.sh --zip
 ```
 
-ได้โฟลเดอร์/zip ใต้ `dist/vbeyond-windows-v{VERSION}/`
+ได้ไฟล์พร้อมส่งใต้ `dist/`:
 
-**ก่อนส่งลูกค้า:** ใส่ `app\bun.exe` (Windows) หรือ build `vbeyond-api.exe` บน Windows runner และตรวจว่า Prisma engine สำหรับ Windows ครบ
+| ไฟล์ | ความหมาย |
+|------|----------|
+| `vbeyond-windows-v{VERSION}/` | โฟลเดอร์แพ็กเกจครบ |
+| `vbeyond-windows-v{VERSION}.zip` | zip ส่งลูกค้า |
+| `vbeyond-windows-v{VERSION}.zip.sha256` | checksum |
+| `feed-{VERSION}.json` | feed สำหรับ auto-update |
+
+แพ็กเกจรวมแล้ว:
+
+- `app/vbeyond-api.exe` (Bun cross-compile)
+- `app/bun.exe` (official Windows Bun — สำหรับ migrate)
+- `app/engines/query_engine-windows.dll.node` + `schema-engine-windows.exe`
+- `app/public/` (React SPA)
+- `app/prisma/` + vendored Prisma CLI
+- `start.bat` / `setup.bat` / service / updater
+
+CI: tag `v*` → workflow **Pack Windows portable** อัปโหลด artifact และแนบ GitHub Release
 
 ดู contract: [portable-windows-contract.md](./portable-windows-contract.md)

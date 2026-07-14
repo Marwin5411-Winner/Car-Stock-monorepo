@@ -1,8 +1,17 @@
 @echo off
-REM Fallback runner when vbeyond-api.exe is not present.
-REM Expects portable bun.exe next to this script, or bun on PATH.
+REM Fallback when vbeyond-api.exe is missing — uses bundled bun.exe + dist
 setlocal
 cd /d "%~dp0"
+
+if not defined PRISMA_QUERY_ENGINE_LIBRARY (
+  set "PRISMA_QUERY_ENGINE_LIBRARY=%~dp0engines\query_engine-windows.dll.node"
+)
+if not defined PRISMA_SCHEMA_ENGINE_BINARY (
+  set "PRISMA_SCHEMA_ENGINE_BINARY=%~dp0engines\schema-engine-windows.exe"
+)
+if not defined STATIC_DIR set "STATIC_DIR=public"
+if not defined NODE_ENV set "NODE_ENV=production"
+if not defined UPDATER_MODE set "UPDATER_MODE=portable"
 
 if exist "%~dp0bun.exe" (
   "%~dp0bun.exe" run dist\index.js

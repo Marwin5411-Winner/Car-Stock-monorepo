@@ -585,7 +585,7 @@ Optional later: `install-service.ps1`, self-updating `updater\` scripts, private
 
 | Choice | Options | Recommended default |
 |--------|---------|---------------------|
-| Binary | pure `vbeyond-api.exe` vs portable Bun + `dist` | **exe package** |
+| Binary | pure `vbeyond-api.exe` vs portable Bun + `dist` | **`vbeyond-api.exe` + `bun.exe` + Prisma Windows engines** (built by `scripts/pack-windows.sh`) |
 | Updater trigger | file-based (Option A) vs local :9000 agent (Option B) | **Option A** |
 | Feed host | GitHub Releases vs own HTTPS static feed | **GitHub Releases** |
 | Service wrapper | NSSM vs WinSW vs Task Scheduler only | **NSSM or Task Scheduler for v1** |

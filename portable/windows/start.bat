@@ -47,22 +47,24 @@ for /f "usebackq tokens=1,* delims== eol=#" %%A in ("%VB_HOME%\config\.env") do 
   )
 )
 
-if defined VB_HOME_FROM_ENV (
-  rem keep
-)
-if not defined VB_HOME set "VB_HOME=%CD%"
 set "VB_HOME=%CD%"
 set "UPDATER_MODE=portable"
 if not defined STATIC_DIR set "STATIC_DIR=public"
 if not defined NODE_ENV set "NODE_ENV=production"
 if not defined CORS_ORIGIN set "CORS_ORIGIN=http://localhost:%PORT%"
+if not defined PORT set "PORT=3001"
+
+REM Prisma engines shipped with the package (required for compiled API)
+set "PRISMA_QUERY_ENGINE_LIBRARY=%VB_HOME%\app\engines\query_engine-windows.dll.node"
+set "PRISMA_SCHEMA_ENGINE_BINARY=%VB_HOME%\app\engines\schema-engine-windows.exe"
+set "PRISMA_CLI_QUERY_ENGINE_TYPE=library"
 
 cd /d "%VB_HOME%\app"
 
 if exist "vbeyond-api.exe" (
-  set "APP_CMD=vbeyond-api.exe"
+  set "APP_CMD=%VB_HOME%\app\vbeyond-api.exe"
 ) else if exist "run.cmd" (
-  set "APP_CMD=run.cmd"
+  set "APP_CMD=%VB_HOME%\app\run.cmd"
 ) else (
   echo ERROR: No vbeyond-api.exe or run.cmd in app\
   del "%LOCK%" 2>nul
@@ -73,7 +75,7 @@ echo Starting VBeyond ^(mode=%MODE%^)...
 echo PORT=%PORT%  VB_HOME=%VB_HOME%
 
 if /I "%MODE%"=="service" (
-  REM NSSM / service: stay in foreground; redirect logs
+  REM NSSM / service: stay in foreground
   "%APP_CMD%" >> "%VB_HOME%\data\logs\app\stdout.log" 2>> "%VB_HOME%\data\logs\app\stderr.log"
   set "EC=!ERRORLEVEL!"
   del "%LOCK%" 2>nul
@@ -81,11 +83,10 @@ if /I "%MODE%"=="service" (
   exit /b !EC!
 )
 
-REM Console: start process, write PID, wait for health
-start /b "" cmd /c "%APP_CMD% >> \"%VB_HOME%\data\logs\app\stdout.log\" 2>> \"%VB_HOME%\data\logs\app\stderr.log\""
+REM Console: start process in background, write PID, wait for health
+start /b "" "%APP_CMD%" >> "%VB_HOME%\data\logs\app\stdout.log" 2>> "%VB_HOME%\data\logs\app\stderr.log"
 timeout /t 2 /nobreak >nul
 
-REM Best-effort PID of bun/api — optional
 for /f "tokens=2" %%P in ('tasklist /FI "IMAGENAME eq vbeyond-api.exe" /NH 2^>nul') do (
   echo %%P> "%PIDFILE%"
   goto :pid_done
@@ -102,7 +103,7 @@ set /a ATTEMPT+=1
 curl -sf "http://127.0.0.1:%PORT%/health" >nul 2>&1
 if !ERRORLEVEL! equ 0 (
   echo Health OK. Open http://127.0.0.1:%PORT%/
-  echo Running. Press Ctrl+C will not stop background process — use stop.bat
+  echo Running. Use stop.bat to stop.
   exit /b 0
 )
 if !ATTEMPT! geq 30 (

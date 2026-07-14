@@ -225,15 +225,21 @@ function Invoke-PgDumpBackup {
 }
 
 function Invoke-MigrateDeploy {
+    $env:PRISMA_QUERY_ENGINE_LIBRARY = Join-Path $script:AppDir 'engines\query_engine-windows.dll.node'
+    $env:PRISMA_SCHEMA_ENGINE_BINARY = Join-Path $script:AppDir 'engines\schema-engine-windows.exe'
+    $env:PRISMA_CLI_QUERY_ENGINE_TYPE = 'library'
+    $schema = Join-Path $script:AppDir 'prisma\schema.prisma'
+    $bun = Join-Path $script:AppDir 'bun.exe'
+    $prismaJs = Join-Path $script:AppDir 'tools\migrate\node_modules\prisma\build\index.js'
+
     Push-Location $script:AppDir
     try {
-        $prismaTool = Join-Path $script:AppDir 'tools\prisma.exe'
-        if (Test-Path -LiteralPath $prismaTool) {
-            & $prismaTool migrate deploy
-        } elseif (Test-Path -LiteralPath (Join-Path $script:AppDir 'bun.exe')) {
-            & (Join-Path $script:AppDir 'bun.exe') x prisma migrate deploy
+        if ((Test-Path -LiteralPath $bun) -and (Test-Path -LiteralPath $prismaJs)) {
+            & $bun $prismaJs migrate deploy --schema=$schema
+        } elseif (Test-Path -LiteralPath $bun) {
+            & $bun x prisma migrate deploy --schema=$schema
         } else {
-            & bun x prisma migrate deploy
+            & bun x prisma migrate deploy --schema=$schema
         }
         if ($LASTEXITCODE -ne 0) {
             throw "migrate deploy failed with exit $LASTEXITCODE"

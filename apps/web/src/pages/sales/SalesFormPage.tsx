@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { salesService, type CreateSaleData, type UpdateSaleData, type PaymentMode } from '../../services/sales.service';
 import { usePermission } from '../../hooks/usePermission';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
-import { useToast } from '../../components/toast';
 import { customerService, type Customer } from '../../services/customer.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
@@ -70,9 +69,9 @@ export default function SalesFormPage() {
   const { hasPermission, user } = usePermission();
   const canDiscount = hasPermission('SALE_DISCOUNT');
   const [saleStatus, setSaleStatus] = useState<string | null>(null);
+  const [saleType, setSaleType] = useState<'DIRECT_SALE' | 'RESERVATION_SALE'>('DIRECT_SALE');
   const isCompletedAsAccountant = isEditing && saleStatus === 'COMPLETED' && user?.role === 'ACCOUNTANT';
 
-  const { addToast } = useToast();
   const { execute: executeMutation, clearFieldErrors } = useMutationHandler(
     isEditing ? 'แก้ไขข้อมูลการขายสำเร็จ' : 'สร้างการขายสำเร็จ',
     { onSuccess: () => navigate('/sales') }
@@ -142,14 +141,11 @@ export default function SalesFormPage() {
     let found = false;
     await executeQuery(
       salesService.getById(saleId).then((sale) => {
-        // For editing, we only allow editing Direct Sales
-        if (sale.type !== 'DIRECT_SALE') {
-          addToast('ไม่สามารถแก้ไขการขายผ่านการจองได้ที่นี่ กรุณาแก้ไขผ่านหน้ารายละเอียดการขาย', 'error');
-          return;
-        }
-
+        // Direct + reservation sales are both editable here (delivery date, amounts, etc.).
+        // New sales created from this form remain DIRECT_SALE only.
         found = true;
         setSaleStatus(sale.status);
+        setSaleType(sale.type === 'RESERVATION_SALE' ? 'RESERVATION_SALE' : 'DIRECT_SALE');
         setFormData({
           customerId: sale.customer.id,
           stockId: sale.stock?.id || '',
@@ -207,15 +203,22 @@ export default function SalesFormPage() {
     }
   };
 
-  // Convert stocks to SearchSelect options
+  // Convert stocks to SearchSelect options. Include the currently assigned stock
+  // even when it is no longer AVAILABLE (e.g. RESERVED on this sale) so re-save
+  // and display stay correct while still allowing swap to other available units.
   const stockOptions: SearchSelectOption<Stock>[] = useMemo(() => {
-    return availableStocks.map((stock) => ({
+    const toOption = (stock: Stock): SearchSelectOption<Stock> => ({
       value: stock.id,
       label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})`,
       description: stock.expectedSalePrice ? `ราคา: ฿${stock.expectedSalePrice.toLocaleString()}` : undefined,
       data: stock,
-    }));
-  }, [availableStocks]);
+    });
+    const options = availableStocks.map(toOption);
+    if (selectedStock && !options.some((o) => o.value === selectedStock.id)) {
+      options.unshift(toOption(selectedStock));
+    }
+    return options;
+  }, [availableStocks, selectedStock]);
 
   const handleStockSelect = (value: string, option?: SearchSelectOption<Stock>) => {
     const stock = option?.data || null;
@@ -273,8 +276,11 @@ export default function SalesFormPage() {
       newErrors.customerId = 'กรุณาเลือกลูกค้า';
     }
 
-    // Stock is required for Direct Sale
-    if (!formData.stockId) {
+    // Stock required for new direct sales; reservation sales may assign stock later
+    if (!isEditing && !formData.stockId) {
+      newErrors.stockId = 'กรุณาเลือก Stock สำหรับการขายตรง';
+    }
+    if (isEditing && saleType === 'DIRECT_SALE' && !formData.stockId) {
       newErrors.stockId = 'กรุณาเลือก Stock สำหรับการขายตรง';
     }
 
@@ -308,13 +314,9 @@ export default function SalesFormPage() {
     setSaving(true);
     clearFieldErrors();
 
-    // Direct Sale data - always DIRECT_SALE type
-    const data: CreateSaleData | UpdateSaleData = {
-      ...(isCompletedAsAccountant ? {} : {
-        type: 'DIRECT_SALE' as const,
-        customerId: formData.customerId,
-        stockId: formData.stockId,
-      }),
+    // Create always DIRECT_SALE. Update must not send `type` (immutable) and
+    // must omit empty stockId so Prisma does not get an invalid FK.
+    const sharedFields = {
       totalAmount: formData.totalAmount,
       depositAmount: formData.depositAmount || undefined,
       paymentMode: formData.paymentMode,
@@ -337,6 +339,23 @@ export default function SalesFormPage() {
       notes: formData.notes || undefined,
       freebiesSnapshot: formData.freebiesSnapshot,
     };
+
+    const data: CreateSaleData | UpdateSaleData = isEditing
+      ? {
+          ...(isCompletedAsAccountant
+            ? {}
+            : {
+                customerId: formData.customerId,
+                ...(formData.stockId ? { stockId: formData.stockId } : {}),
+              }),
+          ...sharedFields,
+        }
+      : {
+          type: 'DIRECT_SALE' as const,
+          customerId: formData.customerId,
+          stockId: formData.stockId,
+          ...sharedFields,
+        };
 
     await executeMutation(
       isEditing && id ? salesService.update(id, data) : salesService.create(data as CreateSaleData)
@@ -370,10 +389,16 @@ export default function SalesFormPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {isEditing ? 'แก้ไขการขาย' : 'สร้างการขายตรง'}
+              {isEditing
+                ? saleType === 'RESERVATION_SALE'
+                  ? 'แก้ไขการขาย (ผ่านการจอง)'
+                  : 'แก้ไขการขาย'
+                : 'สร้างการขายตรง'}
             </h1>
             <p className="text-sm text-gray-700 mt-1">
-              สำหรับการขายผ่านการจอง กรุณาสร้างใบเสนอราคาก่อน แล้วแปลงเป็นการขาย
+              {isEditing
+                ? 'แก้ไขยอดเงิน วันที่รับรถ และรายละเอียดการขายได้ที่นี่'
+                : 'สำหรับการขายผ่านการจอง กรุณาสร้างใบเสนอราคาก่อน แล้วแปลงเป็นการขาย'}
             </p>
           </div>
         </div>
@@ -432,20 +457,30 @@ export default function SalesFormPage() {
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Stock Selection - Required for Direct Sale */}
+              {/* Stock: required for direct sale; optional for reservation (can assign later) */}
               <div className="md:col-span-2">
                 <SearchSelect<Stock>
                   value={formData.stockId}
                   onChange={handleStockSelect}
                   options={stockOptions}
-                  label="เลือก Stock (รถที่มีในสต็อก)"
-                  required
+                  label={
+                    saleType === 'RESERVATION_SALE'
+                      ? 'เลือก / เปลี่ยน Stock (รถในสต็อก)'
+                      : 'เลือก Stock (รถที่มีในสต็อก)'
+                  }
+                  required={saleType === 'DIRECT_SALE' || !isEditing}
                   placeholder="-- เลือก Stock --"
                   error={errors.stockId}
                   emptyMessage="ไม่มี Stock ที่พร้อมขาย"
                   disabled={isCompletedAsAccountant}
                 />
-                {availableStocks.length === 0 && (
+                {saleType === 'RESERVATION_SALE' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    เปลี่ยนคันได้ — ระบบจะคืนรถเดิมเข้าสต็อกและจองคันใหม่ให้อัตโนมัติ
+                    (หลังส่งมอบ/เสร็จสิ้นแล้วเปลี่ยนไม่ได้)
+                  </p>
+                )}
+                {availableStocks.length === 0 && !selectedStock && (
                   <p className="text-yellow-600 text-sm mt-1">ไม่มี Stock ที่พร้อมขาย กรุณาเพิ่ม Stock ก่อน</p>
                 )}
               </div>

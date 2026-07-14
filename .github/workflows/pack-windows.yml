@@ -1,6 +1,5 @@
-# Build portable Windows package layout on version tags.
-# Native Windows bun.exe / Prisma engines should be added on a windows-latest
-# job before customer ship; this produces the pack layout + web/api artifacts.
+# Build complete portable Windows package (cross-compile + engines + bun.exe)
+# on version tags and manual dispatch.
 
 name: Pack Windows portable
 
@@ -9,6 +8,9 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   pack:
@@ -20,14 +22,31 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Pack package folder
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Pack Windows package
         run: bash scripts/pack-windows.sh --zip
 
-      - name: Upload zip artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vbeyond-windows-package
           path: |
             dist/vbeyond-windows-v*.zip
-            dist/vbeyond-windows-v*/
+            dist/vbeyond-windows-v*.zip.sha256
+            dist/feed-*.json
           if-no-files-found: error
+
+      - name: Attach to GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/vbeyond-windows-v*.zip
+            dist/vbeyond-windows-v*.zip.sha256
+            dist/feed-*.json
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
