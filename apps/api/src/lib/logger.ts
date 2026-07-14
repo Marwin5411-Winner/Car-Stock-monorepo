@@ -1,4 +1,5 @@
 import pino from 'pino';
+import buildRoll from 'pino-roll';
 import { join } from 'path';
 import { mkdirSync } from 'fs';
 import { sendErrorToDiscord } from './discord-notify';
@@ -10,48 +11,42 @@ try {
   mkdirSync(logDir, { recursive: true });
 } catch {}
 
-const targets: pino.TransportTargetOptions[] = [
+const rollOptions = {
   // Error log — errors only, daily rotation, 7-day retention
-  {
-    target: 'pino-roll',
-    level: 'error',
-    options: {
-      file: join(logDir, 'error.log'),
-      frequency: 'daily',
-      limit: { count: 7 },
-      mkdir: true,
-    },
-  },
+  error: { file: join(logDir, 'error.log'), frequency: 'daily' as const, limit: { count: 7 }, mkdir: true },
   // Combined log — info+, daily rotation, 14-day retention
-  {
-    target: 'pino-roll',
-    level: 'info',
-    options: {
-      file: join(logDir, 'combined.log'),
-      frequency: 'daily',
-      limit: { count: 14 },
-      mkdir: true,
-    },
-  },
-];
+  combined: { file: join(logDir, 'combined.log'), frequency: 'daily' as const, limit: { count: 14 }, mkdir: true },
+};
 
-// In dev, also pretty-print to stdout
-if (isDev) {
-  targets.push({
-    target: 'pino-pretty',
-    level: 'debug',
-    options: {
-      colorize: true,
-      translateTime: 'SYS:HH:MM:ss',
-      ignore: 'pid,hostname',
-    },
-  });
-}
-
-const baseLogger = pino({
-  level: isDev ? 'debug' : 'info',
-  transport: { targets },
-});
+// pino's worker-thread `transport` option resolves targets like "pino-roll" by
+// requiring them from a file path — that breaks inside a `bun build --compile`
+// binary (no real node_modules on disk, so it crashes on startup with "unable to
+// determine transport target for pino-roll"). Dev never runs compiled, so it
+// keeps the transport-worker form (also needed for pino-pretty's colorized
+// output, which leaks raw JSON to stdout under Bun when used outside a worker).
+// Production builds the rolling file streams directly instead.
+const baseLogger = isDev
+  ? pino({
+      level: 'debug',
+      transport: {
+        targets: [
+          { target: 'pino-roll', level: 'error', options: rollOptions.error },
+          { target: 'pino-roll', level: 'info', options: rollOptions.combined },
+          {
+            target: 'pino-pretty',
+            level: 'debug',
+            options: { colorize: true, translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
+          },
+        ],
+      },
+    })
+  : pino(
+      { level: 'info' },
+      pino.multistream([
+        { level: 'error', stream: await buildRoll(rollOptions.error) },
+        { level: 'info', stream: await buildRoll(rollOptions.combined) },
+      ]),
+    );
 
 // Wrap logger to intercept error+ calls and send to Discord
 export const logger = new Proxy(baseLogger, {

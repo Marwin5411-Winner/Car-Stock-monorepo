@@ -2,8 +2,9 @@
 set -e
 
 # Release script for Car-Stock Monorepo
-# Usage: ./scripts/release.sh [major|minor|patch]
-# Example: ./scripts/release.sh patch  → 1.0.0 → 1.0.1
+# Usage: ./scripts/release.sh [major|minor|patch] [--publish]
+#   --publish  also push, build the portable Windows zip, and upload it as a GitHub release
+# Example: ./scripts/release.sh patch --publish
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -14,6 +15,20 @@ if [ ! -f "$VERSION_FILE" ]; then
   exit 1
 fi
 
+PUBLISH=false
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --publish) PUBLISH=true ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+
+if [ "$PUBLISH" = true ] && ! command -v gh &> /dev/null; then
+  echo "Error: --publish requires the GitHub CLI (gh), not found in PATH" >&2
+  exit 1
+fi
+
 CURRENT_VERSION=$(cat "$VERSION_FILE" | tr -d '[:space:]')
 echo "Current version: $CURRENT_VERSION"
 
@@ -21,7 +36,7 @@ echo "Current version: $CURRENT_VERSION"
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
 # Determine bump type
-BUMP_TYPE="${1:-patch}"
+BUMP_TYPE="${ARGS[0]:-patch}"
 case "$BUMP_TYPE" in
   major)
     MAJOR=$((MAJOR + 1))
@@ -36,10 +51,11 @@ case "$BUMP_TYPE" in
     PATCH=$((PATCH + 1))
     ;;
   *)
-    echo "Usage: $0 [major|minor|patch]"
+    echo "Usage: $0 [major|minor|patch] [--publish]"
     echo "  major  → x.0.0 (breaking changes)"
     echo "  minor  → 0.x.0 (new features)"
     echo "  patch  → 0.0.x (bug fixes)"
+    echo "  --publish  push + build portable Windows zip + upload GitHub release"
     exit 1
     ;;
 esac
@@ -69,9 +85,36 @@ git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
 echo ""
 echo "✅ Version bumped to v$NEW_VERSION"
 echo "📦 Commit and tag created locally."
+
+if [ "$PUBLISH" = false ]; then
+  echo ""
+  echo "To push the release:"
+  echo "  git push origin main --tags"
+  echo ""
+  echo "Or re-run with --publish to push + build + upload the Windows package automatically."
+  exit 0
+fi
+
 echo ""
-echo "To push the release:"
-echo "  git push origin main --tags"
+echo "==> Pushing commit + tag"
+git push origin main --tags
+
+echo "==> Building portable Windows package"
+"$SCRIPT_DIR/pack-windows.sh" --zip
+
+ZIP="$ROOT_DIR/dist/vbeyond-windows-v${NEW_VERSION}.zip"
+SHA="$ZIP.sha256"
+if [ ! -f "$ZIP" ]; then
+  echo "ERROR: $ZIP was not produced by pack-windows.sh" >&2
+  exit 1
+fi
+
+echo "==> Creating GitHub release v${NEW_VERSION}"
+ASSETS=("$ZIP")
+[ -f "$SHA" ] && ASSETS+=("$SHA")
+gh release create "v${NEW_VERSION}" "${ASSETS[@]}" \
+  --title "v${NEW_VERSION}" \
+  --notes "Portable Windows package v${NEW_VERSION}"
+
 echo ""
-echo "Or to push automatically, run:"
-echo "  ./scripts/release.sh $BUMP_TYPE && git push origin main --tags"
+echo "✅ Released v${NEW_VERSION}"
