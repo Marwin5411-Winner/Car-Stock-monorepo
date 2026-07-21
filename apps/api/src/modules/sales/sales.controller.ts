@@ -105,6 +105,18 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : body.financeAmount,
         carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : body.carDiscount,
         downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : body.downPaymentDiscount,
+        insuranceFee: body.insuranceFee !== undefined ? safeParseFloat(body.insuranceFee) : body.insuranceFee,
+        compulsoryInsuranceFee:
+          body.compulsoryInsuranceFee !== undefined
+            ? safeParseFloat(body.compulsoryInsuranceFee)
+            : body.compulsoryInsuranceFee,
+        registrationFee:
+          body.registrationFee !== undefined ? safeParseFloat(body.registrationFee) : body.registrationFee,
+        salesCommission:
+          body.salesCommission !== undefined ? safeParseFloat(body.salesCommission) : body.salesCommission,
+        salesExpense: body.salesExpense !== undefined ? safeParseFloat(body.salesExpense) : body.salesExpense,
+        financeCommission:
+          body.financeCommission !== undefined ? safeParseFloat(body.financeCommission) : body.financeCommission,
         interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : body.interestRate,
         monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : body.monthlyInstallment,
       };
@@ -141,6 +153,12 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         financeProvider: t.Optional(t.String()),
         carDiscount: t.Optional(t.Union([t.String(), t.Number()])),
         downPaymentDiscount: t.Optional(t.Union([t.String(), t.Number()])),
+        insuranceFee: t.Optional(t.Union([t.String(), t.Number()])),
+        compulsoryInsuranceFee: t.Optional(t.Union([t.String(), t.Number()])),
+        registrationFee: t.Optional(t.Union([t.String(), t.Number()])),
+        salesCommission: t.Optional(t.Union([t.String(), t.Number()])),
+        salesExpense: t.Optional(t.Union([t.String(), t.Number()])),
+        financeCommission: t.Optional(t.Union([t.String(), t.Number()])),
         interestRate: t.Optional(t.Union([t.String(), t.Number()])),
         numberOfTerms: t.Optional(t.Number()),
         monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),
@@ -167,6 +185,13 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         financeAmount: body.financeAmount !== undefined ? safeParseFloat(body.financeAmount) : undefined,
         carDiscount: body.carDiscount !== undefined ? safeParseFloat(body.carDiscount) : undefined,
         downPaymentDiscount: body.downPaymentDiscount !== undefined ? safeParseFloat(body.downPaymentDiscount) : undefined,
+        insuranceFee: body.insuranceFee !== undefined ? safeParseFloat(body.insuranceFee) : undefined,
+        compulsoryInsuranceFee:
+          body.compulsoryInsuranceFee !== undefined ? safeParseFloat(body.compulsoryInsuranceFee) : undefined,
+        registrationFee: body.registrationFee !== undefined ? safeParseFloat(body.registrationFee) : undefined,
+        salesCommission: body.salesCommission !== undefined ? safeParseFloat(body.salesCommission) : undefined,
+        salesExpense: body.salesExpense !== undefined ? safeParseFloat(body.salesExpense) : undefined,
+        financeCommission: body.financeCommission !== undefined ? safeParseFloat(body.financeCommission) : undefined,
         interestRate: body.interestRate !== undefined ? safeParseFloat(body.interestRate) : undefined,
         monthlyInstallment: body.monthlyInstallment !== undefined ? safeParseFloat(body.monthlyInstallment) : undefined,
       };
@@ -202,6 +227,12 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
         financeProvider: t.Optional(t.String()),
         carDiscount: t.Optional(t.Union([t.String(), t.Number()])),
         downPaymentDiscount: t.Optional(t.Union([t.String(), t.Number()])),
+        insuranceFee: t.Optional(t.Union([t.String(), t.Number()])),
+        compulsoryInsuranceFee: t.Optional(t.Union([t.String(), t.Number()])),
+        registrationFee: t.Optional(t.Union([t.String(), t.Number()])),
+        salesCommission: t.Optional(t.Union([t.String(), t.Number()])),
+        salesExpense: t.Optional(t.Union([t.String(), t.Number()])),
+        financeCommission: t.Optional(t.Union([t.String(), t.Number()])),
         interestRate: t.Optional(t.Union([t.String(), t.Number()])),
         numberOfTerms: t.Optional(t.Number()),
         monthlyInstallment: t.Optional(t.Union([t.String(), t.Number()])),

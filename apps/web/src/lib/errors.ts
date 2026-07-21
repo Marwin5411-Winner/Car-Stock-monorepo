@@ -77,9 +77,22 @@ export const ERROR_MESSAGES: Record<string, string> = {
 };
 
 /**
- * Get Thai error message from error code
+ * Get Thai error message from error code.
+ *
+ * For BAD_REQUEST the API often returns a specific reason (e.g. remaining
+ * balance, completed sale). Prefer that over the generic "คำขอไม่ถูกต้อง"
+ * so users can act on the real problem.
  */
 export function getErrorMessage(errorCode: string, fallbackMessage?: string): string {
+  if (
+    errorCode === 'BAD_REQUEST' &&
+    fallbackMessage &&
+    fallbackMessage.trim() &&
+    fallbackMessage !== 'Bad Request' &&
+    fallbackMessage !== 'BAD_REQUEST'
+  ) {
+    return fallbackMessage;
+  }
   return ERROR_MESSAGES[errorCode] || fallbackMessage || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
 }
 

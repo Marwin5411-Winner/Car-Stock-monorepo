@@ -5,6 +5,11 @@ import { authService } from '../auth/auth.service';
 import { campaignFormulasService } from '../campaigns/campaign-formulas.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
+import {
+  initialRemaining,
+  recalcRemaining,
+  shouldRecalcRemaining,
+} from './sales-remaining';
 
 const toNumber = (val: Decimal | number | null | undefined): number => {
   if (val === null || val === undefined) return 0;
@@ -414,12 +419,16 @@ export class SalesService {
 
     // Calculate remaining amount.
     // Buyer-charged fees (insurance / พรบ / registration) are part of what the
-    // customer owes: remaining = total + fees − settled.
+    // customer owes: remaining = total + fees − settled (deposit agreed on create).
     const createFees =
       (validated.insuranceFee || 0) +
       (validated.compulsoryInsuranceFee || 0) +
       (validated.registrationFee || 0);
-    const remainingAmount = validated.totalAmount + createFees - (validated.depositAmount || 0);
+    const remainingAmount = initialRemaining(
+      validated.totalAmount,
+      validated.depositAmount || 0,
+      createFees
+    );
 
     // Create sale + reserve stock + history + activity log in transaction
     const sale = await db.$transaction(async (tx) => {
@@ -433,12 +442,15 @@ export class SalesService {
         },
       });
 
-      // If stock is provided, reserve it
+      // Reserve stock only if still AVAILABLE (atomic vs concurrent sales)
       if (validated.stockId) {
-        await tx.stock.update({
-          where: { id: validated.stockId },
+        const reserved = await tx.stock.updateMany({
+          where: { id: validated.stockId, status: 'AVAILABLE', deletedAt: null },
           data: { status: 'RESERVED' },
         });
+        if (reserved.count === 0) {
+          throw new BadRequestError('Stock is not available');
+        }
       }
 
       await tx.saleHistory.create({
@@ -482,11 +494,31 @@ export class SalesService {
     }
 
     const validated = UpdateSaleSchema.parse(data);
+    // Mutable update payload; remainingAmount is computed server-side when money changes.
+    const updatePayload: Record<string, unknown> = { ...validated };
+
+    // Empty string relation IDs must not reach Prisma (FK violation → BAD_REQUEST).
+    // Treat them as "omit field" so metadata-only edits (e.g. deliveryDate) succeed.
+    if (updatePayload.stockId === '') {
+      delete updatePayload.stockId;
+    }
+    if (updatePayload.customerId === '') {
+      delete updatePayload.customerId;
+    }
+    // Sale type is set at create time; never rewrite it via update payload.
+    delete updatePayload.type;
 
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id },
-      select: { id: true, status: true, stockId: true, campaignId: true, vehicleModelId: true },
+      select: {
+        id: true,
+        saleNumber: true,
+        status: true,
+        stockId: true,
+        campaignId: true,
+        vehicleModelId: true,
+      },
     });
 
     if (!existingSale) {
@@ -495,12 +527,12 @@ export class SalesService {
 
     // Cannot update cancelled sale
     if (existingSale.status === 'CANCELLED') {
-      throw new BadRequestError('Cannot update cancelled sale');
+      throw new BadRequestError('ไม่สามารถแก้ไขรายการที่ถูกยกเลิกแล้ว');
     }
 
     // Only ADMIN and ACCOUNTANT can update completed sale
     if (existingSale.status === 'COMPLETED' && !['ADMIN', 'ACCOUNTANT'].includes(currentUser.role)) {
-      throw new BadRequestError('Cannot update completed sale');
+      throw new BadRequestError('ไม่สามารถแก้ไขรายการที่เสร็จสิ้นแล้ว');
     }
 
     // ACCOUNTANT can only edit financial fields on completed sales
@@ -514,15 +546,44 @@ export class SalesService {
         'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
         'createdAt', 'deliveryDate',
       ];
-      const disallowed = Object.keys(validated).filter(k => !allowedFields.includes(k));
+      const disallowed = Object.keys(updatePayload).filter((k) => !allowedFields.includes(k));
       if (disallowed.length > 0) {
         throw new BadRequestError(
-          `Cannot modify these fields on a completed sale: ${disallowed.join(', ')}`
+          `ไม่สามารถแก้ไขฟิลด์เหล่านี้ในรายการที่เสร็จสิ้นแล้ว: ${disallowed.join(', ')}`
         );
       }
     }
 
-    // Recalculate remaining amount if total or deposit changed.
+    // Stock reassignment must mirror assignStock inventory rules (reserve new /
+    // release old). Availability is re-checked inside the transaction via
+    // conditional updateMany so concurrent assign/update cannot both win.
+    // Re-sending the same stockId is a no-op for inventory.
+    const incomingStockId =
+      typeof updatePayload.stockId === 'string' ? updatePayload.stockId : undefined;
+    const stockChanging =
+      incomingStockId !== undefined && incomingStockId !== existingSale.stockId;
+    let newStockStatus: 'RESERVED' | 'PREPARING' | null = null;
+
+    if (stockChanging) {
+      if (!authService.hasPermission(currentUser.role, 'SALE_ASSIGN_STOCK')) {
+        throw new ForbiddenError();
+      }
+
+      if (['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(existingSale.status)) {
+        throw new BadRequestError(
+          'ไม่สามารถเปลี่ยนรถในสต็อกเมื่อรายการส่งมอบแล้ว เสร็จสิ้น หรือยกเลิก'
+        );
+      }
+
+      newStockStatus = existingSale.status === 'PREPARING' ? 'PREPARING' : 'RESERVED';
+    }
+
+    // Recalculate remaining amount only when financial values actually change.
+    //
+    // The sales form always re-sends total/deposit/fees on every save — including
+    // when the user only edits วันที่รับรถ (deliveryDate). Recomputing remaining
+    // in that case would reject the whole request for legacy/inconsistent rows
+    // where paidAmount > total + fees, even though no money field changed.
     //
     // Invariant: remainingAmount = totalAmount + totalFees - paidAmount.
     //
@@ -544,13 +605,12 @@ export class SalesService {
     // `depositAmount` is still validated to be ≤ `totalAmount` so the form
     // can't accept nonsensical values, but it does not influence `remaining`.
     const feeFields = ['insuranceFee', 'compulsoryInsuranceFee', 'registrationFee'] as const;
-    const feeChanged = feeFields.some((f) => validated[f] !== undefined);
+    const anyFinancialPresent =
+      updatePayload.totalAmount !== undefined ||
+      updatePayload.depositAmount !== undefined ||
+      feeFields.some((f) => updatePayload[f] !== undefined);
 
-    if (
-      validated.totalAmount !== undefined ||
-      validated.depositAmount !== undefined ||
-      feeChanged
-    ) {
+    if (anyFinancialPresent) {
       const currentSale = await db.sale.findUnique({
         where: { id },
         select: {
@@ -563,40 +623,131 @@ export class SalesService {
         },
       });
 
-      const newTotal = validated.totalAmount !== undefined ? validated.totalAmount : toNumber(currentSale!.totalAmount);
-      const newDeposit = validated.depositAmount !== undefined ? validated.depositAmount : toNumber(currentSale!.depositAmount);
-      const paid = toNumber(currentSale!.paidAmount);
-      const newFees = feeFields.reduce(
-        (sum, f) =>
-          sum + (validated[f] !== undefined ? (validated[f] as number) : (toNumberOrNull(currentSale![f]) || 0)),
+      const oldTotal = toNumber(currentSale!.totalAmount);
+      const oldDeposit = toNumber(currentSale!.depositAmount);
+      const oldFees = feeFields.reduce(
+        (sum, f) => sum + (toNumberOrNull(currentSale![f]) || 0),
         0
       );
 
-      if (newDeposit > newTotal) {
-        throw new BadRequestError('Deposit amount cannot exceed total amount');
-      }
+      const newTotal =
+        updatePayload.totalAmount !== undefined
+          ? Number(updatePayload.totalAmount)
+          : oldTotal;
+      const newDeposit =
+        updatePayload.depositAmount !== undefined
+          ? Number(updatePayload.depositAmount)
+          : oldDeposit;
+      const newFees = feeFields.reduce(
+        (sum, f) =>
+          sum +
+          (updatePayload[f] !== undefined
+            ? Number(updatePayload[f])
+            : toNumberOrNull(currentSale![f]) || 0),
+        0
+      );
 
-      const newRemaining = newTotal + newFees - paid;
-      if (newRemaining < 0) {
-        throw new BadRequestError(
-          `ยอดค้างชำระติดลบ — ไม่สามารถลดยอดได้ (ชำระแล้ว ${paid.toLocaleString()} บาท)`
-        );
+      // No actual money-field change (form re-sent the same numbers) → leave
+      // remainingAmount alone so deliveryDate / notes / etc. can still save.
+      if (
+        shouldRecalcRemaining({
+          oldTotal,
+          oldDeposit,
+          oldFees,
+          newTotal,
+          newDeposit,
+          newFees,
+          totalPresent: updatePayload.totalAmount !== undefined,
+          depositPresent: updatePayload.depositAmount !== undefined,
+        })
+      ) {
+        const paid = toNumber(currentSale!.paidAmount);
+        const result = recalcRemaining(newTotal, newDeposit, paid, newFees);
+        if (!result.ok) {
+          throw new BadRequestError(result.message);
+        }
+        updatePayload.remainingAmount = result.remaining;
       }
-
-      validated.remainingAmount = newRemaining;
     }
 
     const campaignSubsidySnapshot = await campaignFormulasService.computeSaleSubsidySnapshot({
-      campaignId: validated.campaignId ?? existingSale.campaignId,
-      vehicleModelId: validated.vehicleModelId ?? existingSale.vehicleModelId,
-      stockId: validated.stockId ?? existingSale.stockId,
+      campaignId:
+        (updatePayload.campaignId as string | undefined) ?? existingSale.campaignId,
+      vehicleModelId:
+        (updatePayload.vehicleModelId as string | undefined) ?? existingSale.vehicleModelId,
+      stockId: (updatePayload.stockId as string | undefined) ?? existingSale.stockId,
     });
 
-    // Update sale
-    const sale = await db.sale.update({
-      where: { id },
-      data: { ...validated, campaignSubsidySnapshot },
-    });
+    const updateData = { ...updatePayload, campaignSubsidySnapshot };
+
+    // When stock changes, reserve new (conditional) then release old in one
+    // transaction so concurrent sales cannot both claim the same unit.
+    const sale = stockChanging
+      ? await db.$transaction(async (tx) => {
+          const newStock = await tx.stock.findFirst({
+            where: { id: incomingStockId, deletedAt: null },
+            select: { id: true, status: true, vehicleModelId: true },
+          });
+
+          if (!newStock) {
+            throw new NotFoundError('Stock');
+          }
+          if (newStock.status === 'DEMO') {
+            throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
+          }
+          if (newStock.status !== 'AVAILABLE') {
+            throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
+          }
+
+          if (
+            existingSale.vehicleModelId &&
+            newStock.vehicleModelId !== existingSale.vehicleModelId
+          ) {
+            console.warn(
+              `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
+            );
+          }
+
+          // Atomic claim: only succeeds if still AVAILABLE
+          const claimed = await tx.stock.updateMany({
+            where: { id: incomingStockId!, status: 'AVAILABLE', deletedAt: null },
+            data: { status: newStockStatus! },
+          });
+          if (claimed.count === 0) {
+            throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
+          }
+
+          if (existingSale.stockId && existingSale.stockId !== incomingStockId) {
+            await tx.stock.update({
+              where: { id: existingSale.stockId },
+              data: { status: 'AVAILABLE' },
+            });
+          }
+
+          const updated = await tx.sale.update({
+            where: { id },
+            data: updateData,
+          });
+
+          await tx.saleHistory.create({
+            data: {
+              saleId: updated.id,
+              action: existingSale.stockId ? 'CHANGE_STOCK' : 'ASSIGN_STOCK',
+              fromStatus: existingSale.status,
+              toStatus: existingSale.status,
+              notes: existingSale.stockId
+                ? `Changed stock from ${existingSale.stockId} to ${incomingStockId} (via sale update)`
+                : `Assigned stock ${incomingStockId} (via sale update)`,
+              createdById: currentUser.id,
+            },
+          });
+
+          return updated;
+        })
+      : await db.sale.update({
+          where: { id },
+          data: updateData,
+        });
 
     // Log activity
     await db.activityLog.create({
@@ -607,7 +758,15 @@ export class SalesService {
         entityId: sale.id,
         details: {
           saleNumber: sale.saleNumber,
-          changes: validated,
+          changes: updatePayload,
+          ...(stockChanging
+            ? {
+                stockChange: {
+                  oldStockId: existingSale.stockId,
+                  newStockId: incomingStockId,
+                },
+              }
+            : {}),
         },
       },
     });
@@ -863,69 +1022,61 @@ export class SalesService {
       throw new BadRequestError(`Cannot assign stock to ${existingSale.status.toLowerCase()} sale`);
     }
 
-    // Check if new stock exists and is available (exclude soft-deleted)
-    const newStock = await db.stock.findFirst({
-      where: { id: stockId, deletedAt: null },
-      select: { id: true, status: true, vehicleModelId: true },
-    });
-
-    if (!newStock) {
-      throw new NotFoundError('Stock');
-    }
-
-    if (newStock.status === 'DEMO') {
-      throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
-    }
-    if (newStock.status !== 'AVAILABLE') {
-      throw new BadRequestError('Stock is not available');
-    }
-
-    // Optionally validate that stock matches the vehicle model preference
-    if (existingSale.vehicleModelId && newStock.vehicleModelId !== existingSale.vehicleModelId) {
-      // This is a warning, not an error - allow assignment but log it
-      console.warn(`Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`);
-    }
-
     // Determine stock status based on sale status
     const stockStatus = existingSale.status === 'PREPARING' ? 'PREPARING' : 'RESERVED';
 
-    // Use transaction to ensure atomicity
+    // Claim availability inside the transaction (updateMany where AVAILABLE)
+    // so concurrent assignStock / updateSale cannot double-book the unit.
     const result = await db.$transaction(async (tx) => {
-      // Release old stock if exists
+      const newStock = await tx.stock.findFirst({
+        where: { id: stockId, deletedAt: null },
+        select: { id: true, status: true, vehicleModelId: true },
+      });
+
+      if (!newStock) {
+        throw new NotFoundError('Stock');
+      }
+      if (newStock.status === 'DEMO') {
+        throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
+      }
+      if (newStock.status !== 'AVAILABLE') {
+        throw new BadRequestError('Stock is not available');
+      }
+
+      if (existingSale.vehicleModelId && newStock.vehicleModelId !== existingSale.vehicleModelId) {
+        console.warn(
+          `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
+        );
+      }
+
+      const claimed = await tx.stock.updateMany({
+        where: { id: stockId, status: 'AVAILABLE', deletedAt: null },
+        data: { status: stockStatus },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestError('Stock is not available');
+      }
+
       if (existingSale.stockId && existingSale.stockId !== stockId) {
         await tx.stock.update({
           where: { id: existingSale.stockId },
-          data: {
-            status: 'AVAILABLE',
-          },
+          data: { status: 'AVAILABLE' },
         });
       }
 
-      // Assign new stock to sale
       const sale = await tx.sale.update({
         where: { id: saleId },
-        data: {
-          stockId: stockId,
-        },
+        data: { stockId },
       });
 
-      // Update new stock status
-      await tx.stock.update({
-        where: { id: stockId },
-        data: {
-          status: stockStatus,
-        },
-      });
-
-      // Create history record
       await tx.saleHistory.create({
         data: {
           saleId: sale.id,
           action: existingSale.stockId ? 'CHANGE_STOCK' : 'ASSIGN_STOCK',
           fromStatus: existingSale.status,
           toStatus: existingSale.status,
-          notes: existingSale.stockId 
-            ? `Changed stock from ${existingSale.stockId} to ${stockId}` 
+          notes: existingSale.stockId
+            ? `Changed stock from ${existingSale.stockId} to ${stockId}`
             : `Assigned stock ${stockId}`,
           createdById: currentUser.id,
         },

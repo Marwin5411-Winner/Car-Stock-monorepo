@@ -206,19 +206,41 @@ export default function SalesFormPage() {
   // Convert stocks to SearchSelect options. Include the currently assigned stock
   // even when it is no longer AVAILABLE (e.g. RESERVED on this sale) so re-save
   // and display stay correct while still allowing swap to other available units.
+  // Label shows last 8 VIN chars for readability; full VIN is in description + filterFn
+  // so users can search by complete VIN or any substring.
   const stockOptions: SearchSelectOption<Stock>[] = useMemo(() => {
-    const toOption = (stock: Stock): SearchSelectOption<Stock> => ({
-      value: stock.id,
-      label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})`,
-      description: stock.expectedSalePrice ? `ราคา: ฿${stock.expectedSalePrice.toLocaleString()}` : undefined,
-      data: stock,
-    });
+    const toOption = (stock: Stock): SearchSelectOption<Stock> => {
+      const pricePart = stock.expectedSalePrice
+        ? ` • ราคา: ฿${stock.expectedSalePrice.toLocaleString()}`
+        : '';
+      return {
+        value: stock.id,
+        label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})`,
+        description: `VIN: ${stock.vin}${pricePart}`,
+        data: stock,
+      };
+    };
     const options = availableStocks.map(toOption);
     if (selectedStock && !options.some((o) => o.value === selectedStock.id)) {
       options.unshift(toOption(selectedStock));
     }
     return options;
   }, [availableStocks, selectedStock]);
+
+  const filterStockOption = useCallback((option: SearchSelectOption<Stock>, query: string) => {
+    const q = query.toLowerCase().trim();
+    if (!q) return true;
+    const stock = option.data;
+    return (
+      option.label.toLowerCase().includes(q) ||
+      (option.description?.toLowerCase().includes(q) ?? false) ||
+      (stock?.vin?.toLowerCase().includes(q) ?? false) ||
+      (stock?.exteriorColor?.toLowerCase().includes(q) ?? false) ||
+      (stock?.vehicleModel?.brand?.toLowerCase().includes(q) ?? false) ||
+      (stock?.vehicleModel?.model?.toLowerCase().includes(q) ?? false) ||
+      (stock?.vehicleModel?.variant?.toLowerCase().includes(q) ?? false)
+    );
+  }, []);
 
   const handleStockSelect = (value: string, option?: SearchSelectOption<Stock>) => {
     const stock = option?.data || null;
@@ -463,15 +485,16 @@ export default function SalesFormPage() {
                   value={formData.stockId}
                   onChange={handleStockSelect}
                   options={stockOptions}
+                  filterFn={filterStockOption}
                   label={
                     saleType === 'RESERVATION_SALE'
                       ? 'เลือก / เปลี่ยน Stock (รถในสต็อก)'
                       : 'เลือก Stock (รถที่มีในสต็อก)'
                   }
                   required={saleType === 'DIRECT_SALE' || !isEditing}
-                  placeholder="-- เลือก Stock --"
+                  placeholder="ค้นหาด้วยรุ่น, สี หรือเลข VIN"
                   error={errors.stockId}
-                  emptyMessage="ไม่มี Stock ที่พร้อมขาย"
+                  emptyMessage="ไม่พบ Stock ที่ตรงกับการค้นหา"
                   disabled={isCompletedAsAccountant}
                 />
                 {saleType === 'RESERVATION_SALE' && (

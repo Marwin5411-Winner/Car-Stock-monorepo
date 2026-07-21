@@ -29,7 +29,7 @@ interface ReportCard {
 const REPORTS: ReportCard[] = [
   {
     id: 'daily-payments',
-    title: 'รายการรับเงินประจำวัน',
+    title: 'รายงานรายวันรับเงินมัดจำ',
     description: 'รายงานการรับชำระเงิน แยกตามวันที่และวิธีการชำระ',
     icon: <Banknote className="w-8 h-8" />,
     path: '/reports/daily-payments',

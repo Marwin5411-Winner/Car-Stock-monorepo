@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<div class="document-title" style="font-size: 16px; margin: 15px 0 8px;">รายงานรายวันรับเงินมัดจำ - เรียงตามวันที่เอกสาร</div>
+<div class="document-title" style="font-size: 16px; margin: 15px 0 8px;">รายงานรายวันรับเงินมัดจำ - เรียงตามวันที่เอกสาร (แบบเลือกเอง)</div>
 
 <div class="text-center" style="margin-bottom: 15px; font-size: 11px;">
   จากวันที่ {{dateRange}}
@@ -25,16 +25,20 @@
   <table class="daily-payment-table">
     <thead>
       <tr>
-        <th style="width: 8%">วันที่เอกสาร</th>
-        <th style="width: 10%">เลขที่เอกสาร</th>
-        <th style="width: 10%">เลขที่ใบกำกับ</th>
-        <th style="width: 15%">ชื่อลูกค้า</th>
-        <th style="width: 12%">รายการ</th>
-        <th style="width: 9%" class="text-right">รวมทั้งสิ้น</th>
-        <th style="width: 9%" class="text-right">เงินสด</th>
-        <th style="width: 9%" class="text-right">เงินโอน</th>
-        <th style="width: 8%">ผู้รับ</th>
-        <th style="width: 10%">หมายเหตุ</th>
+        <th style="width: 7%">วันที่เอกสาร</th>
+        <th style="width: 8%">เลขที่เอกสาร</th>
+        <th style="width: 8%">เลขที่ใบกำกับ</th>
+        <th style="width: 12%">ชื่อลูกค้า</th>
+        <th style="width: 7%" class="text-right">จำนวนเงิน</th>
+        <th style="width: 6%" class="text-right">ภาษีขาย</th>
+        <th style="width: 7%" class="text-right">รวมทั้งสิ้น</th>
+        <th style="width: 7%" class="text-right">ลูกค้าพ. ที่จ่าย</th>
+        <th style="width: 6%" class="text-right">เงินสด</th>
+        <th style="width: 6%" class="text-right">เช็ค</th>
+        <th style="width: 7%" class="text-right">ค่าธรรมเนียม</th>
+        <th style="width: 6%" class="text-right">เงินโอน</th>
+        <th style="width: 6%" class="text-right">รายได้อื่นๆ</th>
+        <th style="width: 7%" class="text-right">ค่าใช้จ่ายอื่นๆ</th>
       </tr>
     </thead>
     <tbody>
@@ -44,31 +48,45 @@
         <td>{{receiptNumber}}</td>
         <td>{{receiptNumber}}</td>
         <td>{{customerName}}</td>
-        <td>{{description}}</td>
+        <td class="text-right">{{#if baseAmount}}{{formatCurrency baseAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if vatAmount}}{{formatCurrency vatAmount false}}{{/if}}</td>
         <td class="text-right">{{formatCurrency amount false}}</td>
-        <td class="text-right">{{#if isCash}}{{formatCurrency amount false}}{{/if}}</td>
-        <td class="text-right">{{#unless isCash}}{{formatCurrency amount false}}{{/unless}}</td>
-        <td>{{issuedBy}}</td>
-        <td>{{notes}}</td>
+        <td class="text-right">{{#if customerPaidAmount}}{{formatCurrency customerPaidAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if cashAmount}}{{formatCurrency cashAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if chequeAmount}}{{formatCurrency chequeAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if feeAmount}}{{formatCurrency feeAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if transferAmount}}{{formatCurrency transferAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if otherIncomeAmount}}{{formatCurrency otherIncomeAmount false}}{{/if}}</td>
+        <td class="text-right">{{#if otherExpenseAmount}}{{formatCurrency otherExpenseAmount false}}{{/if}}</td>
       </tr>
       {{/each}}
       <tr class="row-daily-total">
         <td colspan="3">รวมประจำวัน</td>
         <td>{{summary.totalCount}} รายการ</td>
-        <td>รวมเงิน</td>
+        <td class="text-right">{{formatCurrency summary.baseAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.vatAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.customerPaidAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.cashAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.chequeAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.feeAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.transferAmount false}}</td>
-        <td colspan="2"></td>
+        <td class="text-right">{{formatCurrency summary.otherIncomeAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.otherExpenseAmount false}}</td>
       </tr>
       <tr class="row-grand-total">
         <td colspan="3">รวมทั้งสิ้น</td>
         <td>{{summary.totalCount}} รายการ</td>
-        <td>รวมเงินทั้งสิ้น</td>
+        <td class="text-right">{{formatCurrency summary.baseAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.vatAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.customerPaidAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.cashAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.chequeAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.feeAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.transferAmount false}}</td>
-        <td colspan="2"></td>
+        <td class="text-right">{{formatCurrency summary.otherIncomeAmount false}}</td>
+        <td class="text-right">{{formatCurrency summary.otherExpenseAmount false}}</td>
       </tr>
     </tbody>
   </table>
@@ -79,11 +97,12 @@
 </div>
 
 <style>
-  .daily-payment-table { font-size: 10px; }
+  .daily-payment-table { font-size: 9px; width: 100%; border-collapse: collapse; }
   .daily-payment-table th,
-  .daily-payment-table td { padding: 4px 5px; font-size: 10px; border: 1px solid #888; }
+  .daily-payment-table td { padding: 3px 4px; font-size: 9px; border: 1px solid #888; }
   .daily-payment-table th { background: #7f858a; color: #fff; font-weight: normal; }
   .daily-payment-table tr:nth-child(even) { background: #f5f5f5; }
   .daily-payment-table .row-daily-total td { font-weight: bold; background: #eee; border-top: 2px solid #333; }
   .daily-payment-table .row-grand-total td { font-weight: bold; background: #dcdcdc; border-top: 1px solid #333; border-bottom: 3px double #000; }
+  .text-right { text-align: right; }
 </style>

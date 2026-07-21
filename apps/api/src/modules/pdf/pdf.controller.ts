@@ -4,6 +4,7 @@
  */
 
 import { PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from '@car-stock/shared/constants';
+import { splitVat } from '@car-stock/shared/formulas';
 import { Elysia, t } from 'elysia';
 import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
 import { db } from '../../lib/db';
@@ -1591,26 +1592,36 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       const totalAmount = dailyPaymentReport.reduce((sum, p) => sum + Number(p.amount), 0);
       const totalCount = dailyPaymentReport.length;
 
-      // Map payments — include fields required by the template (description/issuedBy/notes)
-      // and precompute isCash so the template can route the amount to the correct column.
-      const mappedPayments = dailyPaymentReport.map((p) => ({
-        paymentDate: p.paymentDate,
-        receiptNumber: p.receiptNumber,
-        invoiceNumber: p.receiptNumber,
-        customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
-        description: p.description || '',
-        amount: Number(p.amount),
-        paymentType: p.paymentType,
-        paymentMethod: p.paymentMethod,
-        isCash: p.paymentMethod === 'CASH',
-        issuedBy: p.issuedBy || '',
-        notes: p.notes || '',
-      }));
+      // VAT-inclusive split via shared helper. Layout keeps zero stub columns for
+      // legacy parity; description/notes stay on the payment API for on-screen use.
+      const mappedPayments = dailyPaymentReport.map((p) => {
+        const amount = Number(p.amount);
+        const { net: baseAmount, vat: vatAmount } = splitVat(amount);
+        return {
+          paymentDate: p.paymentDate,
+          receiptNumber: p.receiptNumber,
+          customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
+          description: p.description || '',
+          issuedBy: p.issuedBy || '',
+          notes: p.notes || '',
+          amount,
+          baseAmount,
+          vatAmount,
+          cashAmount: p.paymentMethod === 'CASH' ? amount : 0,
+          chequeAmount: p.paymentMethod === 'CHEQUE' ? amount : 0,
+          transferAmount:
+            p.paymentMethod === 'BANK_TRANSFER' || p.paymentMethod === 'CREDIT_CARD' ? amount : 0,
+          // Layout-parity stubs (no data source yet)
+          feeAmount: 0,
+          otherIncomeAmount: 0,
+          otherExpenseAmount: 0,
+          customerPaidAmount: 0,
+        };
+      });
 
-      const cashAmount = mappedPayments
-        .filter((p) => p.isCash)
-        .reduce((sum, p) => sum + p.amount, 0);
-      const transferAmount = totalAmount - cashAmount;
+      const sumCol = (
+        key: 'baseAmount' | 'vatAmount' | 'cashAmount' | 'chequeAmount' | 'transferAmount'
+      ) => mappedPayments.reduce((s, p) => s + p[key], 0);
 
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
@@ -1622,8 +1633,15 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         summary: {
           totalAmount,
           totalCount,
-          cashAmount,
-          transferAmount,
+          baseAmount: sumCol('baseAmount'),
+          vatAmount: sumCol('vatAmount'),
+          cashAmount: sumCol('cashAmount'),
+          chequeAmount: sumCol('chequeAmount'),
+          transferAmount: sumCol('transferAmount'),
+          feeAmount: 0,
+          otherIncomeAmount: 0,
+          otherExpenseAmount: 0,
+          customerPaidAmount: 0,
           byMethod: [],
           byType: [],
         },

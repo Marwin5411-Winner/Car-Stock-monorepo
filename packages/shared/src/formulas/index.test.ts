@@ -1,5 +1,25 @@
 import { describe, expect, test } from 'bun:test';
-import { applyFormulaStep, formulaSubsidyAmount, sumCampaignSubsidies } from './index';
+import { applyFormulaStep, formulaSubsidyAmount, splitVat, sumCampaignSubsidies } from './index';
+
+describe('splitVat', () => {
+  test('returns zeros for gross = 0', () => {
+    expect(splitVat(0)).toEqual({ net: 0, vat: 0, gross: 0 });
+  });
+  test('clamps negative gross to zero', () => {
+    expect(splitVat(-100)).toEqual({ net: 0, vat: 0, gross: 0 });
+  });
+  test('matches Excel baseCost=466650', () => {
+    const result = splitVat(466650);
+    expect(result.net).toBe(436121.5);
+    expect(result.vat).toBe(30528.5);
+  });
+  test('net + vat === gross', () => {
+    for (const gross of [100, 999.99, 12345.67, 1_000_000, 7]) {
+      const { net, vat } = splitVat(gross);
+      expect(Math.round((net + vat) * 100) / 100).toBe(gross);
+    }
+  });
+});
 
 // Ground truth computed by hand, independent of the implementation.
 describe('applyFormulaStep', () => {

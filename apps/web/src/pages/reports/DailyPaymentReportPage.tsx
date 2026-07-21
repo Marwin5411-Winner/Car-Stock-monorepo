@@ -1,4 +1,5 @@
 import type { DailyPaymentItem, DailyPaymentReportResponse } from '@car-stock/shared/types';
+import { splitVat } from '@car-stock/shared/formulas';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -33,15 +34,39 @@ function fmtAmount(val: number | null | undefined): string {
   return val.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Sum payment amounts by method bucket — CASH → cash column; all other methods → transfer column. */
-function splitByMethod(payments: DailyPaymentItem[]) {
-  let cash = 0;
-  let transfer = 0;
-  for (const p of payments) {
-    if (p.paymentMethod === 'CASH') cash += p.amount;
-    else transfer += p.amount;
-  }
-  return { cash, transfer };
+/** Map payment method → report money columns matching legacy layout. */
+function methodAmounts(p: DailyPaymentItem) {
+  const a = p.amount;
+  return {
+    cash: p.paymentMethod === 'CASH' ? a : 0,
+    cheque: p.paymentMethod === 'CHEQUE' ? a : 0,
+    // CREDIT_CARD folded into เงินโอน (legacy sheet has no card column)
+    transfer: p.paymentMethod === 'BANK_TRANSFER' || p.paymentMethod === 'CREDIT_CARD' ? a : 0,
+  };
+}
+
+function enrichPayment(p: DailyPaymentItem) {
+  const { net: base, vat } = splitVat(p.amount);
+  const methods = methodAmounts(p);
+  return {
+    ...p,
+    baseAmount: base,
+    vatAmount: vat,
+    cashAmount: methods.cash,
+    chequeAmount: methods.cheque,
+    transferAmount: methods.transfer,
+    // No data source yet — columns kept for parity with legacy report
+    feeAmount: 0,
+    otherIncomeAmount: 0,
+    otherExpenseAmount: 0,
+    customerPaidAmount: 0,
+  };
+}
+
+type EnrichedPayment = ReturnType<typeof enrichPayment>;
+
+function sumField(rows: EnrichedPayment[], key: keyof EnrichedPayment): number {
+  return rows.reduce((sum, r) => sum + (typeof r[key] === 'number' ? (r[key] as number) : 0), 0);
 }
 
 export default function DailyPaymentReportPage() {
@@ -72,24 +97,58 @@ export default function DailyPaymentReportPage() {
     fetchReport();
   }, []);
 
+  const payments = (data?.payments ?? []).map(enrichPayment);
+  const totalCount = payments.length;
+  const totalAmount = data?.summary.totalAmount ?? 0;
+  const totals = {
+    base: sumField(payments, 'baseAmount'),
+    vat: sumField(payments, 'vatAmount'),
+    total: totalAmount,
+    cash: sumField(payments, 'cashAmount'),
+    cheque: sumField(payments, 'chequeAmount'),
+    transfer: sumField(payments, 'transferAmount'),
+    fee: sumField(payments, 'feeAmount'),
+    otherIncome: sumField(payments, 'otherIncomeAmount'),
+    otherExpense: sumField(payments, 'otherExpenseAmount'),
+    customerPaid: sumField(payments, 'customerPaidAmount'),
+  };
+
   const exportHeaders = [
     { key: 'paymentDate', label: 'วันที่เอกสาร' },
     { key: 'receiptNumber', label: 'เลขที่เอกสาร' },
     { key: 'invoiceNumber', label: 'เลขที่ใบกำกับ' },
     { key: 'customerName', label: 'ชื่อลูกค้า' },
-    { key: 'description', label: 'รายการ' },
+    { key: 'description', label: 'รายละเอียด' },
+    { key: 'baseAmount', label: 'จำนวนเงิน' },
+    { key: 'vatAmount', label: 'ภาษีขาย' },
     { key: 'amount', label: 'รวมทั้งสิ้น' },
+    { key: 'customerPaidAmount', label: 'ลูกค้าพ. ที่จ่าย' },
     { key: 'cashAmount', label: 'เงินสด' },
+    { key: 'chequeAmount', label: 'เช็ค' },
+    { key: 'feeAmount', label: 'ค่าธรรมเนียม' },
     { key: 'transferAmount', label: 'เงินโอน' },
-    { key: 'issuedBy', label: 'ผู้รับ' },
+    { key: 'otherIncomeAmount', label: 'รายได้อื่นๆ' },
+    { key: 'otherExpenseAmount', label: 'ค่าใช้จ่ายอื่นๆ' },
+    { key: 'issuedBy', label: 'ผู้รับเงิน' },
     { key: 'notes', label: 'หมายเหตุ' },
   ];
 
-  const exportRows = (data?.payments ?? []).map((p) => ({
+  const exportRows = payments.map((p) => ({
     ...p,
+    paymentDate: p.paymentDate.split('T')[0],
     invoiceNumber: p.receiptNumber,
-    cashAmount: p.paymentMethod === 'CASH' ? p.amount : '',
-    transferAmount: p.paymentMethod !== 'CASH' ? p.amount : '',
+    description: p.description || '',
+    issuedBy: p.issuedBy || '',
+    notes: p.notes || '',
+    baseAmount: p.baseAmount || '',
+    vatAmount: p.vatAmount || '',
+    cashAmount: p.cashAmount || '',
+    chequeAmount: p.chequeAmount || '',
+    feeAmount: p.feeAmount || '',
+    transferAmount: p.transferAmount || '',
+    otherIncomeAmount: p.otherIncomeAmount || '',
+    otherExpenseAmount: p.otherExpenseAmount || '',
+    customerPaidAmount: p.customerPaidAmount || '',
   }));
 
   const handleExportPdf = async () => {
@@ -111,11 +170,6 @@ export default function DailyPaymentReportPage() {
     }
   };
 
-  const payments = data?.payments ?? [];
-  const totals = splitByMethod(payments);
-  const totalCount = payments.length;
-  const totalAmount = data?.summary.totalAmount ?? 0;
-
   return (
     <MainLayout>
       {/* Print-specific styles */}
@@ -124,8 +178,8 @@ export default function DailyPaymentReportPage() {
           .no-print { display: none !important; }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
-          @page { size: A4 landscape; margin: 12mm; }
-          body { font-family: 'Sarabun', sans-serif; font-size: 9pt; }
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: 'Sarabun', sans-serif; font-size: 8pt; }
           .print-clean { box-shadow: none !important; border: none !important; }
         }
       `}</style>
@@ -138,8 +192,8 @@ export default function DailyPaymentReportPage() {
           <ArrowLeft className="w-5 h-5 mr-2" />
           กลับ
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">รายการรับเงินประจำวัน</h1>
-        <p className="text-gray-600 mt-1">รายงานการรับชำระเงินแยกตามวันที่และวิธีการชำระ</p>
+        <h1 className="text-2xl font-bold text-gray-900">รายงานรายวันรับเงินมัดจำ</h1>
+        <p className="text-gray-600 mt-1">เรียงตามวันที่เอกสาร — แยกยอดเงินสด / เช็ค / เงินโอน และคำนวณภาษีขาย 7%</p>
       </div>
 
       {/* Date Filter */}
@@ -158,7 +212,7 @@ export default function DailyPaymentReportPage() {
       <div className="flex gap-3 mb-6 no-print">
         <ExportButton
           data={exportRows}
-          filename="รายการรับเงินประจำวัน"
+          filename="รายงานรายวันรับเงินมัดจำ"
           sheetName="รายการรับเงิน"
           headers={exportHeaders}
           loading={loading}
@@ -171,7 +225,7 @@ export default function DailyPaymentReportPage() {
           <FileText className="w-4 h-4 mr-2" />
           ส่งออก PDF
         </button>
-        <PrintButton title="รายการรับเงินประจำวัน" contentId="report-content" />
+        <PrintButton title="รายงานรายวันรับเงินมัดจำ" contentId="report-content" />
       </div>
 
       {error && (
@@ -183,129 +237,210 @@ export default function DailyPaymentReportPage() {
       <div id="report-content">
         {data && (
           <>
-            {/* Detail Table — matches reference image */}
+            {/* Print header — matches reference document title */}
+            <div className="hidden print:block text-center mb-3">
+              <div className="text-base font-bold">รายงานรายวันรับเงินมัดจำ - เรียงตามวันที่เอกสาร (แบบเลือกเอง)</div>
+              <div className="text-xs mt-1">
+                จากวันที่ {formatDate(startDate)} ถึง {formatDate(endDate)}
+              </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print-clean">
-              <div className="px-6 py-3 border-b bg-gray-50">
+              <div className="px-6 py-3 border-b bg-gray-50 no-print">
                 <h3 className="text-sm font-semibold text-gray-900">รายละเอียดการรับเงิน</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-xs">
+                <table className="min-w-full text-[11px]">
                   <thead className="bg-gray-50 border-b-2 border-gray-400">
                     <tr>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
                         วันที่เอกสาร
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
                         เลขที่เอกสาร
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
                         เลขที่ใบกำกับ
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
                         ชื่อลูกค้า
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700">รายการ</th>
-                      <th className="px-2 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        จำนวนเงิน
+                      </th>
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        ภาษีขาย
+                      </th>
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
                         รวมทั้งสิ้น
                       </th>
-                      <th className="px-2 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        ลูกค้าพ. ที่จ่าย
+                      </th>
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
                         เงินสด
                       </th>
-                      <th className="px-2 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        เช็ค
+                      </th>
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        ค่าธรรมเนียม
+                      </th>
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
                         เงินโอน
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
-                        ผู้รับ
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        รายได้อื่นๆ
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700">หมายเหตุ</th>
+                      <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        ค่าใช้จ่ายอื่นๆ
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {payments.length === 0 && (
                       <tr>
-                        <td colSpan={10} className="px-2 py-12 text-center text-gray-500">
+                        <td colSpan={14} className="px-2 py-12 text-center text-gray-500">
                           ไม่พบรายการรับเงินในช่วงเวลาที่เลือก
                         </td>
                       </tr>
                     )}
                     {payments.map((p) => (
                       <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-gray-900 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 text-gray-900 whitespace-nowrap">
                           {formatDate(p.paymentDate.split('T')[0])}
                         </td>
-                        <td className="px-2 py-1.5 text-gray-900 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 text-gray-900 whitespace-nowrap">
                           {p.receiptNumber}
                         </td>
-                        <td className="px-2 py-1.5 text-gray-900 whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 text-gray-900 whitespace-nowrap">
                           {p.receiptNumber}
                         </td>
-                        <td className="px-2 py-1.5 text-gray-900">{p.customerName}</td>
-                        <td className="px-2 py-1.5 text-gray-700">{p.description || ''}</td>
-                        <td className="px-2 py-1.5 text-right text-gray-900 font-medium tabular-nums whitespace-nowrap">
+                        <td className="px-1.5 py-1.5 text-gray-900">
+                          <div>{p.customerName}</div>
+                          {(p.description || p.notes) && (
+                            <div className="text-[10px] text-gray-500 mt-0.5 max-w-[12rem] truncate" title={[p.description, p.notes, p.issuedBy].filter(Boolean).join(' · ')}>
+                              {[p.description, p.notes].filter(Boolean).join(' · ')}
+                              {p.issuedBy ? ` · ${p.issuedBy}` : ''}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.baseAmount)}
+                        </td>
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.vatAmount)}
+                        </td>
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 font-medium tabular-nums whitespace-nowrap">
                           {fmtAmount(p.amount)}
                         </td>
-                        <td className="px-2 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
-                          {p.paymentMethod === 'CASH' ? fmtAmount(p.amount) : ''}
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.customerPaidAmount)}
                         </td>
-                        <td className="px-2 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
-                          {p.paymentMethod !== 'CASH' ? fmtAmount(p.amount) : ''}
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.cashAmount)}
                         </td>
-                        <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">
-                          {p.issuedBy || ''}
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.chequeAmount)}
                         </td>
-                        <td className="px-2 py-1.5 text-gray-500 max-w-[200px] truncate">
-                          {p.notes || ''}
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.feeAmount)}
+                        </td>
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.transferAmount)}
+                        </td>
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.otherIncomeAmount)}
+                        </td>
+                        <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(p.otherExpenseAmount)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   {payments.length > 0 && (
                     <tfoot>
-                      {/* รวมประจำวัน */}
                       <tr className="bg-gray-50 border-t-2 border-gray-400">
                         <td
                           colSpan={3}
-                          className="px-2 py-2 text-left font-semibold text-gray-800 whitespace-nowrap"
+                          className="px-1.5 py-2 text-left font-semibold text-gray-800 whitespace-nowrap"
                         >
                           รวมประจำวัน
                         </td>
-                        <td className="px-2 py-2 text-gray-700 whitespace-nowrap">
+                        <td className="px-1.5 py-2 text-gray-700 whitespace-nowrap">
                           {totalCount} รายการ
                         </td>
-                        <td className="px-2 py-2 text-left font-semibold text-gray-800">รวมเงิน</td>
-                        <td className="px-2 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
-                          {fmtAmount(totalAmount)}
+                        <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.base)}
                         </td>
-                        <td className="px-2 py-2 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                        <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.vat)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.total)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.customerPaid)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
                           {fmtAmount(totals.cash)}
                         </td>
-                        <td className="px-2 py-2 text-right text-gray-900 tabular-nums whitespace-nowrap">
+                        <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.cheque)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.fee)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
                           {fmtAmount(totals.transfer)}
                         </td>
-                        <td colSpan={2}></td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.otherIncome)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap">
+                          {fmtAmount(totals.otherExpense)}
+                        </td>
                       </tr>
-                      {/* รวมทั้งสิ้น */}
                       <tr className="bg-gray-100 border-t border-gray-400">
                         <td
                           colSpan={3}
-                          className="px-2 py-2 text-left font-bold text-gray-900 whitespace-nowrap"
+                          className="px-1.5 py-2 text-left font-bold text-gray-900 whitespace-nowrap"
                         >
                           รวมทั้งสิ้น
                         </td>
-                        <td className="px-2 py-2 text-gray-800 whitespace-nowrap">
+                        <td className="px-1.5 py-2 text-gray-800 whitespace-nowrap">
                           {totalCount} รายการ
                         </td>
-                        <td className="px-2 py-2 text-left font-bold text-gray-900">รวมเงินทั้งสิ้น</td>
-                        <td className="px-2 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
-                          {fmtAmount(totalAmount)}
+                        <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.base)}
                         </td>
-                        <td className="px-2 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                        <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.vat)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.total)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.customerPaid)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
                           {fmtAmount(totals.cash)}
                         </td>
-                        <td className="px-2 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                        <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.cheque)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.fee)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
                           {fmtAmount(totals.transfer)}
                         </td>
-                        <td colSpan={2}></td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.otherIncome)}
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
+                          {fmtAmount(totals.otherExpense)}
+                        </td>
                       </tr>
                     </tfoot>
                   )}
@@ -314,7 +449,7 @@ export default function DailyPaymentReportPage() {
             </div>
 
             {/* Method Breakdown Summary — below table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-6 print-clean">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-6 print-clean no-print">
               <div className="px-6 py-3 border-b bg-gray-50">
                 <h3 className="text-sm font-semibold text-gray-900">สรุปยอดรับเงินแยกตามวิธีชำระ</h3>
               </div>

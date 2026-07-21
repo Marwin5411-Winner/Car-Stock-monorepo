@@ -1,4 +1,5 @@
 import { Elysia, t } from 'elysia';
+import { splitVat } from '@car-stock/shared/formulas';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { authService } from '../auth/auth.service';
 import { formatThaiDate } from '../pdf/helpers';
@@ -94,15 +95,27 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       const header = await getCompanyHeader();
       if (!header.logoBase64) header.logoBase64 = pdfService.getLogoBase64();
 
-      // Enrich payments with isCash flag; split totals into cash/transfer buckets
-      const enrichedPayments = result.payments.map((p) => ({
-        ...p,
-        isCash: p.paymentMethod === 'CASH',
-      }));
-      const cashAmount = enrichedPayments
-        .filter((p) => p.isCash)
-        .reduce((sum, p) => sum + p.amount, 0);
-      const transferAmount = result.summary.totalAmount - cashAmount;
+      // VAT-inclusive split (shared formula). Deposit rows use same split as
+      // legacy sheet layout; non-taxable payment types would need an explicit flag.
+      const enrichedPayments = result.payments.map((p) => {
+        const { net: baseAmount, vat: vatAmount } = splitVat(p.amount);
+        return {
+          ...p,
+          baseAmount,
+          vatAmount,
+          cashAmount: p.paymentMethod === 'CASH' ? p.amount : 0,
+          chequeAmount: p.paymentMethod === 'CHEQUE' ? p.amount : 0,
+          transferAmount:
+            p.paymentMethod === 'BANK_TRANSFER' || p.paymentMethod === 'CREDIT_CARD' ? p.amount : 0,
+          feeAmount: 0,
+          otherIncomeAmount: 0,
+          otherExpenseAmount: 0,
+          customerPaidAmount: 0,
+        };
+      });
+
+      const sum = (key: 'baseAmount' | 'vatAmount' | 'cashAmount' | 'chequeAmount' | 'transferAmount') =>
+        enrichedPayments.reduce((s, p) => s + p[key], 0);
 
       const pdfBuffer = await pdfService.generateDailyPaymentReport({
         header,
@@ -110,8 +123,15 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         payments: enrichedPayments,
         summary: {
           ...result.summary,
-          cashAmount,
-          transferAmount,
+          baseAmount: sum('baseAmount'),
+          vatAmount: sum('vatAmount'),
+          cashAmount: sum('cashAmount'),
+          chequeAmount: sum('chequeAmount'),
+          transferAmount: sum('transferAmount'),
+          feeAmount: 0,
+          otherIncomeAmount: 0,
+          otherExpenseAmount: 0,
+          customerPaidAmount: 0,
         },
       });
 

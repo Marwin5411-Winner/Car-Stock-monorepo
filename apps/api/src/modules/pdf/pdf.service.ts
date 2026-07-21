@@ -539,6 +539,20 @@ export class PdfService {
     if (process.platform === 'darwin') {
       return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     }
+    if (process.platform === 'win32') {
+      // The portable Windows package ships no browser, and CHROMIUM_PATH is commented out
+      // in .env.example — without this every PDF failed trying to spawn /usr/bin/chromium.
+      // Edge is present on every Windows 10/11 install, so printing works untouched.
+      const candidates = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      ];
+      const found = candidates.find((p) => fs.existsSync(p));
+      if (found) return found;
+      throw new Error('ไม่พบ Chrome หรือ Edge สำหรับสร้าง PDF — ตั้งค่า CHROMIUM_PATH ใน config\\.env');
+    }
     return '/usr/bin/chromium';
   }
 

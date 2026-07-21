@@ -10,44 +10,28 @@
  * had actually paid, or a customer paid only a partial deposit. The test
  * cases below pin that down.
  *
- * The logic mirrors the production branch in
- * `apps/api/src/modules/sales/sales.service.ts` (updateSale), extracted so
- * it can be tested without a database. If the production formula changes,
- * update `recalcRemaining` here to match — the assertions are the spec.
+ * Also covers the "metadata-only save" path: the form re-sends total/deposit
+ * on every save (including when only deliveryDate changes). Remaining must
+ * only recompute when financial values actually differ from the DB, so
+ * delivery-date edits don't fail with BAD_REQUEST on inconsistent rows.
+ *
+ * Helpers are imported from sales-remaining.ts (same module used by production).
  */
 
 import { describe, it, expect } from 'bun:test';
-
-// Mirror the formula. Numbers mirror `toNumber()` output: plain `number`.
-// `fees` = insuranceFee + compulsoryInsuranceFee + registrationFee (buyer-charged).
-function recalcRemaining(
-  newTotal: number,
-  newDeposit: number,
-  paid: number,
-  fees = 0
-): { remaining: number; throws: false } | { throws: true; message: string } {
-  if (newDeposit > newTotal) {
-    return {
-      throws: true,
-      message: 'Deposit amount cannot exceed total amount',
-    };
-  }
-  const remaining = newTotal + fees - paid;
-  if (remaining < 0) {
-    return {
-      throws: true,
-      message: `ยอดค้างชำระติดลบ — ไม่สามารถลดยอดได้ (ชำระแล้ว ${paid.toLocaleString()} บาท)`,
-    };
-  }
-  return { remaining, throws: false };
-}
+import {
+  initialRemaining,
+  moneyEquals,
+  recalcRemaining,
+  shouldRecalcRemaining,
+} from '../modules/sales/sales-remaining';
 
 describe('updateSale — remaining-amount recalculation', () => {
   // ─── Baseline: same agreed deposit, customer paid in full ────────────────
   it('full payment: remaining drops to 0', () => {
     const r = recalcRemaining(1_000_000, 100_000, 1_000_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(0);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(0);
   });
 
   it('no payment yet: remaining = total (deposit is informational, not subtracted)', () => {
@@ -55,14 +39,14 @@ describe('updateSale — remaining-amount recalculation', () => {
     // agreed target. The previous max() formula subtracted deposit from
     // total here, which overstated the settled amount.
     const r = recalcRemaining(1_000_000, 100_000, 0);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(1_000_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(1_000_000);
   });
 
   it('deposit fully paid: remaining = total - deposit (matches createSale formula)', () => {
     const r = recalcRemaining(1_000_000, 100_000, 100_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(900_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(900_000);
   });
 
   it('partial deposit: remaining = total - paid (NOT total - deposit)', () => {
@@ -70,8 +54,8 @@ describe('updateSale — remaining-amount recalculation', () => {
     // formula this would compute 900,000 remaining, implying the customer
     // had settled 100k — wrong, they only paid 50k.
     const r = recalcRemaining(1_000_000, 100_000, 50_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(950_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(950_000);
   });
 
   // ─── REGRESSION: the bug the old max() formula caused ────────────────────
@@ -81,41 +65,112 @@ describe('updateSale — remaining-amount recalculation', () => {
     // pretending the customer had settled 200k they had not paid.
     // With the new formula, remaining stays at total - 100k = 900k.
     const r = recalcRemaining(1_000_000, 200_000, 100_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(900_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(900_000);
   });
 
   it('REGRESSION: operator clears deposit, customer has not paid → remaining = total', () => {
     const r = recalcRemaining(1_000_000, 0, 0);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(1_000_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(1_000_000);
   });
 
   // ─── Edge cases ──────────────────────────────────────────────────────────
   it('down payment + finance payment settle the rest', () => {
     // After deposit (100k) + down payment (200k) + finance disbursement (700k).
     const r = recalcRemaining(1_000_000, 100_000, 1_000_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(0);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(0);
   });
 
   it('reducing total below paid throws (cannot owe negative)', () => {
     // Customer paid 1M. Operator tries to lower total to 900k.
     const r = recalcRemaining(900_000, 100_000, 1_000_000);
-    expect(r.throws).toBe(true);
-    if (r.throws) expect(r.message).toMatch(/ค้างชำระติดลบ/);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/ค้างชำระติดลบ/);
   });
 
   it('deposit > total throws (form-level validation, not a calc bug)', () => {
     const r = recalcRemaining(500_000, 600_000, 0);
-    expect(r.throws).toBe(true);
-    if (r.throws) expect(r.message).toMatch(/Deposit amount cannot exceed total/);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/มัดจำต้องไม่เกินยอดรวม/);
   });
 
   it('zero total, zero paid, zero deposit → remaining 0', () => {
     const r = recalcRemaining(0, 0, 0);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(0);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(0);
+  });
+});
+
+describe('updateSale — skip remaining when financials unchanged (deliveryDate edit)', () => {
+  it('REGRESSION: re-sending same total/deposit/fees must NOT recalculate', () => {
+    // Form always re-sends money fields when user only edits deliveryDate.
+    // If paid already exceeds total+fees (legacy inconsistency), recalculating
+    // would throw BAD_REQUEST and block the date save.
+    const should = shouldRecalcRemaining({
+      oldTotal: 1_000_000,
+      oldDeposit: 100_000,
+      oldFees: 0,
+      newTotal: 1_000_000,
+      newDeposit: 100_000,
+      newFees: 0,
+      totalPresent: true,
+      depositPresent: true,
+    });
+    expect(should).toBe(false);
+
+    // Even if paid is inconsistent, skipping recalc lets the date save.
+    const wouldThrowIfRecalc = recalcRemaining(1_000_000, 100_000, 1_200_000, 0);
+    expect(wouldThrowIfRecalc.ok).toBe(false);
+  });
+
+  it('float noise at sub-satang level is treated as unchanged', () => {
+    expect(
+      shouldRecalcRemaining({
+        oldTotal: 1_000_000,
+        oldDeposit: 100_000,
+        oldFees: 0,
+        newTotal: 1_000_000.001,
+        newDeposit: 100_000,
+        newFees: 0,
+        totalPresent: true,
+        depositPresent: true,
+      })
+    ).toBe(false);
+    // Both round to 1000 satang; half-satang cases stay distinct when rounds differ
+    expect(moneyEquals(10.001, 10.004)).toBe(true);
+    expect(moneyEquals(10.0, 10.01)).toBe(false);
+  });
+
+  it('actual total change still recalculates', () => {
+    expect(
+      shouldRecalcRemaining({
+        oldTotal: 1_000_000,
+        oldDeposit: 100_000,
+        oldFees: 0,
+        newTotal: 900_000,
+        newDeposit: 100_000,
+        newFees: 0,
+        totalPresent: true,
+        depositPresent: true,
+      })
+    ).toBe(true);
+  });
+
+  it('actual fee change still recalculates', () => {
+    expect(
+      shouldRecalcRemaining({
+        oldTotal: 1_000_000,
+        oldDeposit: 0,
+        oldFees: 0,
+        newTotal: 1_000_000,
+        newDeposit: 0,
+        newFees: 28_000,
+        totalPresent: true,
+        depositPresent: true,
+      })
+    ).toBe(true);
   });
 });
 
@@ -123,39 +178,34 @@ describe('updateSale — buyer-charged fees add to remaining', () => {
   it('fees only, nothing paid: remaining = total + fees', () => {
     // 1M car + 25k insurance + 600 พรบ + 2,400 registration
     const r = recalcRemaining(1_000_000, 0, 0, 28_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(1_028_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(1_028_000);
   });
 
   it('car fully paid but fees outstanding: remaining = fees (not 0)', () => {
     const r = recalcRemaining(1_000_000, 100_000, 1_000_000, 28_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(28_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(28_000);
   });
 
   it('car + fees fully paid: remaining = 0', () => {
     const r = recalcRemaining(1_000_000, 100_000, 1_028_000, 28_000);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(0);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(0);
   });
 
   it('zero fees behaves exactly like before (backward compat)', () => {
     const r = recalcRemaining(1_000_000, 100_000, 50_000, 0);
-    expect(r.throws).toBe(false);
-    if (!r.throws) expect(r.remaining).toBe(950_000);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.remaining).toBe(950_000);
   });
 
   it('overpay beyond total + fees throws', () => {
     const r = recalcRemaining(900_000, 0, 1_000_000, 28_000);
-    expect(r.throws).toBe(true);
-    if (r.throws) expect(r.message).toMatch(/ค้างชำระติดลบ/);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/ค้างชำระติดลบ/);
   });
 });
-
-// Mirrors createSale: initial remaining = totalAmount + fees − depositAmount.
-function initialRemaining(total: number, deposit: number, fees = 0): number {
-  return total + fees - deposit;
-}
 
 describe('createSale — initial remaining includes buyer-charged fees', () => {
   it('with deposit and fees: remaining = total + fees − deposit', () => {
