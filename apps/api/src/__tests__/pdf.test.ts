@@ -311,5 +311,51 @@ describe('PdfService — Puppeteer engine', () => {
       expect(html).toContain('f-receipt-no');
       expect(html).not.toContain('receipt-container');
     });
+
+    // Regression: the dot-matrix form is a hardware-locked 9x5.5in continuous
+    // sheet — a second page ruins the form and misfeeds every receipt after it.
+    // The full form used to paginate for customers with long addresses because
+    // it had no fixed box, unlike the overlay's .ovl. Worst case the controller
+    // can emit is 2 items + a 5-line address.
+    it('full-form receipt stays on ONE 9x5.5in page with worst-case data', async () => {
+      const worstCase: TemporaryReceiptData = {
+        header: mockHeader,
+        customerCode: 'CUST-2026-0275',
+        receiptNumber: 'TR-2026-0003',
+        date: '2026-07-03',
+        contractNumber: 'SL-2026-0142',
+        customer: {
+          name: 'นางสาว ศรีนภาวรรณ ช่างกีรติวัฒนากุล',
+          phone: '089-9455610',
+          // 5 wrapped lines — the length that reproduced the 2-page bug
+          address:
+            '99/188 หมู่บ้านภัสสรเพลสวิลเลจ 3 เฟส 2 ซอยประชาอุทิศ 79 แยก 12 แยกย่อย 4 ถนนประชาอุทิศ ใกล้ตลาดสดทุ่งครุ ตรงข้ามโรงเรียนวัดทุ่งครุ',
+          subdistrict: 'แขวงทุ่งครุ',
+          district: 'เขตทุ่งครุ',
+          province: 'กรุงเทพมหานคร',
+          postalCode: '10140',
+        },
+        items: [
+          { description: 'ค่างวดรถยนต์ - CHERY TIGGO 8 PRO MAX HYBRID สีขาวมุก ทะเบียน 1กก-1234', amount: '25699' },
+          { description: 'ชำระค่างวดประจำเดือนมิถุนายน 2569 พร้อมค่าติดตามทวงถามและค่าธรรมเนียมการโอน', amount: '' },
+        ],
+        paymentAmount: '25699',
+        lateFee: '500',
+        discount: '0',
+        totalAmount: '26199',
+        totalAmountText: 'สองหมื่นหกพันหนึ่งร้อยเก้าสิบเก้าบาทถ้วน',
+        paymentMethod: { isCash: true },
+      };
+
+      const buffer = await pdfService.generateTemporaryReceipt(worstCase);
+      expectValidPdf(buffer);
+
+      const raw = buffer.toString('latin1');
+      expect(raw.match(/\/Type\s*\/Page[^s]/g)?.length).toBe(1);
+      // MediaBox must be the real sheet: 9x5.5in = 648x396 pt
+      const box = raw.match(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/);
+      expect(Number(box?.[1])).toBeCloseTo(648, 0);
+      expect(Number(box?.[2])).toBeCloseTo(396, 0);
+    }, 30000);
   });
 });
