@@ -235,6 +235,28 @@ cp portable/windows/config/.env.example "$OUT_DIR/config/"
 cp portable/windows/app/run.cmd "$OUT_DIR/app/"
 cp portable/windows/updater/*.ps1 "$OUT_DIR/updater/"
 
+# cmd.exe on Windows only parses .bat/.cmd correctly with CRLF. Packing from macOS/Linux
+# (or a Git checkout with LF) ships LF-only scripts that fail with:
+#   'tlocal' is not recognized as an internal or external command
+# Rewrite every Windows launcher text file to CRLF regardless of source line endings.
+to_crlf() {
+  local f="$1"
+  python3 - "$f" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+data = path.read_bytes()
+# Normalize any mix of CR/LF to CRLF without double-converting.
+text = data.decode("utf-8", errors="surrogateescape")
+text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n")
+path.write_bytes(text.encode("utf-8", errors="surrogateescape"))
+PY
+}
+echo "==> Force CRLF on Windows scripts (cmd.exe requires it)"
+while IFS= read -r -d '' f; do
+  to_crlf "$f"
+  echo "  CRLF: ${f#"$OUT_DIR/"}"
+done < <(find "$OUT_DIR" -type f \( -name '*.bat' -o -name '*.cmd' -o -name '*.ps1' \) -print0)
+
 # --- 8. VERSION + manifest + feed example + README ---
 echo "$VERSION" > "$OUT_DIR/app/VERSION"
 GIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
@@ -324,6 +346,17 @@ for rel in "${need[@]}"; do
     missing=1
   else
     echo "  OK: $rel"
+  fi
+done
+
+# Assert Windows batch files are CRLF. LF-only .bat is unusable under cmd.exe
+# ('tlocal' is not recognized… from setlocal). Caught v1.0.58 and earlier packages.
+for bat in "$OUT_DIR/start.bat" "$OUT_DIR/setup.bat" "$OUT_DIR/stop.bat" "$OUT_DIR/app/run.cmd"; do
+  if ! python3 -c "import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); sys.exit(0 if b'\\r\\n' in d else 1)" "$bat"; then
+    echo "  FAIL: $(basename "$bat") is not CRLF — cmd.exe will misparse it"
+    missing=1
+  else
+    echo "  OK: $(basename "$bat") is CRLF"
   fi
 done
 

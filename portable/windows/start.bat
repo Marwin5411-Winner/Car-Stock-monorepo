@@ -22,11 +22,13 @@ if errorlevel 1 set "HAVE_CURL=0"
 if not exist "%VB_HOME%\config\.env" (
   echo ERROR: config\.env not found.
   echo Copy config\.env.example to config\.env and set DATABASE_URL / JWT_SECRET.
+  call :pause_if_console
   exit /b 1
 )
 
 if not exist "%VB_HOME%\app\VERSION" (
   echo ERROR: app\VERSION missing. Incomplete package.
+  call :pause_if_console
   exit /b 1
 )
 
@@ -77,16 +79,19 @@ if not defined DATABASE_URL (
   echo   - save config\.env as UTF-8 WITHOUT BOM
   echo   - one KEY=VALUE per line, no quotes, no spaces around "="
   del "%LOCK%" 2>nul
+  call :pause_if_console
   exit /b 1
 )
 if not defined JWT_SECRET (
   echo ERROR: JWT_SECRET not set in config\.env ^(random string, 32+ characters^)
   del "%LOCK%" 2>nul
+  call :pause_if_console
   exit /b 1
 )
 if /I "%JWT_SECRET%"=="your-secret-key-change-in-production" (
   echo ERROR: JWT_SECRET is still the placeholder. Set a random string ^(32+ chars^) in config\.env
   del "%LOCK%" 2>nul
+  call :pause_if_console
   exit /b 1
 )
 
@@ -154,9 +159,11 @@ REM nothing to wait for — report it now instead of after a silent minute.
 if defined APP_PID (
   tasklist /FI "PID eq !APP_PID!" 2>nul | find "!APP_PID!" >nul
   if errorlevel 1 (
-    echo ERROR: API exited before it became healthy. See data\logs\app\stderr.log
+    echo ERROR: API exited before it became healthy.
     del "%LOCK%" 2>nul
     del "%PIDFILE%" 2>nul
+    call :show_logs
+    call :pause_if_console
     exit /b 3
   )
 )
@@ -168,8 +175,10 @@ if !ERRORLEVEL! equ 0 (
   exit /b 0
 )
 if !ATTEMPT! geq 30 (
-  echo ERROR: Health check failed after 60s. See data\logs\app\
+  echo ERROR: Health check failed after 60s ^(Postgres down, bad DATABASE_URL, or port blocked^).
   call "%VB_HOME%\stop.bat"
+  call :show_logs
+  call :pause_if_console
   exit /b 4
 )
 timeout /t 2 /nobreak >nul
@@ -201,3 +210,37 @@ if "%HAVE_CURL%"=="1" (
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:%PORT%/health' -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { exit 0 } } catch { }; exit 1"
 exit /b !ERRORLEVEL!
+
+REM Dump recent process logs so double-click users can read the real crash reason
+REM instead of a window that flashes closed (common "ขึ้นแล้วดับ" report).
+:show_logs
+echo.
+if exist "%VB_HOME%\app\VERSION" (
+  set /p APP_VER=<"%VB_HOME%\app\VERSION"
+  echo App version: !APP_VER!
+)
+echo ---------- data\logs\app\stderr.log ^(last 40 lines^) ----------
+if exist "%VB_HOME%\data\logs\app\stderr.log" (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "Get-Content -LiteralPath '%VB_HOME%\data\logs\app\stderr.log' -Tail 40 -ErrorAction SilentlyContinue"
+) else (
+  echo ^(no stderr.log yet^)
+)
+echo ---------- data\logs\app\stdout.log ^(last 20 lines^) ----------
+if exist "%VB_HOME%\data\logs\app\stdout.log" (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "Get-Content -LiteralPath '%VB_HOME%\data\logs\app\stdout.log' -Tail 20 -ErrorAction SilentlyContinue"
+) else (
+  echo ^(no stdout.log yet^)
+)
+echo ---------------------------------------------------------------
+echo Also check: PostgreSQL service running? JWT_SECRET set? config\.env UTF-8 without BOM?
+echo.
+exit /b 0
+
+:pause_if_console
+if /I "%MODE%"=="service" exit /b 0
+if /I "%MODE%"=="check" exit /b 0
+echo Press any key to close...
+pause >nul
+exit /b 0

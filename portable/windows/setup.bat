@@ -15,6 +15,8 @@ if /I "%~2"=="/start" set "DO_START=1"
 
 if not exist "%VB_HOME%\config\.env" (
   echo ERROR: config\.env not found. Copy config\.env.example first.
+  echo Press any key to close...
+  pause >nul
   exit /b 1
 )
 
@@ -31,6 +33,8 @@ if not defined DATABASE_URL (
   echo ERROR: DATABASE_URL not found in config\.env
   echo   - save config\.env as UTF-8 WITHOUT BOM
   echo   - one KEY=VALUE per line, no quotes, no spaces around "="
+  echo Press any key to close...
+  pause >nul
   exit /b 1
 )
 
@@ -64,6 +68,10 @@ if exist "bun.exe" (
 
 if errorlevel 1 (
   echo ERROR: migrate deploy failed.
+  echo   - Is PostgreSQL running? ^(services.msc → postgresql^)
+  echo   - Is DATABASE_URL user/password/db name correct?
+  echo Press any key to close...
+  pause >nul
   exit /b 1
 )
 

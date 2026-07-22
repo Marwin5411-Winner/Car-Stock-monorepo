@@ -207,12 +207,29 @@ CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 
 | อาการ | ตรวจ |
 |--------|------|
+| `'tlocal' is not recognized` / `'M' is not recognized` ตอนรัน `.bat` | ไฟล์ `.bat` เป็น LF แทน CRLF (พบบน zip v1.0.58 ลงไป) — ใช้ v1.0.59+ หรือแปลง: ดูด้านล่าง |
 | start แล้ว health fail | Postgres รันหรือยัง, `DATABASE_URL` ถูกไหม, ดู `data\logs\app\` |
 | start แล้วออก exit 3 | แอปดับทันที — เปิด `data\logs\app\stderr.log` อ่านสาเหตุจริง (มัก JWT_SECRET/DB) |
 | แก้ `.env` แล้วยังไม่ต่าง | ไฟล์ถูกเซฟเป็น UTF-8 **with BOM** หรือมี `!` ในรหัสผ่าน (ดูหัวข้อตั้งค่า) |
 | เปิดเว็บแล้วขาว | มี `app\public\index.html` ไหม, `STATIC_DIR=public` |
 | อัปเดตไม่ได้ | `UPDATE_FEED_URL`, เน็ตออกนอก, `pg_dump` อยู่ใน PATH |
 | เปิดเครื่องแล้วไม่ขึ้น | service VBeyondCarStock = Automatic ไหม, Postgres Automatic ไหม |
+
+### แก้ `.bat` ที่ line ending ผิด (LF → CRLF)
+
+ถ้า `setup.bat` / `start.bat` ขึ้น `'tlocal' is not recognized` ให้รันใน PowerShell ที่โฟลเดอร์แพ็กเกจ:
+
+```powershell
+foreach ($f in @('setup.bat','start.bat','stop.bat','app\run.cmd')) {
+  $p = Join-Path $PWD $f
+  if (-not (Test-Path $p)) { continue }
+  $c = [IO.File]::ReadAllText($p) -replace "`r`n","`n" -replace "`n","`r`n"
+  [IO.File]::WriteAllText($p, $c)
+}
+.\setup.bat
+```
+
+ตั้งแต่ **v1.0.59** แพ็กเกจ zip บังคับ CRLF ตอน pack แล้ว (และ assert ตอน build)
 
 ---
 
