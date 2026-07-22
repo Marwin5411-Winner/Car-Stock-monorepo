@@ -25,6 +25,10 @@ export interface Payment {
   voidedAt?: string;
   issuedBy?: string;
   notes?: string | null;
+  receivingBank?: string | null;
+  receivingBankName?: string | null;
+  receivingAccountNumber?: string | null;
+  receivingBranch?: string | null;
   customer: {
     id: string;
     code: string;
@@ -84,6 +88,22 @@ export interface CreatePaymentData {
   receivingBranch?: string;
   actualReceivedDate?: string;
   netReceivedAmount?: number;
+}
+
+/** Fields allowed when editing an existing receipt (PATCH /api/payments/:id). */
+export interface UpdatePaymentData {
+  description?: string;
+  paymentDate?: string;
+  paymentType?: PaymentType;
+  amount?: number;
+  paymentMethod?: PaymentMethod;
+  referenceNumber?: string;
+  notes?: string;
+  issuedBy?: string;
+  receivingBank?: string;
+  receivingBankName?: string;
+  receivingAccountNumber?: string;
+  receivingBranch?: string;
 }
 
 export interface VoidPaymentData {
@@ -217,7 +237,7 @@ class PaymentService {
   /**
    * Update payment
    */
-  async update(id: string, data: Partial<CreatePaymentData>): Promise<Payment> {
+  async update(id: string, data: UpdatePaymentData): Promise<Payment> {
     const response = await api.patch<ApiResponse<Payment>>(`${this.baseUrl}/${id}`, data);
     return response.data;
   }

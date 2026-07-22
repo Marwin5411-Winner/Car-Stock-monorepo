@@ -8,6 +8,7 @@ import { paymentService } from '../../services/payment.service';
 import type { Payment, PaymentMethod, PaymentType } from '../../services/payment.service';
 import { DatePicker } from '../../components/ui/date-picker';
 import { userService, type User } from '../../services/user.service';
+import { bankAccountsService, type BankAccount } from '../../services/bank-accounts.service';
 
 const PAYMENT_TYPE_OPTIONS: { value: PaymentType; label: string }[] = [
   { value: 'DEPOSIT', label: 'เงินจอง' },
@@ -33,6 +34,30 @@ interface FormData {
   referenceNumber: string;
   notes: string;
   issuedBy: string;
+  receivingBankAccountId: string;
+  receivingBank: string;
+  receivingBankName: string;
+  receivingAccountNumber: string;
+  receivingBranch: string;
+}
+
+/** Match saved payment snapshot to a bank-account master row (by account number, then name). */
+function resolveBankAccountId(
+  accounts: BankAccount[],
+  payment: Payment
+): string {
+  const accountNumber = payment.receivingAccountNumber?.trim();
+  if (accountNumber) {
+    const byNumber = accounts.find((a) => a.accountNumber === accountNumber);
+    if (byNumber) return byNumber.id;
+  }
+  const bankName =
+    payment.receivingBankName?.trim() || payment.receivingBank?.trim() || '';
+  if (bankName) {
+    const byName = accounts.find((a) => a.bankName === bankName);
+    if (byName) return byName.id;
+  }
+  return '';
 }
 
 export default function PaymentEditPage() {
@@ -45,6 +70,7 @@ export default function PaymentEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [staffOptions, setStaffOptions] = useState<SearchSelectOption[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [formData, setFormData] = useState<FormData>({
     description: '',
     paymentDate: '',
@@ -54,11 +80,17 @@ export default function PaymentEditPage() {
     referenceNumber: '',
     notes: '',
     issuedBy: '',
+    receivingBankAccountId: '',
+    receivingBank: '',
+    receivingBankName: '',
+    receivingAccountNumber: '',
+    receivingBranch: '',
   });
 
   useEffect(() => {
     if (id) fetchPayment(id);
     fetchStaff();
+    fetchBankAccounts();
   }, [id]);
 
   const fetchStaff = async () => {
@@ -80,12 +112,24 @@ export default function PaymentEditPage() {
     }
   };
 
+  const fetchBankAccounts = async () => {
+    try {
+      const res = await bankAccountsService.list();
+      if (res.success && res.data) {
+        setBankAccounts(res.data.filter((a) => a.isActive));
+      }
+    } catch {
+      // leave empty — UI will show empty-state message
+    }
+  };
+
   const fetchPayment = async (paymentId: string) => {
     setLoading(true);
     const result = await executeQuery(paymentService.getById(paymentId));
     if (result) {
       setPayment(result);
-      setFormData({
+      setFormData((prev) => ({
+        ...prev,
         description: result.description || '',
         paymentDate: result.paymentDate ? result.paymentDate.split('T')[0] : '',
         paymentType: result.paymentType,
@@ -94,12 +138,37 @@ export default function PaymentEditPage() {
         referenceNumber: result.referenceNumber || '',
         notes: result.notes || '',
         issuedBy: result.issuedBy || '',
-      });
+        receivingBank: result.receivingBank || result.receivingBankName || '',
+        receivingBankName: result.receivingBankName || result.receivingBank || '',
+        receivingAccountNumber: result.receivingAccountNumber || '',
+        receivingBranch: result.receivingBranch || '',
+        // account id resolved after bank list loads (see effect below)
+        receivingBankAccountId: prev.receivingBankAccountId,
+      }));
     } else {
       navigate('/payments');
     }
     setLoading(false);
   };
+
+  // Once both payment and bank accounts are loaded, pre-select matching account
+  useEffect(() => {
+    if (!payment || bankAccounts.length === 0) return;
+    setFormData((prev) => {
+      if (prev.receivingBankAccountId) return prev;
+      const matchedId = resolveBankAccountId(bankAccounts, payment);
+      if (!matchedId) return prev;
+      const acc = bankAccounts.find((a) => a.id === matchedId);
+      return {
+        ...prev,
+        receivingBankAccountId: matchedId,
+        receivingBank: acc?.bankName || prev.receivingBank,
+        receivingBankName: acc?.bankName || prev.receivingBankName,
+        receivingAccountNumber: acc?.accountNumber || prev.receivingAccountNumber,
+        receivingBranch: acc?.branch || prev.receivingBranch,
+      };
+    });
+  }, [payment, bankAccounts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,9 +177,18 @@ export default function PaymentEditPage() {
     setSaving(true);
     const result = await executeSave(
       paymentService.update(id, {
-        ...formData,
-        amount: Number(formData.amount),
+        description: formData.description,
         paymentDate: formData.paymentDate,
+        paymentType: formData.paymentType,
+        amount: Number(formData.amount),
+        paymentMethod: formData.paymentMethod,
+        referenceNumber: formData.referenceNumber,
+        notes: formData.notes,
+        issuedBy: formData.issuedBy,
+        receivingBank: formData.receivingBankName || formData.receivingBank || undefined,
+        receivingBankName: formData.receivingBankName || undefined,
+        receivingAccountNumber: formData.receivingAccountNumber || undefined,
+        receivingBranch: formData.receivingBranch || undefined,
       })
     );
     if (result) {
@@ -242,6 +320,107 @@ export default function PaymentEditPage() {
               }
               placeholder="เลขที่เช็ค, เลขอ้างอิงโอนเงิน"
             />
+          </div>
+
+          {/* Receiving Bank — same UX as create payment form */}
+          <div>
+            <label className={labelClass}>ธนาคารที่รับเงิน</label>
+            {bankAccounts.length === 0 ? (
+              <p className="text-xs text-gray-500 mt-1">
+                ยังไม่มีบัญชีธนาคาร — เพิ่มได้ที่ ตั้งค่า &rarr; บัญชีธนาคาร
+              </p>
+            ) : formData.paymentMethod === 'BANK_TRANSFER' ? (
+              <>
+                <select
+                  value={formData.receivingBankAccountId || ''}
+                  onChange={(e) => {
+                    const accountId = e.target.value;
+                    const acc = bankAccounts.find((a) => a.id === accountId);
+                    setFormData((prev) => ({
+                      ...prev,
+                      receivingBankAccountId: accountId,
+                      receivingBank: acc?.bankName || '',
+                      receivingBankName: acc?.bankName || '',
+                      receivingAccountNumber: acc?.accountNumber || '',
+                      receivingBranch: acc?.branch || '',
+                    }));
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">เลือกธนาคาร...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {`${acc.bankName} | เลขที่บัญชี ${acc.accountNumber}${
+                        acc.branch ? ` | ${acc.branch}` : ''
+                      }`}
+                    </option>
+                  ))}
+                </select>
+                {formData.receivingBankAccountId &&
+                  (() => {
+                    const selected = bankAccounts.find(
+                      (a) => a.id === formData.receivingBankAccountId
+                    );
+                    if (!selected) return null;
+                    return (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                        <div className="font-medium text-blue-900">{selected.bankName}</div>
+                        <div className="text-blue-800 mt-1">
+                          <span className="text-blue-600">เลขที่บัญชี: </span>
+                          <span className="font-mono font-semibold">
+                            {selected.accountNumber}
+                          </span>
+                        </div>
+                        <div className="text-blue-700 text-xs mt-0.5">
+                          ชื่อบัญชี: {selected.accountName}
+                          {selected.branch ? ` • สาขา: ${selected.branch}` : ''}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                {!formData.receivingBankAccountId &&
+                  (formData.receivingBankName || formData.receivingAccountNumber) && (
+                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                      <div className="font-medium text-amber-900">
+                        ข้อมูลธนาคารที่บันทึกไว้ (บัญชีอาจถูกปิด/ลบแล้ว)
+                      </div>
+                      <div className="text-amber-800 mt-1">
+                        {formData.receivingBankName || formData.receivingBank}
+                        {formData.receivingAccountNumber
+                          ? ` | ${formData.receivingAccountNumber}`
+                          : ''}
+                        {formData.receivingBranch ? ` | ${formData.receivingBranch}` : ''}
+                      </div>
+                    </div>
+                  )}
+              </>
+            ) : (
+              <div className="space-y-2">
+                {(formData.receivingBankName || formData.receivingAccountNumber) && (
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                    <div className="font-medium text-gray-900">
+                      {formData.receivingBankName || formData.receivingBank || '-'}
+                    </div>
+                    {formData.receivingAccountNumber && (
+                      <div className="text-gray-700 mt-1">
+                        <span className="text-gray-500">เลขที่บัญชี: </span>
+                        <span className="font-mono font-semibold">
+                          {formData.receivingAccountNumber}
+                        </span>
+                      </div>
+                    )}
+                    {formData.receivingBranch && (
+                      <div className="text-gray-500 text-xs mt-0.5">
+                        สาขา: {formData.receivingBranch}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  เลือกวิธีชำระ &quot;โอนเงิน&quot; เพื่อระบุหรือเปลี่ยนบัญชีที่ใช้รับเงิน
+                </p>
+              </div>
+            )}
           </div>
 
           <SearchSelect

@@ -322,6 +322,22 @@ export default function PaymentDetailPage() {
                   <dd className="text-sm font-mono">{payment.referenceNumber}</dd>
                 </div>
               )}
+              {(payment.receivingBankName ||
+                payment.receivingBank ||
+                payment.receivingAccountNumber) && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-sm text-gray-500 shrink-0">ธนาคารที่รับเงิน</dt>
+                  <dd className="text-sm font-medium text-right">
+                    <div>{payment.receivingBankName || payment.receivingBank || '-'}</div>
+                    {payment.receivingAccountNumber && (
+                      <div className="text-xs text-gray-500 font-mono mt-0.5">
+                        {payment.receivingAccountNumber}
+                        {payment.receivingBranch ? ` • ${payment.receivingBranch}` : ''}
+                      </div>
+                    )}
+                  </dd>
+                </div>
+              )}
               {resolveIssuedBy(payment) && (
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">ออกโดย</dt>
