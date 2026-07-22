@@ -95,22 +95,36 @@ stop.bat
 
 ### แนะนำ: Windows Service + NSSM
 
-1. ดาวน์โหลด [NSSM](https://nssm.cc/) แล้ววาง `nssm.exe` ที่ `C:\VBeyond\tools\nssm.exe`  
-   หรือใส่ PATH
-2. เปิด **PowerShell as Administrator**:
+1. ดาวน์โหลด [NSSM](https://nssm.cc/download) (win64) แล้ววาง `nssm.exe` ที่:
 
-```powershell
-cd C:\VBeyond
-.\install-service.ps1
-```
+   ```text
+   C:\VBeyond\tools\nssm.exe
+   ```
+
+   (แพ็กเกจ **ไม่ได้** แนบ nssm มาให้ — ถ้าไม่มี หน้าต่าง install จะขึ้น error ชัดเจน)
+
+2. รันแบบ **Administrator** อย่างใดอย่างหนึ่ง:
+
+   - คลิกขวา `install-service.bat` → **Run as administrator**  
+   - หรือเปิด **PowerShell as Administrator**:
+
+   ```powershell
+   cd C:\VBeyond
+   .\install-service.ps1
+   ```
 
 จะได้ service ชื่อ **`VBeyondCarStock`** แบบ **Automatic**
 
-ถอด service:
+ถอด service (Admin เช่นกัน):
 
 ```powershell
+.\uninstall-service.bat
+# หรือ
 .\uninstall-service.ps1
 ```
+
+> ถ้าดับเบิลคลิกแล้วหน้าต่าง **ปิดทันที** ส่วนใหญ่คือ (1) ไม่ได้รัน Admin (2) ยังไม่มี `tools\nssm.exe`  
+> ใช้ `.bat` launcher หรือเปิดจาก PowerShell แล้วอ่านข้อความ error (สคริปต์จะ pause ตอนจบ)
 
 ### ลำดับ boot ที่ถูกต้อง
 
@@ -208,6 +222,8 @@ CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 | อาการ | ตรวจ |
 |--------|------|
 | `'tlocal' is not recognized` / `'M' is not recognized` ตอนรัน `.bat` | ไฟล์ `.bat` เป็น LF แทน CRLF (พบบน zip v1.0.58 ลงไป) — ใช้ v1.0.59+ หรือแปลง: ดูด้านล่าง |
+| `install-service` ปิดทันที / ไม่ขึ้น service | รัน **Admin** + มี `tools\nssm.exe` — ใช้ `install-service.bat` แล้วอ่าน error ที่ pause |
+| `stop.bat` แล้วแอปยังรัน | v1.0.59 ลงไป path ว่างทำให้ skip kill — ใช้ v1.0.60+ (`stop-app.ps1`) หรือ Task Manager จบ `vbeyond-api.exe` |
 | start แล้ว health fail | Postgres รันหรือยัง, `DATABASE_URL` ถูกไหม, ดู `data\logs\app\` |
 | start แล้วออก exit 3 | แอปดับทันที — เปิด `data\logs\app\stderr.log` อ่านสาเหตุจริง (มัก JWT_SECRET/DB) |
 | แก้ `.env` แล้วยังไม่ต่าง | ไฟล์ถูกเซฟเป็น UTF-8 **with BOM** หรือมี `!` ในรหัสผ่าน (ดูหัวข้อตั้งค่า) |

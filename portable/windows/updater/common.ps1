@@ -175,6 +175,37 @@ function Test-VbAppProcess {
     return [bool](Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)
 }
 
+function Get-VbProcessExePath {
+    param([int]$ProcessId)
+    $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if ($proc) {
+        try {
+            if ($proc.Path) { return $proc.Path }
+        } catch { }
+    }
+    # Get-Process.Path is often empty (other session / limited rights). CIM usually works.
+    try {
+        $cim = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId=$ProcessId" -ErrorAction SilentlyContinue
+        if ($cim -and $cim.ExecutablePath) { return $cim.ExecutablePath }
+    } catch { }
+    return $null
+}
+
+function Test-VbPathUnderApp {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $root = [IO.Path]::GetFullPath($script:AppDir)
+    if (-not $root.EndsWith([IO.Path]::DirectorySeparatorChar)) {
+        $root = $root + [IO.Path]::DirectorySeparatorChar
+    }
+    try {
+        $full = [IO.Path]::GetFullPath($Path)
+    } catch {
+        return $false
+    }
+    return $full.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)
+}
+
 function Stop-VbAppProcessTree {
     param(
         [Parameter(Mandatory = $true)][int]$ProcessId,
@@ -182,25 +213,47 @@ function Stop-VbAppProcessTree {
     )
     if ($ProcessId -le 0) { return }
 
-    $root = [IO.Path]::GetFullPath($script:AppDir)
     $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if (-not $proc) { return }
 
-    $path = $null
-    try { $path = $proc.Path } catch { $path = $null }
-    if (-not $path) {
-        Write-UpdaterLog "PID $ProcessId has no path; skipping $Reason" 'WARN' | Out-Null
-        return
-    }
-    if (-not $path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
-        Write-UpdaterLog "Refusing to $Reason PID $ProcessId outside app\: $path" 'WARN' | Out-Null
-        return
+    $path = Get-VbProcessExePath -ProcessId $ProcessId
+    if ($path) {
+        if (-not (Test-VbPathUnderApp -Path $path)) {
+            Write-UpdaterLog "Refusing to $Reason PID $ProcessId outside app\: $path" 'WARN' | Out-Null
+            return
+        }
+    } else {
+        # Still allow kill when CIM cannot resolve path but the process name matches our runners
+        # and we already trusted this PID from app.pid (updater only force-kills recorded PIDs).
+        $name = $proc.ProcessName
+        if ($name -notin @('vbeyond-api', 'bun')) {
+            Write-UpdaterLog "PID $ProcessId has no path and unexpected name '$name'; skipping $Reason" 'WARN' | Out-Null
+            return
+        }
+        Write-UpdaterLog "PID $ProcessId path empty; force-killing by name=$name ($Reason)" 'WARN' | Out-Null
     }
 
-    Write-UpdaterLog "Force-killing PID $ProcessId ($Reason)" 'WARN' | Out-Null
+    Write-UpdaterLog "Force-killing PID $ProcessId ($Reason)$(if ($path) { " path=$path" })" 'WARN' | Out-Null
     Start-Process -FilePath 'taskkill.exe' `
         -ArgumentList @('/PID', "$ProcessId", '/T', '/F') `
         -Wait -NoNewWindow -WindowStyle Hidden | Out-Null
+}
+
+function Stop-VbAppProcessesUnderAppDir {
+    param([string]$Reason = 'app-dir-scan')
+    $root = [IO.Path]::GetFullPath($script:AppDir)
+    if (-not $root.EndsWith([IO.Path]::DirectorySeparatorChar)) {
+        $root = $root + [IO.Path]::DirectorySeparatorChar
+    }
+    $procs = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.ExecutablePath -and (Test-VbPathUnderApp -Path $_.ExecutablePath) })
+    foreach ($p in $procs) {
+        $id = [int]$p.ProcessId
+        Write-UpdaterLog "Force-killing PID $id ($Reason) path=$($p.ExecutablePath)" 'WARN' | Out-Null
+        Start-Process -FilePath 'taskkill.exe' `
+            -ArgumentList @('/PID', "$id", '/T', '/F') `
+            -Wait -NoNewWindow -WindowStyle Hidden | Out-Null
+    }
 }
 
 function Stop-VbApp {
@@ -224,12 +277,13 @@ function Stop-VbApp {
         Get-Service -Name 'VBeyondCarStock' -ErrorAction SilentlyContinue | Stop-Service -Force -ErrorAction SilentlyContinue
     }
 
-    # stop.bat returns as soon as taskkill is issued. The Swap step that follows moves app\,
-    # which fails with "file in use" while the exe is still shutting down. Wait, then force-kill.
+    # stop.bat / stop-app.ps1 return after taskkill is issued. The Swap step that follows
+    # moves app\, which fails with "file in use" while the exe is still shutting down.
+    # Wait on the recorded PID, then force-kill + scan anything still under app\.
     if ($appPid -gt 0) {
         $deadline = (Get-Date).AddSeconds($TimeoutSec)
         while ((Get-Date) -lt $deadline) {
-            if (-not (Test-VbAppProcess -ProcessId $appPid)) { return }
+            if (-not (Test-VbAppProcess -ProcessId $appPid)) { break }
             Start-Sleep -Milliseconds 500
         }
 
@@ -237,10 +291,13 @@ function Stop-VbApp {
             Stop-VbAppProcessTree -ProcessId $appPid -Reason "still running after ${TimeoutSec}s stop wait"
             Start-Sleep -Milliseconds 750
         }
+    }
 
-        if (Test-VbAppProcess -ProcessId $appPid) {
-            throw "App PID $appPid still running after force-kill; cannot safely swap app\"
-        }
+    Stop-VbAppProcessesUnderAppDir -Reason 'pre-swap app-dir scan'
+    Start-Sleep -Milliseconds 400
+
+    if ($appPid -gt 0 -and (Test-VbAppProcess -ProcessId $appPid)) {
+        throw "App PID $appPid still running after force-kill; cannot safely swap app\"
     }
 }
 
