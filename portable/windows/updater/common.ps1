@@ -169,6 +169,40 @@ function Release-UpdateLock {
     }
 }
 
+function Test-VbAppProcess {
+    param([int]$ProcessId)
+    if ($ProcessId -le 0) { return $false }
+    return [bool](Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)
+}
+
+function Stop-VbAppProcessTree {
+    param(
+        [Parameter(Mandatory = $true)][int]$ProcessId,
+        [string]$Reason = 'force-kill'
+    )
+    if ($ProcessId -le 0) { return }
+
+    $root = [IO.Path]::GetFullPath($script:AppDir)
+    $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if (-not $proc) { return }
+
+    $path = $null
+    try { $path = $proc.Path } catch { $path = $null }
+    if (-not $path) {
+        Write-UpdaterLog "PID $ProcessId has no path; skipping $Reason" 'WARN' | Out-Null
+        return
+    }
+    if (-not $path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
+        Write-UpdaterLog "Refusing to $Reason PID $ProcessId outside app\: $path" 'WARN' | Out-Null
+        return
+    }
+
+    Write-UpdaterLog "Force-killing PID $ProcessId ($Reason)" 'WARN' | Out-Null
+    Start-Process -FilePath 'taskkill.exe' `
+        -ArgumentList @('/PID', "$ProcessId", '/T', '/F') `
+        -Wait -NoNewWindow -WindowStyle Hidden | Out-Null
+}
+
 function Stop-VbApp {
     param([int]$TimeoutSec = 30)
 
@@ -191,14 +225,22 @@ function Stop-VbApp {
     }
 
     # stop.bat returns as soon as taskkill is issued. The Swap step that follows moves app\,
-    # which fails with "file in use" while the exe is still shutting down.
+    # which fails with "file in use" while the exe is still shutting down. Wait, then force-kill.
     if ($appPid -gt 0) {
         $deadline = (Get-Date).AddSeconds($TimeoutSec)
         while ((Get-Date) -lt $deadline) {
-            if (-not (Get-Process -Id $appPid -ErrorAction SilentlyContinue)) { return }
+            if (-not (Test-VbAppProcess -ProcessId $appPid)) { return }
             Start-Sleep -Milliseconds 500
         }
-        Write-UpdaterLog "PID $appPid still running ${TimeoutSec}s after stop" 'WARN' | Out-Null
+
+        if (Test-VbAppProcess -ProcessId $appPid) {
+            Stop-VbAppProcessTree -ProcessId $appPid -Reason "still running after ${TimeoutSec}s stop wait"
+            Start-Sleep -Milliseconds 750
+        }
+
+        if (Test-VbAppProcess -ProcessId $appPid) {
+            throw "App PID $appPid still running after force-kill; cannot safely swap app\"
+        }
     }
 }
 

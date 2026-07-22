@@ -332,8 +332,14 @@ done
 # pino's worker-thread transport, which requires pino-roll from a node_modules that does not
 # exist inside a compiled binary. It died before binding a port and start.bat just timed out.
 for artifact in "$OUT_DIR/app/vbeyond-api.exe" "$OUT_DIR/app/dist/index.js"; do
-  if grep -aqF 'var isDev = true' "$artifact"; then
-    echo "  FAIL: $(basename "$artifact") built with NODE_ENV != production"
+  # Bun currently emits `var isDev = true|false`; also match spacing / isDev=!0 / isDev=true.
+  if grep -aEq 'isDev\s*=\s*(true|!0)' "$artifact"; then
+    echo "  FAIL: $(basename "$artifact") built with NODE_ENV != production (isDev truthy)"
+    missing=1
+  fi
+  # Positive check: production build must fold isDev to false (current Bun emit).
+  if ! grep -aEq 'isDev\s*=\s*false' "$artifact"; then
+    echo "  FAIL: $(basename "$artifact") missing isDev=false — NODE_ENV define may not have applied"
     missing=1
   fi
   # import.meta.dir resolves into Bun's read-only virtual FS (B:\~BUN\...) in the exe,

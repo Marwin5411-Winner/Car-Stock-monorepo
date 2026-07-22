@@ -84,6 +84,11 @@ if not defined JWT_SECRET (
   del "%LOCK%" 2>nul
   exit /b 1
 )
+if /I "%JWT_SECRET%"=="your-secret-key-change-in-production" (
+  echo ERROR: JWT_SECRET is still the placeholder. Set a random string ^(32+ chars^) in config\.env
+  del "%LOCK%" 2>nul
+  exit /b 1
+)
 
 set "VB_HOME=%CD%"
 set "UPDATER_MODE=portable"

@@ -169,6 +169,9 @@ function Invoke-Update {
     # uninitialised variable if the run failed before the Backup/Swap steps assigned them.
     $backupFile = $null
     $prevDir = $null
+    # Dedicated migrate/health rollback paths start the app themselves. Outer catch must
+    # not Start-VbApp again (second start.bat fights the first via app.lock / ~60s health).
+    $appRecoveryStarted = $false
 
     try {
         Acquire-UpdateLock
@@ -305,6 +308,8 @@ function Invoke-Update {
                 Write-UpdaterLog "Full rollback failed: $($_.Exception.Message)" 'ERROR' | Out-Null
                 throw "Migrate failed and rollback incomplete: $($_.Exception.Message)"
             }
+            Start-VbApp
+            $appRecoveryStarted = $true
             throw
         }
 
@@ -320,6 +325,7 @@ function Invoke-Update {
                 throw "Health check failed and rollback incomplete: $($_.Exception.Message)"
             }
             Start-VbApp
+            $appRecoveryStarted = $true
             throw 'Health check failed after update'
         }
 
@@ -337,17 +343,42 @@ function Invoke-Update {
         exit 0
     } catch {
         $msg = $_.Exception.Message
-        # Steps 6-9 leave the app stopped. Only the Migrate and Health paths restore it;
-        # anything else (locked file during the swap, disk full mid-copy, failed migrate)
-        # would otherwise leave the customer's site down with no process running.
+        # Steps 6-9 leave the app stopped unless a dedicated rollback path already restarted
+        # it. Outer recovery must not double-start (start.bat single-instance lock fights the
+        # in-flight start and can leave a false "previous release" log with a broken site).
         try {
-            if (-not (Wait-VbHealth -TimeoutSec 5)) {
-                if ($prevDir -and (Test-Path -LiteralPath $prevDir) -and
-                    -not (Test-Path -LiteralPath (Join-Path $script:AppDir 'VERSION'))) {
-                    Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
+            if ($appRecoveryStarted) {
+                if (Wait-VbHealth -TimeoutSec 60) {
+                    Write-UpdaterLog 'Update failed; rolled back and previous release is healthy' 'WARN' | Out-Null
+                } else {
+                    Write-UpdaterLog 'Update failed; rollback start is still unhealthy' 'ERROR' | Out-Null
+                }
+            } elseif (-not (Wait-VbHealth -TimeoutSec 5)) {
+                $didRestore = $false
+                $appVersionPath = Join-Path $script:AppDir 'VERSION'
+                if ($prevDir -and (Test-Path -LiteralPath $prevDir)) {
+                    if (-not (Test-Path -LiteralPath $appVersionPath)) {
+                        # Swap incomplete — put previous tree back.
+                        Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
+                        $didRestore = $true
+                    } else {
+                        # New tree present but unhealthy / never finished starting. Prefer
+                        # previous release so frequent update failures do not leave a half-applied app\.
+                        Stop-VbApp
+                        Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
+                        $didRestore = $true
+                    }
                 }
                 Start-VbApp
-                Write-UpdaterLog 'Update failed; app restarted on the previous release' 'WARN' | Out-Null
+                if (Wait-VbHealth -TimeoutSec 60) {
+                    if ($didRestore) {
+                        Write-UpdaterLog 'Update failed; app restarted on the previous release' 'WARN' | Out-Null
+                    } else {
+                        Write-UpdaterLog 'Update failed; app restarted on current app\ tree (no previous release to restore)' 'WARN' | Out-Null
+                    }
+                } else {
+                    Write-UpdaterLog 'Update failed; recovery start did not become healthy' 'ERROR' | Out-Null
+                }
             }
         } catch {
             Write-UpdaterLog "Recovery after failed update did not complete: $($_.Exception.Message)" 'ERROR' | Out-Null
