@@ -13,6 +13,12 @@ if /I "%~1"=="/service" set "MODE=service"
 if /I "%~1"=="/console" set "MODE=console"
 if /I "%~1"=="/check" set "MODE=check"
 
+REM curl.exe only ships with Windows 10 1803+ / Server 2019. On older boxes a missing curl
+REM made every health probe "fail" and start.bat killed an app that had started fine.
+set "HAVE_CURL=1"
+where curl >nul 2>&1
+if errorlevel 1 set "HAVE_CURL=0"
+
 if not exist "%VB_HOME%\config\.env" (
   echo ERROR: config\.env not found.
   echo Copy config\.env.example to config\.env and set DATABASE_URL / JWT_SECRET.
@@ -62,12 +68,31 @@ for /f "usebackq tokens=1,* delims== eol=#" %%A in ("%VB_HOME%\config\.env") do 
   )
 )
 
+REM Fail here rather than 60s later at the health check: a UTF-8 BOM (Notepad's default
+REM "UTF-8 with BOM" save) turns the first key into an unusable variable name, and the API
+REM then exits within a second with no window to read. Note: a "!" in a password is eaten
+REM by delayed expansion — use a password without "!" or "%".
+if not defined DATABASE_URL (
+  echo ERROR: DATABASE_URL not found in config\.env
+  echo   - save config\.env as UTF-8 WITHOUT BOM
+  echo   - one KEY=VALUE per line, no quotes, no spaces around "="
+  del "%LOCK%" 2>nul
+  exit /b 1
+)
+if not defined JWT_SECRET (
+  echo ERROR: JWT_SECRET not set in config\.env ^(random string, 32+ characters^)
+  del "%LOCK%" 2>nul
+  exit /b 1
+)
+
 set "VB_HOME=%CD%"
 set "UPDATER_MODE=portable"
 if not defined STATIC_DIR set "STATIC_DIR=public"
 if not defined NODE_ENV set "NODE_ENV=production"
 if not defined CORS_ORIGIN set "CORS_ORIGIN=http://localhost:%PORT%"
 if not defined PORT set "PORT=3001"
+REM Outside app\, so pino's rolling logs survive an update replacing the app directory.
+if not defined LOG_DIR set "LOG_DIR=%VB_HOME%\data\logs\app"
 
 REM Prisma engines shipped with the package (required for compiled API)
 set "PRISMA_QUERY_ENGINE_LIBRARY=%VB_HOME%\app\engines\query_engine-windows.dll.node"
@@ -112,10 +137,26 @@ if errorlevel 1 (
   exit /b 1
 )
 
+set "APP_PID="
+if exist "%PIDFILE%" set /p APP_PID=<"%PIDFILE%"
+
 set /a ATTEMPT=0
 :health_loop
 set /a ATTEMPT+=1
-curl -sf "http://127.0.0.1:%PORT%/health" >nul 2>&1
+
+REM If the API already exited (bad DATABASE_URL, missing JWT_SECRET, port in use) there is
+REM nothing to wait for — report it now instead of after a silent minute.
+if defined APP_PID (
+  tasklist /FI "PID eq !APP_PID!" 2>nul | find "!APP_PID!" >nul
+  if errorlevel 1 (
+    echo ERROR: API exited before it became healthy. See data\logs\app\stderr.log
+    del "%LOCK%" 2>nul
+    del "%PIDFILE%" 2>nul
+    exit /b 3
+  )
+)
+
+call :probe_health
 if !ERRORLEVEL! equ 0 (
   echo Health OK. Open http://127.0.0.1:%PORT%/
   echo Running. Use stop.bat to stop.
@@ -137,10 +178,21 @@ for /f "usebackq tokens=1,* delims== eol=#" %%A in ("%VB_HOME%\config\.env") do 
   )
 )
 if not defined PORT set "PORT=3001"
-curl -sf "http://127.0.0.1:%PORT%/health"
+call :probe_health
 if errorlevel 1 (
-  echo Health check failed
+  echo Health check failed ^(app down, or database unreachable^)
   exit /b 4
 )
-echo.
+echo Health OK on http://127.0.0.1:%PORT%/
 exit /b 0
+
+REM Returns 0 only on HTTP 200. /health answers 503 when the database is unreachable, so a
+REM DB-less app can no longer pass as started.
+:probe_health
+if "%HAVE_CURL%"=="1" (
+  curl -sf "http://127.0.0.1:%PORT%/health" >nul 2>&1
+  exit /b !ERRORLEVEL!
+)
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:%PORT%/health' -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { exit 0 } } catch { }; exit 1"
+exit /b !ERRORLEVEL!

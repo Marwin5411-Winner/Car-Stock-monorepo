@@ -25,6 +25,8 @@ if not defined PRISMA_SCHEMA_ENGINE_BINARY (
 if not defined STATIC_DIR set "STATIC_DIR=public"
 if not defined NODE_ENV set "NODE_ENV=production"
 if not defined UPDATER_MODE set "UPDATER_MODE=portable"
+REM Keep logs out of app\ so an update replacing that directory doesn't take them with it.
+if not defined LOG_DIR set "LOG_DIR=%~dp0..\data\logs\app"
 
 if exist "%~dp0bun.exe" (
   "%~dp0bun.exe" run dist\index.js

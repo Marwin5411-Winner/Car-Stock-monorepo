@@ -142,7 +142,7 @@ const app = new Elysia()
     };
   })
   // Health check with database
-  .get('/health', async () => {
+  .get('/health', async ({ set }) => {
     try {
       await db.$queryRaw`SELECT 1`;
       return {
@@ -151,6 +151,10 @@ const app = new Elysia()
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      // 503, not 200: `curl -f` in start.bat and the Docker healthcheck only look at the
+      // status code, so a 200 here reported a DB-less app as healthy and let a broken
+      // update pass its post-start health gate.
+      set.status = 503;
       return {
         status: 'unhealthy',
         database: 'disconnected',

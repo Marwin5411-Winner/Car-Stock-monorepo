@@ -38,6 +38,10 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       UPDATER_URL: http://updater:9000
+      # MUST be set in .env.docker. The API refuses to boot in production without it
+      # ("UPDATE_SECRET environment variable must be set in production") — that guard was
+      # compiled out while bundles were built as development, and is live again now that
+      # NODE_ENV is defined at build time. Empty = unauthenticated destructive updater ops.
       UPDATE_SECRET: ${UPDATE_SECRET:-}
       DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
     volumes:

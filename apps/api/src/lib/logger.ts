@@ -5,7 +5,12 @@ import { mkdirSync } from 'fs';
 import { sendErrorToDiscord } from './discord-notify';
 
 const isDev = process.env.NODE_ENV !== 'production';
-const logDir = join(import.meta.dir, '..', '..', 'logs');
+// NOT import.meta.dir: inside a `bun build --compile` binary that resolves into Bun's
+// virtual filesystem (B:\~BUN\... on Windows), which is read-only — pino-roll then fails
+// to open its files and takes the whole API down at startup. cwd is the app root in every
+// deployment (Docker /app/apps/api, portable VB_HOME\app), and LOG_DIR overrides it so the
+// portable package can keep logs in data\logs\app where updates don't wipe them.
+const logDir = process.env.LOG_DIR || join(process.cwd(), 'logs');
 
 try {
   mkdirSync(logDir, { recursive: true });
@@ -45,6 +50,9 @@ const baseLogger = isDev
       pino.multistream([
         { level: 'error', stream: await buildRoll(rollOptions.error) },
         { level: 'info', stream: await buildRoll(rollOptions.combined) },
+        // Without this prod logs only ever reach files — `docker logs` and the portable
+        // package's data\logs\app\stdout.log would both be empty.
+        { level: 'info', stream: process.stdout },
       ]),
     );
 

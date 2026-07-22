@@ -25,6 +25,15 @@ for /f "usebackq tokens=1,* delims== eol=#" %%A in ("%VB_HOME%\config\.env") do 
   )
 )
 
+REM Same trap as start.bat: a UTF-8 BOM in config\.env makes the first key unreadable, and
+REM prisma then fails with a confusing "Environment variable not found: DATABASE_URL".
+if not defined DATABASE_URL (
+  echo ERROR: DATABASE_URL not found in config\.env
+  echo   - save config\.env as UTF-8 WITHOUT BOM
+  echo   - one KEY=VALUE per line, no quotes, no spaces around "="
+  exit /b 1
+)
+
 set "VB_HOME=%CD%"
 set "PRISMA_QUERY_ENGINE_LIBRARY=%VB_HOME%\app\engines\query_engine-windows.dll.node"
 set "PRISMA_SCHEMA_ENGINE_BINARY=%VB_HOME%\app\engines\schema-engine-windows.exe"

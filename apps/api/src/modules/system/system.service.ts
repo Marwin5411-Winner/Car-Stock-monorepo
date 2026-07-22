@@ -231,7 +231,13 @@ export class SystemService {
       throw new Error(`Updater script not found: ${script}`);
     }
     const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Action', action, ...extraArgs];
-    const child = spawn('powershell.exe', args, {
+    // Launch through `cmd /c start` so the PowerShell is orphaned. `detached: true` alone
+    // still records this process as its parent, and the updater's StopApp step runs
+    // `taskkill /PID <api> /T /F` (plus `net stop` under NSSM) — both walk the parent→child
+    // tree and would kill the updater mid-update, leaving the app stopped forever.
+    // The empty string is `start`'s window-title argument; without it `start` would treat
+    // the quoted exe path as the title and launch nothing.
+    const child = spawn('cmd.exe', ['/c', 'start', '', '/min', 'powershell.exe', ...args], {
       cwd: this.getVbHome(),
       env: process.env,
       detached: true,

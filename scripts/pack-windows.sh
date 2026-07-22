@@ -87,9 +87,13 @@ echo "==> Cross-compile vbeyond-api.exe (bun-windows-x64)"
   cd apps/api
   # Note: --windows-hide-console / icon metadata only work when compiling ON Windows.
   # Cross-compile from macOS/Linux uses --target only.
+  # --define is mandatory: bun resolves process.env.NODE_ENV at BUILD time, so without it
+  # the shipped exe froze to development — dev pino transport (crashes in a compiled
+  # binary) and a dead "JWT_SECRET required in production" guard. See step 9 asserts.
   bun build \
     --compile \
     --target=bun-windows-x64 \
+    --define process.env.NODE_ENV='"production"' \
     --outfile "${OUT_DIR}/app/vbeyond-api.exe" \
     src/index.ts
 )
@@ -322,6 +326,24 @@ for rel in "${need[@]}"; do
     echo "  OK: $rel"
   fi
 done
+
+# Build-time asserts. These exist because v1.0.55-1.0.57 all shipped an exe that could not
+# start: `bun build` inlined process.env.NODE_ENV as development, so the API constructed
+# pino's worker-thread transport, which requires pino-roll from a node_modules that does not
+# exist inside a compiled binary. It died before binding a port and start.bat just timed out.
+for artifact in "$OUT_DIR/app/vbeyond-api.exe" "$OUT_DIR/app/dist/index.js"; do
+  if grep -aqF 'var isDev = true' "$artifact"; then
+    echo "  FAIL: $(basename "$artifact") built with NODE_ENV != production"
+    missing=1
+  fi
+  # import.meta.dir resolves into Bun's read-only virtual FS (B:\~BUN\...) in the exe,
+  # so the log directory must come from LOG_DIR / cwd instead.
+  if ! grep -aqF 'process.env.LOG_DIR' "$artifact"; then
+    echo "  FAIL: $(basename "$artifact") does not resolve LOG_DIR at runtime"
+    missing=1
+  fi
+done
+
 if [ "$missing" -ne 0 ]; then
   echo "ERROR: package incomplete"
   exit 1
@@ -363,9 +385,13 @@ if [ "$DO_ZIP" = true ]; then
   ]
 }
 FEED
+      # Constant name too: customers point UPDATE_FEED_URL at
+      # .../releases/latest/download/feed.json, which only resolves if the asset is
+      # literally called feed.json. The versioned copy is kept for release archaeology.
+      cp "feed-${VERSION}.json" feed.json
       echo "Created dist/${OUT_NAME}.zip"
       echo "SHA256: ${SHA}"
-      echo "Feed:   dist/feed-${VERSION}.json"
+      echo "Feed:   dist/feed.json (copy of feed-${VERSION}.json)"
     fi
   )
 fi

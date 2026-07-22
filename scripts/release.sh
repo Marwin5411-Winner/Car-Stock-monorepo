@@ -110,8 +110,12 @@ if [ ! -f "$ZIP" ]; then
 fi
 
 echo "==> Creating GitHub release v${NEW_VERSION}"
+FEED="$ROOT_DIR/dist/feed.json"
 ASSETS=("$ZIP")
 [ -f "$SHA" ] && ASSETS+=("$SHA")
+# Customers point UPDATE_FEED_URL at .../releases/latest/download/feed.json — without this
+# asset every "check for updates" 404s.
+[ -f "$FEED" ] && ASSETS+=("$FEED")
 gh release create "v${NEW_VERSION}" "${ASSETS[@]}" \
   --title "v${NEW_VERSION}" \
   --notes "Portable Windows package v${NEW_VERSION}"

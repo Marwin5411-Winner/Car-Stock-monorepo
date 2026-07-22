@@ -165,6 +165,10 @@ function Invoke-Update {
     $assetUrl = $null
     $expectedSha = $null
     $notes = $null
+    # Declared up front: the catch block reads both, and Set-StrictMode throws on an
+    # uninitialised variable if the run failed before the Backup/Swap steps assigned them.
+    $backupFile = $null
+    $prevDir = $null
 
     try {
         Acquire-UpdateLock
@@ -207,7 +211,7 @@ function Invoke-Update {
         $zipPath = Join-Path $script:StagingDir "vbeyond-windows-v$target.zip"
         $headers = @{}
         if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)" }
-        Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath -Headers $headers
+        Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath -Headers $headers -UseBasicParsing
 
         if ($expectedSha) {
             $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -247,7 +251,6 @@ function Invoke-Update {
             $updSrc = Join-Path $extractRoot 'updater'
         }
 
-        $backupFile = $null
         if (-not $SkipBackup) {
             Write-UpdateStatus -Step 5 -StepName 'BackupDB' -Status 'running' -Message 'Backing up database'
             $backupFile = Invoke-PgDumpBackup -Suffix 'pre-update'
@@ -274,6 +277,16 @@ function Invoke-Update {
         if ($updSrc -and (Test-Path $updSrc)) {
             $updDst = Join-Path $script:VbHome 'updater'
             Copy-Item -Path (Join-Path $updSrc '*') -Destination $updDst -Recurse -Force
+        }
+        # Launchers live at VB_HOME, not inside app\. Without this, a fix to start/stop/setup
+        # only ever reaches a fresh install — an updated site keeps running the old scripts.
+        if ($payloadRoot) {
+            foreach ($launcher in @('start.bat', 'stop.bat', 'setup.bat', 'install-service.ps1', 'uninstall-service.ps1')) {
+                $launcherSrc = Join-Path $payloadRoot $launcher
+                if (Test-Path -LiteralPath $launcherSrc) {
+                    Copy-Item -LiteralPath $launcherSrc -Destination (Join-Path $script:VbHome $launcher) -Force
+                }
+            }
         }
         # Refresh env example only
         $envExample = if ($payloadRoot) { Join-Path $payloadRoot 'config\.env.example' } else { $null }
@@ -324,6 +337,21 @@ function Invoke-Update {
         exit 0
     } catch {
         $msg = $_.Exception.Message
+        # Steps 6-9 leave the app stopped. Only the Migrate and Health paths restore it;
+        # anything else (locked file during the swap, disk full mid-copy, failed migrate)
+        # would otherwise leave the customer's site down with no process running.
+        try {
+            if (-not (Wait-VbHealth -TimeoutSec 5)) {
+                if ($prevDir -and (Test-Path -LiteralPath $prevDir) -and
+                    -not (Test-Path -LiteralPath (Join-Path $script:AppDir 'VERSION'))) {
+                    Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
+                }
+                Start-VbApp
+                Write-UpdaterLog 'Update failed; app restarted on the previous release' 'WARN' | Out-Null
+            }
+        } catch {
+            Write-UpdaterLog "Recovery after failed update did not complete: $($_.Exception.Message)" 'ERROR' | Out-Null
+        }
         Write-UpdateStatus -Step 0 -StepName 'Failed' -Status 'failed' -Message $msg -ErrorText $msg -ExtraLog @((Write-UpdaterLog $msg 'ERROR'))
         if ($msg -match 'already running') { exit 10 }
         if ($msg -match 'SHA256|Download') { exit 12 }

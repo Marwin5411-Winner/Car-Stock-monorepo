@@ -4,6 +4,13 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Windows Server 2016/2019 still negotiate TLS 1.0 by default, which GitHub refuses
+# ("Could not create SSL/TLS secure channel") — every feed check and download would fail.
+try {
+    [Net.ServicePointManager]::SecurityProtocol =
+        [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+} catch { }
+
 function Get-VbHome {
     if ($env:VB_HOME -and (Test-Path -LiteralPath $env:VB_HOME)) {
         return (Resolve-Path -LiteralPath $env:VB_HOME).Path
@@ -163,12 +170,36 @@ function Release-UpdateLock {
 }
 
 function Stop-VbApp {
+    param([int]$TimeoutSec = 30)
+
+    # Read the pid before stopping — stop.bat deletes the file on its way out.
+    $appPid = 0
+    $pidFile = Join-Path $script:StatusDir 'app.pid'
+    if (Test-Path -LiteralPath $pidFile) {
+        # -Raw returns $null for an empty file, and StrictMode makes .Trim() on $null fatal.
+        $pidText = Get-Content -LiteralPath $pidFile -Raw -ErrorAction SilentlyContinue
+        if ($pidText) {
+            [void][int]::TryParse($pidText.Trim(), [ref]$appPid)
+        }
+    }
+
     $stopBat = Join-Path $script:VbHome 'stop.bat'
     if (Test-Path -LiteralPath $stopBat) {
         & cmd.exe /c "`"$stopBat`""
-        return
+    } else {
+        Get-Service -Name 'VBeyondCarStock' -ErrorAction SilentlyContinue | Stop-Service -Force -ErrorAction SilentlyContinue
     }
-    Get-Service -Name 'VBeyondCarStock' -ErrorAction SilentlyContinue | Stop-Service -Force -ErrorAction SilentlyContinue
+
+    # stop.bat returns as soon as taskkill is issued. The Swap step that follows moves app\,
+    # which fails with "file in use" while the exe is still shutting down.
+    if ($appPid -gt 0) {
+        $deadline = (Get-Date).AddSeconds($TimeoutSec)
+        while ((Get-Date) -lt $deadline) {
+            if (-not (Get-Process -Id $appPid -ErrorAction SilentlyContinue)) { return }
+            Start-Sleep -Milliseconds 500
+        }
+        Write-UpdaterLog "PID $appPid still running ${TimeoutSec}s after stop" 'WARN' | Out-Null
+    }
 }
 
 function Start-VbApp {
@@ -190,7 +221,9 @@ function Wait-VbHealth {
     while ((Get-Date) -lt $deadline) {
         try {
             $r = Invoke-WebRequest -Uri "http://127.0.0.1:$port/health" -UseBasicParsing -TimeoutSec 3
-            if ($r.StatusCode -eq 200 -and $r.Content -match 'healthy') {
+            # NOT -match 'healthy': that also matches "unhealthy", so an app that came up
+            # without a database counted as a successful update and never rolled back.
+            if ($r.StatusCode -eq 200 -and $r.Content -match '"status"\s*:\s*"healthy"') {
                 return $true
             }
         } catch { }
@@ -336,5 +369,5 @@ function Get-UpdateFeed {
     if ($env:GITHUB_TOKEN) {
         $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)"
     }
-    return Invoke-RestMethod -Uri $feedUrl -Headers $headers -Method Get
+    return Invoke-RestMethod -Uri $feedUrl -Headers $headers -Method Get -UseBasicParsing
 }

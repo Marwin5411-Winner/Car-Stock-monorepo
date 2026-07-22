@@ -55,6 +55,16 @@ STATIC_DIR=public
 
 ถ้าเครื่องมีหลายคนเข้าจาก LAN ให้ใส่ IP จริงใน `CORS_ORIGIN` (และเปิด firewall พอร์ต `PORT`)
 
+> **⚠️ กับดัก 3 ข้อของไฟล์ `config\.env`** (เจอบ่อยที่สุด — แอปจะไม่ start แล้วหาสาเหตุยาก)
+>
+> 1. บันทึกเป็น **UTF-8 without BOM** เท่านั้น ถ้ามี BOM บรรทัดแรกจะอ่านไม่ออก (`DATABASE_URL` หาย)
+> 2. รหัสผ่านห้ามมี `!` และ `%` — ตัวแปลของ `.bat` จะกินอักขระพวกนี้
+> 3. `KEY=VALUE` บรรทัดละคู่ ไม่ต้องใส่ `"` และห้ามเว้นวรรครอบ `=`
+>
+> `JWT_SECRET` ต้องมีค่าจริง (สุ่มยาว 32+ ตัว) — ตั้งแต่ v1.0.58 API จะ **ไม่ยอม start** ถ้าเว้นว่าง
+> (ก่อนหน้านี้มันเงียบๆ ใช้ค่า default ที่เดาได้ ซึ่งเป็นช่องโหว่)
+> `start.bat` / `setup.bat` จะฟ้อง error ชัดเจนทันทีถ้าผิดข้อใดข้อหนึ่ง
+
 ### 4) Migrate ฐานข้อมูล
 
 ดับเบิลคลิกหรือรัน:
@@ -123,9 +133,27 @@ Windows start
 
 ### จากหน้า Settings (Admin)
 
-1. ตั้ง `UPDATE_FEED_URL` ใน `config\.env` ให้ชี้ feed ของทีม  
+1. ตั้ง `UPDATE_FEED_URL` ใน `config\.env` — ชื่อไฟล์ต้องเป็น `feed.json` เป๊ะๆ:
+
+   ```env
+   UPDATE_FEED_URL=https://github.com/Marwin5411-Winner/Car-Stock-monorepo/releases/latest/download/feed.json
+   ```
+
 2. Settings → System Update → ตรวจสอบอัพเดท → อัปเดต  
 3. ระบบจะ: backup DB → หยุดแอป → เปลี่ยน `app\` → migrate → start → เช็ก `/health`
+
+> **เครื่องที่ติดตั้ง v1.0.55–v1.0.57 อยู่: การอัปเดตครั้งนี้ต้องทำจาก PowerShell เท่านั้น**
+>
+> เวอร์ชันเหล่านั้นสั่ง updater เป็น process ลูกของ API พอถึงขั้นตอน "หยุดแอป"
+> `taskkill /T` จะฆ่า updater ไปด้วย → อัปเดตค้างและแอปดับ ปุ่มใน Settings จึงใช้ไม่ได้ครั้งนี้
+> ให้เปิด **PowerShell (Admin)** แล้วรัน (session นี้อยู่นอก process tree ของ API จึงปลอดภัย):
+>
+> ```powershell
+> cd C:\VBeyond
+> .\updater\update.ps1 -Action Update
+> ```
+>
+> หลังขึ้น v1.0.58 แล้ว ปุ่มใน Settings จะใช้ได้ตามปกติ
 
 ### จาก PowerShell
 
@@ -157,13 +185,12 @@ cd C:\VBeyond
 
 ## PDF / Chrome
 
-ถ้าพิมพ์ใบเสร็จพัง ให้ตั้ง:
+ตั้งแต่ v1.0.58 ระบบหา Chrome/Edge เองอัตโนมัติ (Edge มีติดมากับ Windows 10/11 อยู่แล้ว)
+ตั้ง `CHROMIUM_PATH` เฉพาะกรณีติดตั้งเบราว์เซอร์ไว้ที่อื่น:
 
 ```env
 CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 ```
-
-หรือ path ของ Edge ที่มี chromium
 
 ---
 
@@ -181,6 +208,8 @@ CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 | อาการ | ตรวจ |
 |--------|------|
 | start แล้ว health fail | Postgres รันหรือยัง, `DATABASE_URL` ถูกไหม, ดู `data\logs\app\` |
+| start แล้วออก exit 3 | แอปดับทันที — เปิด `data\logs\app\stderr.log` อ่านสาเหตุจริง (มัก JWT_SECRET/DB) |
+| แก้ `.env` แล้วยังไม่ต่าง | ไฟล์ถูกเซฟเป็น UTF-8 **with BOM** หรือมี `!` ในรหัสผ่าน (ดูหัวข้อตั้งค่า) |
 | เปิดเว็บแล้วขาว | มี `app\public\index.html` ไหม, `STATIC_DIR=public` |
 | อัปเดตไม่ได้ | `UPDATE_FEED_URL`, เน็ตออกนอก, `pg_dump` อยู่ใน PATH |
 | เปิดเครื่องแล้วไม่ขึ้น | service VBeyondCarStock = Automatic ไหม, Postgres Automatic ไหม |
