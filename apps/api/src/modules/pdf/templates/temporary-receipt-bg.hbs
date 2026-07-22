@@ -133,33 +133,33 @@
      CUST-XXXX — แถวเดียวกับ "ชื่อ-นามสกุล" (ขวาของชื่อ)
      ════════════════════════════════════════════════════════════════ */
   .f-cust-code {
-    top: 36mm; left: 20mm;
+    top: 37mm; left: 20mm;
   }
 
   /* ════════════════════════════════════════════════════════════════
      นอก BOX (ขวา) — RCPT, วันที่, เลขที่สัญญา, โทร.
      ════════════════════════════════════════════════════════════════ */
   .f-receipt-no {
-    top: 30mm; left: 128mm; width: 50mm; text-align: right;
+    top: 30mm; left: 135mm; width: 50mm; text-align: right;
   }
   .f-date {
-    top: 36mm; left: 154mm; width: 50mm; text-align: left;
+    top: 36mm; left: 160mm; width: 50mm; text-align: left;
   }
   .f-contract {
     top: 44mm; left: 154mm; width: 50mm; text-align: left;
   }
   .f-phone {
-    top: 50mm; left: 102mm; width: 50mm; text-align: right;
+    top: 50mm; left: 109mm; width: 50mm; text-align: right;
   }
 
   /* ════════════════════════════════════════════════════════════════
      BOX บน (ชื่อ / ที่อยู่)
      ════════════════════════════════════════════════════════════════ */
   .f-cust-name {
-    top: 42mm; left: 25mm;
+    top: 43mm; left: 26mm;
   }
   .f-cust-addr {
-    top: 50mm; left: 25mm; max-width: 130mm; white-space: normal;
+    top: 51mm; left: 26mm; max-width: 130mm; white-space: normal;
   }
 
   /* ════════════════════════════════════════════════════════════════
@@ -167,7 +167,7 @@
      ════════════════════════════════════════════════════════════════ */
   .f-items {
     top: 60mm;
-    left: 15mm;
+    left: 27mm;
     width: 130mm;
     line-height: 1.3;
   }
@@ -187,10 +187,10 @@
      เลขบัญชีธนาคาร — ขวาของ "ชำระโดย" บนบรรทัด signature เดียวกัน
      ════════════════════════════════════════════════════════════════ */
   .f-bank-account {
-    top: 121.5mm;
+    top: 118mm;
     left: 152mm;
     width: 55mm;
-    line-height: 1.25;
+    line-height: 2;
     font-size: calc(var(--fs) - 1px);
     white-space: normal;
   }
@@ -204,16 +204,16 @@
   .f-grand-total {
     left: 137mm; width: 50mm; text-align: right;
   }
-  .f-total-paid     { top: 78mm; }
-  .f-total-late     { top: 85mm; }
-  .f-total-discount { top: 92mm; }
-  .f-grand-total    { top: 109mm; font-weight: bold; }
+  .f-total-paid     { top: 77mm; }
+  .f-total-late     { top: 83mm; }
+  .f-total-discount { top: 90mm; }
+  .f-grand-total    { top: 107.5mm; font-weight: bold; }
 
   /* ════════════════════════════════════════════════════════════════
      จำนวนเงิน (ตัวอักษร) — Y เดียวกับ .f-grand-total | X เดียวกับ .f-items
      ════════════════════════════════════════════════════════════════ */
   .f-amount-text {
-    top: 110mm;
+    top: 108mm;
     left: 15mm;
     font-weight: bold;
   }
@@ -222,8 +222,8 @@
      Signature lines — "ชำระโดย" อยู่ท้ายบรรทัด
      ════════════════════════════════════════════════════════════════ */
   .f-pay-method {
-    top: 121.5mm;
-    left: 130mm;
+    top: 119mm;
+    left: 135mm;
     width: 55mm;
     text-align: left;
   }
