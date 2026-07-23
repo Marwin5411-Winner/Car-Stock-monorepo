@@ -50,7 +50,7 @@ describe('Vehicle card HTML print', () => {
     const html = await pdfService.renderVehicleCardHtml(cardData);
     expect(html).toContain('<!DOCTYPE html>');
     expect(html).toContain('@page');
-    expect(html).toContain('26.9cm 20.9cm'); // custom cut stock (not Letter/A4)
+    expect(html).toContain('27cm 21cm'); // custom cut stock 27×21
     expect(html).toContain('STK-HTML-001'); // data rendered
     expect(html).toContain('การ์ดรายละเอียดรถยนต์'); // card title text present
   });

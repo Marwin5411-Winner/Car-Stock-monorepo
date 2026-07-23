@@ -119,7 +119,7 @@ describe('PdfService — Puppeteer engine', () => {
   });
 
   describe('custom page sizes', () => {
-    it('should generate vehicle card with custom dimensions (26.85 x 20.71 cm)', async () => {
+    it('should generate vehicle card with custom dimensions (27 x 21 cm)', async () => {
       const data: VehicleCardData = {
         header: mockHeader,
         stockNumber: 'STK-001',

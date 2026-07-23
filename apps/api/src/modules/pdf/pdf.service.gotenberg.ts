@@ -706,16 +706,16 @@ export class PdfService {
    * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
-    // Custom size: 26.85 x 20.71 cm (10.57 x 8.15 in)
+    // Custom stock: 27 × 21 cm; left/right 1cm
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
-      width: '26.85cm',
-      height: '20.71cm',
+      width: '27cm',
+      height: '21cm',
       padding: '0mm',
       margin: {
-        top: '5mm',
-        right: '5mm',
+        top: '10mm',
+        right: '10mm',
         bottom: '5mm',
-        left: '5mm',
+        left: '10mm',
       },
     });
   }

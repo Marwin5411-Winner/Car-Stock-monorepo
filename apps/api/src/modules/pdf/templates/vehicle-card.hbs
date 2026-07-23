@@ -1,10 +1,20 @@
 <div class="page">
   <style>
+    /*
+      Vehicle card (ปกติ)
+      Paper content width 25cm (27 − 1cm L/R)
+      Row heights: default 7mm
+        — except รวมรายรับทั้งสิ้น (spans left rows 3–4)
+        — except สรุป/หัก (right span to bottom)
+        — except bottom 4 rows @ 4.5mm
+    */
     .page {
       font-family: 'Sarabun', 'Kanit', sans-serif;
       font-size: 9px;
       padding: 0;
       color: #000;
+      width: 25cm;
+      box-sizing: border-box;
     }
     .page * {
       color: #000 !important;
@@ -16,12 +26,59 @@
       table-layout: fixed;
       border-collapse: collapse;
       border: 1px solid #000;
+      margin: 0 !important; /* kill base HTML table margin: 10px 0 */
+      border-spacing: 0;
+    }
+    /* Stack top tables flush — no gap, share one border line */
+    .page table + table {
+      margin-top: -1px !important;
     }
     .page th, .page td {
       border: 1px solid #000;
-      padding: 2px;
+      padding: 0 2px;
       vertical-align: middle;
+      line-height: 1.15;
+      overflow: hidden;
+    }
+    /* Default: every body row 7mm */
+    .page table tr.row-h-7,
+    .page table tr.row-h-7 > th,
+    .page table tr.row-h-7 > td {
+      height: 7mm;
+      max-height: 7mm;
+      font-size: 8.5px;
+      line-height: 6.5mm;
+    }
+    /* รวมรายการทั้งสิ้น */
+    .page table tr.row-h-14,
+    .page table tr.row-h-14 > th,
+    .page table tr.row-h-14 > td {
+      height: 14mm;
+      max-height: 14mm;
+      font-size: 9px;
       line-height: 1.2;
+    }
+    /* Bottom 4 rows */
+    .page table tr.row-h-4-5,
+    .page table tr.row-h-4-5 > th,
+    .page table tr.row-h-4-5 > td {
+      height: 4.5mm;
+      max-height: 4.5mm;
+      padding: 0 2px;
+      line-height: 4.2mm;
+      font-size: 8px;
+      overflow: hidden;
+    }
+    /* รวมรายรับทั้งสิ้น — not forced to 7mm (spans 2×7mm left rows) */
+    .page td.recv-total {
+      vertical-align: middle !important;
+      font-size: 8.5px;
+      white-space: nowrap;
+    }
+    /* สรุป/หัก — spans รวม 7mm + footer 7mm + 4×4.5mm */
+    .page td.summary-span {
+      vertical-align: top !important;
+      padding: 3px !important;
     }
     .page .title {
       text-align: center;
@@ -40,16 +97,21 @@
     }
     .page .inner-table {
       border: none !important;
+      width: 100%;
     }
     .page .inner-table td {
       border: none !important;
       padding: 1px;
+      height: auto !important;
+      max-height: none !important;
+      line-height: 1.3 !important;
+      font-size: 8px !important;
     }
     .page .inner-table .dotted-line {
       border-bottom: 1px dotted #000 !important;
     }
     .page .mt-neg {
-      margin-top: -1px;
+      margin-top: -1px !important;
     }
     @media print {
       .page {
@@ -63,19 +125,37 @@
 
   <h1 class="title">การ์ดรายละเอียดรถยนต์</h1>
 
-  <!-- Header Table: Vehicle Info -->
-  <table>
-    <tr>
-      <th style="width: 14%;">ใบสั่งซื้อเลขที่</th>
-      <th style="width: 16%;">แบบรุ่นรถยนต์</th>
-      <th style="width: 16%;">เลขเครื่องยนต์</th>
-      <th style="width: 16%;">เลขแชสซีร์</th>
-      <th style="width: 10%;">รหัสสี</th>
-      <th style="width: 14%;">ใบสั่งขายเลขที่</th>
-      <th style="width: 14%;">STOCK NO.</th>
+  {{!
+    ============================================================
+    MERGED top section: vehicle header + motor + dates
+    Master column grid = header 7 cols (4.4+4.3+4.3+4.2+2.6+2.6+2.6 = 25cm)
+    Previous separate tables kept in HTML comment at file bottom for revert.
+    ============================================================
+  }}
+  <table class="card-top-unified">
+    <colgroup>
+      <col style="width: 4.4cm;">
+      <col style="width: 4.3cm;">
+      <col style="width: 4.3cm;">
+      <col style="width: 4.2cm;">
+      <col style="width: 2.6cm;">
+      <col style="width: 2.6cm;">
+      <col style="width: 2.6cm;">
+    </colgroup>
+
+    <!-- Vehicle header labels -->
+    <tr class="row-h-7">
+      <th>ใบสั่งซื้อเลขที่</th>
+      <th>แบบรุ่นรถยนต์</th>
+      <th>เลขเครื่องยนต์</th>
+      <th>เลขแชสซีร์</th>
+      <th>รหัสสี</th>
+      <th>ใบสั่งขายเลขที่</th>
+      <th>STOCK NO.</th>
     </tr>
-    <tr>
-      <td style="height: 14px;"></td>
+    <!-- Vehicle header values -->
+    <tr class="row-h-7">
+      <td></td>
       <td style="text-align: center;">{{car.model}}{{#if car.variant}} {{car.variant}}{{/if}}</td>
       <td style="text-align: center;">{{car.engineNo}}</td>
       <td style="text-align: center;">{{car.chassisNo}}</td>
@@ -83,37 +163,29 @@
       <td></td>
       <td style="text-align: center; font-weight: bold;">{{stockNumber}}</td>
     </tr>
-  </table>
 
-  {{#if car.motorNumbers}}
-  <!-- Motor Number Row (EV/Hybrid) -->
-  <table class="mt-neg">
-    <tr>
-      <td style="width: 16%; font-weight: bold;">เลขมอเตอร์</td>
-      <td style="text-align: center;">{{car.motorNumbers}}</td>
-    </tr>
-  </table>
-  {{/if}}
+    {{!
+      Motor row removed from print layout.
+    }}
 
-  <!-- Date Row -->
-  <table class="mt-neg">
-    <tr>
-      <td style="width: 25%; font-weight: bold;">วันที่สั่งซื้อ</td>
-      <td style="width: 25%; font-weight: bold;">วันที่รับรถ</td>
-      <td style="width: 25%; font-weight: bold;">วันที่ขาย</td>
-      <td style="width: 25%; font-weight: bold;">พนักงานขาย</td>
+    <!-- Dates: 4 fields on 7-col grid → colspan 2+2+2+1 -->
+    <tr class="row-h-7">
+      <td colspan="2" style="font-weight: bold;">วันที่สั่งซื้อ</td>
+      <td colspan="2" style="font-weight: bold;">วันที่รับรถ</td>
+      <td colspan="2" style="font-weight: bold;">วันที่ขาย</td>
+      <td style="font-weight: bold;">พนักงานขาย</td>
     </tr>
-    <tr>
-      <td style="height: 14px; text-align: center;">{{orderDate}}</td>
-      <td></td>
+    <tr class="row-h-7">
+      <td colspan="2" style="text-align: center;">{{orderDate}}</td>
+      <td colspan="2"></td>
       {{! วันที่ขาย stays blank — customer fills it in by hand at sale time }}
-      <td></td>
+      <td colspan="2"></td>
       <td></td>
     </tr>
   </table>
 
-  <!-- Main Content Table -->
-  <table class="mt-neg">
+  {{! Main body still uses its own 9-col grid; flush to top unified table via table+table }}
+  <table class="mt-neg card-main">
     <colgroup>
       <col style="width: 5%;">
       <col style="width: 19%;">
@@ -125,8 +197,8 @@
       <col style="width: 11%;">
       <col style="width: 11%;">
     </colgroup>
-    <!-- Headers -->
-    <tr style="text-align: center;">
+
+    <tr class="row-h-7" style="text-align: center;">
       <th></th>
       <th style="text-align: center;">รายละเอียดต้นทุน</th>
       <th colspan="2" style="text-align: center;">จำนวนเงิน+VAT</th>
@@ -137,21 +209,18 @@
       <th>ผู้ตรวจสอบ</th>
     </tr>
 
-    <!-- Row 1: ราคาก่อน VAT -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">1</td>
       <td>ราคาก่อน VAT</td>
       <td style="text-align: right;">{{costs.beforeVatInt}}</td>
       <td style="text-align: center;">{{costs.beforeVatDec}}</td>
       <td></td>
-      <td style="padding-left: 20px;">ราคาขาย</td>
+      <td style="padding-left: 12px;">ราคาขาย</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Row 2: VAT -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">2</td>
       <td>VAT 7%</td>
       <td style="text-align: right;">{{costs.vatAmountInt}}</td>
@@ -162,22 +231,18 @@
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Row 3 -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">3</td>
       <td></td>
       <td></td>
       <td></td>
       <td></td>
-      <td style="padding-left: 20px;">คงเหลือ</td>
+      <td style="padding-left: 12px;">คงเหลือ</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Row 4 -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">4</td>
       <td></td>
       <td></td>
@@ -188,9 +253,7 @@
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Row 5 -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">5</td>
       <td></td>
       <td></td>
@@ -201,54 +264,45 @@
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Row 6: รวม / คงเหลือเงินดาวน์ -->
-    <tr>
+    <tr class="row-h-7">
       <td colspan="2" style="text-align: center; font-weight: bold;">รวม</td>
       <td style="text-align: right; font-weight: bold;">{{costs.totalWithVatInt}}</td>
       <td style="text-align: center; font-weight: bold;">{{costs.totalWithVatDec}}</td>
       <td></td>
-      <td style="padding-left: 20px;">คงเหลือเงินดาวน์</td>
+      <td style="padding-left: 12px;">คงเหลือเงินดาวน์</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
 
-    <!-- Payment Conditions Header -->
-    <tr>
+    <tr class="row-h-7">
       <td colspan="5" style="text-align: center; font-weight: bold;">เงื่อนไขการชำระเงิน</td>
       <td>บวก&nbsp;&nbsp;ค่าจดทะเบียน</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Payment Options Row -->
-    <tr>
+    <tr class="row-h-7">
       <td colspan="5" style="text-align: center;">
         <span class="checkbox"></span> เงินสด
-        <span style="display: inline-block; width: 30px;"></span>
+        <span style="display: inline-block; width: 24px;"></span>
         <span class="checkbox"></span> เครดิต................วัน
       </td>
-      <td style="padding-left: 20px;">ค่าเบี้ยประกัน</td>
+      <td style="padding-left: 12px;">ค่าเบี้ยประกัน</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Voucher Header -->
-    <tr>
+    <tr class="row-h-7">
       <td colspan="2" style="text-align: center;">เลขที่ใบสำคัญจ่าย/กำหนดชำระ</td>
       <td colspan="2" style="text-align: center;">จำนวนเงิน +VAT</td>
       <td style="text-align: center;">ผู้อนุมัติ</td>
-      <td style="padding-left: 20px;">ค่า พรบ.</td>
+      <td style="padding-left: 12px;">ค่า พรบ.</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Voucher Rows -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">1</td>
       <td></td>
       <td></td>
@@ -259,7 +313,7 @@
       <td></td>
       <td></td>
     </tr>
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">2</td>
       <td></td>
       <td></td>
@@ -270,7 +324,7 @@
       <td></td>
       <td></td>
     </tr>
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">3</td>
       <td></td>
       <td></td>
@@ -282,17 +336,14 @@
       <td></td>
     </tr>
 
-    <!-- Extra Expenses Header -->
-    <tr>
+    <tr class="row-h-7">
       <td colspan="5" style="font-weight: bold;">ค่าใช้จ่ายอื่นๆ</td>
       <td></td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
-
-    <!-- Extra Expenses Rows -->
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">1</td>
       <td>ค่าขนส่ง</td>
       <td></td>
@@ -303,7 +354,7 @@
       <td></td>
       <td></td>
     </tr>
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">2</td>
       <td>ค่าคอมขาย</td>
       <td></td>
@@ -314,17 +365,19 @@
       <td></td>
       <td></td>
     </tr>
-    <tr>
+
+    <!-- Left 3–4 @ 7mm; right รวมรายรับทั้งสิ้น spans both (exception, not a single 7mm row) -->
+    <tr class="row-h-7">
       <td style="text-align: center;">3</td>
       <td>ค่านำพา</td>
       <td></td>
       <td></td>
       <td></td>
-      <td colspan="4" rowspan="2" style="vertical-align: middle;">
+      <td colspan="4" rowspan="2" class="recv-total">
         <span style="font-weight: bold;">รวมรายรับทั้งสิ้น(เงินดาวน์+ยอดจัด)</span>..................................บาท
       </td>
     </tr>
-    <tr>
+    <tr class="row-h-7">
       <td style="text-align: center;">4</td>
       <td></td>
       <td></td>
@@ -332,13 +385,16 @@
       <td></td>
     </tr>
 
-    <!-- Summary Row -->
-    <tr>
+    <!--
+      รวม 7mm (left)
+      สรุป/หัก (right) spans this + footer 7mm + 4×4.5mm → rowspan 6
+    -->
+    <tr class="row-h-7">
       <td colspan="2" style="text-align: center; font-weight: bold;">รวม</td>
       <td></td>
       <td></td>
       <td></td>
-    <td colspan="4" rowspan="2" style="vertical-align: top; padding: 3px;">
+      <td colspan="4" rowspan="6" class="summary-span">
         <table class="inner-table">
           <tr>
             <td style="font-weight: bold; width: 15%;">สรุป</td>
@@ -368,12 +424,68 @@
       </td>
     </tr>
 
-    <!-- Footer Row -->
-    <tr>
-      <td colspan="5" style="padding: 3px; vertical-align: top;">
-        <div style="font-weight: bold; margin-bottom: 2px;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
+    <tr class="row-h-7">
+      <td colspan="5" style="padding: 2px; vertical-align: top;">
+        <div style="font-weight: bold;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
         <div style="font-weight: bold;">หมายเหตุ</div>
       </td>
     </tr>
+
+    <tr class="row-h-4-5">
+      <td colspan="5"></td>
+    </tr>
+    <tr class="row-h-4-5">
+      <td colspan="5"></td>
+    </tr>
+    <tr class="row-h-4-5">
+      <td colspan="5"></td>
+    </tr>
+    <tr class="row-h-4-5">
+      <td colspan="5"></td>
+    </tr>
   </table>
+
+  <!--
+    ============================================================
+    REVERT SNAPSHOT — previous separate top tables (do not delete)
+    Restore this block (and remove card-top-unified) if needed.
+    Placeholders use [ ] instead of handlebars braces so this stays inert.
+
+    <table class="header-vehicle">
+      <colgroup>
+        <col style="width: 4.4cm;">
+        <col style="width: 4.3cm;">
+        <col style="width: 4.3cm;">
+        <col style="width: 4.2cm;">
+        <col style="width: 2.6cm;">
+        <col style="width: 2.6cm;">
+        <col style="width: 2.6cm;">
+      </colgroup>
+      <tr class="row-h-7"> ... header labels ... </tr>
+      <tr class="row-h-7">
+        <td></td>
+        <td>[car.model] [car.variant]</td>
+        <td>[car.engineNo]</td>
+        <td>[car.chassisNo]</td>
+        <td>[car.color]</td>
+        <td></td>
+        <td>[stockNumber]</td>
+      </tr>
+    </table>
+    [if car.motorNumbers]
+    <table class="mt-neg">
+      <tr class="row-h-7">
+        <td>เลขมอเตอร์</td>
+        <td>[car.motorNumbers]</td>
+      </tr>
+    </table>
+    [/if]
+    <table class="mt-neg">
+      <tr class="row-h-7"> dates labels 25% each </tr>
+      <tr class="row-h-7">
+        <td>[orderDate]</td><td></td><td></td><td></td>
+      </tr>
+    </table>
+    ============================================================
+  -->
 </div>

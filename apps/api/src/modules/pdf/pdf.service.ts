@@ -780,16 +780,16 @@ export class PdfService {
    * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
-    // Custom size: 26.85 x 20.71 cm (10.57 x 8.15 in)
+    // Custom stock: 27 × 21 cm; left/right 1cm
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
-      width: '26.85cm',
-      height: '20.71cm',
+      width: '27cm',
+      height: '21cm',
       padding: '0mm',
       margin: {
-        top: '5mm',
-        right: '5mm',
+        top: '10mm',
+        right: '10mm',
         bottom: '5mm',
-        left: '5mm',
+        left: '10mm',
       },
     });
   }
@@ -815,25 +815,18 @@ export class PdfService {
   /**
    * Render Vehicle Card as HTML for browser printing (การ์ดรายละเอียดรถยนต์).
    *
-   * The green-card stock is a CUSTOM CUT: 26.9 × 20.9 cm measured edge-to-edge
-   * (NOT Letter 27.94×21.59 and NOT A4 29.7×21.0 — a Letter/A4 @page makes the
-   * driver fall back to A4 and centre it on the smaller sheet, cutting ~1.4cm
-   * off each side). @page must stay the real paper size so the browser passes
-   * it straight to the driver with no scaling.
-   *
-   * The customer's pre-printed form grid is ≈24.6cm wide, starting ≈1.5cm from
-   * the paper's left edge — width + the @page margin (top right bottom left)
-   * mirror that. The margin is the single calibration knob for edge gaps.
+   * Stock paper: 27 × 21 cm. Content width 25 cm with left/right margins 1 cm.
+   * Header 7 cols: 4.4 + 4.3 + 4.3 + 4.2 + 2.6 + 2.6 + 2.6 = 25 cm.
+   * @page must match real paper so the driver does not scale to Letter/A4.
    */
   public async renderVehicleCardHtml(data: VehicleCardData): Promise<string> {
     return this.renderHtml(PdfTemplateType.VEHICLE_CARD, data, {
-      width: '24.6cm',
-      // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
-      height: '20.71cm',
+      // 27cm − 1cm − 1cm
+      width: '25cm',
+      height: '21cm',
       padding: '0mm',
-      // Calibrated against the customer's pre-printed form 2026-07-04:
-      // top 10mm (was 5, print sat 5mm too high), left 14mm (was 15, 1mm right).
-      htmlPage: { size: '26.9cm 20.9cm', margin: '10mm 9mm 5mm 14mm' },
+      // top right bottom left
+      htmlPage: { size: '27cm 21cm', margin: '10mm 10mm 5mm 10mm' },
     });
   }
 
