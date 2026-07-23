@@ -284,7 +284,11 @@ function Invoke-Update {
         # Launchers live at VB_HOME, not inside app\. Without this, a fix to start/stop/setup
         # only ever reaches a fresh install — an updated site keeps running the old scripts.
         if ($payloadRoot) {
-            foreach ($launcher in @('start.bat', 'stop.bat', 'setup.bat', 'install-service.ps1', 'uninstall-service.ps1')) {
+            foreach ($launcher in @(
+                'start.bat', 'stop.bat', 'stop-app.ps1', 'setup.bat',
+                'install-service.ps1', 'uninstall-service.ps1',
+                'install-service.bat', 'uninstall-service.bat'
+            )) {
                 $launcherSrc = Join-Path $payloadRoot $launcher
                 if (Test-Path -LiteralPath $launcherSrc) {
                     Copy-Item -LiteralPath $launcherSrc -Destination (Join-Path $script:VbHome $launcher) -Force
