@@ -780,7 +780,7 @@ export class PdfService {
    * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
-    // Custom stock: 27 × 21 cm; left/right 1cm
+    // Custom stock: 27 × 21 cm; L/R 1cm; top 10mm / bottom 6mm → content 194mm
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
       width: '27cm',
       height: '21cm',
@@ -788,7 +788,7 @@ export class PdfService {
       margin: {
         top: '10mm',
         right: '10mm',
-        bottom: '5mm',
+        bottom: '6mm',
         left: '10mm',
       },
     });
@@ -825,8 +825,8 @@ export class PdfService {
       width: '25cm',
       height: '21cm',
       padding: '0mm',
-      // top right bottom left
-      htmlPage: { size: '27cm 21cm', margin: '10mm 10mm 5mm 10mm' },
+      // top right bottom left — content band 210−10−6 = 194mm
+      htmlPage: { size: '27cm 21cm', margin: '10mm 10mm 6mm 10mm' },
     });
   }
 
