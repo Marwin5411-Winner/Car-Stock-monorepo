@@ -57,6 +57,11 @@ function Initialize-VbPaths {
     $script:StatusFile = Join-Path $script:StatusDir 'update-status.json'
     $script:UpdateLock = Join-Path $script:StatusDir 'update.lock'
     $script:LastCheckFile = Join-Path $script:CacheDir 'last-check.json'
+    # Write-UpdaterLog does `if (-not $script:UpdateLogFile)` to name the log once per run.
+    # Windows PowerShell 5.1 returns $null for an unset scoped variable, but PowerShell 7
+    # honours Set-StrictMode there and throws — the updater died on its very first log line.
+    # Declare it so the script works under either host.
+    $script:UpdateLogFile = $null
 
     @(
         $script:ReleasesDir, $script:StagingDir, $script:BackupsDir,
