@@ -68,6 +68,35 @@ interface CachedUpdateCheck {
 
 let cachedUpdateCheck: CachedUpdateCheck | null = null;
 
+// Daily database backup. Until now a dump was only taken before an update or when someone
+// clicked the button — there was no automatic backup at all, despite what the name of the
+// Settings panel suggests to an operator.
+const BACKUP_SCHEDULE = (process.env.BACKUP_SCHEDULE ?? '17:00').trim();
+// Backups were never pruned. That was survivable at a few dumps a year; one a day would
+// fill the customer's disk, and a full disk on the database server is worse than a missing
+// backup. Only 'scheduled' dumps are eligible — see pruneScheduledBackups.
+const BACKUP_RETENTION_DAYS = Number.parseInt(process.env.BACKUP_RETENTION_DAYS || '30', 10);
+
+/** Parse "HH:MM" (24h). Returns null for anything else, which disables the scheduler. */
+export function parseDailyTime(value: string): { hour: number; minute: number } | null {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(value.trim());
+  if (!m) return null;
+  return { hour: Number(m[1]), minute: Number(m[2]) };
+}
+
+/**
+ * Milliseconds until the next local HH:MM. Recomputed before every run rather than adding a
+ * fixed 24h, so the time does not drift and survives a DST change.
+ */
+export function msUntilNextDailyRun(hour: number, minute: number, from: Date): number {
+  const next = new Date(from);
+  next.setHours(hour, minute, 0, 0);
+  if (next.getTime() <= from.getTime()) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next.getTime() - from.getTime();
+}
+
 export interface UpdateCheckResult {
   hasUpdate: boolean;
   currentCommit: string;
@@ -730,9 +759,105 @@ export class SystemService {
   }
 
   /**
-   * Trigger manual backup
+   * Delete scheduled dumps older than BACKUP_RETENTION_DAYS.
+   *
+   * Deliberately narrow: only files this scheduler produced. A 'pre-update' dump is the
+   * rollback safety net for an update, and a 'manual' one was taken by a human on purpose —
+   * silently deleting either would be a nasty surprise on the day someone needs it.
    */
-  async triggerBackup(): Promise<{
+  pruneScheduledBackups(): number {
+    if (!IS_PORTABLE) return 0;
+    if (!Number.isFinite(BACKUP_RETENTION_DAYS) || BACKUP_RETENTION_DAYS <= 0) return 0;
+
+    const dir = path.join(this.getVbHome(), 'data', 'backups');
+    if (!fs.existsSync(dir)) return 0;
+
+    const cutoff = Date.now() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    let removed = 0;
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.includes('_scheduled.')) continue;
+      const full = path.join(dir, name);
+      try {
+        if (fs.statSync(full).mtimeMs < cutoff) {
+          fs.unlinkSync(full);
+          removed++;
+        }
+      } catch {
+        // A locked or already-removed file must not abort the rest of the sweep.
+      }
+    }
+    return removed;
+  }
+
+  /**
+   * One scheduled backup run. Never throws — a failing nightly job must not take down the
+   * timer or the process; the outcome is returned so the caller can log it.
+   */
+  async runScheduledBackup(): Promise<{ ok: boolean; message: string; pruned: number }> {
+    try {
+      const result = await this.triggerBackup('scheduled');
+      const pruned = this.pruneScheduledBackups();
+      return {
+        ok: true,
+        message: `Scheduled backup complete${result.dumpSize ? ` (${result.dumpSize})` : ''}`,
+        pruned,
+      };
+    } catch (error) {
+      // Common and expected: pg_dump missing, Postgres down, or an update holding the lock.
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+        pruned: 0,
+      };
+    }
+  }
+
+  /**
+   * Run a backup every day at BACKUP_SCHEDULE (local time, "HH:MM"; blank or malformed
+   * disables it). Returns null when disabled so the caller can tell configured-off from
+   * mis-typed, plus a stop() for shutdown and tests.
+   *
+   * If the machine is off at that time the run is simply missed — catching up on boot is not
+   * attempted. 17:00 is chosen by the operator to land while the server is still on.
+   */
+  startBackupScheduler(
+    onRun?: (result: { ok: boolean; message: string; pruned: number }) => void
+  ): { stop: () => void; at: string } | null {
+    const at = parseDailyTime(BACKUP_SCHEDULE);
+    if (!at) return null;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    const schedule = () => {
+      if (stopped) return;
+      timer = setTimeout(
+        async () => {
+          const result = await this.runScheduledBackup();
+          onRun?.(result);
+          // Re-arm from the new "now" rather than adding 24h, so the clock never drifts.
+          schedule();
+        },
+        msUntilNextDailyRun(at.hour, at.minute, new Date())
+      );
+      timer.unref?.();
+    };
+
+    schedule();
+    return {
+      at: BACKUP_SCHEDULE,
+      stop: () => {
+        stopped = true;
+        if (timer) clearTimeout(timer);
+      },
+    };
+  }
+
+  /**
+   * Take a database backup. `suffix` becomes part of the filename and decides whether
+   * retention may ever delete it — only 'scheduled' dumps are pruned.
+   */
+  async triggerBackup(suffix: 'manual' | 'scheduled' = 'manual'): Promise<{
     message: string;
     dump: string;
     dumpSize: string;
@@ -740,7 +865,10 @@ export class SystemService {
     sqlSize: string;
   }> {
     if (IS_PORTABLE) {
-      const { code, stdout, stderr } = await this.runUpdateScript('Backup');
+      const { code, stdout, stderr } = await this.runUpdateScript('Backup', [
+        '-BackupSuffix',
+        suffix,
+      ]);
       if (code !== 0) {
         throw new Error(stderr || stdout || 'Backup failed');
       }

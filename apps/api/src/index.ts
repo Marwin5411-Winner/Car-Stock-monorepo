@@ -356,4 +356,27 @@ if (systemService.startUpdateWatcher()) {
   );
 }
 
+// Daily database backup. Failures are logged rather than thrown — a nightly job must not be
+// able to take the API down — so this log is the only place a broken backup shows up until
+// someone opens Settings.
+const backupSchedule = systemService.startBackupScheduler((result) => {
+  if (result.ok) {
+    logger.info({ pruned: result.pruned }, result.message);
+  } else {
+    logger.error({ err: result.message }, `Scheduled backup failed: ${result.message}`);
+  }
+});
+if (backupSchedule) {
+  logger.info(
+    { at: backupSchedule.at, retentionDays: process.env.BACKUP_RETENTION_DAYS || '30' },
+    'Daily backup scheduled'
+  );
+} else if (process.env.BACKUP_SCHEDULE?.trim()) {
+  // Configured but unusable — say so, instead of silently never backing up.
+  logger.warn(
+    { value: process.env.BACKUP_SCHEDULE },
+    'BACKUP_SCHEDULE is not a valid HH:MM time — daily backup is DISABLED'
+  );
+}
+
 export type App = typeof app;

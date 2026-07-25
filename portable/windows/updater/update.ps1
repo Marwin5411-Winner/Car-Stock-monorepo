@@ -20,7 +20,12 @@ param(
 
     # Install from a zip already on this machine instead of fetching the feed and downloading
     # ~195MB. For sites with slow or no internet. Every safety step after Download still runs.
-    [string]$LocalPackage = ''
+    [string]$LocalPackage = '',
+
+    # Label written into the backup filename (-Action Backup). 'scheduled' marks a dump the
+    # daily scheduler took, which is the only kind retention is allowed to delete.
+    [ValidateSet('manual', 'scheduled')]
+    [string]$BackupSuffix = 'manual'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,7 +82,11 @@ function Invoke-BackupOnly {
         exit 10
     }
     try {
-        $path = Invoke-PgDumpBackup -Suffix 'manual'
+        # The suffix lands in the filename and is what retention keys off: only 'scheduled'
+        # dumps are auto-pruned. A 'manual' one was taken deliberately and a 'pre-update' one
+        # is a rollback safety net — neither is the scheduler's to delete.
+        $suffix = if ($BackupSuffix) { $BackupSuffix } else { 'manual' }
+        $path = Invoke-PgDumpBackup -Suffix $suffix
         $item = Get-Item -LiteralPath $path
         $out = [ordered]@{
             message  = 'Backup completed'

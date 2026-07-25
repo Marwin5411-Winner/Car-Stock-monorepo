@@ -227,6 +227,38 @@ cd C:\VBeyond
 
 ---
 
+## สำรองฐานข้อมูล
+
+### อัตโนมัติทุกวัน (v1.0.63+)
+
+ระบบจะ `pg_dump` ให้เองทุกวันเวลา **17:00** ตามเวลาเครื่อง เก็บไว้ที่ `data\backups\`
+
+```env
+BACKUP_SCHEDULE=17:00        # เว้นว่าง = ปิด | รูปแบบ HH:MM 24 ชม.
+BACKUP_RETENTION_DAYS=30     # ลบ dump อัตโนมัติที่เก่ากว่านี้ | 0 = ไม่ลบ
+```
+
+| เรื่อง | รายละเอียด |
+|--------|-----------|
+| **ลบเฉพาะไฟล์ที่ตัวตั้งเวลาสร้างเอง** | ชื่อลงท้าย `_scheduled.dump` เท่านั้น — dump ที่ชื่อ `_manual` (คนกดเอง) และ `_pre-update` (ตัวกันพลาดตอนอัปเดต) **ไม่ถูกลบเด็ดขาด** |
+| ปิดเครื่องตอน 17:00 | รอบนั้นข้ามไปเลย ไม่มีการไล่ทำย้อนหลัง — เลือก 17:00 เพราะเครื่องยังเปิดอยู่ |
+| ตั้งเวลาผิดรูปแบบ | เช่น `17.00` → **ปิดการทำงาน** และเขียน WARN ลง log ตอนเปิดแอป |
+| backup ล้มเหลว | เขียน ERROR ลง `data\logs\app\` ไม่ทำให้แอปล่ม — ดู log ถ้าสงสัย |
+
+> ⚠️ **ต้องมี `pg_dump`** ถ้าไม่มีจะขึ้น `pg_dump not found. Install PostgreSQL client tools
+> or place pg_dump.exe in app\tools\` — ลง PostgreSQL client tools หรือก๊อป `pg_dump.exe`
+> ไปวางที่ `app\tools\`
+
+### สำรองเองทันที
+
+Settings → สำรองข้อมูล หรือ:
+
+```powershell
+.\updater\update.ps1 -Action Backup
+```
+
+---
+
 ## โครงสร้างโฟลเดอร์สำคัญ
 
 | path | ความหมาย |
@@ -234,7 +266,7 @@ cd C:\VBeyond
 | `config\.env` | รหัสผ่าน/ค่าตั้ง — **อัปเดตไม่ทับ** |
 | `app\` | โค้ดเวอร์ชันปัจจุบัน |
 | `releases\` | เวอร์ชันเก่า (rollback) |
-| `data\backups\` | dump ก่อนอัปเดต |
+| `data\backups\` | dump — `_pre-update` (ก่อนอัปเดต), `_manual` (กดเอง), `_scheduled` (รายวัน 17:00) |
 | `data\status\update-status.json` | สถานะอัปเดตให้ UI อ่าน |
 | `secrets\` | token (ถ้ามี) — ล็อกสิทธิ์ NTFS |
 
