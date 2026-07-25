@@ -82,15 +82,15 @@ This script must run as Administrator.
     if (-not $nssm) {
         $toolsDir = Join-Path $VbHome 'tools'
         throw @"
-NSSM not found. The portable package does not include nssm.exe.
+NSSM not found — the package ships it at tools\nssm.exe, so this install is incomplete.
 
-1. Download NSSM (win64) from https://nssm.cc/download
-2. Place nssm.exe here:
+1. Re-extract the VBeyond zip and confirm this file exists:
      $toolsDir\nssm.exe
-3. Re-run this script as Administrator:
+   (Some "Extract All" runs and antivirus quarantine drop loose .exe files.)
+2. Re-run this script as Administrator:
      .\install-service.ps1
 
-Or pass -NssmPath path\to\nssm.exe
+Or pass -NssmPath path\to\nssm.exe if you keep NSSM elsewhere.
 "@
     }
     Write-Host "  NSSM: $nssm"
@@ -104,10 +104,12 @@ Or pass -NssmPath path\to\nssm.exe
     }
 
     $cmdExe = "$env:SystemRoot\System32\cmd.exe"
-    $args = "/c `"$startBat`" /service"
+    # Not $args — that is a PowerShell automatic variable, and assigning it here shadows the
+    # script's own unbound-argument array.
+    $svcArgs = "/c `"$startBat`" /service"
 
     Write-Host "Installing $ServiceName via NSSM..."
-    & $nssm install $ServiceName $cmdExe $args
+    & $nssm install $ServiceName $cmdExe $svcArgs
     if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) {
         throw "nssm install failed with exit code $LASTEXITCODE"
     }
@@ -121,6 +123,21 @@ Or pass -NssmPath path\to\nssm.exe
     & $nssm set $ServiceName AppRotateFiles 1 | Out-Null
     & $nssm set $ServiceName AppExit Default Restart | Out-Null
     & $nssm set $ServiceName AppRestartDelay 5000 | Out-Null
+
+    # Boot order. The API calls listen() without waiting for the database, so on a reboot
+    # where Windows starts us before PostgreSQL the service reports Running while /health
+    # answers 503 — and AppExit Restart cannot help, because the process never exits.
+    # Service name varies by major version (postgresql-x64-14 … -17), so match on prefix.
+    $pg = @(Get-Service -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'postgresql*' } |
+        Sort-Object Name) | Select-Object -Last 1
+    if ($pg) {
+        & $nssm set $ServiceName DependOnService $pg.Name | Out-Null
+        Write-Host "  Depends on: $($pg.Name)"
+    } else {
+        Write-Host '  No local PostgreSQL service found — skipping boot-order dependency.'
+        Write-Host '  (Expected when DATABASE_URL points at another machine.)'
+    }
 
     New-Item -ItemType Directory -Force -Path (Join-Path $VbHome 'data\logs\app') | Out-Null
 

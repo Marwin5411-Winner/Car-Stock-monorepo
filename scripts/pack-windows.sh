@@ -224,6 +224,32 @@ if [ -f "$ROOT_DIR/node_modules/.prisma/client/package.json" ]; then
     "$OUT_DIR/app/node_modules/.prisma/client/" 2>/dev/null || true
 fi
 
+# --- 6b. NSSM (service manager for install-service.ps1) ---
+# Shipped, not left to the customer: without nssm.exe install-service.ps1 hard-throws, so
+# every "auto-start on boot" install stalled on a manual nssm.cc download on the customer's
+# server. 331KB, public domain. Pinned by sha256 — this binary runs as LocalSystem.
+echo "==> Vendor NSSM (win64)"
+NSSM_ZIP="${CACHE_DIR}/nssm-2.24.zip"
+NSSM_SHA256="727d1e42275c605e0f04aba98095c38a8e1e46def453cdffce42869428aa6743"
+download "https://nssm.cc/release/nssm-2.24.zip" "$NSSM_ZIP"
+if command -v shasum >/dev/null 2>&1; then
+  NSSM_GOT="$(shasum -a 256 "$NSSM_ZIP" | awk '{print $1}')"
+else
+  NSSM_GOT="$(sha256sum "$NSSM_ZIP" | awk '{print $1}')"
+fi
+if [ "$NSSM_GOT" != "$NSSM_SHA256" ]; then
+  echo "ERROR: nssm-2.24.zip sha256 mismatch"
+  echo "  expected ${NSSM_SHA256}"
+  echo "  got      ${NSSM_GOT}"
+  exit 1
+fi
+NSSM_EXTRACT="${CACHE_DIR}/nssm-extract"
+rm -rf "$NSSM_EXTRACT"
+mkdir -p "$NSSM_EXTRACT"
+unzip -qo "$NSSM_ZIP" -d "$NSSM_EXTRACT"
+cp "$NSSM_EXTRACT/nssm-2.24/win64/nssm.exe" "$OUT_DIR/tools/nssm.exe"
+cp "$NSSM_EXTRACT/nssm-2.24/README.txt" "$OUT_DIR/tools/nssm-LICENSE.txt"
+
 # --- 7. Portable scripts ---
 echo "==> Portable scripts"
 cp portable/windows/start.bat "$OUT_DIR/"
@@ -316,8 +342,10 @@ DEFAULT URL
   http://localhost:3001
 
 AUTO-START
-  PowerShell (Admin):  .\\install-service.ps1
-  Requires NSSM: https://nssm.cc/  (place tools\\nssm.exe or on PATH)
+  Right-click install-service.bat -> Run as administrator
+  (or PowerShell as Admin:  .\\install-service.ps1)
+  NSSM is included at tools\\nssm.exe — no download needed.
+  The service is set to depend on the local PostgreSQL service when one is found.
 
 UPDATE
   Set UPDATE_FEED_URL in config\\.env
@@ -342,6 +370,12 @@ need=(
   "stop-app.ps1"
   "install-service.bat"
   "uninstall-service.bat"
+  # The .bat files are only launchers; the .ps1 files do the work. Shipping a package with
+  # the launcher but not the script gave customers a window that flashed and closed.
+  "install-service.ps1"
+  "uninstall-service.ps1"
+  # Auto-start is unusable without it — see step 6b.
+  "tools/nssm.exe"
   "updater/update.ps1"
   "config/.env.example"
 )
@@ -357,14 +391,19 @@ done
 
 # Assert Windows batch files are CRLF. LF-only .bat is unusable under cmd.exe
 # ('tlocal' is not recognized… from setlocal). Caught v1.0.58 and earlier packages.
-for bat in "$OUT_DIR/start.bat" "$OUT_DIR/setup.bat" "$OUT_DIR/stop.bat" "$OUT_DIR/app/run.cmd"; do
+# Assert every shipped launcher, not a hand-listed four: install-service.bat and
+# uninstall-service.bat were converted but never checked, so the net had a hole exactly
+# where the service scripts are. node_modules is excluded — an npm shim's line endings
+# are not ours to gate a release on.
+while IFS= read -r -d '' bat; do
+  rel="${bat#"$OUT_DIR/"}"
   if ! python3 -c "import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); sys.exit(0 if b'\\r\\n' in d else 1)" "$bat"; then
-    echo "  FAIL: $(basename "$bat") is not CRLF — cmd.exe will misparse it"
+    echo "  FAIL: $rel is not CRLF — cmd.exe will misparse it"
     missing=1
   else
-    echo "  OK: $(basename "$bat") is CRLF"
+    echo "  OK: $rel is CRLF"
   fi
-done
+done < <(find "$OUT_DIR" -type f \( -name '*.bat' -o -name '*.cmd' \) -not -path '*/node_modules/*' -print0)
 
 # Build-time asserts. These exist because v1.0.55-1.0.57 all shipped an exe that could not
 # start: `bun build` inlined process.env.NODE_ENV as development, so the API constructed

@@ -14,7 +14,7 @@
 | PostgreSQL 14+ | ใช่ | ติดตั้งเอง ตั้ง service = Automatic |
 | แพ็กเกจ VBeyond zip | ใช่ | จากทีมพัฒนา |
 | Google Chrome หรือ Edge | แนะนำ | สำหรับพิมพ์ PDF บางชนิด |
-| NSSM | ถ้าต้องการ auto-start | https://nssm.cc/ |
+| NSSM | **ไม่ต้อง** | แนบมาแล้วที่ `tools\nssm.exe` (v1.0.61+) |
 | Docker / Bun / Git / Node | **ไม่ต้อง** | ถ้าแพ็กเกจครบ (มี exe หรือ bun.exe ใน `app\`) |
 
 ---
@@ -95,25 +95,23 @@ stop.bat
 
 ### แนะนำ: Windows Service + NSSM
 
-1. ดาวน์โหลด [NSSM](https://nssm.cc/download) (win64) แล้ววาง `nssm.exe` ที่:
+NSSM **แนบมาในแพ็กเกจแล้ว** ที่ `tools\nssm.exe` (ตั้งแต่ v1.0.61) — ไม่ต้องดาวน์โหลดเอง
 
-   ```text
-   C:\VBeyond\tools\nssm.exe
-   ```
+รันแบบ **Administrator** อย่างใดอย่างหนึ่ง:
 
-   (แพ็กเกจ **ไม่ได้** แนบ nssm มาให้ — ถ้าไม่มี หน้าต่าง install จะขึ้น error ชัดเจน)
+- คลิกขวา `install-service.bat` → **Run as administrator**  
+- หรือเปิด **PowerShell as Administrator**:
 
-2. รันแบบ **Administrator** อย่างใดอย่างหนึ่ง:
-
-   - คลิกขวา `install-service.bat` → **Run as administrator**  
-   - หรือเปิด **PowerShell as Administrator**:
-
-   ```powershell
-   cd C:\VBeyond
-   .\install-service.ps1
-   ```
+```powershell
+cd C:\VBeyond
+.\install-service.ps1
+```
 
 จะได้ service ชื่อ **`VBeyondCarStock`** แบบ **Automatic**
+
+ตัวติดตั้งจะหา service ของ PostgreSQL บนเครื่อง (`postgresql-x64-*`) แล้วตั้งเป็น
+**dependency** ให้อัตโนมัติ — Windows จึงสตาร์ต Postgres ให้เสร็จก่อนเสมอ
+ถ้า `DATABASE_URL` ชี้ไปเครื่องอื่น จะข้ามขั้นนี้และแจ้งบนหน้าจอ
 
 ถอด service (Admin เช่นกัน):
 
@@ -123,8 +121,9 @@ stop.bat
 .\uninstall-service.ps1
 ```
 
-> ถ้าดับเบิลคลิกแล้วหน้าต่าง **ปิดทันที** ส่วนใหญ่คือ (1) ไม่ได้รัน Admin (2) ยังไม่มี `tools\nssm.exe`  
-> ใช้ `.bat` launcher หรือเปิดจาก PowerShell แล้วอ่านข้อความ error (สคริปต์จะ pause ตอนจบ)
+> ถ้าดับเบิลคลิกแล้วหน้าต่าง **ปิดทันที** ส่วนใหญ่คือไม่ได้รันแบบ Admin  
+> ใช้ `.bat` launcher หรือเปิดจาก PowerShell แล้วอ่านข้อความ error (สคริปต์จะ pause ตอนจบ)  
+> ถ้าขึ้นว่าหา `tools\nssm.exe` ไม่เจอ = แตกไฟล์ zip ไม่ครบ หรือแอนตี้ไวรัสกักไฟล์ `.exe` ไว้ — แตก zip ใหม่
 
 ### ลำดับ boot ที่ถูกต้อง
 
@@ -222,7 +221,9 @@ CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 | อาการ | ตรวจ |
 |--------|------|
 | `'tlocal' is not recognized` / `'M' is not recognized` ตอนรัน `.bat` | ไฟล์ `.bat` เป็น LF แทน CRLF (พบบน zip v1.0.58 ลงไป) — ใช้ v1.0.59+ หรือแปลง: ดูด้านล่าง |
-| `install-service` ปิดทันที / ไม่ขึ้น service | รัน **Admin** + มี `tools\nssm.exe` — ใช้ `install-service.bat` แล้วอ่าน error ที่ pause |
+| `install-service` ปิดทันที / ไม่ขึ้น service | ต้องรันแบบ **Admin** — ใช้ `install-service.bat` แล้วอ่าน error ที่ pause |
+| `install-service` บอกว่าไม่มี `tools\nssm.exe` | v1.0.60 ลงไปไม่ได้แนบ nssm มา — ใช้ v1.0.61+ หรือดาวน์โหลดเองจาก https://nssm.cc/ |
+| รีบูตแล้วเปิดเว็บช่วงแรกขึ้น error DB | v1.0.60 ลงไปไม่มี service dependency กับ Postgres — ติดตั้ง service ใหม่ด้วย v1.0.61+ |
 | `stop.bat` แล้วแอปยังรัน | v1.0.59 ลงไป path ว่างทำให้ skip kill — ใช้ v1.0.60+ (`stop-app.ps1`) หรือ Task Manager จบ `vbeyond-api.exe` |
 | start แล้ว health fail | Postgres รันหรือยัง, `DATABASE_URL` ถูกไหม, ดู `data\logs\app\` |
 | start แล้วออก exit 3 | แอปดับทันที — เปิด `data\logs\app\stderr.log` อ่านสาเหตุจริง (มัก JWT_SECRET/DB) |
