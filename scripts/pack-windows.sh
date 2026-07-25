@@ -428,6 +428,54 @@ for artifact in "$OUT_DIR/app/vbeyond-api.exe" "$OUT_DIR/app/dist/index.js"; do
   fi
 done
 
+# PowerShell syntax gate. install-service.ps1, stop-app.ps1 and the updater only ever execute
+# on the customer's server, so a parse error ships undetected — and the CI job runs on
+# ubuntu-latest, where these files are never even loaded.
+#
+# Best-effort by design: packing must not require a PowerShell runtime. But when one IS
+# reachable a broken script has to fail the pack, and when none is, say so loudly rather than
+# printing nothing — a check that silently never runs reads as coverage it does not provide.
+PS_IMAGE="mcr.microsoft.com/powershell:latest"
+PS_PARSE_FILE="${CACHE_DIR}/parse-check.ps1"
+cat > "$PS_PARSE_FILE" <<'PSEOF'
+param([string]$Dir)
+$bad = 0
+Get-ChildItem -LiteralPath $Dir -Recurse -Filter *.ps1 |
+    Where-Object { $_.FullName -notmatch 'node_modules' } |
+    Sort-Object FullName |
+    ForEach-Object {
+        $tokens = $null
+        $errors = $null
+        [void][System.Management.Automation.Language.Parser]::ParseFile(
+            $_.FullName, [ref]$tokens, [ref]$errors)
+        if ($errors -and $errors.Count -gt 0) {
+            $bad++
+            Write-Host "  FAIL: $($_.Name) has a syntax error"
+            $errors | ForEach-Object {
+                Write-Host ("     line {0}: {1}" -f $_.Extent.StartLineNumber, $_.Message)
+            }
+        } else {
+            Write-Host "  OK: $($_.Name) parses"
+        }
+    }
+exit $bad
+PSEOF
+
+echo "==> PowerShell syntax check"
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -File "$PS_PARSE_FILE" "$OUT_DIR" || missing=1
+elif docker image inspect "$PS_IMAGE" >/dev/null 2>&1; then
+  # Only when the image is already local — a release should not stall on a 300MB pull.
+  docker run --rm \
+    -v "${OUT_DIR}:/pkg:ro" \
+    -v "${PS_PARSE_FILE}:/parse.ps1:ro" \
+    "$PS_IMAGE" pwsh -NoProfile -File /parse.ps1 /pkg || missing=1
+else
+  echo "  SKIPPED — no PowerShell parser available, .ps1 syntax was NOT verified."
+  echo "    enable with:  brew install --cask powershell"
+  echo "    or:           docker pull ${PS_IMAGE}"
+fi
+
 if [ "$missing" -ne 0 ]; then
   echo "ERROR: package incomplete"
   exit 1
