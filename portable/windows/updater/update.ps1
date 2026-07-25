@@ -2,6 +2,7 @@
 # Usage:
 #   .\update.ps1 -Action Check
 #   .\update.ps1 -Action Update [-Version 1.0.56] [-Force] [-DryRun]
+#   .\update.ps1 -Action Update -LocalPackage D:\vbeyond-windows-v1.0.61.zip   (offline)
 #   .\update.ps1 -Action Status
 #   .\update.ps1 -Action Rollback -Version 1.0.55 [-RestoreBackup path]
 #   .\update.ps1 -Action Backup
@@ -15,7 +16,11 @@ param(
     [switch]$Force,
     [switch]$SkipBackup,
     [switch]$DryRun,
-    [string]$RestoreBackup = ''
+    [string]$RestoreBackup = '',
+
+    # Install from a zip already on this machine instead of fetching the feed and downloading
+    # ~195MB. For sites with slow or no internet. Every safety step after Download still runs.
+    [string]$LocalPackage = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -195,38 +200,79 @@ function Invoke-Update {
     try {
         Write-UpdateStatus -Step 1 -StepName 'Lock' -Status 'running' -Message 'Update lock acquired' -CurrentVersion $current -ExtraLog @((Write-UpdaterLog 'Update started'))
 
-        Write-UpdateStatus -Step 2 -StepName 'Resolve' -Status 'running' -Message 'Resolving target version'
-        if (-not $target -or -not $Force) {
-            $feed = Get-UpdateFeed
-            if (-not $target) {
-                $target = if ($feed.latest) { $feed.latest } else { $feed.releases[0].version }
+        if ($LocalPackage) {
+            # Offline install from a package already on the machine (USB stick, RDP copy).
+            # Only Resolve and Download need the network — every later step, including the
+            # database backup and both rollback paths, is local and still runs in full.
+            Write-UpdateStatus -Step 2 -StepName 'Resolve' -Status 'running' -Message "Using local package $LocalPackage" -CurrentVersion $current
+            if (-not (Test-Path -LiteralPath $LocalPackage -PathType Leaf)) {
+                throw "Local package not found: $LocalPackage"
             }
-            $rel = $feed.releases | Where-Object { $_.version -eq $target } | Select-Object -First 1
-            if (-not $rel) { throw "Version $target not found in feed" }
-            $assetUrl = $rel.assetUrl
-            $expectedSha = $rel.sha256
-            $notes = $rel.notes
-        }
+            $zipPath = (Resolve-Path -LiteralPath $LocalPackage).Path
 
-        if (-not $Force -and (Compare-SemVer $target $current) -le 0) {
-            Write-UpdateStatus -Step 10 -StepName 'Finalize' -Status 'success' -Message 'Already on target version' -TargetVersion $target -ExtraLog @((Write-UpdaterLog 'Already current'))
-            exit 11
-        }
+            # The download step clears staging\ before writing into it. A package left there
+            # would be deleted before it could be extracted, so refuse it with a clear reason
+            # instead of failing later with "file not found".
+            $stagingFull = [IO.Path]::GetFullPath($script:StagingDir)
+            if (-not $stagingFull.EndsWith([IO.Path]::DirectorySeparatorChar)) {
+                $stagingFull = $stagingFull + [IO.Path]::DirectorySeparatorChar
+            }
+            if ($zipPath.StartsWith($stagingFull, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Move the package out of staging\ first — that folder is cleared during update: $zipPath"
+            }
 
-        if (-not $assetUrl) {
-            if ($env:UPDATE_ASSET_URL_TEMPLATE) {
-                $assetUrl = $env:UPDATE_ASSET_URL_TEMPLATE.Replace('{version}', $target)
+            # A file carried across on a USB stick is exactly the case worth checksumming.
+            # pack-windows.sh emits <name>.zip.sha256 next to the zip; use it when it came along.
+            $shaSidecar = "$zipPath.sha256"
+            if (Test-Path -LiteralPath $shaSidecar) {
+                $expectedSha = ((Get-Content -LiteralPath $shaSidecar -Raw).Trim() -split '\s+')[0]
+                Write-UpdaterLog "Local package sha256 from sidecar: $expectedSha" | Out-Null
             } else {
-                throw 'No assetUrl for target version'
+                Write-UpdaterLog 'No .sha256 sidecar next to local package — integrity not verified' 'WARN' | Out-Null
             }
-        }
 
-        Write-UpdateStatus -Step 3 -StepName 'Download' -Status 'running' -Message "Downloading $assetUrl" -TargetVersion $target -ExtraLog @((Write-UpdaterLog "Download $assetUrl"))
-        Get-ChildItem -LiteralPath $script:StagingDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        $zipPath = Join-Path $script:StagingDir "vbeyond-windows-v$target.zip"
-        $headers = @{}
-        if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)" }
-        Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath -Headers $headers -UseBasicParsing
+            Write-UpdateStatus -Step 3 -StepName 'Download' -Status 'running' -Message 'Skipped — installing from local package' -ExtraLog @((Write-UpdaterLog "Local package $zipPath"))
+            # Clear only the extract target. Wiping all of staging\ is the download path's job.
+            $staleExtract = Join-Path $script:StagingDir 'extracted'
+            if (Test-Path -LiteralPath $staleExtract) {
+                Remove-Item -LiteralPath $staleExtract -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        } else {
+            Write-UpdateStatus -Step 2 -StepName 'Resolve' -Status 'running' -Message 'Resolving target version'
+            if (-not $target -or -not $Force) {
+                $feed = Get-UpdateFeed
+                if (-not $target) {
+                    $target = if ($feed.latest) { $feed.latest } else { $feed.releases[0].version }
+                }
+                $rel = $feed.releases | Where-Object { $_.version -eq $target } | Select-Object -First 1
+                if (-not $rel) { throw "Version $target not found in feed" }
+                $assetUrl = $rel.assetUrl
+                $expectedSha = $rel.sha256
+                $notes = $rel.notes
+            }
+
+            # Skipped for -LocalPackage: handing the updater a specific file IS the intent,
+            # and $target is unknown until the package is extracted.
+            if (-not $Force -and (Compare-SemVer $target $current) -le 0) {
+                Write-UpdateStatus -Step 10 -StepName 'Finalize' -Status 'success' -Message 'Already on target version' -TargetVersion $target -ExtraLog @((Write-UpdaterLog 'Already current'))
+                exit 11
+            }
+
+            if (-not $assetUrl) {
+                if ($env:UPDATE_ASSET_URL_TEMPLATE) {
+                    $assetUrl = $env:UPDATE_ASSET_URL_TEMPLATE.Replace('{version}', $target)
+                } else {
+                    throw 'No assetUrl for target version'
+                }
+            }
+
+            Write-UpdateStatus -Step 3 -StepName 'Download' -Status 'running' -Message "Downloading $assetUrl" -TargetVersion $target -ExtraLog @((Write-UpdaterLog "Download $assetUrl"))
+            Get-ChildItem -LiteralPath $script:StagingDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            $zipPath = Join-Path $script:StagingDir "vbeyond-windows-v$target.zip"
+            $headers = @{}
+            if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)" }
+            Invoke-WebRequest -Uri $assetUrl -OutFile $zipPath -Headers $headers -UseBasicParsing
+        }
 
         if ($expectedSha) {
             $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -258,6 +304,12 @@ function Invoke-Update {
         }
         if (-not (Test-Path (Join-Path $newApp 'VERSION'))) {
             throw 'Package missing VERSION'
+        }
+        # -LocalPackage skips the feed, so this is the first point the target version is known.
+        # Status messages and the Finalize record need it; the feed path already set it.
+        if (-not $target) {
+            $target = (Get-Content -LiteralPath (Join-Path $newApp 'VERSION') -Raw).Trim()
+            Write-UpdaterLog "Local package version: $target (current $current)" | Out-Null
         }
 
         # Merge updater scripts if present in payload
