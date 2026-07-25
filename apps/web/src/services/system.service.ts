@@ -35,11 +35,30 @@ export interface UpdateCheckResult {
   changelog: ChangelogEntry[];
 }
 
+/** Cached result of the API's background check. `null` until the first one has run. */
+export interface UpdateAvailability {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  notes?: string;
+  checkedAt: string;
+  /** Set when the last check could not reach the update server. */
+  error?: string;
+}
+
 export interface UpdateStatus {
   step: number;
   totalSteps: number;
   stepName: string;
-  status: 'idle' | 'running' | 'success' | 'error' | 'failed' | 'rolling_back' | 'rollback_complete' | 'warning';
+  status:
+    | 'idle'
+    | 'running'
+    | 'success'
+    | 'error'
+    | 'failed'
+    | 'rolling_back'
+    | 'rollback_complete'
+    | 'warning';
   message: string;
   startedAt: string;
   updatedAt: string;
@@ -85,6 +104,11 @@ class SystemService {
     return api.get<ApiResponse<UpdateCheckResult>>('/api/system/check-update');
   }
 
+  /** Cached background-check result — contacts nothing, safe to call on every page load. */
+  async getUpdateAvailability(): Promise<ApiResponse<UpdateAvailability | null>> {
+    return api.get<ApiResponse<UpdateAvailability | null>>('/api/system/update-available');
+  }
+
   async triggerUpdate(): Promise<ApiResponse<{ message: string; status: string }>> {
     return api.post<ApiResponse<{ message: string; status: string }>>('/api/system/update');
   }
@@ -93,15 +117,22 @@ class SystemService {
     return api.get<ApiResponse<UpdateStatus>>('/api/system/update-status');
   }
 
-  async triggerRollback(commit?: string, backupFile?: string): Promise<ApiResponse<{ message: string; status: string }>> {
+  async triggerRollback(
+    commit?: string,
+    backupFile?: string
+  ): Promise<ApiResponse<{ message: string; status: string }>> {
     return api.post<ApiResponse<{ message: string; status: string }>>('/api/system/rollback', {
       commit,
       backupFile,
     });
   }
 
-  async triggerBackup(): Promise<ApiResponse<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>> {
-    return api.post<ApiResponse<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>>('/api/system/backup');
+  async triggerBackup(): Promise<
+    ApiResponse<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>
+  > {
+    return api.post<
+      ApiResponse<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>
+    >('/api/system/backup');
   }
 
   async listBackups(): Promise<ApiResponse<{ backups: BackupInfo[] }>> {

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { systemService } from '@/services/system.service';
 import type { Permission } from '@car-stock/shared/constants';
 import {
   BarChart3,
@@ -17,10 +18,10 @@ import {
   Users,
 } from 'lucide-react';
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { usePermission } from '../../hooks/usePermission';
 import { useCompany } from '../../contexts/CompanyContext';
+import { usePermission } from '../../hooks/usePermission';
 
 interface NavItem {
   to: string;
@@ -96,8 +97,31 @@ const navItems: NavItem[] = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { hasPermission } = usePermission();
+  const { hasPermission, user } = usePermission();
   const { companyName } = useCompany();
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  // Only ADMIN can act on an update, and /update-available is ADMIN-only — asking as anyone
+  // else is a guaranteed 403 on every page load. Reads the API's cached background check,
+  // so this contacts no external service and costs nothing to call here.
+  useEffect(() => {
+    if (user?.role !== 'ADMIN') {
+      setUpdateAvailable(false);
+      return;
+    }
+    let cancelled = false;
+    systemService
+      .getUpdateAvailability()
+      .then((res) => {
+        if (!cancelled) setUpdateAvailable(Boolean(res.success && res.data?.hasUpdate));
+      })
+      .catch(() => {
+        // An indicator is not worth surfacing an error for.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('sidebar-collapsed') === 'true'
   );
@@ -155,8 +179,25 @@ export const Sidebar: React.FC = () => {
                       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                   )}
                 >
-                  <span className="shrink-0">{item.icon}</span>
-                  {!collapsed && item.label}
+                  <span className="shrink-0 relative">
+                    {item.icon}
+                    {/* Update indicator. The only signal a site gets that a new version
+                        exists — before this, someone had to open Settings and click. */}
+                    {item.to === '/settings' && updateAvailable && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 ring-2 ring-slate-900"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </span>
+                  {!collapsed && (
+                    <span className="flex items-center gap-2">
+                      {item.label}
+                      {item.to === '/settings' && updateAvailable && (
+                        <span className="text-[10px] font-medium text-blue-300">มีเวอร์ชันใหม่</span>
+                      )}
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}

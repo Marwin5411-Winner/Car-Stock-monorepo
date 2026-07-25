@@ -1,26 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  RefreshCw,
-  Download,
+  AlertTriangle,
   ArrowDownCircle,
   CheckCircle2,
-  XCircle,
-  Clock,
-  AlertTriangle,
-  RotateCcw,
-  HardDrive,
-  GitBranch,
-  Loader2,
   ChevronDown,
   ChevronUp,
+  Clock,
   Database,
+  Download,
+  GitBranch,
+  HardDrive,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  XCircle,
 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { systemService } from '../../services/system.service';
 import type {
-  VersionInfo,
+  BackupInfo,
+  UpdateAvailability,
   UpdateCheckResult,
   UpdateStatus,
-  BackupInfo,
+  VersionInfo,
 } from '../../services/system.service';
 
 const UPDATE_STEPS = [
@@ -64,6 +65,8 @@ function formatTimestamp(ts: number) {
 export default function SystemUpdateSection() {
   const [version, setVersion] = useState<VersionInfo | null>(null);
   const [updateCheck, setUpdateCheck] = useState<UpdateCheckResult | null>(null);
+  // Result of the API's periodic background check, shown until a manual check replaces it.
+  const [cachedCheck, setCachedCheck] = useState<UpdateAvailability | null>(null);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
 
@@ -93,11 +96,25 @@ export default function SystemUpdateSection() {
   useEffect(() => {
     mountedRef.current = true;
     fetchVersion();
+    fetchCachedAvailability();
     return () => {
       mountedRef.current = false;
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
+
+  // Show what the API's background check already found, so opening this page reports a
+  // known update instead of an empty panel that only fills in after a manual click.
+  // Cached only — the button below is still what performs a live check.
+  const fetchCachedAvailability = async () => {
+    try {
+      const res = await systemService.getUpdateAvailability();
+      if (!mountedRef.current || !res.success || !res.data) return;
+      setCachedCheck(res.data);
+    } catch {
+      // Falls back to the manual check button.
+    }
+  };
 
   const fetchVersion = async () => {
     setLoadingVersion(true);
@@ -243,9 +260,7 @@ export default function SystemUpdateSection() {
     try {
       const res = await systemService.triggerBackup();
       if (res.success && res.data) {
-        setBackupResult(
-          `สำเร็จ! .dump (${res.data.dumpSize}) + .sql (${res.data.sqlSize})`
-        );
+        setBackupResult(`สำเร็จ! .dump (${res.data.dumpSize}) + .sql (${res.data.sqlSize})`);
         // Refresh backup list if it's open
         if (showBackups) {
           const listRes = await systemService.listBackups();
@@ -264,7 +279,8 @@ export default function SystemUpdateSection() {
   };
 
   const isProcessing = updating || rollingBack;
-  const displayVersion = version?.tag || (version?.version ? `v${version.version}` : version?.commit || '-');
+  const displayVersion =
+    version?.tag || (version?.version ? `v${version.version}` : version?.commit || '-');
 
   return (
     <section className="bg-white border border-gray-200 rounded-xl p-6 lg:p-8 space-y-6">
@@ -287,14 +303,10 @@ export default function SystemUpdateSection() {
                     {displayVersion}
                   </span>
                   {version?.commit && (
-                    <span className="text-sm text-gray-500 font-mono">
-                      ({version.commit})
-                    </span>
+                    <span className="text-sm text-gray-500 font-mono">({version.commit})</span>
                   )}
                   {version?.date && (
-                    <span className="text-sm text-gray-400">
-                      {formatDate(version.date)}
-                    </span>
+                    <span className="text-sm text-gray-400">{formatDate(version.date)}</span>
                   )}
                 </>
               )}
@@ -326,13 +338,49 @@ export default function SystemUpdateSection() {
         </div>
       )}
 
+      {/* Result of the background check. Hidden once a manual check has run, since that
+          result is newer and renders in full below. */}
+      {!updateCheck && !isProcessing && cachedCheck && (
+        <div
+          className={`rounded-lg p-4 border ${
+            cachedCheck.hasUpdate ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {cachedCheck.hasUpdate ? (
+              <Download className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+            )}
+            <div className="flex-1">
+              <p
+                className={`font-medium ${
+                  cachedCheck.hasUpdate ? 'text-amber-800' : 'text-slate-700'
+                }`}
+              >
+                {cachedCheck.hasUpdate
+                  ? `มีเวอร์ชันใหม่ ${cachedCheck.latestVersion}`
+                  : 'เป็นเวอร์ชันล่าสุดแล้ว'}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                ตรวจอัตโนมัติเมื่อ {formatDate(cachedCheck.checkedAt)}
+                {cachedCheck.error ? ` — ติดต่อเซิร์ฟเวอร์อัปเดตไม่ได้ (${cachedCheck.error})` : ''}
+              </p>
+              {cachedCheck.hasUpdate && (
+                <p className="text-sm text-amber-700 mt-2">
+                  กด "ตรวจสอบอัพเดท" เพื่อดูรายละเอียดและเริ่มอัปเดต
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Update Available */}
       {updateCheck && !isProcessing && (
         <div
           className={`rounded-lg p-4 border ${
-            updateCheck.hasUpdate
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-green-50 border-green-200'
+            updateCheck.hasUpdate ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'
           }`}
         >
           {updateCheck.hasUpdate ? (
@@ -340,9 +388,7 @@ export default function SystemUpdateSection() {
               <div className="flex items-start gap-3">
                 <Download className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="font-medium text-amber-800">
-                    มีอัพเดทใหม่! (Update Available)
-                  </p>
+                  <p className="font-medium text-amber-800">มีอัพเดทใหม่! (Update Available)</p>
                   <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-500">เวอร์ชันใหม่:</span>
@@ -382,16 +428,28 @@ export default function SystemUpdateSection() {
                     onClick={() => setShowChangelog(!showChangelog)}
                     className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 font-medium"
                   >
-                    {showChangelog ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    {showChangelog ? 'ซ่อน' : 'ดู'} รายละเอียดการเปลี่ยนแปลง ({updateCheck.changelog.length})
+                    {showChangelog ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                    {showChangelog ? 'ซ่อน' : 'ดู'} รายละเอียดการเปลี่ยนแปลง (
+                    {updateCheck.changelog.length})
                   </button>
                   {showChangelog && (
                     <div className="mt-2 max-h-48 overflow-y-auto bg-white rounded border border-amber-200 p-3">
                       {updateCheck.changelog.map((entry, i) => (
-                        <div key={i} className="flex gap-3 py-1.5 border-b border-gray-100 last:border-0 text-sm">
-                          <span className="font-mono text-gray-400 flex-shrink-0">{entry.hash}</span>
+                        <div
+                          key={i}
+                          className="flex gap-3 py-1.5 border-b border-gray-100 last:border-0 text-sm"
+                        >
+                          <span className="font-mono text-gray-400 flex-shrink-0">
+                            {entry.hash}
+                          </span>
                           <span className="text-gray-700 flex-1">{entry.message}</span>
-                          <span className="text-gray-400 flex-shrink-0 text-xs">{entry.author}</span>
+                          <span className="text-gray-400 flex-shrink-0 text-xs">
+                            {entry.author}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -446,7 +504,8 @@ export default function SystemUpdateSection() {
           <div className="flex items-center gap-2">
             {updateStatus?.status === 'running' || updateStatus?.status === 'rolling_back' ? (
               <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-            ) : updateStatus?.status === 'success' || updateStatus?.status === 'rollback_complete' ? (
+            ) : updateStatus?.status === 'success' ||
+              updateStatus?.status === 'rollback_complete' ? (
               <CheckCircle2 className="w-5 h-5 text-green-600" />
             ) : updateStatus?.status === 'error' || updateStatus?.status === 'failed' ? (
               <XCircle className="w-5 h-5 text-red-600" />
@@ -457,12 +516,12 @@ export default function SystemUpdateSection() {
               {updateStatus?.status === 'rolling_back'
                 ? 'กำลัง Rollback...'
                 : updateStatus?.status === 'rollback_complete'
-                ? 'Rollback สำเร็จ'
-                : updateStatus?.status === 'success'
-                ? 'อัพเดทสำเร็จ!'
-                : updateStatus?.status === 'error' || updateStatus?.status === 'failed'
-                ? 'อัพเดทล้มเหลว'
-                : 'กำลังอัพเดท...'}
+                  ? 'Rollback สำเร็จ'
+                  : updateStatus?.status === 'success'
+                    ? 'อัพเดทสำเร็จ!'
+                    : updateStatus?.status === 'error' || updateStatus?.status === 'failed'
+                      ? 'อัพเดทล้มเหลว'
+                      : 'กำลังอัพเดท...'}
             </p>
           </div>
 
@@ -494,10 +553,10 @@ export default function SystemUpdateSection() {
                         isDone
                           ? 'text-green-700'
                           : isCurrent
-                          ? 'text-blue-700 font-medium'
-                          : isFailed
-                          ? 'text-red-700 font-medium'
-                          : 'text-gray-400'
+                            ? 'text-blue-700 font-medium'
+                            : isFailed
+                              ? 'text-red-700 font-medium'
+                              : 'text-gray-400'
                       }`}
                     >
                       {stepName}
@@ -642,9 +701,7 @@ export default function SystemUpdateSection() {
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-3">
-            Backup อัตโนมัติทุกวัน 17:00 น. + ก่อนอัพเดททุกครั้ง
-          </p>
+          <p className="text-xs text-gray-400 mt-3">Backup อัตโนมัติทุกวัน 17:00 น. + ก่อนอัพเดททุกครั้ง</p>
         </div>
       )}
     </section>

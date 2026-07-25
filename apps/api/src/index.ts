@@ -1,30 +1,31 @@
 import { existsSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
-import { swagger } from '@elysiajs/swagger';
 import { jwt } from '@elysiajs/jwt';
+import { swagger } from '@elysiajs/swagger';
+import { Elysia } from 'elysia';
 import { db } from './lib/db';
 import { AppError, handlePrismaError, isAppError, isPrismaError } from './lib/errors';
 import { logger } from './lib/logger';
 
+import { analyticsRoutes } from './modules/analytics/analytics.controller';
 // Import routes
 import { authRoutes } from './modules/auth/auth.controller';
-import { userRoutes } from './modules/users/users.controller';
-import { customerRoutes } from './modules/customers/customers.controller';
-import { vehicleRoutes } from './modules/vehicles/vehicles.controller';
-import { stockRoutes } from './modules/stock/stock.controller';
-import { salesRoutes } from './modules/sales/sales.controller';
-import { paymentRoutes } from './modules/payments/payments.controller';
-import { quotationRoutes } from './modules/quotations/quotations.controller';
-import { interestRoutes } from './modules/interest/interest.controller';
-import { campaignRoutes } from './modules/campaigns/campaigns.controller';
-import { reportRoutes } from './modules/reports/reports.controller';
-import { pdfRoutes } from './modules/pdf/pdf.controller';
-import { analyticsRoutes } from './modules/analytics/analytics.controller';
-import { settingsRoutes } from './modules/settings/settings.controller';
 import { bankAccountsRoutes } from './modules/bank-accounts/bank-accounts.controller';
+import { campaignRoutes } from './modules/campaigns/campaigns.controller';
+import { customerRoutes } from './modules/customers/customers.controller';
+import { interestRoutes } from './modules/interest/interest.controller';
+import { paymentRoutes } from './modules/payments/payments.controller';
+import { pdfRoutes } from './modules/pdf/pdf.controller';
+import { quotationRoutes } from './modules/quotations/quotations.controller';
+import { reportRoutes } from './modules/reports/reports.controller';
+import { salesRoutes } from './modules/sales/sales.controller';
+import { settingsRoutes } from './modules/settings/settings.controller';
+import { stockRoutes } from './modules/stock/stock.controller';
 import { systemRoutes } from './modules/system/system.controller';
+import { systemService } from './modules/system/system.service';
+import { userRoutes } from './modules/users/users.controller';
+import { vehicleRoutes } from './modules/vehicles/vehicles.controller';
 // import { documentRoutes } from './modules/documents/documents.controller';
 
 /**
@@ -169,7 +170,10 @@ const app = new Elysia()
   // Without this, thrown AppErrors fell through to Elysia's default handler
   // (HTTP 500 + raw message string) instead of the normalized JSON envelope.
   .onError({ as: 'global' }, ({ code, error, set }) => {
-    logger.error({ code, err: error, stack: error instanceof Error ? error.stack : undefined }, `Error [${code}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    logger.error(
+      { code, err: error, stack: error instanceof Error ? error.stack : undefined },
+      `Error [${code}]: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
 
     // Handle AppError (custom application errors)
     if (isAppError(error)) {
@@ -246,31 +250,36 @@ const app = new Elysia()
     return {
       success: false,
       error: 'INTERNAL_ERROR',
-      message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'An unexpected error occurred',
+      message:
+        process.env.NODE_ENV === 'development'
+          ? (error as Error).message
+          : 'An unexpected error occurred',
     };
   })
   // API routes group
-  .group('/api', (app) =>
-    app
-      .get('/', () => ({ message: 'Welcome to VBeyond Car Sales API' }))
-      // Routes
-      .use(authRoutes)
-      .use(userRoutes)
-      .use(customerRoutes)
-      .use(vehicleRoutes)
-      .use(stockRoutes)
-      .use(salesRoutes)
-      .use(paymentRoutes)
-      .use(quotationRoutes)
-      .use(interestRoutes)
-      .use(campaignRoutes)
-      .use(reportRoutes)
-      .use(pdfRoutes)
-      .use(analyticsRoutes)
-      .use(settingsRoutes)
-      .use(bankAccountsRoutes)
-      .use(systemRoutes)
-      // .use(documentRoutes)
+  .group(
+    '/api',
+    (app) =>
+      app
+        .get('/', () => ({ message: 'Welcome to VBeyond Car Sales API' }))
+        // Routes
+        .use(authRoutes)
+        .use(userRoutes)
+        .use(customerRoutes)
+        .use(vehicleRoutes)
+        .use(stockRoutes)
+        .use(salesRoutes)
+        .use(paymentRoutes)
+        .use(quotationRoutes)
+        .use(interestRoutes)
+        .use(campaignRoutes)
+        .use(reportRoutes)
+        .use(pdfRoutes)
+        .use(analyticsRoutes)
+        .use(settingsRoutes)
+        .use(bankAccountsRoutes)
+        .use(systemRoutes)
+    // .use(documentRoutes)
   )
   // Portable: serve built SPA assets + client-side router fallback
   .get('/*', ({ request, set }) => {
@@ -317,12 +326,15 @@ const app = new Elysia()
   .onAfterResponse(({ request, set, store }) => {
     const duration = Date.now() - ((store as any).startTime || Date.now());
     const url = new URL(request.url);
-    logger.info({
-      method: request.method,
-      path: url.pathname,
-      status: set.status || 200,
-      duration,
-    }, `${request.method} ${url.pathname} ${set.status || 200} ${duration}ms`);
+    logger.info(
+      {
+        method: request.method,
+        path: url.pathname,
+        status: set.status || 200,
+        duration,
+      },
+      `${request.method} ${url.pathname} ${set.status || 200} ${duration}ms`
+    );
   })
   .listen(process.env.PORT || 3001);
 
@@ -334,5 +346,14 @@ console.log(`
 ${STATIC_DIR ? `📁 Static:  ${STATIC_DIR}\n` : ''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 logger.info({ port: app.server?.port, staticDir: STATIC_DIR }, 'VBeyond Car Sales API started');
+
+// Periodic update check (check only — never installs). Set UPDATE_CHECK_INTERVAL_HOURS=0
+// to disable on sites with no outbound internet.
+if (systemService.startUpdateWatcher()) {
+  logger.info(
+    { intervalHours: process.env.UPDATE_CHECK_INTERVAL_HOURS || '6' },
+    'Update check watcher started'
+  );
+}
 
 export type App = typeof app;

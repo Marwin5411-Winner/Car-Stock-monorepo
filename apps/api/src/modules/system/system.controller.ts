@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
-import { systemService } from './system.service';
 import { authMiddleware, requireRole } from '../auth/auth.middleware';
+import { systemService } from './system.service';
 
 export const systemRoutes = new Elysia({ prefix: '/system' })
   // Get current version info
@@ -20,6 +20,18 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
     async () => {
       const result = await systemService.checkForUpdate();
       return { success: true, data: result };
+    },
+    {
+      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+    }
+  )
+  // Cached result of the background check. Unlike /check-update this contacts nothing —
+  // it is read on every page load to decide whether to show the sidebar indicator, so it
+  // must not spawn PowerShell or hit the network. `data` is null until the first check runs.
+  .get(
+    '/update-available',
+    async () => {
+      return { success: true, data: systemService.getCachedUpdateCheck() };
     },
     {
       beforeHandle: [authMiddleware, requireRole('ADMIN')],
@@ -52,10 +64,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
   .post(
     '/rollback',
     async ({ body, set }) => {
-      const result = await systemService.triggerRollback(
-        body?.commit,
-        body?.backupFile
-      );
+      const result = await systemService.triggerRollback(body?.commit, body?.backupFile);
       set.status = 202;
       return { success: true, data: result };
     },

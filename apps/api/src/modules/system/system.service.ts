@@ -42,6 +42,32 @@ function resolveStatusFilePath(): string {
 
 const STATUS_FILE_PATH = resolveStatusFilePath();
 
+// Background update check. Until now nothing ever contacted the feed on its own: the only
+// trigger was a human opening Settings and clicking "ตรวจสอบอัพเดท", so a site nobody logs
+// into sat on an old version indefinitely. (config/.env.example advertised AUTO_UPDATE, but
+// no code ever read it — it has been replaced by the interval below.)
+//
+// Deliberately check-only. Installing unattended would stop the app, swap app\ and migrate
+// the database with nobody watching; on a dealership's server that is an outage, so the
+// install stays a human decision.
+const UPDATE_CHECK_INTERVAL_HOURS = Number.parseFloat(
+  process.env.UPDATE_CHECK_INTERVAL_HOURS || '6'
+);
+// Give the app time to finish booting (and Postgres to come up after a reboot) before the
+// first check — it spawns PowerShell and hits the network.
+const FIRST_CHECK_DELAY_MS = 60_000;
+
+interface CachedUpdateCheck {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  notes?: string;
+  checkedAt: string;
+  error?: string;
+}
+
+let cachedUpdateCheck: CachedUpdateCheck | null = null;
+
 export interface UpdateCheckResult {
   hasUpdate: boolean;
   currentCommit: string;
@@ -111,8 +137,14 @@ function idleStatus(): UpdateStatus {
 }
 
 function compareSemver(a: string, b: string): number {
-  const pa = a.replace(/^v/, '').split('.').map((n) => Number.parseInt(n, 10) || 0);
-  const pb = b.replace(/^v/, '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+  const pa = a
+    .replace(/^v/, '')
+    .split('.')
+    .map((n) => Number.parseInt(n, 10) || 0);
+  const pb = b
+    .replace(/^v/, '')
+    .split('.')
+    .map((n) => Number.parseInt(n, 10) || 0);
   for (let i = 0; i < 3; i++) {
     const d = (pa[i] || 0) - (pb[i] || 0);
     if (d !== 0) return d > 0 ? 1 : -1;
@@ -192,7 +224,10 @@ export class SystemService {
   }
 
   /** Run update.ps1 -Action X and capture stdout (Windows portable). */
-  private runUpdateScript(action: string, extraArgs: string[] = []): Promise<{
+  private runUpdateScript(
+    action: string,
+    extraArgs: string[] = []
+  ): Promise<{
     code: number;
     stdout: string;
     stderr: string;
@@ -203,7 +238,16 @@ export class SystemService {
     }
 
     return new Promise((resolvePromise, reject) => {
-      const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Action', action, ...extraArgs];
+      const args = [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        script,
+        '-Action',
+        action,
+        ...extraArgs,
+      ];
       const child = spawn('powershell.exe', args, {
         cwd: this.getVbHome(),
         env: process.env,
@@ -287,7 +331,16 @@ export class SystemService {
     if (!fs.existsSync(script)) {
       throw new Error(`Updater script not found: ${script}`);
     }
-    const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Action', action, ...extraArgs];
+    const args = [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      script,
+      '-Action',
+      action,
+      ...extraArgs,
+    ];
     // Launch through `cmd /c start` so the PowerShell is orphaned. `detached: true` alone
     // still records this process as its parent, and the updater's StopApp step runs
     // `taskkill /PID <api> /T /F` (plus `net stop` under NSSM) — both walk the parent→child
@@ -362,22 +415,12 @@ export class SystemService {
     }
 
     if (!feedUrl) {
-      return {
-        hasUpdate: false,
-        currentCommit: '',
-        currentFullCommit: '',
-        currentDate: '',
-        currentTag: currentVersion ? `v${currentVersion}` : '',
-        currentVersion,
-        latestCommit: '',
-        latestFullCommit: '',
-        latestDate: '',
-        latestTag: '',
-        latestVersion: currentVersion,
-        branch: process.env.UPDATE_CHANNEL || 'stable',
-        commitCount: 0,
-        changelog: [],
-      };
+      // Reaching here means the PowerShell check produced nothing AND there is no feed to
+      // fall back to, so nothing was actually checked. This used to return hasUpdate:false,
+      // which the UI renders as a confident "เป็นเวอร์ชันล่าสุดแล้ว" — an unconfigured or
+      // offline site looked identical to an up-to-date one, and now that a background check
+      // drives the sidebar indicator it would have shown that green state forever.
+      throw new Error('UPDATE_FEED_URL is not set in config\\.env — cannot check for updates');
     }
 
     const headers: Record<string, string> = { Accept: 'application/json' };
@@ -395,7 +438,12 @@ export class SystemService {
 
     const feed = (await response.json()) as {
       latest?: string;
-      releases?: Array<{ version: string; notes?: string; assetUrl?: string; publishedAt?: string }>;
+      releases?: Array<{
+        version: string;
+        notes?: string;
+        assetUrl?: string;
+        publishedAt?: string;
+      }>;
     };
     const latestVersion = feed.latest || feed.releases?.[0]?.version || currentVersion;
     const release = feed.releases?.find((r) => r.version === latestVersion) || feed.releases?.[0];
@@ -530,6 +578,60 @@ export class SystemService {
     return response.json() as Promise<UpdateCheckResult>;
   }
 
+  /** Last background check result. Cheap — never touches the network or spawns anything. */
+  getCachedUpdateCheck(): CachedUpdateCheck | null {
+    return cachedUpdateCheck;
+  }
+
+  /**
+   * Run one background check and cache it. Failures are cached too, so the UI can say
+   * "could not reach the update server" instead of silently showing nothing.
+   */
+  async runUpdateCheck(): Promise<CachedUpdateCheck> {
+    const checkedAt = new Date().toISOString();
+    try {
+      const result = await this.checkForUpdate();
+      cachedUpdateCheck = {
+        hasUpdate: result.hasUpdate,
+        currentVersion: result.currentVersion,
+        latestVersion: result.latestVersion || result.currentVersion,
+        notes: result.notes,
+        checkedAt,
+      };
+    } catch (error) {
+      cachedUpdateCheck = {
+        hasUpdate: false,
+        currentVersion: this.readLocalVersion(),
+        latestVersion: this.readLocalVersion(),
+        checkedAt,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+    return cachedUpdateCheck;
+  }
+
+  /**
+   * Start the periodic check. Returns the timer so callers can stop it; set
+   * UPDATE_CHECK_INTERVAL_HOURS=0 to disable (sites with no outbound internet).
+   */
+  startUpdateWatcher(): ReturnType<typeof setInterval> | null {
+    if (!Number.isFinite(UPDATE_CHECK_INTERVAL_HOURS) || UPDATE_CHECK_INTERVAL_HOURS <= 0) {
+      return null;
+    }
+    const periodMs = UPDATE_CHECK_INTERVAL_HOURS * 60 * 60 * 1000;
+
+    // unref so a pending timer never holds the process open during shutdown.
+    setTimeout(() => {
+      void this.runUpdateCheck();
+    }, FIRST_CHECK_DELAY_MS).unref?.();
+
+    const timer = setInterval(() => {
+      void this.runUpdateCheck();
+    }, periodMs);
+    timer.unref?.();
+    return timer;
+  }
+
   /**
    * Trigger the update pipeline
    */
@@ -588,7 +690,10 @@ export class SystemService {
   /**
    * Trigger manual rollback
    */
-  async triggerRollback(commit?: string, backupFile?: string): Promise<{ message: string; status: string }> {
+  async triggerRollback(
+    commit?: string,
+    backupFile?: string
+  ): Promise<{ message: string; status: string }> {
     if (IS_PORTABLE) {
       const extra: string[] = [];
       // Portable uses -Version for prior app folder; accept commit field as version string from UI
@@ -627,7 +732,13 @@ export class SystemService {
   /**
    * Trigger manual backup
    */
-  async triggerBackup(): Promise<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }> {
+  async triggerBackup(): Promise<{
+    message: string;
+    dump: string;
+    dumpSize: string;
+    sql: string;
+    sqlSize: string;
+  }> {
     if (IS_PORTABLE) {
       const { code, stdout, stderr } = await this.runUpdateScript('Backup');
       if (code !== 0) {
@@ -658,7 +769,13 @@ export class SystemService {
       throw new Error((error as { error?: string }).error || 'Failed to trigger backup');
     }
 
-    return response.json() as Promise<{ message: string; dump: string; dumpSize: string; sql: string; sqlSize: string }>;
+    return response.json() as Promise<{
+      message: string;
+      dump: string;
+      dumpSize: string;
+      sql: string;
+      sqlSize: string;
+    }>;
   }
 
   /**
@@ -684,7 +801,9 @@ export class SystemService {
   /**
    * List recent update/rollback log files
    */
-  async listLogs(): Promise<{ logs: Array<{ filename: string; size: string; lines: number; lastEntry: string }> }> {
+  async listLogs(): Promise<{
+    logs: Array<{ filename: string; size: string; lines: number; lastEntry: string }>;
+  }> {
     if (IS_PORTABLE) {
       return this.listLogsPortable();
     }
