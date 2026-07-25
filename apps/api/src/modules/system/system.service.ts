@@ -225,6 +225,63 @@ export class SystemService {
     });
   }
 
+  /**
+   * Record a 'running' status before the detached updater is launched.
+   *
+   * The updater only writes its own first status after PowerShell cold-starts, dot-sources
+   * common.ps1, runs Initialize-VbPaths and takes the update lock — 1-3s on an AV-scanned
+   * Windows server. The web UI starts polling at 2s and treats 'idle' as a terminal state,
+   * so without this seed the first poll landed in that gap and stopped the poll loop:
+   * idleStatus() on a fresh install, or the PREVIOUS run's terminal status on a retry. The
+   * progress UI tore down and re-showed the same update dialog while the updater was in fact
+   * still starting. Seeding here closes the gap for every caller (Update and Rollback).
+   */
+  private seedRunningStatus(action: string): void {
+    const now = new Date().toISOString();
+    const seed: UpdateStatus = {
+      step: 0,
+      totalSteps: 10,
+      stepName: 'Starting',
+      status: 'running',
+      message: `${action} starting`,
+      startedAt: now,
+      updatedAt: now,
+      logs: [],
+      currentVersion: this.readLocalVersion(),
+    };
+    fs.mkdirSync(path.dirname(STATUS_FILE_PATH), { recursive: true });
+    fs.writeFileSync(STATUS_FILE_PATH, JSON.stringify(seed, null, 2), 'utf-8');
+  }
+
+  /** Turn a launch failure into a status the UI can show, instead of a phantom 'running'. */
+  private markStatusFailed(action: string, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    const now = new Date().toISOString();
+    try {
+      fs.writeFileSync(
+        STATUS_FILE_PATH,
+        JSON.stringify(
+          {
+            step: 0,
+            totalSteps: 10,
+            stepName: 'Starting',
+            status: 'error',
+            message: `Failed to launch ${action.toLowerCase()}`,
+            startedAt: now,
+            updatedAt: now,
+            logs: [],
+            error: message,
+          } satisfies UpdateStatus,
+          null,
+          2
+        ),
+        'utf-8'
+      );
+    } catch {
+      // Status file is best-effort; the thrown error is still surfaced to the caller.
+    }
+  }
+
   private spawnUpdateDetached(action: string, extraArgs: string[] = []): void {
     const script = this.getUpdaterScript();
     if (!fs.existsSync(script)) {
@@ -237,14 +294,24 @@ export class SystemService {
     // tree and would kill the updater mid-update, leaving the app stopped forever.
     // The empty string is `start`'s window-title argument; without it `start` would treat
     // the quoted exe path as the title and launch nothing.
-    const child = spawn('cmd.exe', ['/c', 'start', '', '/min', 'powershell.exe', ...args], {
-      cwd: this.getVbHome(),
-      env: process.env,
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-    });
-    child.unref();
+    this.seedRunningStatus(action);
+
+    try {
+      const child = spawn('cmd.exe', ['/c', 'start', '', '/min', 'powershell.exe', ...args], {
+        cwd: this.getVbHome(),
+        env: process.env,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      // stdio is 'ignore', so a launch failure is otherwise invisible — and an unhandled
+      // 'error' event on a ChildProcess takes the API process down with it.
+      child.on('error', (err) => this.markStatusFailed(action, err));
+      child.unref();
+    } catch (err) {
+      this.markStatusFailed(action, err);
+      throw err;
+    }
   }
 
   private async checkForUpdatePortable(): Promise<UpdateCheckResult> {

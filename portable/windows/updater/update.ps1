@@ -127,6 +127,11 @@ function Invoke-Rollback {
     try {
         Acquire-UpdateLock
     } catch {
+        # Same reason as Invoke-Update: the UI is already polling a seeded 'running' status.
+        Write-UpdateStatus -Step 1 -StepName 'Lock' -Status 'error' `
+            -Message 'Another update is already running' `
+            -TargetVersion $Version -ErrorText $_.Exception.Message `
+            -ExtraLog @((Write-UpdaterLog "Rollback lock busy: $($_.Exception.Message)" 'ERROR'))
         Write-Error $_.Exception.Message
         exit 10
     }
@@ -176,6 +181,13 @@ function Invoke-Update {
     try {
         Acquire-UpdateLock
     } catch {
+        # The API seeds a 'running' status before launching us, so bailing out without writing
+        # one leaves the UI polling something that never advances until its 10-minute timeout.
+        # A stale lock from a crashed run blocks for 2h, which makes this very reachable.
+        Write-UpdateStatus -Step 1 -StepName 'Lock' -Status 'error' `
+            -Message 'Another update is already running' `
+            -CurrentVersion $current -ErrorText $_.Exception.Message `
+            -ExtraLog @((Write-UpdaterLog "Update lock busy: $($_.Exception.Message)" 'ERROR'))
         Write-Error $_.Exception.Message
         exit 10
     }
