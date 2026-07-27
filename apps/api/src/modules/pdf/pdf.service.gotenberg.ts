@@ -706,14 +706,14 @@ export class PdfService {
    * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
-    // Custom stock: 27 × 21 cm; left/right 1cm
+    // Custom stock: 27 × 21 cm; L 10mm / R 0; top 13mm
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
       width: '27cm',
       height: '21cm',
       padding: '0mm',
       margin: {
-        top: '10mm',
-        right: '10mm',
+        top: '13mm',
+        right: '0mm',
         bottom: '5mm',
         left: '10mm',
       },

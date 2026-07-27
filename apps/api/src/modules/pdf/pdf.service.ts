@@ -780,14 +780,14 @@ export class PdfService {
    * Generate Vehicle Card PDF (การ์ดรายละเอียดรถยนต์)
    */
   public async generateVehicleCard(data: VehicleCardData): Promise<Buffer> {
-    // Custom stock: 27 × 21 cm; L/R 1cm; top 10mm / bottom 6mm → content 194mm
+    // Custom stock: 27 × 21 cm; L 10mm / R 0; top 13mm / bottom 6mm → content 191mm
     return this.generatePdf(PdfTemplateType.VEHICLE_CARD, data, {
       width: '27cm',
       height: '21cm',
       padding: '0mm',
       margin: {
-        top: '10mm',
-        right: '10mm',
+        top: '13mm',
+        right: '0mm',
         bottom: '6mm',
         left: '10mm',
       },
@@ -815,18 +815,18 @@ export class PdfService {
   /**
    * Render Vehicle Card as HTML for browser printing (การ์ดรายละเอียดรถยนต์).
    *
-   * Stock paper: 27 × 21 cm. Content width 25 cm with left/right margins 1 cm.
-   * Header 7 cols: 4.4 + 4.3 + 4.3 + 4.2 + 2.6 + 2.6 + 2.6 = 25 cm.
+   * Stock paper: 27 × 21 cm. Content width 25.2 cm (right outer edge).
+   * Header 7 cols: 4.4 + 4.3 + 4.3 + 4.2 + 2.6 + 2.6 + 2.8 = 25.2 cm.
    * @page must match real paper so the driver does not scale to Letter/A4.
    */
   public async renderVehicleCardHtml(data: VehicleCardData): Promise<string> {
     return this.renderHtml(PdfTemplateType.VEHICLE_CARD, data, {
-      // 27cm − 1cm − 1cm
-      width: '25cm',
+      // table grid 25.2cm (right outer edge +4mm from 24.8)
+      width: '25.2cm',
       height: '21cm',
       padding: '0mm',
-      // top right bottom left — content band 210−10−6 = 194mm
-      htmlPage: { size: '27cm 21cm', margin: '10mm 10mm 6mm 10mm' },
+      // top right bottom left — content band 210−13−6 = 191mm
+      htmlPage: { size: '27cm 21cm', margin: '13mm 0mm 6mm 10mm' },
     });
   }
 

@@ -2,12 +2,16 @@
   <style>
     /*
       Vehicle card (ปกติ) — paper 27×21 cm
-      Margins: top 10mm / bottom 6mm / L-R 10mm → content 25cm × 194mm
-      Height budget (~184mm used + ~10mm buffer):
-        title 5mm + 24×row-h-7 @ 6.8mm + 4×row-h-4-5 @ 4mm
+      Margins: top 13mm / right 0 / bottom 6mm / left 10mm → content 25.2cm × 191mm
+      Height budget (paper 210mm ≈ exact fit):
+        top→table-line 20mm (margin 13 + title 7)
+        + 23×row-h-7 @ 6.6mm + note 12mm + 4×row-h-4-5 @ 5mm
+        + bottom margin 6mm
+        = 20 + 151.8 + 12 + 20 + 6 = 209.8mm
       Column anchors (cm from left of content):
-        0 | 4.4 | 8.7 | 13.0 | 17.2 | 19.8 | 22.4 | 25
+        0 | 4.4 | 8.7 | 13.0 | 17.2 | 19.8 | 22.4 | 25.2
         รหัสสี / พนักงานขาย / จำนวนเงิน align at 17.2
+        Right outer edge: 25.2cm (was 24.8, +4mm)
     */
 
     /* ── Page shell ─────────────────────────────────────────── */
@@ -15,11 +19,11 @@
       font-family: 'Sarabun', 'Kanit', sans-serif;
       font-size: 9px;
       color: #000;
-      width: 25cm;
+      width: 25.2cm;
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      overflow: visible; /* hidden clips the outer right border at 25cm */
+      overflow: visible; /* hidden clips the outer right border at 25.2cm */
     }
     .page * {
       color: #000 !important;
@@ -30,9 +34,9 @@
       text-align: center;
       font-weight: bold;
       font-size: 13px;
-      line-height: 4mm;
-      height: 5mm;
-      max-height: 5mm;
+      line-height: 6mm;
+      height: 7mm;
+      max-height: 7mm;
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -51,8 +55,8 @@
 
     /* ── Tables (base) ──────────────────────────────────────── */
     .page table {
-      width: 25cm; /* fixed cm — % drifts between stacked tables */
-      max-width: 25cm;
+      width: 25.2cm; /* fixed cm — % drifts between stacked tables */
+      max-width: 25.2cm;
       table-layout: fixed;
       border-collapse: collapse;
       border-spacing: 0;
@@ -91,32 +95,47 @@
     }
 
     /* ── Row heights ────────────────────────────────────────── */
-    /* Default body row (~7mm, slightly under to stay on one page) */
+    /* Default body row — 152/23 ≈ 6.6087; use 6.6 so total ≤ 210mm */
     .page table tr.row-h-7 {
-      height: 6.8mm;
-      max-height: 6.8mm;
+      height: 6.6mm;
+      max-height: 6.6mm;
     }
     .page table tr.row-h-7 > th,
     .page table tr.row-h-7 > td {
-      height: 6.8mm;
-      max-height: 6.8mm;
+      height: 6.6mm;
+      max-height: 6.6mm;
       font-size: 8.5px;
-      line-height: 6.2mm;
+      line-height: 6mm;
+      padding-top: 0;
+      padding-bottom: 0;
+      overflow: hidden;
+    }
+    /* รวมรายจ่ายทั้งสิ้น + หมายเหตุ */
+    .page table tr.row-h-note {
+      height: 12mm;
+      max-height: 12mm;
+    }
+    .page table tr.row-h-note > th,
+    .page table tr.row-h-note > td {
+      height: 12mm;
+      max-height: 12mm;
+      font-size: 8.5px;
+      line-height: 1.15;
       padding-top: 0;
       padding-bottom: 0;
       overflow: hidden;
     }
     /* Footer note spacers under หมายเหตุ */
     .page table tr.row-h-4-5 {
-      height: 4mm;
-      max-height: 4mm;
+      height: 5mm;
+      max-height: 5mm;
     }
     .page table tr.row-h-4-5 > th,
     .page table tr.row-h-4-5 > td {
-      height: 4mm;
-      max-height: 4mm;
+      height: 5mm;
+      max-height: 5mm;
       padding: 0 2px;
-      line-height: 3.6mm;
+      line-height: 4.6mm;
       font-size: 8px;
       overflow: hidden;
     }
@@ -226,7 +245,7 @@
 
   <h1 class="title">การ์ดรายละเอียดรถยนต์</h1>
 
-  {{! ── Top: vehicle header (7 cols = 25cm) ──────────────────── }}
+  {{! ── Top: vehicle header (7 cols = 25.2cm; last col +4mm) ── }}
   <table class="card-top-unified">
     <colgroup>
       <col style="width: 4.4cm;">
@@ -235,7 +254,7 @@
       <col style="width: 4.2cm;">
       <col style="width: 2.6cm;">
       <col style="width: 2.6cm;">
-      <col style="width: 2.6cm;">
+      <col style="width: 2.8cm;">
     </colgroup>
     <tr class="row-h-7">
       <th>ใบสั่งซื้อเลขที่</th>
@@ -257,13 +276,13 @@
     </tr>
   </table>
 
-  {{! ── Dates: 6 + 5.75 + 5.45 + 7.8 = 25; พนักงานขาย @ 17.2 ── }}
+  {{! ── Dates: 6 + 5.75 + 5.45 + 8.0 = 25.2; พนักงานขาย @ 17.2 ── }}
   <table class="mt-neg card-dates">
     <colgroup>
       <col style="width: 6cm;">
       <col style="width: 5.75cm;">
       <col style="width: 5.45cm;">
-      <col style="width: 7.8cm;">
+      <col style="width: 8cm;">
     </colgroup>
     <tr class="row-h-7">
       <td style="font-weight: bold;">วันที่สั่งซื้อ {{orderDate}}</td>
@@ -275,8 +294,9 @@
 
   {{!
     Main 10 cols (cm):
-      1.25 + 4.75 + 3 + 0.75 + 2 + 5.45 + 1.85 + 0.75 + 2.6 + 2.6 = 25
+      1.25 + 4.75 + 3 + 0.75 + 2 + 5.45 + 1.85 + 0.75 + 2.6 + 2.8 = 25.2
     จำนวนเงิน = 1.85 (บาท) + 0.75 (สตางค์); เลขที่ใบรับ @ 19.8; ผู้ตรวจสอบ @ 22.4
+    Right outer edge +4mm (last col 2.4 → 2.8)
   }}
   <table class="mt-neg card-main">
     <colgroup>
@@ -289,7 +309,7 @@
       <col style="width: 1.85cm;">
       <col style="width: 0.75cm;">
       <col style="width: 2.6cm;">
-      <col style="width: 2.6cm;">
+      <col style="width: 2.8cm;">
     </colgroup>
 
     {{! Column headers }}
@@ -516,8 +536,8 @@
       <td></td>
     </tr>
 
-    {{! Footer: note (left) + สรุป/หัก (right, rowspan 5 = 1×row-h-7 + 4×row-h-4-5) }}
-    <tr class="row-h-7">
+    {{! Footer: note (left) + สรุป/หัก (right, rowspan 5 = 1×row-h-note + 4×row-h-4-5) }}
+    <tr class="row-h-note">
       <td colspan="5" class="note-cell">
         <div style="font-weight: bold;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
         <div style="font-weight: bold;">หมายเหตุ</div>
