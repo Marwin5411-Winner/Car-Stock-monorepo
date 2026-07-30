@@ -1,36 +1,42 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { usePermission } from '../../hooks/usePermission';
-import { useErrorHandler } from '../../hooks/useErrorHandler';
-import { useToast } from '../../components/toast';
-import { salesService } from '../../services/sales.service';
-import { stockService, type Stock } from '../../services/stock.service';
-import type { Sale, SaleStatus } from '../../services/sales.service';
-import { MainLayout } from '../../components/layout';
-import { api } from '../../lib/api';
 import {
+  AlertCircle,
   ArrowLeft,
-  Edit,
-  User,
-  Car,
   Calendar,
-  DollarSign,
-  FileText,
+  Car,
+  CheckCircle,
   Clock,
   CreditCard,
-  History,
+  DollarSign,
   Download,
-  Printer,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Truck,
+  Edit,
+  FileText,
+  History,
+  Loader2,
   Package,
   Plus,
+  Printer,
   RefreshCw,
+  Save,
+  Truck,
+  User,
   X,
-  Loader2
+  XCircle,
 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { FinanceSheet, type FinanceSheetValue } from '../../components/finance/FinanceSheet';
+import { MainLayout } from '../../components/layout';
+import { useToast } from '../../components/toast';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { usePermission } from '../../hooks/usePermission';
+import { api } from '../../lib/api';
+import {
+  type Sale,
+  type SaleStatus,
+  type UpdateSaleData,
+  salesService,
+} from '../../services/sales.service';
+import { type Stock, stockService } from '../../services/stock.service';
 
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_LABELS: Record<SaleStatus, string> = {
@@ -105,14 +111,17 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     title: 'สัญญาจองรถยนต์',
     description: 'สัญญาหลักระหว่างผู้จำหน่ายและลูกค้า',
     endpoint: '/api/pdf/contract',
-    getAvailable: (sale) => ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
+    getAvailable: (sale) =>
+      ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
   },
   {
     id: 'deposit-receipt',
     title: 'ใบรับเงินมัดจำ',
     description: 'ใบรับเงินมัดจำ',
     endpoint: '/api/pdf/deposit-receipt',
-    getAvailable: (sale) => sale.depositAmount > 0 && !!sale.payments?.some(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
+    getAvailable: (sale) =>
+      sale.depositAmount > 0 &&
+      !!sale.payments?.some((p) => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'),
     usePaymentId: true,
   },
   {
@@ -135,7 +144,8 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
     title: 'ใบยืนยันรายละเอียดการขาย',
     description: 'สรุปราคา/ส่วนลด + รายการของแถม (สำหรับลูกค้า)',
     endpoint: '/api/pdf/sales-confirmation-form',
-    getAvailable: (sale) => ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
+    getAvailable: (sale) =>
+      ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'].includes(sale.status),
   },
 
   {
@@ -156,6 +166,30 @@ const DOCUMENT_CONFIGS: DocumentConfig[] = [
 
 // Updated status flow - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_FLOW: SaleStatus[] = ['RESERVED', 'PREPARING', 'DELIVERED', 'COMPLETED'];
+
+function saleToFinanceSheetValue(sale: Sale): FinanceSheetValue {
+  return {
+    paymentMode: sale.paymentMode,
+    totalAmount: Number(sale.totalAmount) || 0,
+    depositAmount: Number(sale.depositAmount) || 0,
+    carDiscount: Number(sale.carDiscount) || 0,
+    downPaymentDiscount: Number(sale.downPaymentDiscount) || 0,
+    insuranceFee: Number(sale.insuranceFee) || 0,
+    compulsoryInsuranceFee: Number(sale.compulsoryInsuranceFee) || 0,
+    registrationFee: Number(sale.registrationFee) || 0,
+    downPayment: Number(sale.downPayment) || 0,
+    financeAmount: Number(sale.financeAmount) || 0,
+    financeProvider: sale.financeProvider ?? '',
+    interestRate: Number(sale.interestRate) || 0,
+    numberOfTerms: Number(sale.numberOfTerms) || 0,
+    monthlyInstallment: Number(sale.monthlyInstallment) || 0,
+    salesCommission: Number(sale.salesCommission) || 0,
+    salesExpense: Number(sale.salesExpense) || 0,
+    financeCommission: Number(sale.financeCommission) || 0,
+    financeEditedKeys: sale.financeEditedKeys ?? [],
+    customLines: sale.customLines ?? [],
+  };
+}
 
 export default function SalesDetailPage() {
   const { id } = useParams();
@@ -186,6 +220,11 @@ export default function SalesDetailPage() {
   // Document loading state
   const [documentLoading, setDocumentLoading] = useState<DocumentType | null>(null);
 
+  // Inline finance sheet edit
+  const [financeEditing, setFinanceEditing] = useState(false);
+  const [financeDraft, setFinanceDraft] = useState<FinanceSheetValue | null>(null);
+  const [savingFinance, setSavingFinance] = useState(false);
+
   useEffect(() => {
     if (id) {
       fetchSale(id);
@@ -197,7 +236,10 @@ export default function SalesDetailPage() {
     setLoading(true);
     let found = false;
     await executeQuery(
-      salesService.getById(saleId).then((data) => { setSale(data); found = true; })
+      salesService.getById(saleId).then((data) => {
+        setSale(data);
+        found = true;
+      })
     );
     if (!found) navigate('/sales');
     setLoading(false);
@@ -269,11 +311,59 @@ export default function SalesDetailPage() {
     return ['RESERVED', 'PREPARING'].includes(sale.status);
   };
 
+  const startFinanceEdit = () => {
+    if (!sale) return;
+    setFinanceDraft(saleToFinanceSheetValue(sale));
+    setFinanceEditing(true);
+  };
+
+  const cancelFinanceEdit = () => {
+    setFinanceDraft(null);
+    setFinanceEditing(false);
+  };
+
+  const saveFinanceEdit = async () => {
+    if (!sale || !financeDraft) return;
+
+    setSavingFinance(true);
+    const data: UpdateSaleData = {
+      totalAmount: Number(financeDraft.totalAmount) || 0,
+      depositAmount: Number(financeDraft.depositAmount) || 0,
+      paymentMode: financeDraft.paymentMode ?? sale.paymentMode,
+      downPayment: Number(financeDraft.downPayment) || undefined,
+      financeAmount: Number(financeDraft.financeAmount) || undefined,
+      financeProvider: financeDraft.financeProvider || undefined,
+      carDiscount: Number(financeDraft.carDiscount) || 0,
+      downPaymentDiscount: Number(financeDraft.downPaymentDiscount) || 0,
+      insuranceFee: Number(financeDraft.insuranceFee) || 0,
+      compulsoryInsuranceFee: Number(financeDraft.compulsoryInsuranceFee) || 0,
+      registrationFee: Number(financeDraft.registrationFee) || 0,
+      salesCommission: Number(financeDraft.salesCommission) || 0,
+      salesExpense: Number(financeDraft.salesExpense) || 0,
+      financeCommission: Number(financeDraft.financeCommission) || 0,
+      interestRate: Number(financeDraft.interestRate) || undefined,
+      numberOfTerms: Number(financeDraft.numberOfTerms) || undefined,
+      monthlyInstallment: Number(financeDraft.monthlyInstallment) || undefined,
+      financeEditedKeys: financeDraft.financeEditedKeys ?? [],
+      customLines: financeDraft.customLines ?? [],
+    };
+
+    await executeQuery(
+      salesService.update(sale.id, data).then(async () => {
+        await fetchSale(sale.id);
+        setFinanceEditing(false);
+        setFinanceDraft(null);
+        addToast('บันทึกข้อมูลการเงินสำเร็จ', 'success');
+      })
+    );
+    setSavingFinance(false);
+  };
+
   // Get the payment ID for deposit receipt (first active deposit payment)
   const getDepositPaymentId = useCallback((): string | null => {
     if (!sale?.payments) return null;
     const depositPayment = sale.payments.find(
-      p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'
+      (p) => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE'
     );
     return depositPayment?.id || null;
   }, [sale?.payments]);
@@ -396,7 +486,7 @@ export default function SalesDetailPage() {
     const statuses = statusTransitions[currentStatus] || [];
     // Only users with SALE_CANCEL permission can cancel sales
     if (!canCancel) {
-      return statuses.filter(s => s !== 'CANCELLED');
+      return statuses.filter((s) => s !== 'CANCELLED');
     }
     return statuses;
   };
@@ -438,10 +528,7 @@ export default function SalesDetailPage() {
               <h3 className="text-lg font-semibold">
                 {sale.stock ? 'เปลี่ยน Stock' : 'กำหนด Stock'}
               </h3>
-              <button
-                onClick={closeStockModal}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
+              <button onClick={closeStockModal} className="p-1 hover:bg-gray-100 rounded">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -449,16 +536,17 @@ export default function SalesDetailPage() {
               {loadingStocks ? (
                 <div className="text-center py-8 text-gray-700">กำลังโหลด...</div>
               ) : availableStocks.length === 0 ? (
-                <div className="text-center py-8 text-gray-700">
-                  ไม่พบ Stock ที่พร้อมใช้งาน
-                </div>
+                <div className="text-center py-8 text-gray-700">ไม่พบ Stock ที่พร้อมใช้งาน</div>
               ) : (
                 <div className="space-y-2">
                   {availableStocks.map((stock) => (
                     <label
                       key={stock.id}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${selectedStockId === stock.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                        }`}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                        selectedStockId === stock.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200'
+                      }`}
                     >
                       <input
                         type="radio"
@@ -514,21 +602,26 @@ export default function SalesDetailPage() {
               <div key={status} className="flex-1 flex items-center">
                 <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${isCurrent
-                      ? STATUS_COLORS[status]
-                      : isCompleted
-                        ? 'bg-green-100 text-green-600 border-green-300'
-                        : 'bg-gray-100 text-gray-700 border-gray-300'
-                      }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                      isCurrent
+                        ? STATUS_COLORS[status]
+                        : isCompleted
+                          ? 'bg-green-100 text-green-600 border-green-300'
+                          : 'bg-gray-100 text-gray-700 border-gray-300'
+                    }`}
                   >
                     {isCompleted ? <CheckCircle className="h-5 w-5" /> : STATUS_ICONS[status]}
                   </div>
-                  <span className={`text-xs mt-2 text-center ${isCurrent ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                  <span
+                    className={`text-xs mt-2 text-center ${isCurrent ? 'font-medium text-gray-900' : 'text-gray-700'}`}
+                  >
                     {STATUS_LABELS[status]}
                   </span>
                 </div>
                 {index < STATUS_FLOW.length - 1 && (
-                  <div className={`h-1 flex-1 mx-2 ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}`} />
+                  <div
+                    className={`h-1 flex-1 mx-2 ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}`}
+                  />
                 )}
               </div>
             );
@@ -543,10 +636,11 @@ export default function SalesDetailPage() {
                 key={nextStatus}
                 onClick={() => handleStatusChange(nextStatus)}
                 disabled={updatingStatus}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${nextStatus === 'CANCELLED'
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                  : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                  } disabled:opacity-50`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  nextStatus === 'CANCELLED'
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
+                } disabled:opacity-50`}
               >
                 {nextStatus === 'CANCELLED' ? 'ยกเลิก' : `เปลี่ยนเป็น ${STATUS_LABELS[nextStatus]}`}
               </button>
@@ -707,204 +801,72 @@ export default function SalesDetailPage() {
         </div>
 
         {/* Financial Info */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
-            ข้อมูลการเงิน
-          </h3>
-
-          {/* Payment Mode Badge */}
-          <div className="mb-4 flex items-center gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {sale.paymentMode === 'CASH' ? 'เงินสด' : sale.paymentMode === 'FINANCE' ? 'ไฟแนนซ์' : 'ผสม'}
-            </span>
-            {sale.paymentMode !== 'CASH' && sale.financeProvider && (
-              <span className="text-sm text-gray-700">{sale.financeProvider}</span>
+        <div className="bg-white rounded-lg shadow p-6 md:col-span-2">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold flex items-center">
+              <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
+              ข้อมูลการเงิน
+            </h3>
+            {canUpdate && !financeEditing && sale.status !== 'CANCELLED' && (
+              <button
+                type="button"
+                onClick={startFinanceEdit}
+                className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+              >
+                <Edit className="mr-1.5 h-4 w-4" />
+                แก้ไขการเงิน
+              </button>
+            )}
+            {financeEditing && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelFinanceEdit}
+                  disabled={savingFinance}
+                  className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <X className="mr-1.5 h-4 w-4" />
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={saveFinanceEdit}
+                  disabled={savingFinance}
+                  className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingFinance ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-1.5 h-4 w-4" />
+                  )}
+                  บันทึก
+                </button>
+              </div>
             )}
           </div>
 
-          <dl className="space-y-2">
-            {/* Car price from vehicle model */}
-            {(sale.stock?.vehicleModel?.price || sale.vehicleModel) && (
-              <div className="flex justify-between">
-                <dt className="text-sm text-gray-700">ราคารถ (ราคาตั้ง)</dt>
-                <dd className="text-sm font-medium">
-                  {formatCurrency(sale.stock?.vehicleModel?.price || 0)}
-                </dd>
-              </div>
-            )}
-
-            {/* Discounts - ADMIN/ACCOUNTANT only */}
-            {canDiscount && sale.carDiscount != null && Number(sale.carDiscount) > 0 && (
-              <div className="flex justify-between text-orange-700">
-                <dt className="text-sm">ส่วนลดตัวรถ</dt>
-                <dd className="text-sm font-medium">- {formatCurrency(Number(sale.carDiscount))}</dd>
-              </div>
-            )}
-            {canDiscount && sale.downPaymentDiscount != null && sale.downPaymentDiscount > 0 && (
-              <div className="flex justify-between text-orange-700">
-                <dt className="text-sm">ส่วนลดเงินดาวน์</dt>
-                <dd className="text-sm font-medium">- {formatCurrency(sale.downPaymentDiscount)}</dd>
-              </div>
-            )}
-
-            {(() => {
-              const totalFees =
-                (Number(sale.insuranceFee) || 0) +
-                (Number(sale.compulsoryInsuranceFee) || 0) +
-                (Number(sale.registrationFee) || 0);
-              return totalFees > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">ค่าประกันชั้น 1</dt>
-                    <dd className="text-sm font-medium">{formatCurrency(Number(sale.insuranceFee) || 0)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">ค่าพรบ.</dt>
-                    <dd className="text-sm font-medium">
-                      {formatCurrency(Number(sale.compulsoryInsuranceFee) || 0)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">ค่าจดทะเบียน</dt>
-                    <dd className="text-sm font-medium">{formatCurrency(Number(sale.registrationFee) || 0)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">รวมค่าใช้จ่าย</dt>
-                    <dd className="text-sm font-semibold text-blue-700">{formatCurrency(totalFees)}</dd>
-                  </div>
-                </>
-              );
-            })()}
-
-            {/* Deposit */}
-            {sale.depositAmount > 0 && (() => {
-              const depositPaid = (sale.payments || [])
-                .filter(p => p.paymentType === 'DEPOSIT' && p.status === 'ACTIVE')
-                .reduce((sum, p) => sum + p.amount, 0);
-              return (
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-700">เงินมัดจำ</dt>
-                  <dd className="text-sm font-medium">
-                    {formatCurrency(sale.depositAmount)}
-                    {depositPaid > 0 && (
-                      <span className="ml-2 text-green-600 text-xs">(ชำระแล้ว {formatCurrency(depositPaid)})</span>
-                    )}
-                  </dd>
-                </div>
-              );
-            })()}
-
-            {/* Finance details */}
-            {sale.paymentMode !== 'CASH' && (
-              <>
-                {sale.downPayment != null && sale.downPayment > 0 && (() => {
-                  const downPaymentPaid = (sale.payments || [])
-                    .filter(p => p.paymentType === 'DOWN_PAYMENT' && p.status === 'ACTIVE')
-                    .reduce((sum, p) => sum + p.amount, 0);
-                  return (
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-gray-700">เงินดาวน์</dt>
-                      <dd className="text-sm font-medium">
-                        {formatCurrency(sale.downPayment)}
-                        {downPaymentPaid > 0 && (
-                          <span className="ml-2 text-green-600 text-xs">(ชำระแล้ว {formatCurrency(downPaymentPaid)})</span>
-                        )}
-                      </dd>
-                    </div>
-                  );
-                })()}
-                {sale.financeAmount != null && sale.financeAmount > 0 && (() => {
-                  const financePaid = (sale.payments || [])
-                    .filter(p => p.paymentType === 'FINANCE_PAYMENT' && p.status === 'ACTIVE')
-                    .reduce((sum, p) => sum + p.amount, 0);
-                  return (
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-gray-700">ยอดจัดไฟแนนซ์</dt>
-                      <dd className="text-sm font-medium">
-                        {formatCurrency(sale.financeAmount)}
-                        {financePaid > 0 && (
-                          <span className="ml-2 text-green-600 text-xs">(ชำระแล้ว {formatCurrency(financePaid)})</span>
-                        )}
-                      </dd>
-                    </div>
-                  );
-                })()}
-                {sale.interestRate != null && sale.interestRate > 0 && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">อัตราดอกเบี้ย</dt>
-                    <dd className="text-sm font-medium">{sale.interestRate}% ต่อปี</dd>
-                  </div>
-                )}
-                {sale.monthlyInstallment != null && sale.monthlyInstallment > 0 && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-700">ค่างวด</dt>
-                    <dd className="text-sm font-medium">
-                      {formatCurrency(sale.monthlyInstallment)}
-                      {sale.numberOfTerms ? ` × ${sale.numberOfTerms} งวด` : ''}
-                    </dd>
-                  </div>
-                )}
-
-                {/* Finance Commission - ADMIN/ACCOUNTANT only */}
-                {canDiscount && sale.financeAmount != null && sale.financeAmount > 0 && sale.interestRate != null && sale.interestRate > 0 && sale.numberOfTerms != null && sale.numberOfTerms > 0 && (() => {
-                  const years = sale.numberOfTerms / 12;
-                  const cappedYears = Math.min(years, 4);
-                  const beforeVat = sale.financeAmount / 1.07;
-                  const commission = beforeVat * (sale.interestRate / 100) * cappedYears * 0.08;
-                  return (
-                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
-                      <div className="flex justify-between items-center">
-                        <dt className="text-sm font-semibold text-green-800">ค่าคอมไฟแนนซ์ 8%</dt>
-                        <dd className="text-base font-bold text-green-700">{formatCurrency(commission)}</dd>
-                      </div>
-                      <div className="pt-2 border-t border-green-200 space-y-1 text-xs text-green-700">
-                        <div className="flex justify-between">
-                          <span>ยอดจัดก่อน VAT (÷ 1.07)</span>
-                          <span className="font-medium">{formatCurrency(beforeVat)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>อัตราดอกเบี้ย</span>
-                          <span className="font-medium">{sale.interestRate}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>จำนวนปี {years > 4 ? `(${years.toFixed(1)} ปี → สูงสุด 4 ปี)` : `(${cappedYears.toFixed(1)} ปี)`}</span>
-                          <span className="font-medium">{cappedYears} ปี</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>อัตราคอม</span>
-                          <span className="font-medium">8%</span>
-                        </div>
-                        <div className="pt-1 border-t border-green-200 text-xs text-green-600 font-mono">
-                          = {formatCurrency(beforeVat)} × {sale.interestRate}% × {cappedYears} ปี × 8%
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </>
-            )}
-
-            {/* Totals */}
-            <div className="flex justify-between border-t pt-2 mt-2">
-              <dt className="text-sm text-gray-700">ยอดรวม</dt>
-              <dd className="text-sm font-semibold">{formatCurrency(sale.totalAmount)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-700">ชำระแล้ว</dt>
-              <dd className="text-sm font-medium text-green-600">{formatCurrency(sale.paidAmount)}</dd>
-            </div>
-            <div className="flex justify-between pt-2 border-t">
-              <dt className="text-sm text-gray-700 font-medium">ค้างชำระ</dt>
-              <dd className={`text-sm font-bold ${sale.remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {formatCurrency(sale.remainingAmount)}
-              </dd>
-            </div>
-          </dl>
+          <FinanceSheet
+            readOnly={!financeEditing}
+            paymentMode={
+              financeEditing && financeDraft?.paymentMode
+                ? financeDraft.paymentMode
+                : sale.paymentMode
+            }
+            carPrice={Number(sale.stock?.vehicleModel?.price ?? 0)}
+            value={financeEditing && financeDraft ? financeDraft : saleToFinanceSheetValue(sale)}
+            paidAmount={sale.paidAmount}
+            remainingAmount={financeEditing ? undefined : sale.remainingAmount}
+            canEditDiscounts={canDiscount}
+            canEditDealerFields={canDiscount}
+            onChange={(next) => {
+              if (!financeEditing) return;
+              setFinanceDraft(next);
+            }}
+          />
         </div>
 
         {/* Payment Breakdown Table */}
-        {sale.payments && sale.payments.filter(p => p.status === 'ACTIVE').length > 0 && (
+        {sale.payments && sale.payments.filter((p) => p.status === 'ACTIVE').length > 0 && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b">
               <h3 className="text-lg font-semibold flex items-center">
@@ -915,31 +877,52 @@ export default function SalesDetailPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วันที่</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ประเภท</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วิธีชำระ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">จำนวนเงิน</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    วันที่
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    ประเภท
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    วิธีชำระ
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">
+                    จำนวนเงิน
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sale.payments
-                  .filter(p => p.status === 'ACTIVE')
+                  .filter((p) => p.status === 'ACTIVE')
                   .map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-sm text-gray-700">{formatDate(payment.paymentDate)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{PAYMENT_TYPE_LABELS[payment.paymentType] || payment.paymentType}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}</td>
-                      <td className="px-6 py-3 text-sm font-medium text-right">{formatCurrency(payment.amount)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {formatDate(payment.paymentDate)}
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {PAYMENT_TYPE_LABELS[payment.paymentType] || payment.paymentType}
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}
+                      </td>
+                      <td className="px-6 py-3 text-sm font-medium text-right">
+                        {formatCurrency(payment.amount)}
+                      </td>
                     </tr>
                   ))}
               </tbody>
               <tfoot className="bg-gray-50">
                 <tr>
-                  <td colSpan={3} className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">รวมชำระแล้ว</td>
+                  <td
+                    colSpan={3}
+                    className="px-6 py-3 text-sm font-semibold text-gray-900 text-right"
+                  >
+                    รวมชำระแล้ว
+                  </td>
                   <td className="px-6 py-3 text-sm font-bold text-green-600 text-right">
                     {formatCurrency(
                       sale.payments
-                        .filter(p => p.status === 'ACTIVE')
+                        .filter((p) => p.status === 'ACTIVE')
                         .reduce((sum, p) => sum + p.amount, 0)
                     )}
                   </td>
@@ -969,7 +952,9 @@ export default function SalesDetailPage() {
             {sale.hasExpiration && sale.expirationDate && (
               <div>
                 <dt className="text-sm text-gray-700">วันหมดอายุการจอง</dt>
-                <dd className="text-sm font-medium text-yellow-600">{formatDate(sale.expirationDate)}</dd>
+                <dd className="text-sm font-medium text-yellow-600">
+                  {formatDate(sale.expirationDate)}
+                </dd>
               </div>
             )}
             {sale.deliveryDate && (
@@ -981,7 +966,9 @@ export default function SalesDetailPage() {
             {sale.completedDate && (
               <div>
                 <dt className="text-sm text-gray-700">วันที่เสร็จสิ้น</dt>
-                <dd className="text-sm font-medium text-green-600">{formatDate(sale.completedDate)}</dd>
+                <dd className="text-sm font-medium text-green-600">
+                  {formatDate(sale.completedDate)}
+                </dd>
               </div>
             )}
           </dl>
@@ -997,13 +984,18 @@ export default function SalesDetailPage() {
               <p className="text-sm text-gray-700">แคมเปญ</p>
               <p className="text-sm font-medium">{sale.campaign.name}</p>
               {sale.discountSnapshot && (
-                <p className="text-sm text-green-600">ส่วนลด: {formatCurrency(sale.discountSnapshot)}</p>
+                <p className="text-sm text-green-600">
+                  ส่วนลด: {formatCurrency(sale.discountSnapshot)}
+                </p>
               )}
               {sale.campaignSubsidySnapshot != null && Number(sale.campaignSubsidySnapshot) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">แคมเปญคันนี้ (ต่อคัน)</span>
                   <span className="font-semibold text-purple-700">
-                    {Number(sale.campaignSubsidySnapshot).toLocaleString('th-TH', { maximumFractionDigits: 2 })} บาท
+                    {Number(sale.campaignSubsidySnapshot).toLocaleString('th-TH', {
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    บาท
                   </span>
                 </div>
               )}
@@ -1013,9 +1005,13 @@ export default function SalesDetailPage() {
             <div className="mb-4">
               <p className="text-sm text-gray-700">รายการของแถม</p>
               <ul className="text-sm text-blue-600 list-disc list-inside">
-                {sale.freebiesSnapshot.split(/[\n,]/).map((g) => g.trim()).filter(Boolean).map((gift) => (
-                  <li key={gift}>{gift}</li>
-                ))}
+                {sale.freebiesSnapshot
+                  .split(/[\n,]/)
+                  .map((g) => g.trim())
+                  .filter(Boolean)
+                  .map((gift) => (
+                    <li key={gift}>{gift}</li>
+                  ))}
               </ul>
             </div>
           )}
@@ -1083,7 +1079,7 @@ export default function SalesDetailPage() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h3 className="text-lg font-semibold">ประวัติการชำระเงิน</h3>
-          {(canCreatePayment) && (
+          {canCreatePayment && (
             <Link
               to={`/payments/new?saleId=${sale.id}`}
               className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 text-sm"
@@ -1097,24 +1093,48 @@ export default function SalesDetailPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">เลขที่ใบเสร็จ</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ประเภท</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วิธีชำระ</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">จำนวน</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">วันที่</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">สถานะ</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  เลขที่ใบเสร็จ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  ประเภท
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  วิธีชำระ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  จำนวน
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  วันที่
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                  สถานะ
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {sale.payments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-blue-600">{payment.receiptNumber}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{PAYMENT_TYPE_LABELS[payment.paymentType]}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{PAYMENT_METHOD_LABELS[payment.paymentMethod]}</td>
-                  <td className="px-6 py-4 text-sm font-medium">{formatCurrency(payment.amount)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{formatDate(payment.paymentDate)}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-blue-600">
+                    {payment.receiptNumber}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {PAYMENT_TYPE_LABELS[payment.paymentType]}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {PAYMENT_METHOD_LABELS[payment.paymentMethod]}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium">
+                    {formatCurrency(payment.amount)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {formatDate(payment.paymentDate)}
+                  </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[payment.status]}`}>
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[payment.status]}`}
+                    >
                       {payment.status === 'ACTIVE' ? 'ใช้งาน' : 'ยกเลิก'}
                     </span>
                   </td>
@@ -1123,9 +1143,7 @@ export default function SalesDetailPage() {
             </tbody>
           </table>
         ) : (
-          <div className="px-6 py-8 text-center text-gray-700">
-            ยังไม่มีการชำระเงิน
-          </div>
+          <div className="px-6 py-8 text-center text-gray-700">ยังไม่มีการชำระเงิน</div>
         )}
       </div>
     </div>
@@ -1159,9 +1177,7 @@ export default function SalesDetailPage() {
                         </span>
                       )}
                     </div>
-                    {item.notes && (
-                      <p className="text-sm text-gray-700 mt-1">{item.notes}</p>
-                    )}
+                    {item.notes && <p className="text-sm text-gray-700 mt-1">{item.notes}</p>}
                     <p className="text-xs text-gray-700 mt-1">{formatDateTime(item.createdAt)}</p>
                   </div>
                 </div>
@@ -1170,9 +1186,7 @@ export default function SalesDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="px-6 py-8 text-center text-gray-700">
-          ยังไม่มีประวัติการเปลี่ยนแปลง
-        </div>
+        <div className="px-6 py-8 text-center text-gray-700">ยังไม่มีประวัติการเปลี่ยนแปลง</div>
       )}
     </div>
   );
@@ -1231,10 +1245,11 @@ export default function SalesDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600 font-medium'
-                  : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600 font-medium'
+                    : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
                 {tab.icon}
                 {tab.label}
@@ -1272,9 +1287,7 @@ function DocumentItem({ config, available, isLoading, onDownload, onPrint }: Doc
         <div>
           <p className="text-sm font-medium text-gray-900">{title}</p>
           <p className="text-xs text-gray-700">{description}</p>
-          {restricted && (
-            <span className="text-xs text-orange-600">จำกัดสิทธิ์การเข้าถึง</span>
-          )}
+          {restricted && <span className="text-xs text-orange-600">จำกัดสิทธิ์การเข้าถึง</span>}
         </div>
       </div>
       {available ? (

@@ -9,7 +9,8 @@
     "./schemas": "./src/schemas/index.ts",
     "./types": "./src/types/index.ts",
     "./constants": "./src/constants/index.ts",
-    "./formulas": "./src/formulas/index.ts"
+    "./formulas": "./src/formulas/index.ts",
+    "./finance": "./src/finance/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

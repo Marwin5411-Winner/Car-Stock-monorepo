@@ -338,6 +338,15 @@ export const UpdateStockSchema = CreateStockSchema.partial();
 // Sale Schemas
 // ============================================
 
+export const FinanceCustomLineSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().min(1),
+  group: z.enum(['CUSTOMER_CHARGE', 'DEALER', 'INFO']),
+  amount: z.number(),
+  notes: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
 export const SaleSchema = z.object({
   id: z.string(),
   saleNumber: z.string(),
@@ -426,6 +435,9 @@ export const CreateSaleSchema = z.object({
   interestRate: z.number().optional(),
   numberOfTerms: z.number().int().optional(),
   monthlyInstallment: z.number().optional(),
+
+  financeEditedKeys: z.array(z.string()).optional().default([]),
+  customLines: z.array(FinanceCustomLineSchema).optional().default([]),
 
   refundPolicy: RefundPolicySchema.default('FULL'),
   notes: z.string().optional(),

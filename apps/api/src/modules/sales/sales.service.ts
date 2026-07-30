@@ -27,8 +27,9 @@ const toNumberOrNull = (val: Decimal | number | null | undefined): number | null
  * Convert Prisma Decimal fields to plain numbers for JSON serialization
  */
 function serializeSale(sale: any): any {
+  const { financeLines, ...rest } = sale;
   return {
-    ...sale,
+    ...rest,
     totalAmount: toNumber(sale.totalAmount),
     depositAmount: toNumber(sale.depositAmount),
     paidAmount: toNumber(sale.paidAmount),
@@ -48,6 +49,16 @@ function serializeSale(sale: any): any {
     discountSnapshot: toNumberOrNull(sale.discountSnapshot),
     campaignSubsidySnapshot: toNumberOrNull(sale.campaignSubsidySnapshot),
     refundAmount: toNumberOrNull(sale.refundAmount),
+    financeEditedKeys: sale.financeEditedKeys ?? [],
+    customLines: (financeLines ?? []).map((l: any) => ({
+      id: l.id,
+      key: l.key,
+      label: l.label,
+      group: l.group,
+      amount: toNumber(l.amount),
+      notes: l.notes,
+      sortOrder: l.sortOrder,
+    })),
     ...(sale.stock?.vehicleModel?.price != null && {
       stock: {
         ...sale.stock,
@@ -72,6 +83,37 @@ function serializeSale(sale: any): any {
       },
     }),
   };
+}
+
+/** Persist CUSTOM finance lines for a sale (caller owns the transaction). */
+async function createFinanceLines(
+  tx: any,
+  saleId: string,
+  customLines: Array<{
+    id?: string;
+    label: string;
+    group: string;
+    amount: number;
+    notes?: string;
+    sortOrder?: number;
+  }>
+) {
+  for (const [i, line] of customLines.entries()) {
+    const id = line.id ?? crypto.randomUUID();
+    await tx.saleFinanceLine.create({
+      data: {
+        id,
+        saleId,
+        key: `custom:${id}`,
+        label: line.label,
+        group: line.group,
+        amount: line.amount,
+        source: 'CUSTOM',
+        sortOrder: line.sortOrder ?? i,
+        notes: line.notes ?? null,
+      },
+    });
+  }
 }
 
 export class SalesService {
@@ -285,6 +327,9 @@ export class SalesService {
           },
           orderBy: { createdAt: 'desc' },
         },
+        financeLines: {
+          orderBy: { sortOrder: 'asc' },
+        },
       },
     });
 
@@ -430,17 +475,25 @@ export class SalesService {
       createFees
     );
 
-    // Create sale + reserve stock + history + activity log in transaction
+    // Strip non-column finance payload fields (custom lines live in SaleFinanceLine)
+    const { customLines = [], financeEditedKeys = [], ...saleData } = validated;
+
+    // Create sale + finance lines + reserve stock + history + activity log in transaction
     const sale = await db.$transaction(async (tx) => {
       const created = await tx.sale.create({
         data: {
-          ...validated,
+          ...saleData,
           saleNumber,
           remainingAmount,
           campaignSubsidySnapshot,
+          financeEditedKeys,
           createdById: currentUser.id,
         },
       });
+
+      if (customLines.length > 0) {
+        await createFinanceLines(tx, created.id, customLines);
+      }
 
       // Reserve stock only if still AVAILABLE (atomic vs concurrent sales)
       if (validated.stockId) {
@@ -481,7 +534,7 @@ export class SalesService {
       return created;
     });
 
-    return sale;
+    return this.getSaleById(sale.id, currentUser);
   }
 
   /**
@@ -494,8 +547,23 @@ export class SalesService {
     }
 
     const validated = UpdateSaleSchema.parse(data);
+
+    // Presence on the raw body — Zod defaults on UpdateSaleSchema must NOT wipe
+    // financeEditedKeys / custom lines when the client omits those fields.
+    const hasCustomLines =
+      Object.prototype.hasOwnProperty.call(data, 'customLines') && data.customLines !== undefined;
+    const hasFinanceEditedKeys =
+      Object.prototype.hasOwnProperty.call(data, 'financeEditedKeys') &&
+      data.financeEditedKeys !== undefined;
+
     // Mutable update payload; remainingAmount is computed server-side when money changes.
-    const updatePayload: Record<string, unknown> = { ...validated };
+    // Strip non-column finance fields (handled separately).
+    const {
+      customLines: _customLines,
+      financeEditedKeys: _financeEditedKeys,
+      ...saleColumnFields
+    } = validated;
+    const updatePayload: Record<string, unknown> = { ...saleColumnFields };
 
     // Empty string relation IDs must not reach Prisma (FK violation → BAD_REQUEST).
     // Treat them as "omit field" so metadata-only edits (e.g. deliveryDate) succeed.
@@ -545,8 +613,12 @@ export class SalesService {
         'salesCommission', 'salesExpense', 'financeCommission',
         'interestRate', 'numberOfTerms', 'monthlyInstallment', 'notes',
         'createdAt', 'deliveryDate',
+        'financeEditedKeys', 'customLines',
       ];
-      const disallowed = Object.keys(updatePayload).filter((k) => !allowedFields.includes(k));
+      // Use keys actually present on the request body so Zod defaults don't
+      // invent disallowed fields for accountants.
+      const providedKeys = Object.keys(data).filter((k) => data[k] !== undefined);
+      const disallowed = providedKeys.filter((k) => !allowedFields.includes(k));
       if (disallowed.length > 0) {
         throw new BadRequestError(
           `ไม่สามารถแก้ไขฟิลด์เหล่านี้ในรายการที่เสร็จสิ้นแล้ว: ${disallowed.join(', ')}`
@@ -678,76 +750,98 @@ export class SalesService {
       stockId: (updatePayload.stockId as string | undefined) ?? existingSale.stockId,
     });
 
-    const updateData = { ...updatePayload, campaignSubsidySnapshot };
+    const updateData: Record<string, unknown> = { ...updatePayload, campaignSubsidySnapshot };
+    if (hasFinanceEditedKeys) {
+      updateData.financeEditedKeys = validated.financeEditedKeys ?? [];
+    }
 
     // When stock changes, reserve new (conditional) then release old in one
     // transaction so concurrent sales cannot both claim the same unit.
-    const sale = stockChanging
-      ? await db.$transaction(async (tx) => {
-          const newStock = await tx.stock.findFirst({
-            where: { id: incomingStockId, deletedAt: null },
-            select: { id: true, status: true, vehicleModelId: true },
+    // Custom finance lines are replaced in the same transaction when provided.
+    let sale;
+    if (stockChanging) {
+      sale = await db.$transaction(async (tx) => {
+        const newStock = await tx.stock.findFirst({
+          where: { id: incomingStockId, deletedAt: null },
+          select: { id: true, status: true, vehicleModelId: true },
+        });
+
+        if (!newStock) {
+          throw new NotFoundError('Stock');
+        }
+        if (newStock.status === 'DEMO') {
+          throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
+        }
+        if (newStock.status !== 'AVAILABLE') {
+          throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
+        }
+
+        if (
+          existingSale.vehicleModelId &&
+          newStock.vehicleModelId !== existingSale.vehicleModelId
+        ) {
+          console.warn(
+            `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
+          );
+        }
+
+        // Atomic claim: only succeeds if still AVAILABLE
+        const claimed = await tx.stock.updateMany({
+          where: { id: incomingStockId!, status: 'AVAILABLE', deletedAt: null },
+          data: { status: newStockStatus! },
+        });
+        if (claimed.count === 0) {
+          throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
+        }
+
+        if (existingSale.stockId && existingSale.stockId !== incomingStockId) {
+          await tx.stock.update({
+            where: { id: existingSale.stockId },
+            data: { status: 'AVAILABLE' },
           });
+        }
 
-          if (!newStock) {
-            throw new NotFoundError('Stock');
-          }
-          if (newStock.status === 'DEMO') {
-            throw new BadRequestError('รถ Demo ไม่สามารถขายได้');
-          }
-          if (newStock.status !== 'AVAILABLE') {
-            throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
-          }
-
-          if (
-            existingSale.vehicleModelId &&
-            newStock.vehicleModelId !== existingSale.vehicleModelId
-          ) {
-            console.warn(
-              `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
-            );
-          }
-
-          // Atomic claim: only succeeds if still AVAILABLE
-          const claimed = await tx.stock.updateMany({
-            where: { id: incomingStockId!, status: 'AVAILABLE', deletedAt: null },
-            data: { status: newStockStatus! },
-          });
-          if (claimed.count === 0) {
-            throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
-          }
-
-          if (existingSale.stockId && existingSale.stockId !== incomingStockId) {
-            await tx.stock.update({
-              where: { id: existingSale.stockId },
-              data: { status: 'AVAILABLE' },
-            });
-          }
-
-          const updated = await tx.sale.update({
-            where: { id },
-            data: updateData,
-          });
-
-          await tx.saleHistory.create({
-            data: {
-              saleId: updated.id,
-              action: existingSale.stockId ? 'CHANGE_STOCK' : 'ASSIGN_STOCK',
-              fromStatus: existingSale.status,
-              toStatus: existingSale.status,
-              notes: existingSale.stockId
-                ? `Changed stock from ${existingSale.stockId} to ${incomingStockId} (via sale update)`
-                : `Assigned stock ${incomingStockId} (via sale update)`,
-              createdById: currentUser.id,
-            },
-          });
-
-          return updated;
-        })
-      : await db.sale.update({
+        const updated = await tx.sale.update({
           where: { id },
           data: updateData,
         });
+
+        if (hasCustomLines) {
+          await tx.saleFinanceLine.deleteMany({ where: { saleId: id } });
+          await createFinanceLines(tx, id, validated.customLines ?? []);
+        }
+
+        await tx.saleHistory.create({
+          data: {
+            saleId: updated.id,
+            action: existingSale.stockId ? 'CHANGE_STOCK' : 'ASSIGN_STOCK',
+            fromStatus: existingSale.status,
+            toStatus: existingSale.status,
+            notes: existingSale.stockId
+              ? `Changed stock from ${existingSale.stockId} to ${incomingStockId} (via sale update)`
+              : `Assigned stock ${incomingStockId} (via sale update)`,
+            createdById: currentUser.id,
+          },
+        });
+
+        return updated;
+      });
+    } else if (hasCustomLines) {
+      sale = await db.$transaction(async (tx) => {
+        const updated = await tx.sale.update({
+          where: { id },
+          data: updateData,
+        });
+        await tx.saleFinanceLine.deleteMany({ where: { saleId: id } });
+        await createFinanceLines(tx, id, validated.customLines ?? []);
+        return updated;
+      });
+    } else {
+      sale = await db.sale.update({
+        where: { id },
+        data: updateData,
+      });
+    }
 
     // Log activity
     await db.activityLog.create({
@@ -758,7 +852,11 @@ export class SalesService {
         entityId: sale.id,
         details: {
           saleNumber: sale.saleNumber,
-          changes: updatePayload,
+          changes: {
+            ...updatePayload,
+            ...(hasFinanceEditedKeys && { financeEditedKeys: validated.financeEditedKeys }),
+            ...(hasCustomLines && { customLines: validated.customLines }),
+          },
           ...(stockChanging
             ? {
                 stockChange: {
@@ -771,7 +869,7 @@ export class SalesService {
       },
     });
 
-    return sale;
+    return this.getSaleById(sale.id, currentUser);
   }
 
   /**

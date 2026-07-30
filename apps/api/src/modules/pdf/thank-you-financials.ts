@@ -1,23 +1,27 @@
 /**
  * Thank-you letter (หนังสือขอบคุณ) financial chain.
  *
- * Recomputes คงเหลือ / ยอดจัดไฟแนนซ์ / ค่างวด live from the sale's base inputs
- * instead of trusting stored DB columns, so the printed letter always agrees
- * with the customer's .ods "ขอขอบคุณ" sheet (and with SalesFormPage). Acts as a
- * safety net: if a stored value drifts (manual edit, override, partial entry),
- * the document still shows the formula result.
+ * Recomputes คงเหลือ / ยอดจัดไฟแนนซ์ / ค่างวด / รวมเงินออกรถ live from the sale's
+ * base inputs instead of trusting stored DB columns, so the printed letter always
+ * agrees with the customer's .ods "ขอขอบคุณ" sheet (and with FinanceSheet).
  *
  * NOTE on "คงเหลือ": the ODS "คงเหลือ" = ราคาขาย − ส่วนลดรถ (price after the car
  * discount). This is NOT the same as Sale.remainingAmount, which in this system
  * is the outstanding balance (totalAmount + fees − paid). We must derive it here.
+ *
+ * NOTE on "รวมเงินออกรถ" (mode-dependent, same as FinanceSheet / sales-record):
+ * - CASH: คงเหลือ − เงินจอง (deposit)
+ * - FINANCE/MIXED: เงินดาวน์ − ส่วนลดดาวน์ + ประกัน + พรบ + จดทะเบียน
  */
 export interface ThankYouFinancialsInput {
   /** ราคาขาย (sale.totalAmount) */
   sellingPrice: number;
   /** ส่วนลด (รถยนต์) — resolveCarDiscount(sale.carDiscount, sale.discountSnapshot) */
   carDiscount: number;
-  /** เงินดาวน์ (sale.downPayment ?? depositAmount) */
+  /** เงินดาวน์ (sale.downPayment) */
   downPayment: number;
+  /** เงินจอง / เงินมัดจำ (sale.depositAmount) — used for CASH totalDelivery */
+  deposit?: number;
   /** ส่วนลด (เงินดาวน์) (sale.downPaymentDiscount) */
   downPaymentDiscount?: number;
   /** ค่าประกันภัยชั้น 1 (sale.insuranceFee) */
@@ -37,7 +41,11 @@ export interface ThankYouFinancialsInput {
 export interface ThankYouFinancials {
   /** คงเหลือ = ราคาขาย − ส่วนลดรถ */
   remaining: number;
-  /** รวมเงินออกรถ = เงินดาวน์ − ส่วนลดดาวน์ + ประกันชั้น1 + พรบ + จดทะเบียน */
+  /**
+   * รวมเงินออกรถ:
+   * - cash: remaining − deposit
+   * - finance: down − downDiscount + insurance + act + registration
+   */
   totalDelivery: number;
   /** ยอดจัดไฟแนนซ์ = คงเหลือ − เงินดาวน์ (0 for cash sales) */
   financeAmount: number;
@@ -69,15 +77,18 @@ export function resolveCarDiscount(carDiscount: Decimalish, discountSnapshot: De
 export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {
   const remaining = round2(input.sellingPrice - input.carDiscount);
 
-  // รวมเงินออกรถ — cash due at delivery (ODS: I53−I54+I55+I56+I57). Independent of
-  // financing; applies to cash and finance sales alike.
-  const totalDelivery = round2(
-    input.downPayment -
-      (input.downPaymentDiscount ?? 0) +
-      (input.insurance ?? 0) +
-      (input.actInsurance ?? 0) +
-      (input.registrationFee ?? 0)
-  );
+  // รวมเงินออกรถ — mode-dependent (align FinanceSheet / sales-record / customer rule)
+  const totalDelivery = input.isFinanced
+    ? // FINANCE/MIXED: เงินดาวน์ − ส่วนลดดาวน์ + fees (ODS delivery column)
+      round2(
+        input.downPayment -
+          (input.downPaymentDiscount ?? 0) +
+          (input.insurance ?? 0) +
+          (input.actInsurance ?? 0) +
+          (input.registrationFee ?? 0)
+      )
+    : // CASH: ราคาขาย − ส่วนลด → คงเหลือ − เงินจอง
+      Math.max(0, round2(remaining - (input.deposit ?? 0)));
 
   const financeAmount = input.isFinanced ? round2(remaining - input.downPayment) : 0;
 
