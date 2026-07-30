@@ -1,6 +1,6 @@
 # Remove VBeyondCarStock Windows Service
 #
-# Usage (Admin PowerShell — or double-click uninstall-service.bat as Admin):
+# Usage (Admin PowerShell - or double-click uninstall-service.bat as Admin):
 #   .\uninstall-service.ps1
 
 param(
@@ -50,7 +50,7 @@ try {
         throw @'
 This script must run as Administrator.
 
-  Right-click PowerShell → Run as administrator, then:
+  Right-click PowerShell -> Run as administrator, then:
     cd <install root>
     .\uninstall-service.ps1
 '@

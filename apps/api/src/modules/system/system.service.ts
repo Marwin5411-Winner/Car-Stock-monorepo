@@ -130,8 +130,8 @@ interface UpdateStatus {
   startedAt: string;
   updatedAt: string;
   logs: string[];
-  currentVersion?: string;
-  targetVersion?: string;
+  currentVersion?: string | null;
+  targetVersion?: string | null;
   backupFile?: string | null;
   previousAppDir?: string | null;
   error?: string | null;
@@ -309,8 +309,11 @@ export class SystemService {
    * progress UI tore down and re-showed the same update dialog while the updater was in fact
    * still starting. Seeding here closes the gap for every caller (Update and Rollback).
    */
-  private seedRunningStatus(action: string): void {
+  private seedRunningStatus(action: string, targetVersion?: string): void {
     const now = new Date().toISOString();
+    // Always emit targetVersion/backupFile/previousAppDir/error as keys (null when
+    // unknown). Windows PowerShell Set-StrictMode + ConvertFrom-Json throws
+    // "property cannot be found" if a key is omitted and the updater later reads it.
     const seed: UpdateStatus = {
       step: 0,
       totalSteps: 10,
@@ -321,6 +324,10 @@ export class SystemService {
       updatedAt: now,
       logs: [],
       currentVersion: this.readLocalVersion(),
+      targetVersion: targetVersion ?? null,
+      backupFile: null,
+      previousAppDir: null,
+      error: null,
     };
     fs.mkdirSync(path.dirname(STATUS_FILE_PATH), { recursive: true });
     fs.writeFileSync(STATUS_FILE_PATH, JSON.stringify(seed, null, 2), 'utf-8');
@@ -376,7 +383,10 @@ export class SystemService {
     // tree and would kill the updater mid-update, leaving the app stopped forever.
     // The empty string is `start`'s window-title argument; without it `start` would treat
     // the quoted exe path as the title and launch nothing.
-    this.seedRunningStatus(action);
+    const versionIdx = extraArgs.findIndex((a) => a === '-Version');
+    const targetVersion =
+      versionIdx >= 0 && extraArgs[versionIdx + 1] ? extraArgs[versionIdx + 1] : undefined;
+    this.seedRunningStatus(action, targetVersion);
 
     try {
       const child = spawn('cmd.exe', ['/c', 'start', '', '/min', 'powershell.exe', ...args], {

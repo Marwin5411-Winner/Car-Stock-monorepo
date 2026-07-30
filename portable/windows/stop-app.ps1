@@ -1,5 +1,5 @@
 # Stop VBeyond portable app (service and/or console process tree).
-# Called by stop.bat — can also run directly: powershell -File stop-app.ps1
+# Called by stop.bat - can also run directly: powershell -File stop-app.ps1
 
 $ErrorActionPreference = 'Continue'
 
@@ -140,7 +140,7 @@ foreach ($n in $script:Notes) {
 if ($left.Count -gt 0) {
     $ids = ($left | ForEach-Object { $_.ProcessId }) -join ', '
     Write-Host "ERROR: still running under app\: $ids"
-    Write-Host 'Try Task Manager → end vbeyond-api.exe, or run this script as Administrator.'
+    Write-Host 'Try Task Manager -> end vbeyond-api.exe, or run this script as Administrator.'
     exit 1
 }
 

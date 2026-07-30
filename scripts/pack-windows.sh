@@ -268,19 +268,29 @@ cp portable/windows/updater/*.ps1 "$OUT_DIR/updater/"
 # (or a Git checkout with LF) ships LF-only scripts that fail with:
 #   'tlocal' is not recognized as an internal or external command
 # Rewrite every Windows launcher text file to CRLF regardless of source line endings.
+#
+# Windows PowerShell 5.1 (default on Server) reads scripts as the system ANSI code page
+# unless a UTF-8 BOM is present. Em-dashes/arrows in UTF-8 without BOM become garbage and
+# can break parsing mid-string (ParserError: UnexpectedToken). Write .ps1 as UTF-8 BOM + CRLF.
 to_crlf() {
   local f="$1"
   python3 - "$f" <<'PY'
 import pathlib, sys
 path = pathlib.Path(sys.argv[1])
 data = path.read_bytes()
-# Normalize any mix of CR/LF to CRLF without double-converting.
+# Strip any existing BOM, then normalize newlines.
+if data.startswith(b"\xef\xbb\xbf"):
+    data = data[3:]
 text = data.decode("utf-8", errors="surrogateescape")
 text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n")
-path.write_bytes(text.encode("utf-8", errors="surrogateescape"))
+payload = text.encode("utf-8", errors="surrogateescape")
+# UTF-8 BOM for .ps1 so Windows PowerShell 5.1 parses as UTF-8.
+if path.suffix.lower() == ".ps1":
+    payload = b"\xef\xbb\xbf" + payload
+path.write_bytes(payload)
 PY
 }
-echo "==> Force CRLF on Windows scripts (cmd.exe requires it)"
+echo "==> Force CRLF on Windows scripts (cmd.exe requires it; .ps1 also get UTF-8 BOM)"
 while IFS= read -r -d '' f; do
   to_crlf "$f"
   echo "  CRLF: ${f#"$OUT_DIR/"}"

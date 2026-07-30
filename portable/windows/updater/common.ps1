@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Windows Server 2016/2019 still negotiate TLS 1.0 by default, which GitHub refuses
-# ("Could not create SSL/TLS secure channel") — every feed check and download would fail.
+# ("Could not create SSL/TLS secure channel") - every feed check and download would fail.
 try {
     [Net.ServicePointManager]::SecurityProtocol =
         [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -59,7 +59,7 @@ function Initialize-VbPaths {
     $script:LastCheckFile = Join-Path $script:CacheDir 'last-check.json'
     # Write-UpdaterLog does `if (-not $script:UpdateLogFile)` to name the log once per run.
     # Windows PowerShell 5.1 returns $null for an unset scoped variable, but PowerShell 7
-    # honours Set-StrictMode there and throws — the updater died on its very first log line.
+    # honours Set-StrictMode there and throws - the updater died on its very first log line.
     # Declare it so the script works under either host.
     $script:UpdateLogFile = $null
 
@@ -94,6 +94,20 @@ function Compare-SemVer {
     return 0
 }
 
+# Safe read of optional JSON properties under Set-StrictMode -Version Latest.
+# ConvertFrom-Json omits missing keys; $obj.foo then throws "property cannot be found".
+function Get-JsonProp {
+    param(
+        $Object,
+        [Parameter(Mandatory = $true)][string]$Name,
+        $Default = $null
+    )
+    if ($null -eq $Object) { return $Default }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($null -eq $prop) { return $Default }
+    return $prop.Value
+}
+
 function Write-UpdateStatus {
     param(
         [int]$Step,
@@ -116,13 +130,15 @@ function Write-UpdateStatus {
     }
 
     $logs = @()
-    if ($existing -and $existing.logs) { $logs = @($existing.logs) }
+    $existingLogs = Get-JsonProp $existing 'logs'
+    if ($existingLogs) { $logs = @($existingLogs) }
     foreach ($line in $ExtraLog) {
         if ($line) { $logs += $line }
     }
     if ($logs.Count -gt 50) { $logs = $logs[-50..-1] }
 
-    $startedAt = if ($existing -and $existing.startedAt) { $existing.startedAt } else { $now }
+    $startedAt = Get-JsonProp $existing 'startedAt' $now
+    if (-not $startedAt) { $startedAt = $now }
 
     $obj = [ordered]@{
         step           = $Step
@@ -130,12 +146,12 @@ function Write-UpdateStatus {
         stepName       = $StepName
         status         = $Status
         message        = $Message
-        currentVersion = $(if ($CurrentVersion) { $CurrentVersion } elseif ($existing) { $existing.currentVersion } else { $null })
-        targetVersion  = $(if ($TargetVersion) { $TargetVersion } elseif ($existing) { $existing.targetVersion } else { $null })
+        currentVersion = $(if ($CurrentVersion) { $CurrentVersion } else { Get-JsonProp $existing 'currentVersion' })
+        targetVersion  = $(if ($TargetVersion) { $TargetVersion } else { Get-JsonProp $existing 'targetVersion' })
         startedAt      = $startedAt
         updatedAt      = $now
-        backupFile     = $(if ($BackupFile) { $BackupFile } elseif ($existing) { $existing.backupFile } else { $null })
-        previousAppDir = $(if ($PreviousAppDir) { $PreviousAppDir } elseif ($existing) { $existing.previousAppDir } else { $null })
+        backupFile     = $(if ($BackupFile) { $BackupFile } else { Get-JsonProp $existing 'backupFile' })
+        previousAppDir = $(if ($PreviousAppDir) { $PreviousAppDir } else { Get-JsonProp $existing 'previousAppDir' })
         logs           = $logs
         error          = $ErrorText
     }
@@ -264,7 +280,7 @@ function Stop-VbAppProcessesUnderAppDir {
 function Stop-VbApp {
     param([int]$TimeoutSec = 30)
 
-    # Read the pid before stopping — stop.bat deletes the file on its way out.
+    # Read the pid before stopping - stop.bat deletes the file on its way out.
     $appPid = 0
     $pidFile = Join-Path $script:StatusDir 'app.pid'
     if (Test-Path -LiteralPath $pidFile) {
@@ -387,7 +403,7 @@ function Invoke-PgRestoreBackup {
 
 function Assert-SafeReleaseVersion {
     param([Parameter(Mandatory = $true)][string]$Version)
-    # Single path segment only — no traversal, separators, or drive letters
+    # Single path segment only - no traversal, separators, or drive letters
     if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
         throw "Invalid release version: $Version"
     }
@@ -418,7 +434,7 @@ function Restore-AppTree {
         [Parameter(Mandatory = $true)][string]$SourceDir,
         [string]$BackupFile = ''
     )
-    # DB first when a dump exists — migrate may have already altered schema
+    # DB first when a dump exists - migrate may have already altered schema
     if ($BackupFile) {
         if (Test-Path -LiteralPath $BackupFile) {
             Invoke-PgRestoreBackup -DumpPath $BackupFile

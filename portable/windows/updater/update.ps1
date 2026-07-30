@@ -46,18 +46,21 @@ function Invoke-Check {
 
     try {
         $feed = Get-UpdateFeed
-        $latest = if ($feed.latest) { $feed.latest } elseif ($feed.releases -and $feed.releases.Count -gt 0) { $feed.releases[0].version } else { $current }
+        $releases = @(Get-JsonProp $feed 'releases' @())
+        $latest = Get-JsonProp $feed 'latest'
+        if (-not $latest -and $releases.Count -gt 0) { $latest = $releases[0].version }
+        if (-not $latest) { $latest = $current }
         $rel = $null
-        if ($feed.releases) {
-            $rel = $feed.releases | Where-Object { $_.version -eq $latest } | Select-Object -First 1
-            if (-not $rel) { $rel = $feed.releases | Select-Object -First 1 }
+        if ($releases.Count -gt 0) {
+            $rel = $releases | Where-Object { (Get-JsonProp $_ 'version') -eq $latest } | Select-Object -First 1
+            if (-not $rel) { $rel = $releases | Select-Object -First 1 }
         }
         $result.latestVersion = $latest
         $result.hasUpdate = (Compare-SemVer $latest $current) -gt 0
         if ($rel) {
-            $result.notes = $rel.notes
-            $result.assetUrl = $rel.assetUrl
-            $result.sha256 = $rel.sha256
+            $result.notes = Get-JsonProp $rel 'notes'
+            $result.assetUrl = Get-JsonProp $rel 'assetUrl'
+            $result.sha256 = Get-JsonProp $rel 'sha256'
         }
     } catch {
         Write-UpdaterLog "Check failed: $($_.Exception.Message)" 'ERROR' | Out-Null
@@ -84,7 +87,7 @@ function Invoke-BackupOnly {
     try {
         # The suffix lands in the filename and is what retention keys off: only 'scheduled'
         # dumps are auto-pruned. A 'manual' one was taken deliberately and a 'pre-update' one
-        # is a rollback safety net — neither is the scheduler's to delete.
+        # is a rollback safety net - neither is the scheduler's to delete.
         $suffix = if ($BackupSuffix) { $BackupSuffix } else { 'manual' }
         $path = Invoke-PgDumpBackup -Suffix $suffix
         $item = Get-Item -LiteralPath $path
@@ -211,7 +214,7 @@ function Invoke-Update {
 
         if ($LocalPackage) {
             # Offline install from a package already on the machine (USB stick, RDP copy).
-            # Only Resolve and Download need the network — every later step, including the
+            # Only Resolve and Download need the network - every later step, including the
             # database backup and both rollback paths, is local and still runs in full.
             Write-UpdateStatus -Step 2 -StepName 'Resolve' -Status 'running' -Message "Using local package $LocalPackage" -CurrentVersion $current
             if (-not (Test-Path -LiteralPath $LocalPackage -PathType Leaf)) {
@@ -227,7 +230,7 @@ function Invoke-Update {
                 $stagingFull = $stagingFull + [IO.Path]::DirectorySeparatorChar
             }
             if ($zipPath.StartsWith($stagingFull, [StringComparison]::OrdinalIgnoreCase)) {
-                throw "Move the package out of staging\ first — that folder is cleared during update: $zipPath"
+                throw ('Move the package out of the staging folder first - that folder is cleared during update: ' + $zipPath)
             }
 
             # A file carried across on a USB stick is exactly the case worth checksumming.
@@ -237,10 +240,10 @@ function Invoke-Update {
                 $expectedSha = ((Get-Content -LiteralPath $shaSidecar -Raw).Trim() -split '\s+')[0]
                 Write-UpdaterLog "Local package sha256 from sidecar: $expectedSha" | Out-Null
             } else {
-                Write-UpdaterLog 'No .sha256 sidecar next to local package — integrity not verified' 'WARN' | Out-Null
+                Write-UpdaterLog 'No .sha256 sidecar next to local package - integrity not verified' 'WARN' | Out-Null
             }
 
-            Write-UpdateStatus -Step 3 -StepName 'Download' -Status 'running' -Message 'Skipped — installing from local package' -ExtraLog @((Write-UpdaterLog "Local package $zipPath"))
+            Write-UpdateStatus -Step 3 -StepName 'Download' -Status 'running' -Message 'Skipped - installing from local package' -ExtraLog @((Write-UpdaterLog "Local package $zipPath"))
             # Clear only the extract target. Wiping all of staging\ is the download path's job.
             $staleExtract = Join-Path $script:StagingDir 'extracted'
             if (Test-Path -LiteralPath $staleExtract) {
@@ -250,14 +253,16 @@ function Invoke-Update {
             Write-UpdateStatus -Step 2 -StepName 'Resolve' -Status 'running' -Message 'Resolving target version'
             if (-not $target -or -not $Force) {
                 $feed = Get-UpdateFeed
+                $releases = @(Get-JsonProp $feed 'releases' @())
                 if (-not $target) {
-                    $target = if ($feed.latest) { $feed.latest } else { $feed.releases[0].version }
+                    $target = Get-JsonProp $feed 'latest'
+                    if (-not $target -and $releases.Count -gt 0) { $target = $releases[0].version }
                 }
-                $rel = $feed.releases | Where-Object { $_.version -eq $target } | Select-Object -First 1
+                $rel = $releases | Where-Object { (Get-JsonProp $_ 'version') -eq $target } | Select-Object -First 1
                 if (-not $rel) { throw "Version $target not found in feed" }
-                $assetUrl = $rel.assetUrl
-                $expectedSha = $rel.sha256
-                $notes = $rel.notes
+                $assetUrl = Get-JsonProp $rel 'assetUrl'
+                $expectedSha = Get-JsonProp $rel 'sha256'
+                $notes = Get-JsonProp $rel 'notes'
             }
 
             # Skipped for -LocalPackage: handing the updater a specific file IS the intent,
@@ -355,7 +360,7 @@ function Invoke-Update {
             Copy-Item -Path (Join-Path $updSrc '*') -Destination $updDst -Recurse -Force
         }
         # Launchers live at VB_HOME, not inside app\. Without this, a fix to start/stop/setup
-        # only ever reaches a fresh install — an updated site keeps running the old scripts.
+        # only ever reaches a fresh install - an updated site keeps running the old scripts.
         if ($payloadRoot) {
             foreach ($launcher in @(
                 'start.bat', 'stop.bat', 'stop-app.ps1', 'setup.bat',
@@ -435,7 +440,7 @@ function Invoke-Update {
                 $appVersionPath = Join-Path $script:AppDir 'VERSION'
                 if ($prevDir -and (Test-Path -LiteralPath $prevDir)) {
                     if (-not (Test-Path -LiteralPath $appVersionPath)) {
-                        # Swap incomplete — put previous tree back.
+                        # Swap incomplete - put previous tree back.
                         Restore-AppTree -SourceDir $prevDir -BackupFile $backupFile
                         $didRestore = $true
                     } else {

@@ -1,7 +1,7 @@
 # Install VBeyondCarStock as a Windows Service (auto-start on boot).
 # Requires NSSM on PATH or at tools\nssm.exe (https://nssm.cc/)
 #
-# Usage (Admin PowerShell — or double-click install-service.bat as Admin):
+# Usage (Admin PowerShell - or double-click install-service.bat as Admin):
 #   .\install-service.ps1
 #   .\install-service.ps1 -NssmPath C:\Tools\nssm\win64\nssm.exe
 
@@ -63,10 +63,10 @@ try {
         throw @'
 This script must run as Administrator.
 
-  - Right-click PowerShell → Run as administrator, then:
+ - Right-click PowerShell -> Run as administrator, then:
       cd <install root>
       .\install-service.ps1
-  - Or right-click install-service.bat → Run as administrator
+ - Or right-click install-service.bat -> Run as administrator
 '@
     }
 
@@ -82,7 +82,7 @@ This script must run as Administrator.
     if (-not $nssm) {
         $toolsDir = Join-Path $VbHome 'tools'
         throw @"
-NSSM not found — the package ships it at tools\nssm.exe, so this install is incomplete.
+NSSM not found - the package ships it at tools\nssm.exe, so this install is incomplete.
 
 1. Re-extract the VBeyond zip and confirm this file exists:
      $toolsDir\nssm.exe
@@ -104,7 +104,7 @@ Or pass -NssmPath path\to\nssm.exe if you keep NSSM elsewhere.
     }
 
     $cmdExe = "$env:SystemRoot\System32\cmd.exe"
-    # Not $args — that is a PowerShell automatic variable, and assigning it here shadows the
+    # Not $args - that is a PowerShell automatic variable, and assigning it here shadows the
     # script's own unbound-argument array.
     $svcArgs = "/c `"$startBat`" /service"
 
@@ -126,8 +126,8 @@ Or pass -NssmPath path\to\nssm.exe if you keep NSSM elsewhere.
 
     # Boot order. The API calls listen() without waiting for the database, so on a reboot
     # where Windows starts us before PostgreSQL the service reports Running while /health
-    # answers 503 — and AppExit Restart cannot help, because the process never exits.
-    # Service name varies by major version (postgresql-x64-14 … -17), so match on prefix.
+    # answers 503 - and AppExit Restart cannot help, because the process never exits.
+    # Service name varies by major version (postgresql-x64-14 ... -17), so match on prefix.
     $pg = @(Get-Service -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -like 'postgresql*' } |
         Sort-Object Name) | Select-Object -Last 1
@@ -135,7 +135,7 @@ Or pass -NssmPath path\to\nssm.exe if you keep NSSM elsewhere.
         & $nssm set $ServiceName DependOnService $pg.Name | Out-Null
         Write-Host "  Depends on: $($pg.Name)"
     } else {
-        Write-Host '  No local PostgreSQL service found — skipping boot-order dependency.'
+        Write-Host '  No local PostgreSQL service found - skipping boot-order dependency.'
         Write-Host '  (Expected when DATABASE_URL points at another machine.)'
     }
 
