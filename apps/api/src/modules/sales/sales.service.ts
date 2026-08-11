@@ -24,6 +24,27 @@ const toNumberOrNull = (val: Decimal | number | null | undefined): number | null
 };
 
 /**
+ * Domain rule: when a stock unit is linked, its model is the only allowed
+ * Sale.vehicleModelId. Preferred model applies only before a unit is assigned.
+ */
+function resolveSaleVehicleModelId(opts: {
+  stockVehicleModelId?: string | null;
+  preferredVehicleModelId?: string | null;
+}): string | null {
+  if (opts.stockVehicleModelId) return opts.stockVehicleModelId;
+  return opts.preferredVehicleModelId ?? null;
+}
+
+function serializeVehicleModel(vm: any): any {
+  if (!vm) return null;
+  return {
+    ...vm,
+    ...(vm.price != null && { price: toNumber(vm.price) }),
+    ...(vm.standardCost != null && { standardCost: toNumber(vm.standardCost) }),
+  };
+}
+
+/**
  * Convert Prisma Decimal fields to plain numbers for JSON serialization
  */
 function serializeSale(sale: any): any {
@@ -59,15 +80,19 @@ function serializeSale(sale: any): any {
       notes: l.notes,
       sortOrder: l.sortOrder,
     })),
-    ...(sale.stock?.vehicleModel?.price != null && {
-      stock: {
-        ...sale.stock,
-        vehicleModel: {
-          ...sale.stock.vehicleModel,
-          price: toNumber(sale.stock.vehicleModel.price),
-        },
-      },
-    }),
+    // Always re-map nested stock/model when present so Decimal price → number
+    // and callers never see a half-shaped stock without vehicleModel.
+    ...(sale.stock
+      ? {
+          stock: {
+            ...sale.stock,
+            vehicleModel: serializeVehicleModel(sale.stock.vehicleModel),
+          },
+        }
+      : {}),
+    ...(sale.vehicleModel
+      ? { vehicleModel: serializeVehicleModel(sale.vehicleModel) }
+      : {}),
     ...(sale.payments && {
       payments: sale.payments.map((p: any) => ({
         ...p,
@@ -361,11 +386,12 @@ export class SalesService {
       throw new NotFoundError('Customer');
     }
 
-    // Check if stock exists (if provided) — filter soft-deleted
+    // Check if stock exists (if provided) — filter soft-deleted.
+    // When a unit is linked, stock.vehicleModelId is the only allowed model.
     if (validated.stockId) {
       const stock = await db.stock.findFirst({
         where: { id: validated.stockId, deletedAt: null },
-        select: { id: true, status: true },
+        select: { id: true, status: true, vehicleModelId: true },
       });
 
       if (!stock) {
@@ -378,6 +404,12 @@ export class SalesService {
       if (stock.status !== 'AVAILABLE') {
         throw new BadRequestError('Stock is not available');
       }
+
+      validated.vehicleModelId =
+        resolveSaleVehicleModelId({
+          stockVehicleModelId: stock.vehicleModelId,
+          preferredVehicleModelId: validated.vehicleModelId,
+        }) ?? undefined;
     }
 
     // Check if vehicle model exists (if provided)
@@ -425,31 +457,21 @@ export class SalesService {
     // rule on campaign create/update guarantees at most one match; we sort
     // by latest startDate as a tiebreaker in case legacy data still has
     // overlapping ACTIVE campaigns.
-    if (!validated.campaignId) {
-      let vehicleModelIdForCampaign: string | null = validated.vehicleModelId ?? null;
-      if (!vehicleModelIdForCampaign && validated.stockId) {
-        const stockForVm = await db.stock.findUnique({
-          where: { id: validated.stockId },
-          select: { vehicleModelId: true },
-        });
-        vehicleModelIdForCampaign = stockForVm?.vehicleModelId ?? null;
-      }
-
-      if (vehicleModelIdForCampaign) {
-        const now = new Date();
-        const activeCampaign = await db.campaign.findFirst({
-          where: {
-            status: 'ACTIVE',
-            startDate: { lte: now },
-            endDate: { gte: now },
-            vehicleModels: { some: { vehicleModelId: vehicleModelIdForCampaign } },
-          },
-          orderBy: { startDate: 'desc' },
-          select: { id: true },
-        });
-        if (activeCampaign) {
-          validated.campaignId = activeCampaign.id;
-        }
+    // vehicleModelId is already resolved from stock when stockId is set.
+    if (!validated.campaignId && validated.vehicleModelId) {
+      const now = new Date();
+      const activeCampaign = await db.campaign.findFirst({
+        where: {
+          status: 'ACTIVE',
+          startDate: { lte: now },
+          endDate: { gte: now },
+          vehicleModels: { some: { vehicleModelId: validated.vehicleModelId } },
+        },
+        orderBy: { startDate: 'desc' },
+        select: { id: true },
+      });
+      if (activeCampaign) {
+        validated.campaignId = activeCampaign.id;
       }
     }
 
@@ -636,6 +658,10 @@ export class SalesService {
       incomingStockId !== undefined && incomingStockId !== existingSale.stockId;
     let newStockStatus: 'RESERVED' | 'PREPARING' | null = null;
 
+    // Effective unit after this update (omit stockId in payload → keep current).
+    const effectiveStockId =
+      incomingStockId !== undefined ? incomingStockId : existingSale.stockId;
+
     if (stockChanging) {
       if (!authService.hasPermission(currentUser.role, 'SALE_ASSIGN_STOCK')) {
         throw new ForbiddenError();
@@ -648,6 +674,23 @@ export class SalesService {
       }
 
       newStockStatus = existingSale.status === 'PREPARING' ? 'PREPARING' : 'RESERVED';
+    }
+
+    // Invariant: linked stock always owns Sale.vehicleModelId (client cannot
+    // override preferred/model independently while a unit is assigned).
+    if (effectiveStockId) {
+      const linkedStock = await db.stock.findFirst({
+        where: { id: effectiveStockId, deletedAt: null },
+        select: { vehicleModelId: true },
+      });
+      if (linkedStock) {
+        updatePayload.vehicleModelId = resolveSaleVehicleModelId({
+          stockVehicleModelId: linkedStock.vehicleModelId,
+          preferredVehicleModelId:
+            (updatePayload.vehicleModelId as string | undefined) ??
+            existingSale.vehicleModelId,
+        });
+      }
     }
 
     // Recalculate remaining amount only when financial values actually change.
@@ -776,15 +819,6 @@ export class SalesService {
           throw new BadRequestError('รถคันนี้ไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)');
         }
 
-        if (
-          existingSale.vehicleModelId &&
-          newStock.vehicleModelId !== existingSale.vehicleModelId
-        ) {
-          console.warn(
-            `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
-          );
-        }
-
         // Atomic claim: only succeeds if still AVAILABLE
         const claimed = await tx.stock.updateMany({
           where: { id: incomingStockId!, status: 'AVAILABLE', deletedAt: null },
@@ -800,6 +834,11 @@ export class SalesService {
             data: { status: 'AVAILABLE' },
           });
         }
+
+        // Re-assert after claim (source of truth is the unit we just reserved).
+        updateData.vehicleModelId = resolveSaleVehicleModelId({
+          stockVehicleModelId: newStock.vehicleModelId,
+        });
 
         const updated = await tx.sale.update({
           where: { id },
@@ -1025,7 +1064,9 @@ export class SalesService {
       return updated;
     });
 
-    return sale;
+    // Return full sale (with stock.vehicleModel) so clients never render a
+    // scalar-only row and crash on `.vehicleModel.brand`.
+    return this.getSaleById(sale.id, currentUser);
   }
 
   /**
@@ -1102,12 +1143,11 @@ export class SalesService {
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id: saleId },
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         saleNumber: true,
-        status: true, 
+        status: true,
         stockId: true,
-        vehicleModelId: true,
       },
     });
 
@@ -1141,12 +1181,6 @@ export class SalesService {
         throw new BadRequestError('Stock is not available');
       }
 
-      if (existingSale.vehicleModelId && newStock.vehicleModelId !== existingSale.vehicleModelId) {
-        console.warn(
-          `Stock vehicle model (${newStock.vehicleModelId}) does not match sale preference (${existingSale.vehicleModelId})`
-        );
-      }
-
       const claimed = await tx.stock.updateMany({
         where: { id: stockId, status: 'AVAILABLE', deletedAt: null },
         data: { status: stockStatus },
@@ -1164,7 +1198,12 @@ export class SalesService {
 
       const sale = await tx.sale.update({
         where: { id: saleId },
-        data: { stockId },
+        data: {
+          stockId,
+          vehicleModelId: resolveSaleVehicleModelId({
+            stockVehicleModelId: newStock.vehicleModelId,
+          }),
+        },
       });
 
       await tx.saleHistory.create({

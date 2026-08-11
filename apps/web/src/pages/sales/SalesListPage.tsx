@@ -135,9 +135,9 @@ export default function SalesListPage() {
   };
 
   const getVehicleDisplay = (sale: Sale) => {
-    if (sale.stock) {
-      const vm = sale.stock.vehicleModel;
-      return `${vm.brand} ${vm.model}${vm.variant ? ` ${vm.variant}` : ''}`;
+    const stockVm = sale.stock?.vehicleModel;
+    if (stockVm) {
+      return `${stockVm.brand} ${stockVm.model}${stockVm.variant ? ` ${stockVm.variant}` : ''}`;
     }
     if (sale.vehicleModel) {
       return `${sale.vehicleModel.brand} ${sale.vehicleModel.model}${sale.vehicleModel.variant ? ` ${sale.vehicleModel.variant}` : ''} (ระบุรุ่น)`;

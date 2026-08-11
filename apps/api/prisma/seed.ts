@@ -415,6 +415,9 @@ async function seed() {
       }
     }
 
+    // When a stock unit is linked, model must match that unit (not a separate preferred id).
+    const vehicleModelIdForSale = stockId && stock ? stock.vehicleModelId : vm.id;
+
     const sale = await db.sale.create({
       data: {
         saleNumber,
@@ -422,7 +425,7 @@ async function seed() {
         status,
         customerId: customer.id,
         stockId,
-        vehicleModelId: vm.id,
+        vehicleModelId: vehicleModelIdForSale,
         preferredExtColor: COLORS[i % COLORS.length],
         preferredIntColor: i % 2 === 0 ? 'Black' : 'Beige',
         totalAmount: price,

@@ -38,6 +38,13 @@ import {
 } from '../../services/sales.service';
 import { type Stock, stockService } from '../../services/stock.service';
 
+function formatVehicleModel(
+  vm: { brand: string; model: string; variant?: string | null } | null | undefined
+): string {
+  if (!vm) return '—';
+  return `${vm.brand} ${vm.model}${vm.variant ? ` ${vm.variant}` : ''}`;
+}
+
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_LABELS: Record<SaleStatus, string> = {
   RESERVED: 'จองแล้ว',
@@ -252,12 +259,13 @@ export default function SalesDetailPage() {
     if (!window.confirm(confirmMsg)) return;
 
     setUpdatingStatus(true);
-    await executeQuery(
-      salesService.updateStatus(sale.id, newStatus).then(async () => {
-        await fetchSale(sale.id);
-        addToast('เปลี่ยนสถานะสำเร็จ', 'success');
-      })
-    );
+    // Do not call fetchSale() here — it toggles full-page loading and can
+    // navigate away on a nested error. Prefer the full sale from the API.
+    const updated = await executeQuery(salesService.updateStatus(sale.id, newStatus));
+    if (updated) {
+      setSale(updated);
+      addToast('เปลี่ยนสถานะสำเร็จ', 'success');
+    }
     setUpdatingStatus(false);
   };
 
@@ -267,8 +275,8 @@ export default function SalesDetailPage() {
 
     setLoadingStocks(true);
     setShowStockModal(true);
-    // Fetch available stocks for the same vehicle model
-    const vehicleModelId = sale.vehicleModel?.id;
+    // Prefer model of currently assigned stock; else preferred model on the sale
+    const vehicleModelId = sale.stock?.vehicleModel?.id ?? sale.vehicleModel?.id;
     const result = await executeQuery(
       stockService.getAll({
         vehicleModelId,
@@ -558,8 +566,7 @@ export default function SalesDetailPage() {
                       />
                       <div className="flex-1">
                         <div className="font-medium">
-                          {stock.vehicleModel.brand} {stock.vehicleModel.model}
-                          {stock.vehicleModel.variant && ` ${stock.vehicleModel.variant}`}
+                          {formatVehicleModel(stock.vehicleModel)}
                         </div>
                         <div className="text-sm text-gray-700">
                           VIN: {stock.vin} | สี: {stock.exteriorColor}
@@ -704,8 +711,7 @@ export default function SalesDetailPage() {
               <div>
                 <dt className="text-sm text-gray-700">รุ่นรถ</dt>
                 <dd className="text-sm font-medium">
-                  {sale.stock.vehicleModel.brand} {sale.stock.vehicleModel.model}
-                  {sale.stock.vehicleModel.variant && ` ${sale.stock.vehicleModel.variant}`}
+                  {formatVehicleModel(sale.stock.vehicleModel)}
                 </dd>
               </div>
               <div>
@@ -763,8 +769,7 @@ export default function SalesDetailPage() {
               <div>
                 <dt className="text-sm text-gray-700">รุ่นรถที่ต้องการ</dt>
                 <dd className="text-sm font-medium">
-                  {sale.vehicleModel.brand} {sale.vehicleModel.model}
-                  {sale.vehicleModel.variant && ` ${sale.vehicleModel.variant}`}
+                  {formatVehicleModel(sale.vehicleModel)}
                 </dd>
               </div>
               {sale.preferredExtColor && (
