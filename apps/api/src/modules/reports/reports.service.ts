@@ -5,12 +5,17 @@ import {
   SALE_STATUS_LABELS,
   STOCK_STATUS_LABELS,
 } from '@car-stock/shared/constants';
+// Import binds the name for local use; re-export keeps tests/consumers working.
+// Re-export-only does NOT bind splitVat in this module (ReferenceError on stock report).
+import { splitVat } from '@car-stock/shared/formulas';
 import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prisma/client';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
 import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
 import { buildCampaignClaimReport } from './campaign-claim.helpers';
 import { buildSalespersonBreakdown, computeSaleMoney } from './sales-summary.helpers';
+
+export { splitVat };
 
 // Helper functions
 const toNumber = (val: Decimal | number | null | undefined): number => {
@@ -50,9 +55,6 @@ const calculateInterest = (principal: number, annualRate: number, days: number):
   const dailyRate = annualRate / 100 / 365;
   return principal * dailyRate * days;
 };
-
-// Re-export shared VAT helper so existing API imports keep working.
-export { splitVat } from '@car-stock/shared/formulas';
 
 // ============================================
 // Daily Payment Report Service
@@ -242,7 +244,9 @@ export async function getStockReport(params: StockReportParams) {
   const today = new Date();
 
   const stockItems = stocks.map((s) => {
-    const daysInStock = calculateDays(s.arrivalDate, s.soldDate || today);
+    const daysInStock = s.arrivalDate
+      ? calculateDays(s.arrivalDate, s.soldDate || today)
+      : 0;
     const baseCost = toNumber(s.baseCost);
     const transportCost = toNumber(s.transportCost);
     const accessoryCost = toNumber(s.accessoryCost);
@@ -251,7 +255,7 @@ export async function getStockReport(params: StockReportParams) {
 
     let accumulatedInterest = 0;
     const activeEndDate = s.soldDate || today;
-    const interestStartDate = s.orderDate || s.arrivalDate;
+    const interestStartDate = s.orderDate ?? s.arrivalDate;
     const hasStopDate = s.stopInterestCalc && s.interestStoppedAt;
     const endDate = hasStopDate
       ? new Date(Math.min(activeEndDate.getTime(), s.interestStoppedAt!.getTime()))
@@ -279,7 +283,8 @@ export async function getStockReport(params: StockReportParams) {
     } else {
       const canAccrueInterest = s.debtStatus !== 'PAID_OFF' || hasStopDate;
 
-      if (canAccrueInterest) {
+      // No start date → cannot accrue (same invariant as stock.service)
+      if (canAccrueInterest && interestStartDate) {
         const rate = toNumber(s.interestRate) * 100;
         const principal =
           s.interestPrincipalBase === 'BASE_COST_ONLY' ? baseCost : costWithoutInterest;
@@ -303,7 +308,7 @@ export async function getStockReport(params: StockReportParams) {
       interiorColor: s.interiorColor,
       status: s.status,
       statusLabel: STOCK_STATUS_LABELS[s.status as keyof typeof STOCK_STATUS_LABELS] || s.status,
-      arrivalDate: s.arrivalDate.toISOString(),
+      arrivalDate: s.arrivalDate?.toISOString() ?? '',
       orderDate: s.orderDate?.toISOString(),
       daysInStock,
       parkingSlot: s.parkingSlot || '-',
