@@ -7,6 +7,8 @@ export interface SearchSelectOption<T = unknown> {
   label: string;
   description?: string;
   data?: T;
+  /** Visible but not selectable (e.g. DEMO stock) */
+  disabled?: boolean;
 }
 
 export interface SearchSelectProps<T = unknown> {
@@ -48,6 +50,8 @@ export interface SearchSelectProps<T = unknown> {
   displayValue?: (option: SearchSelectOption<T>) => string;
   /** Render custom option */
   renderOption?: (option: SearchSelectOption<T>, isHighlighted: boolean, isSelected: boolean) => React.ReactNode;
+  /** Fired when user clicks/activates a disabled option (for mild warnings) */
+  onDisabledSelect?: (option: SearchSelectOption<T>) => void;
   /** Auto focus on mount */
   autoFocus?: boolean;
 }
@@ -87,6 +91,7 @@ export function SearchSelect<T = unknown>({
   className,
   displayValue,
   renderOption,
+  onDisabledSelect,
   autoFocus = false,
 }: SearchSelectProps<T>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -216,6 +221,10 @@ export function SearchSelect<T = unknown>({
   };
 
   const handleSelect = (option: SearchSelectOption<T>) => {
+    if (option.disabled) {
+      onDisabledSelect?.(option);
+      return;
+    }
     onChange(option.value, option);
     setIsOpen(false);
     setSearchQuery('');
@@ -317,13 +326,17 @@ export function SearchSelect<T = unknown>({
               filteredOptions.map((option, index) => {
                 const isHighlighted = index === highlightedIndex;
                 const isSelected = option.value === value;
+                const isOptionDisabled = Boolean(option.disabled);
 
                 if (renderOption) {
                   return (
                     <div
                       key={option.value}
                       onClick={() => handleSelect(option)}
-                      className="cursor-pointer"
+                      className={cn(
+                        isOptionDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                      )}
+                      aria-disabled={isOptionDisabled}
                     >
                       {renderOption(option, isHighlighted, isSelected)}
                     </div>
@@ -334,16 +347,25 @@ export function SearchSelect<T = unknown>({
                   <div
                     key={option.value}
                     onClick={() => handleSelect(option)}
+                    aria-disabled={isOptionDisabled}
                     className={cn(
-                      'px-3 py-2 cursor-pointer flex items-center justify-between',
+                      'px-3 py-2 flex items-center justify-between',
                       'border-b border-gray-100 last:border-b-0',
-                      isHighlighted && 'bg-blue-50',
-                      isSelected && 'bg-blue-100',
-                      !isHighlighted && !isSelected && 'hover:bg-gray-50'
+                      isOptionDisabled
+                        ? 'opacity-55 cursor-not-allowed bg-gray-50'
+                        : 'cursor-pointer',
+                      !isOptionDisabled && isHighlighted && 'bg-blue-50',
+                      !isOptionDisabled && isSelected && 'bg-blue-100',
+                      !isOptionDisabled && !isHighlighted && !isSelected && 'hover:bg-gray-50'
                     )}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-900 truncate">
+                      <div
+                        className={cn(
+                          'truncate',
+                          isOptionDisabled ? 'text-gray-500' : 'text-gray-900'
+                        )}
+                      >
                         {highlightText(option.label, searchQuery)}
                       </div>
                       {option.description && (
@@ -352,7 +374,7 @@ export function SearchSelect<T = unknown>({
                         </div>
                       )}
                     </div>
-                    {isSelected && (
+                    {isSelected && !isOptionDisabled && (
                       <Check className="h-4 w-4 text-blue-600 ml-2 shrink-0" />
                     )}
                   </div>

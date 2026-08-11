@@ -13,6 +13,7 @@ import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler
 import { customerService, type Customer } from '../../services/customer.service';
 import { stockService, type Stock } from '../../services/stock.service';
 import { MainLayout } from '../../components/layout';
+import { useToast } from '../../components/toast';
 import { DatePicker } from '../../components/ui/date-picker';
 import {
   ArrowLeft,
@@ -24,6 +25,8 @@ import {
 } from 'lucide-react';
 import { AsyncSearchSelect, SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
+
+const DEMO_STOCK_WARNING = 'รถ Demo ไม่สามารถเลือกขายได้';
 
 // Note: This form is now for Direct Sales only
 // Reservation Sales should be created via Quotation conversion
@@ -80,6 +83,7 @@ export default function SalesFormPage() {
     { onSuccess: () => navigate('/sales') }
   );
   const { execute: executeQuery } = useErrorHandler({ showToast: true });
+  const { addToast } = useToast();
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -217,17 +221,29 @@ export default function SalesFormPage() {
   // so users can search by complete VIN or any substring.
   const stockOptions: SearchSelectOption<Stock>[] = useMemo(() => {
     const toOption = (stock: Stock): SearchSelectOption<Stock> => {
+      const isDemo = stock.status === 'DEMO';
       const pricePart = stock.expectedSalePrice
         ? ` • ราคา: ฿${stock.expectedSalePrice.toLocaleString()}`
         : '';
       return {
         value: stock.id,
-        label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})`,
-        description: `VIN: ${stock.vin}${pricePart}`,
+        label: `${stock.vehicleModel.brand} ${stock.vehicleModel.model} - VIN: ${stock.vin.slice(-8)} (${stock.exteriorColor})${isDemo ? ' · รถ Demo' : ''}`,
+        description: isDemo
+          ? `VIN: ${stock.vin} · รถ Demo — เลือกขายไม่ได้`
+          : `VIN: ${stock.vin}${pricePart}`,
         data: stock,
+        disabled: isDemo,
       };
     };
-    const options = availableStocks.map(toOption);
+    // AVAILABLE first, then DEMO (API already prefers this order)
+    const options = [...availableStocks]
+      .sort((a, b) => {
+        if (a.status === b.status) return 0;
+        if (a.status === 'AVAILABLE') return -1;
+        if (b.status === 'AVAILABLE') return 1;
+        return 0;
+      })
+      .map(toOption);
     if (selectedStock && !options.some((o) => o.value === selectedStock.id)) {
       options.unshift(toOption(selectedStock));
     }
@@ -251,6 +267,13 @@ export default function SalesFormPage() {
 
   const handleStockSelect = (value: string, option?: SearchSelectOption<Stock>) => {
     const stock = option?.data || null;
+
+    // Belt-and-suspenders: never assign DEMO even if disabled flag is bypassed
+    if (stock?.status === 'DEMO') {
+      addToast(DEMO_STOCK_WARNING, 'warning');
+      return;
+    }
+
     setSelectedStock(stock);
 
     if (stock) {
@@ -495,6 +518,7 @@ export default function SalesFormPage() {
                   onChange={handleStockSelect}
                   options={stockOptions}
                   filterFn={filterStockOption}
+                  onDisabledSelect={() => addToast(DEMO_STOCK_WARNING, 'warning')}
                   label={
                     saleType === 'RESERVATION_SALE'
                       ? 'เลือก / เปลี่ยน Stock (รถในสต็อก)'

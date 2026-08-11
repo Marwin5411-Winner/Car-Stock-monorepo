@@ -45,6 +45,8 @@ function formatVehicleModel(
   return `${vm.brand} ${vm.model}${vm.variant ? ` ${vm.variant}` : ''}`;
 }
 
+const DEMO_STOCK_WARNING = 'รถ Demo ไม่สามารถเลือกขายได้';
+
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
 const STATUS_LABELS: Record<SaleStatus, string> = {
   RESERVED: 'จองแล้ว',
@@ -277,12 +279,14 @@ export default function SalesDetailPage() {
     setShowStockModal(true);
     // Prefer model of currently assigned stock; else preferred model on the sale
     const vehicleModelId = sale.stock?.vehicleModel?.id ?? sale.vehicleModel?.id;
+    // Show AVAILABLE + DEMO (DEMO visible but not selectable)
     const result = await executeQuery(
-      stockService.getAll({
-        vehicleModelId,
-        status: 'AVAILABLE',
-        limit: 50,
-      })
+      Promise.all([
+        stockService.getAll({ vehicleModelId, status: 'AVAILABLE', limit: 50 }),
+        stockService.getAll({ vehicleModelId, status: 'DEMO', limit: 50 }),
+      ]).then(([available, demo]) => ({
+        data: [...(available.data || []), ...(demo.data || [])],
+      }))
     );
     if (result === undefined) {
       setShowStockModal(false);
@@ -301,6 +305,12 @@ export default function SalesDetailPage() {
 
   const handleAssignStock = async () => {
     if (!sale || !selectedStockId) return;
+
+    const picked = availableStocks.find((s) => s.id === selectedStockId);
+    if (picked?.status === 'DEMO') {
+      addToast(DEMO_STOCK_WARNING, 'warning');
+      return;
+    }
 
     setAssigningStock(true);
     await executeQuery(
@@ -547,33 +557,55 @@ export default function SalesDetailPage() {
                 <div className="text-center py-8 text-gray-700">ไม่พบ Stock ที่พร้อมใช้งาน</div>
               ) : (
                 <div className="space-y-2">
-                  {availableStocks.map((stock) => (
-                    <label
-                      key={stock.id}
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        selectedStockId === stock.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="stockId"
-                        value={stock.id}
-                        checked={selectedStockId === stock.id}
-                        onChange={(e) => setSelectedStockId(e.target.value)}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {formatVehicleModel(stock.vehicleModel)}
+                  {availableStocks.map((stock) => {
+                    const isDemo = stock.status === 'DEMO';
+                    const isSelected = selectedStockId === stock.id && !isDemo;
+                    return (
+                      <label
+                        key={stock.id}
+                        onClick={(e) => {
+                          if (isDemo) {
+                            e.preventDefault();
+                            addToast(DEMO_STOCK_WARNING, 'warning');
+                          }
+                        }}
+                        className={`flex items-center p-3 border rounded-lg ${
+                          isDemo
+                            ? 'cursor-not-allowed border-purple-200 bg-purple-50/40 opacity-80'
+                            : isSelected
+                              ? 'cursor-pointer border-blue-500 bg-blue-50'
+                              : 'cursor-pointer border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="stockId"
+                          value={stock.id}
+                          checked={isSelected}
+                          disabled={isDemo}
+                          onChange={(e) => {
+                            if (isDemo) return;
+                            setSelectedStockId(e.target.value);
+                          }}
+                          className="mr-3 disabled:cursor-not-allowed"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium flex items-center gap-2 flex-wrap">
+                            <span>{formatVehicleModel(stock.vehicleModel)}</span>
+                            {isDemo && (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                รถ Demo
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            VIN: {stock.vin} | สี: {stock.exteriorColor}
+                            {isDemo ? ' · เลือกขายไม่ได้' : ''}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-700">
-                          VIN: {stock.vin} | สี: {stock.exteriorColor}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>

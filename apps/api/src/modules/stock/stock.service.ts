@@ -691,17 +691,20 @@ export class StockService {
   }
 
   /**
-   * Get available stock for sales
+   * Stock units shown when picking a car for a sale.
+   * Includes DEMO so staff can see demo cars in the list; sale/assign still
+   * reject DEMO on the write path — UI must disable selection.
    */
   async getAvailableStock() {
     const stocks = await db.stock.findMany({
       where: {
-        status: 'AVAILABLE',
-        deletedAt: null, // Exclude soft deleted records
+        status: { in: ['AVAILABLE', 'DEMO'] },
+        deletedAt: null,
       },
       select: {
         id: true,
         vin: true,
+        status: true,
         exteriorColor: true,
         interiorColor: true,
         arrivalDate: true,
@@ -718,7 +721,8 @@ export class StockService {
           },
         },
       },
-      orderBy: { arrivalDate: 'desc' },
+      // AVAILABLE first, then DEMO; newest arrival within each group
+      orderBy: [{ status: 'asc' }, { arrivalDate: 'desc' }],
     });
 
     return stocks;

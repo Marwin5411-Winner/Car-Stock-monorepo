@@ -87,7 +87,8 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
       detail: {
         tags: ['Stock'],
         summary: 'Get available stock',
-        description: 'Get available stock for sales',
+        description:
+          'Stock list for sales picker: AVAILABLE + DEMO (DEMO is visible but not sellable)',
       },
     }
   )
