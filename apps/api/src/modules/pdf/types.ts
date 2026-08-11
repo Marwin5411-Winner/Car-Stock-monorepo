@@ -648,10 +648,7 @@ export interface CampaignClaimReportData {
     no: number;
     customerName: string;
     modelName: string;
-    engineNumber: string;
     vin: string;
-    financeProvider: string;
-    saleDate: string | null; // ISO string, formatted in template
     notifyDate: string | null;
     salePrice: number;
     /** Aligned 1:1 to expenseColumns; null = model lacks that line. */

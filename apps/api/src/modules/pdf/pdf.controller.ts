@@ -10,6 +10,7 @@ import { Elysia, t } from 'elysia';
 import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
 import { db } from '../../lib/db';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
+import { projectCampaignClaimForPdf } from '../reports/campaign-claim-pdf';
 import { reportsService } from '../reports/reports.service';
 import { formatThaiDate, numberToThaiText } from './helpers';
 import { pdfService } from './pdf.service';
@@ -1813,31 +1814,16 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       const periodLabel = `${formatThaiDate(startDate, 'full')} - ${formatThaiDate(endDate, 'full')}`;
 
-      const rows = report.rows.map((r) => ({
-        no: r.no,
-        customerName: r.customerName,
-        modelName: r.modelName,
-        engineNumber: r.engineNumber,
-        vin: r.vin,
-        financeProvider: r.financeProvider,
-        saleDate: r.saleDate ? r.saleDate.toISOString() : null,
-        notifyDate: r.notifyDate ? r.notifyDate.toISOString() : null,
-        salePrice: r.salePrice,
-        cells: r.cells,
-        total: r.total,
-      }));
+      // PDF-only: fixed expense columns (ลำดับ…ราคาขาย + 5 expenses + รวม/คัน + วันที่แจ้งขาย)
+      const projected = projectCampaignClaimForPdf(report);
 
       const pdfBuffer = await pdfService.generateCampaignClaimReportPdf({
         header,
         periodLabel,
         brand: report.brand,
-        expenseColumns: report.expenseColumns,
-        rows,
-        summary: {
-          totalCars: report.summary.totalCars,
-          columnTotals: report.summary.columnTotals,
-          grandTotal: report.summary.grandTotal,
-        },
+        expenseColumns: projected.expenseColumns,
+        rows: projected.rows,
+        summary: projected.summary,
         printedAt: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       });
       const safeBrand = query.brand.replace(/[^A-Za-z0-9_-]/g, '_');

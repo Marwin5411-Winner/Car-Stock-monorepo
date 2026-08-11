@@ -948,10 +948,15 @@ export class PdfService {
   }
 
   /**
-   * Generate Monthly Campaign Claim Report PDF (brand submission form)
+   * Generate Monthly Campaign Claim Report PDF (brand submission form).
+   * Paper: F14 landscape = 356mm × 216mm (CSS @page in template is the size source;
+   * width/height keep Puppeteer aligned when preferCSSPageSize is ignored).
    */
   public async generateCampaignClaimReportPdf(data: CampaignClaimReportData): Promise<Buffer> {
-    return this.generatePdf(PdfTemplateType.CAMPAIGN_CLAIM_MONTHLY, data, { landscape: true });
+    return this.generatePdf(PdfTemplateType.CAMPAIGN_CLAIM_MONTHLY, data, {
+      width: '356mm',
+      height: '216mm',
+    });
   }
 
   /**

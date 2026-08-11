@@ -29,10 +29,7 @@
       <th>ลำดับ</th>
       <th>ชื่อ - สกุล</th>
       <th>แบบรถ</th>
-      <th>เลขเครื่อง</th>
       <th>เลขตัวรถ</th>
-      <th>ไฟแนนท์</th>
-      <th>วันที่ขาย</th>
       <th>ราคาขาย</th>
       {{#each expenseColumns}}<th>{{this}}</th>{{/each}}
       <th>รวม/คัน</th>
@@ -45,10 +42,7 @@
       <td class="tc">{{no}}</td>
       <td>{{customerName}}</td>
       <td>{{modelName}}</td>
-      <td class="tc mono">{{engineNumber}}</td>
       <td class="tc mono">{{vin}}</td>
-      <td class="tc">{{financeProvider}}</td>
-      <td class="tc">{{#if saleDate}}{{formatThaiDate saleDate 'short'}}{{/if}}</td>
       <td class="tr">{{#if salePrice}}{{formatCurrency salePrice false}}{{/if}}</td>
       {{#each cells}}<td class="tr">{{#if this}}{{formatCurrency this false}}{{/if}}</td>{{/each}}
       <td class="tr strong">{{#if total}}{{formatCurrency total false}}{{/if}}</td>
@@ -56,12 +50,12 @@
     </tr>
     {{else}}
     <tr>
-      <td colspan="10" class="tc muted">ไม่มีรายการเบิกแคมเปญในช่วงเวลานี้</td>
+      <td colspan="12" class="tc muted">ไม่มีรายการเบิกแคมเปญในช่วงเวลานี้</td>
     </tr>
     {{/each}}
     {{#if rows.length}}
     <tr class="row-total">
-      <td colspan="8" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
+      <td colspan="5" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
       {{#each summary.columnTotals}}<td class="tr strong">{{formatCurrency this false}}</td>{{/each}}
       <td class="tr strong">{{formatCurrency summary.grandTotal false}}</td>
       <td></td>
@@ -83,7 +77,8 @@
 <div class="printed-at">พิมพ์เมื่อ: {{printedAt}}</div>
 
 <style>
-  @page { size: A4 landscape; margin: 8mm; }
+  /* F14 landscape = 8.5×14 in → 356mm wide × 216mm tall */
+  @page { size: 356mm 216mm; margin: 8mm; }
   .claim-table {
     width: 100%;
     border-collapse: collapse;
