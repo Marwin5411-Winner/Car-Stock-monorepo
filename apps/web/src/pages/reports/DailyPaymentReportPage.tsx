@@ -118,7 +118,7 @@ export default function DailyPaymentReportPage() {
     { key: 'receiptNumber', label: 'เลขที่เอกสาร' },
     { key: 'invoiceNumber', label: 'เลขที่ใบกำกับ' },
     { key: 'customerName', label: 'ชื่อลูกค้า' },
-    { key: 'description', label: 'รายละเอียด' },
+    { key: 'itemDetail', label: 'รายละเอียดรายการ' },
     { key: 'baseAmount', label: 'จำนวนเงิน' },
     { key: 'vatAmount', label: 'ภาษีขาย' },
     { key: 'amount', label: 'รวมทั้งสิ้น' },
@@ -130,16 +130,15 @@ export default function DailyPaymentReportPage() {
     { key: 'otherIncomeAmount', label: 'รายได้อื่นๆ' },
     { key: 'otherExpenseAmount', label: 'ค่าใช้จ่ายอื่นๆ' },
     { key: 'issuedBy', label: 'ผู้รับเงิน' },
-    { key: 'notes', label: 'หมายเหตุ' },
   ];
 
   const exportRows = payments.map((p) => ({
     ...p,
     paymentDate: p.paymentDate.split('T')[0],
     invoiceNumber: p.receiptNumber,
-    description: p.description || '',
+    // PaymentForm "หมายเหตุ" (sale) → description; edit form notes → notes
+    itemDetail: p.description || p.notes || '',
     issuedBy: p.issuedBy || '',
-    notes: p.notes || '',
     baseAmount: p.baseAmount || '',
     vatAmount: p.vatAmount || '',
     cashAmount: p.cashAmount || '',
@@ -265,6 +264,9 @@ export default function DailyPaymentReportPage() {
                       <th className="px-1.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
                         ชื่อลูกค้า
                       </th>
+                      <th className="px-1.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
+                        รายละเอียดรายการ
+                      </th>
                       <th className="px-1.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
                         จำนวนเงิน
                       </th>
@@ -300,7 +302,7 @@ export default function DailyPaymentReportPage() {
                   <tbody>
                     {payments.length === 0 && (
                       <tr>
-                        <td colSpan={14} className="px-2 py-12 text-center text-gray-500">
+                        <td colSpan={15} className="px-2 py-12 text-center text-gray-500">
                           ไม่พบรายการรับเงินในช่วงเวลาที่เลือก
                         </td>
                       </tr>
@@ -317,13 +319,13 @@ export default function DailyPaymentReportPage() {
                           {p.receiptNumber}
                         </td>
                         <td className="px-1.5 py-1.5 text-gray-900">
-                          <div>{p.customerName}</div>
-                          {(p.description || p.notes) && (
-                            <div className="text-[10px] text-gray-500 mt-0.5 max-w-[12rem] truncate" title={[p.description, p.notes, p.issuedBy].filter(Boolean).join(' · ')}>
-                              {[p.description, p.notes].filter(Boolean).join(' · ')}
-                              {p.issuedBy ? ` · ${p.issuedBy}` : ''}
-                            </div>
-                          )}
+                          {p.customerName}
+                        </td>
+                        <td
+                          className="px-1.5 py-1.5 text-gray-900 max-w-[10rem] truncate"
+                          title={p.description || p.notes || undefined}
+                        >
+                          {p.description || p.notes || ''}
                         </td>
                         <td className="px-1.5 py-1.5 text-right text-gray-900 tabular-nums whitespace-nowrap">
                           {fmtAmount(p.baseAmount)}
@@ -370,6 +372,7 @@ export default function DailyPaymentReportPage() {
                         <td className="px-1.5 py-2 text-gray-700 whitespace-nowrap">
                           {totalCount} รายการ
                         </td>
+                        <td className="px-1.5 py-2" />
                         <td className="px-1.5 py-2 text-right font-semibold text-gray-900 tabular-nums whitespace-nowrap">
                           {fmtAmount(totals.base)}
                         </td>
@@ -411,6 +414,7 @@ export default function DailyPaymentReportPage() {
                         <td className="px-1.5 py-2 text-gray-800 whitespace-nowrap">
                           {totalCount} รายการ
                         </td>
+                        <td className="px-1.5 py-2 border-t-2 border-b-4 border-double border-gray-800" />
                         <td className="px-1.5 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap border-t-2 border-b-4 border-double border-gray-800">
                           {fmtAmount(totals.base)}
                         </td>

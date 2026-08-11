@@ -99,8 +99,11 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       // legacy sheet layout; non-taxable payment types would need an explicit flag.
       const enrichedPayments = result.payments.map((p) => {
         const { net: baseAmount, vat: vatAmount } = splitVat(p.amount);
+        // PaymentForm "หมายเหตุ" (sale mode) is stored in description; edit form uses notes.
+        const itemDetail = p.description || p.notes || '';
         return {
           ...p,
+          itemDetail,
           baseAmount,
           vatAmount,
           cashAmount: p.paymentMethod === 'CASH' ? p.amount : 0,

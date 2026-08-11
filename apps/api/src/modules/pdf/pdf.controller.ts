@@ -1614,6 +1614,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           paymentDate: p.paymentDate,
           receiptNumber: p.receiptNumber,
           customerName: p.customer?.name || p.sale?.customer?.name || 'ลูกค้าทั่วไป',
+          // PaymentForm "หมายเหตุ" (sale mode) is stored in description; edit form uses notes.
+          itemDetail: p.description || p.notes || '',
           description: p.description || '',
           issuedBy: p.issuedBy || '',
           notes: p.notes || '',

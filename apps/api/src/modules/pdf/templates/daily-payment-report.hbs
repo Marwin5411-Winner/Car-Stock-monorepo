@@ -26,19 +26,20 @@
     <thead>
       <tr>
         <th style="width: 7%">วันที่เอกสาร</th>
-        <th style="width: 8%">เลขที่เอกสาร</th>
-        <th style="width: 8%">เลขที่ใบกำกับ</th>
-        <th style="width: 12%">ชื่อลูกค้า</th>
-        <th style="width: 7%" class="text-right">จำนวนเงิน</th>
-        <th style="width: 6%" class="text-right">ภาษีขาย</th>
-        <th style="width: 7%" class="text-right">รวมทั้งสิ้น</th>
-        <th style="width: 7%" class="text-right">ลูกค้าพ. ที่จ่าย</th>
-        <th style="width: 6%" class="text-right">เงินสด</th>
-        <th style="width: 6%" class="text-right">เช็ค</th>
-        <th style="width: 7%" class="text-right">ค่าธรรมเนียม</th>
-        <th style="width: 6%" class="text-right">เงินโอน</th>
-        <th style="width: 6%" class="text-right">รายได้อื่นๆ</th>
-        <th style="width: 7%" class="text-right">ค่าใช้จ่ายอื่นๆ</th>
+        <th style="width: 7%">เลขที่เอกสาร</th>
+        <th style="width: 7%">เลขที่ใบกำกับ</th>
+        <th style="width: 11%">ชื่อลูกค้า</th>
+        <th style="width: 9%">รายละเอียดรายการ</th>
+        <th style="width: 6%" class="text-right">จำนวนเงิน</th>
+        <th style="width: 5%" class="text-right">ภาษีขาย</th>
+        <th style="width: 6%" class="text-right">รวมทั้งสิ้น</th>
+        <th style="width: 6%" class="text-right">ลูกค้าพ. ที่จ่าย</th>
+        <th style="width: 5%" class="text-right">เงินสด</th>
+        <th style="width: 5%" class="text-right">เช็ค</th>
+        <th style="width: 6%" class="text-right">ค่าธรรมเนียม</th>
+        <th style="width: 5%" class="text-right">เงินโอน</th>
+        <th style="width: 5%" class="text-right">รายได้อื่นๆ</th>
+        <th style="width: 6%" class="text-right">ค่าใช้จ่ายอื่นๆ</th>
       </tr>
     </thead>
     <tbody>
@@ -48,6 +49,7 @@
         <td>{{receiptNumber}}</td>
         <td>{{receiptNumber}}</td>
         <td>{{customerName}}</td>
+        <td>{{itemDetail}}</td>
         <td class="text-right">{{#if baseAmount}}{{formatCurrency baseAmount false}}{{/if}}</td>
         <td class="text-right">{{#if vatAmount}}{{formatCurrency vatAmount false}}{{/if}}</td>
         <td class="text-right">{{formatCurrency amount false}}</td>
@@ -63,6 +65,7 @@
       <tr class="row-daily-total">
         <td colspan="3">รวมประจำวัน</td>
         <td>{{summary.totalCount}} รายการ</td>
+        <td></td>
         <td class="text-right">{{formatCurrency summary.baseAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.vatAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
@@ -77,6 +80,7 @@
       <tr class="row-grand-total">
         <td colspan="3">รวมทั้งสิ้น</td>
         <td>{{summary.totalCount}} รายการ</td>
+        <td></td>
         <td class="text-right">{{formatCurrency summary.baseAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.vatAmount false}}</td>
         <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
@@ -97,9 +101,9 @@
 </div>
 
 <style>
-  .daily-payment-table { font-size: 9px; width: 100%; border-collapse: collapse; }
+  .daily-payment-table { font-size: 9px; width: 100%; border-collapse: collapse; table-layout: fixed; }
   .daily-payment-table th,
-  .daily-payment-table td { padding: 3px 4px; font-size: 9px; border: 1px solid #888; }
+  .daily-payment-table td { padding: 3px 3px; font-size: 9px; border: 1px solid #888; word-wrap: break-word; }
   .daily-payment-table th { background: #7f858a; color: #fff; font-weight: normal; }
   .daily-payment-table tr:nth-child(even) { background: #f5f5f5; }
   .daily-payment-table .row-daily-total td { font-weight: bold; background: #eee; border-top: 2px solid #333; }
