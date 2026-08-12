@@ -351,8 +351,9 @@ export function SearchSelect<T = unknown>({
                     className={cn(
                       'px-3 py-2 flex items-center justify-between',
                       'border-b border-gray-100 last:border-b-0',
+                      // Disabled (e.g. DEMO stock): blue text, still not selectable
                       isOptionDisabled
-                        ? 'opacity-55 cursor-not-allowed bg-gray-50'
+                        ? 'cursor-not-allowed bg-blue-50/40'
                         : 'cursor-pointer',
                       !isOptionDisabled && isHighlighted && 'bg-blue-50',
                       !isOptionDisabled && isSelected && 'bg-blue-100',
@@ -363,13 +364,18 @@ export function SearchSelect<T = unknown>({
                       <div
                         className={cn(
                           'truncate',
-                          isOptionDisabled ? 'text-gray-500' : 'text-gray-900'
+                          isOptionDisabled ? 'text-blue-600 font-medium' : 'text-gray-900'
                         )}
                       >
                         {highlightText(option.label, searchQuery)}
                       </div>
                       {option.description && (
-                        <div className="text-sm text-gray-500 truncate">
+                        <div
+                          className={cn(
+                            'text-sm truncate',
+                            isOptionDisabled ? 'text-blue-500' : 'text-gray-500'
+                          )}
+                        >
                           {highlightText(option.description, searchQuery)}
                         </div>
                       )}
