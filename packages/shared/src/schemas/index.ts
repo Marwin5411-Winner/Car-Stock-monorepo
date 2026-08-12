@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CREATE_STOCK_STATUSES } from '../constants';
+import { CREATE_STOCK_STATUSES, INTEREST_RATE_FRACTION_MAX } from '../constants';
 
 // ============================================
 // Enums as Zod schemas
@@ -319,8 +319,15 @@ export const CreateStockSchema = z.object({
   exteriorColor: z.string().min(1, 'Exterior color is required'),
   interiorColor: z.string().optional(),
 
-  arrivalDate: z.coerce.date().optional().nullable(),
-  orderDate: z.coerce.date().optional(),
+  // Empty string / null → omit (undefined). Same rule for both date fields.
+  arrivalDate: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    z.coerce.date().optional()
+  ),
+  orderDate: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    z.coerce.date().optional()
+  ),
   parkingSlot: z.string().optional(),
   /** Only AVAILABLE or DEMO on create; RESERVED/PREPARING/SOLD come from sales flow. */
   status: CreateStockStatusSchema.optional().default('AVAILABLE'),
@@ -331,10 +338,21 @@ export const CreateStockSchema = z.object({
   otherCosts: z.coerce.number().min(0).default(0),
   financeProvider: z.string().optional(),
 
-  interestRate: z.coerce.number().min(0).default(0),
+  // Stored as decimal fraction (0.065 = 6.5%/yr). Cap matches INTEREST_RATE_FRACTION_MAX.
+  interestRate: z.coerce
+    .number()
+    .min(0, 'Interest rate cannot be negative')
+    .max(
+      INTEREST_RATE_FRACTION_MAX,
+      `อัตราดอกเบี้ยสูงเกินไป (ค่าที่ส่งต้องเป็นทศนิยม เช่น 0.065 = 6.5% ต่อปี สูงสุด ${INTEREST_RATE_FRACTION_MAX})`
+    )
+    .default(0),
   interestPrincipalBase: InterestBaseSchema.default('BASE_COST_ONLY'),
 
-  expectedSalePrice: z.coerce.number().positive().optional(),
+  expectedSalePrice: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    z.coerce.number().positive().optional()
+  ),
   notes: z.string().optional(),
 });
 

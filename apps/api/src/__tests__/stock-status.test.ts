@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
   CREATE_STOCK_STATUSES,
+  INTEREST_RATE_FRACTION_MAX,
   getManualStockStatusTargets,
   isManualStockStatusTransitionAllowed,
+  percentToInterestRate,
 } from '@car-stock/shared/constants';
 import { CreateStockSchema } from '@car-stock/shared/schemas';
 
@@ -75,5 +77,56 @@ describe('manual stock status transitions (shared policy)', () => {
     expect(getManualStockStatusTargets('RESERVED')).toBeUndefined();
     expect(getManualStockStatusTargets('PREPARING')).toBeUndefined();
     expect(getManualStockStatusTargets('SOLD')).toBeUndefined();
+  });
+});
+
+describe('CreateStockSchema interest and empty optionals', () => {
+  test('accepts valid fraction interestRate', () => {
+    const result = CreateStockSchema.parse({
+      ...baseCreate,
+      interestRate: percentToInterestRate(6.5),
+    });
+    expect(result.interestRate).toBe(0.065);
+  });
+
+  test('rejects interestRate above fraction max', () => {
+    const parsed = CreateStockSchema.safeParse({ ...baseCreate, interestRate: 12 });
+    expect(parsed.success).toBe(false);
+  });
+
+  test('accepts interestRate at fraction max boundary', () => {
+    const result = CreateStockSchema.parse({
+      ...baseCreate,
+      interestRate: INTEREST_RATE_FRACTION_MAX,
+    });
+    expect(result.interestRate).toBe(INTEREST_RATE_FRACTION_MAX);
+  });
+
+  test('empty expectedSalePrice becomes undefined', () => {
+    const result = CreateStockSchema.parse({
+      ...baseCreate,
+      expectedSalePrice: '',
+    });
+    expect(result.expectedSalePrice).toBeUndefined();
+  });
+
+  test('empty string dates are omitted (undefined)', () => {
+    const result = CreateStockSchema.parse({
+      ...baseCreate,
+      orderDate: '',
+      arrivalDate: '',
+    });
+    expect(result.orderDate).toBeUndefined();
+    expect(result.arrivalDate).toBeUndefined();
+  });
+
+  test('null dates are omitted (undefined)', () => {
+    const result = CreateStockSchema.parse({
+      ...baseCreate,
+      orderDate: null,
+      arrivalDate: null,
+    });
+    expect(result.orderDate).toBeUndefined();
+    expect(result.arrivalDate).toBeUndefined();
   });
 });

@@ -91,6 +91,30 @@ export function isManualStockStatusTransitionAllowed(
   return (targets as readonly string[] | undefined)?.includes(to) ?? false;
 }
 
+// ============================================
+// Stock interest rate units
+// UI: percent per year (6.5 = 6.5%). API/DB: fraction (0.065).
+// Prisma Stock.interestRate is Decimal(5,4) → absolute value < 10.
+// ============================================
+
+/** Product/UI max for percent-per-year input. */
+export const INTEREST_RATE_PERCENT_MAX = 100;
+
+/** API/DB fraction hard limit (Decimal(5,4)). */
+export const INTEREST_RATE_FRACTION_MAX = 9.9999;
+
+export function percentToInterestRate(percent: number): number {
+  return percent / 100;
+}
+
+export function interestRateToPercent(rate: number): number {
+  return rate * 100;
+}
+
+export function isValidInterestPercent(percent: number): boolean {
+  return Number.isFinite(percent) && percent >= 0 && percent <= INTEREST_RATE_PERCENT_MAX;
+}
+
 export const SALE_STATUS_LABELS = {
   RESERVED: 'จองแล้ว',
   PREPARING: 'เตรียมส่งมอบ',

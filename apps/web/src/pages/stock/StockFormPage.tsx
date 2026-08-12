@@ -2,17 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   CREATE_STOCK_STATUSES,
+  INTEREST_RATE_PERCENT_MAX,
   STOCK_STATUS_LABELS,
+  interestRateToPercent,
   type CreateStockStatusValue,
 } from '@car-stock/shared/constants';
 import { stockService } from '../../services/stock.service';
 import { vehicleService } from '../../services/vehicle.service';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../components/toast';
 import { MainLayout } from '../../components/layout';
 import { ArrowLeft } from 'lucide-react';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/search-select';
 import { PriceSourceModal, type PriceSource } from '../../components/PriceSourceModal';
 import { DatePicker } from '../../components/ui/date-picker';
+import { buildStockWritePayload } from './buildStockWritePayload';
 
 interface VehicleModel {
   id: string;
@@ -36,6 +40,7 @@ export default function StockFormPage() {
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState<VehicleModel | null>(null);
 
+  const { addToast } = useToast();
   const { execute: executeMutation, fieldErrors, clearFieldErrors } = useMutationHandler(
     isEdit ? 'แก้ไขข้อมูลสต็อกสำเร็จ' : 'เพิ่มสต็อกสำเร็จ',
     { onSuccess: () => navigate('/stock') }
@@ -102,7 +107,7 @@ export default function StockFormPage() {
           accessoryCost: Number(stock.accessoryCost),
           otherCosts: Number(stock.otherCosts),
           financeProvider: stock.financeProvider || '',
-          interestRate: Number(stock.interestRate) * 100,
+          interestRate: interestRateToPercent(Number(stock.interestRate)),
           interestPrincipalBase: stock.interestPrincipalBase,
           expectedSalePrice: stock.expectedSalePrice ? Number(stock.expectedSalePrice) : '',
           notes: stock.notes || '',
@@ -184,23 +189,24 @@ export default function StockFormPage() {
     setSaving(true);
     clearFieldErrors();
 
-    const data = {
-      ...formData,
-      baseCost: formData.baseCost === '' ? 0 : Number(formData.baseCost),
-      transportCost: formData.transportCost === '' ? 0 : Number(formData.transportCost),
-      accessoryCost: formData.accessoryCost === '' ? 0 : Number(formData.accessoryCost),
-      otherCosts: formData.otherCosts === '' ? 0 : Number(formData.otherCosts),
-      interestRate: formData.interestRate === '' ? 0 : Number(formData.interestRate) / 100,
-      expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
-      orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
-      arrivalDate: formData.arrivalDate ? new Date(formData.arrivalDate) : null,
-      // Status only on create (AVAILABLE | DEMO). Edit uses detail page / sales flow.
-      ...(isEdit ? {} : { status: createStatus }),
-    };
+    const built = buildStockWritePayload(formData, {
+      mode: isEdit ? 'edit' : 'create',
+      createStatus,
+    });
 
-    await executeMutation(
-      isEdit && id ? stockService.update(id, data) : stockService.create(data)
-    );
+    if (!built.ok) {
+      addToast(built.message, 'error');
+      setSaving(false);
+      return;
+    }
+
+    if (built.mode === 'edit') {
+      if (id) {
+        await executeMutation(stockService.update(id, built.data));
+      }
+    } else {
+      await executeMutation(stockService.create(built.data));
+    }
     setSaving(false);
   };
 
@@ -517,9 +523,18 @@ export default function StockFormPage() {
                   value={formData.interestRate}
                   onChange={handleChange}
                   step="0.01"
+                  min={0}
+                  max={INTEREST_RATE_PERCENT_MAX}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${fieldErrors.interestRate ? 'border-red-500' : 'border-gray-300'}`}
                 />
+                {fieldErrors.interestRate ? (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.interestRate}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    เช่น 6.5 = 6.5% ต่อปี ช่วง 0–{INTEREST_RATE_PERCENT_MAX} (ไม่กรอกราคารถในช่องนี้)
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

@@ -148,7 +148,7 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
         exteriorColor: t.String({ minLength: 1 }),
         interiorColor: t.Optional(t.String()),
         arrivalDate: t.Optional(t.Union([t.Date(), t.Null()])),
-        orderDate: t.Optional(t.Date()),
+        orderDate: t.Optional(t.Union([t.Date(), t.Null()])),
         parkingSlot: t.Optional(t.String()),
         status: t.Optional(
           t.Union([t.Literal('AVAILABLE'), t.Literal('DEMO')])
@@ -163,7 +163,7 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
           t.Literal('BASE_COST_ONLY'),
           t.Literal('TOTAL_COST'),
         ]),
-        expectedSalePrice: t.Optional(t.Union([t.String(), t.Number()])),
+        expectedSalePrice: t.Optional(t.Union([t.String(), t.Number(), t.Null()])),
         notes: t.Optional(t.String()),
       }),
       detail: {
