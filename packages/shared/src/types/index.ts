@@ -8,6 +8,7 @@ import type {
   CreateQuotationSchema,
   CreateSaleSchema,
   CreateStockSchema,
+  CreateStockStatusSchema,
   CreateUserSchema,
   CreateVehicleModelSchema,
   CustomerSchema,
@@ -56,6 +57,7 @@ export type CustomerType = z.infer<typeof CustomerTypeSchema>;
 export type SalesType = z.infer<typeof SalesTypeSchema>;
 export type VehicleType = z.infer<typeof VehicleTypeSchema>;
 export type StockStatus = z.infer<typeof StockStatusSchema>;
+export type CreateStockStatus = z.infer<typeof CreateStockStatusSchema>;
 export type InterestBase = z.infer<typeof InterestBaseSchema>;
 export type DebtStatus = z.infer<typeof DebtStatusSchema>;
 export type SaleType = z.infer<typeof SaleTypeSchema>;

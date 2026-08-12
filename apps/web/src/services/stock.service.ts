@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import type { CreateStockStatus, StockStatus } from '@car-stock/shared/types';
 
 export interface Stock {
   id: string;
@@ -17,7 +18,7 @@ export interface Stock {
   };
   exteriorColor: string;
   interiorColor?: string;
-  status: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO';
+  status: StockStatus;
   parkingSlot?: string;
   arrivalDate: string;
   orderDate?: string;
@@ -55,6 +56,8 @@ export interface CreateStockData {
   arrivalDate?: Date | null;
   orderDate?: Date;
   parkingSlot?: string;
+  /** Only AVAILABLE or DEMO on create; sales lifecycle statuses are not allowed. */
+  status?: CreateStockStatus;
   baseCost: number;
   transportCost: number;
   accessoryCost: number;
@@ -90,7 +93,7 @@ export interface StockFilters {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO';
+  status?: StockStatus;
   vehicleModelId?: string;
 }
 
@@ -152,7 +155,7 @@ class StockService {
     return response.data;
   }
 
-  async updateStatus(id: string, status: string, notes?: string): Promise<Stock> {
+  async updateStatus(id: string, status: CreateStockStatus, notes?: string): Promise<Stock> {
     const response = await api.patch<ApiResponse<Stock>>(`/api/stock/${id}/status`, { status, notes });
     return response.data;
   }

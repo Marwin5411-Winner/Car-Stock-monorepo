@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CREATE_STOCK_STATUSES } from '../constants';
 
 // ============================================
 // Enums as Zod schemas
@@ -34,6 +35,9 @@ export const VehicleTypeSchema = z.enum([
 ]);
 
 export const StockStatusSchema = z.enum(['AVAILABLE', 'RESERVED', 'PREPARING', 'SOLD', 'DEMO']);
+
+/** Initial statuses allowed when creating stock (sales lifecycle statuses are not allowed). */
+export const CreateStockStatusSchema = z.enum(CREATE_STOCK_STATUSES);
 
 export const InterestBaseSchema = z.enum(['BASE_COST_ONLY', 'TOTAL_COST']);
 
@@ -318,6 +322,8 @@ export const CreateStockSchema = z.object({
   arrivalDate: z.coerce.date().optional().nullable(),
   orderDate: z.coerce.date().optional(),
   parkingSlot: z.string().optional(),
+  /** Only AVAILABLE or DEMO on create; RESERVED/PREPARING/SOLD come from sales flow. */
+  status: CreateStockStatusSchema.optional().default('AVAILABLE'),
 
   baseCost: z.coerce.number().positive('Base cost must be positive'),
   transportCost: z.coerce.number().min(0).default(0),
@@ -332,7 +338,8 @@ export const CreateStockSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const UpdateStockSchema = CreateStockSchema.partial();
+// Update must not change sales-lifecycle status via general PATCH (use status endpoint / sales flow).
+export const UpdateStockSchema = CreateStockSchema.omit({ status: true }).partial();
 
 // ============================================
 // Sale Schemas

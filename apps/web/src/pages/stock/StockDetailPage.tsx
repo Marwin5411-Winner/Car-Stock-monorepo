@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  STOCK_STATUS_LABELS,
+  getManualStockStatusTargets,
+  type CreateStockStatusValue,
+} from '@car-stock/shared/constants';
 import { api } from '../../lib/api';
 import { stockService } from '../../services/stock.service';
 import type { Stock } from '../../services/stock.service';
@@ -24,20 +29,22 @@ import {
   FileText
 } from 'lucide-react';
 
-const STATUS_LABELS: Record<string, string> = {
-  AVAILABLE: 'พร้อมขาย',
-  RESERVED: 'จองแล้ว',
-  PREPARING: 'เตรียมส่งมอบ',
-  SOLD: 'ขายแล้ว',
-  DEMO: 'รถ Demo',
-};
-
 const STATUS_COLORS: Record<string, string> = {
   AVAILABLE: 'bg-green-100 text-green-800',
   RESERVED: 'bg-yellow-100 text-yellow-800',
   PREPARING: 'bg-blue-100 text-blue-800',
   SOLD: 'bg-gray-100 text-gray-800',
   DEMO: 'bg-purple-100 text-purple-800',
+};
+
+const MANUAL_STATUS_BUTTON_CLASS: Record<CreateStockStatusValue, string> = {
+  DEMO: 'w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600',
+  AVAILABLE: 'w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600',
+};
+
+const MANUAL_STATUS_BUTTON_LABEL: Record<CreateStockStatusValue, string> = {
+  DEMO: 'ตั้งเป็นรถ Demo',
+  AVAILABLE: 'ตั้งเป็นพร้อมขาย',
 };
 
 export default function StockDetailPage() {
@@ -85,10 +92,10 @@ export default function StockDetailPage() {
     setRecalculating(false);
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: CreateStockStatusValue) => {
     if (!stock) return;
 
-    const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STATUS_LABELS[newStatus]}" หรือไม่?`;
+    const confirmMsg = `คุณต้องการเปลี่ยนสถานะเป็น "${STOCK_STATUS_LABELS[newStatus]}" หรือไม่?`;
     if (!window.confirm(confirmMsg)) return;
 
     await executeQuery(
@@ -162,6 +169,8 @@ export default function StockDetailPage() {
   const totalCost = Number(stock.baseCost) + Number(stock.transportCost) + Number(stock.accessoryCost) + Number(stock.otherCosts);
   const interestAmount = stock.calculatedInterest ?? 0;
   const totalWithInterest = totalCost + interestAmount;
+  const manualStatusTargets = getManualStockStatusTargets(stock.status);
+  const isSalesLifecycleStatus = stock.status === 'RESERVED' || stock.status === 'PREPARING';
 
   return (
     <MainLayout>
@@ -178,7 +187,7 @@ export default function StockDetailPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{stock.vin}</h1>
               <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${STATUS_COLORS[stock.status]}`}>
-                {STATUS_LABELS[stock.status]}
+                {STOCK_STATUS_LABELS[stock.status]}
               </span>
             </div>
             <p className="text-gray-600 mt-1">
@@ -402,54 +411,33 @@ export default function StockDetailPage() {
             </div>
           </div>
 
-          {/* Status Change */}
-          {canUpdateStatus && stock.status !== 'SOLD' && (
+          {/* Status Change — manual targets from shared policy; sales lifecycle via sales module */}
+          {canUpdateStatus && manualStatusTargets && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">เปลี่ยนสถานะ</h2>
               <div className="space-y-2">
-                {stock.status === 'AVAILABLE' && (
-                  <>
-                    <button
-                      onClick={() => handleStatusChange('RESERVED')}
-                      className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-                    >
-                      จองรถ
-                    </button>
-                  </>
-                )}
-                {stock.status === 'RESERVED' && (
-                  <>
-                    <button
-                      onClick={() => handleStatusChange('PREPARING')}
-                      className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                    >
-                      เตรียมส่งมอบ
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange('AVAILABLE')}
-                      className="w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-                    >
-                      ยกเลิกการจอง
-                    </button>
-                  </>
-                )}
-                {stock.status === 'PREPARING' && (
-                  <>
-                    <button
-                      onClick={() => handleStatusChange('SOLD')}
-                      className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                    >
-                      ขายแล้ว
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange('RESERVED')}
-                      className="w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-                    >
-                      กลับไปจอง
-                    </button>
-                  </>
-                )}
+                {manualStatusTargets.map((target) => (
+                  <button
+                    key={target}
+                    onClick={() => handleStatusChange(target)}
+                    className={MANUAL_STATUS_BUTTON_CLASS[target]}
+                  >
+                    {MANUAL_STATUS_BUTTON_LABEL[target]}
+                  </button>
+                ))}
+                <p className="text-xs text-gray-500 pt-1">
+                  สถานะจอง / เตรียมส่งมอบ / ขายแล้ว เปลี่ยนผ่านใบสั่งขายเท่านั้น
+                </p>
               </div>
+            </div>
+          )}
+          {canUpdateStatus && !manualStatusTargets && isSalesLifecycleStatus && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-2">เปลี่ยนสถานะ</h2>
+              <p className="text-sm text-gray-600">
+                รถคันนี้อยู่ในกระบวนการขาย — จัดการสถานะผ่านหน้าใบสั่งขาย
+                (ยกเลิกการจอง / เตรียมส่งมอบ / ส่งมอบ)
+              </p>
             </div>
           )}
 

@@ -1,5 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  CREATE_STOCK_STATUSES,
+  STOCK_STATUS_LABELS,
+  type CreateStockStatusValue,
+} from '@car-stock/shared/constants';
 import { stockService } from '../../services/stock.service';
 import { vehicleService } from '../../services/vehicle.service';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
@@ -37,6 +42,9 @@ export default function StockFormPage() {
   );
   const { execute: executeQuery } = useErrorHandler({ showToast: true });
 
+  // status is create-only; edit form never carries/coerces stock status.
+  const [createStatus, setCreateStatus] = useState<CreateStockStatusValue>('AVAILABLE');
+
   const [formData, setFormData] = useState({
     vin: '',
     engineNumber: '',
@@ -48,7 +56,6 @@ export default function StockFormPage() {
     arrivalDate: '',
     orderDate: '',
     parkingSlot: '',
-    status: 'AVAILABLE' as 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO',
     baseCost: '' as number | '',
     transportCost: '' as number | '',
     accessoryCost: '' as number | '',
@@ -90,7 +97,6 @@ export default function StockFormPage() {
           arrivalDate: stock.arrivalDate ? new Date(stock.arrivalDate).toISOString().split('T')[0] : '',
           orderDate: stock.orderDate ? new Date(stock.orderDate).toISOString().split('T')[0] : '',
           parkingSlot: stock.parkingSlot || '',
-          status: stock.status,
           baseCost: Number(stock.baseCost),
           transportCost: Number(stock.transportCost),
           accessoryCost: Number(stock.accessoryCost),
@@ -188,6 +194,8 @@ export default function StockFormPage() {
       expectedSalePrice: formData.expectedSalePrice === '' ? undefined : Number(formData.expectedSalePrice),
       orderDate: formData.orderDate ? new Date(formData.orderDate) : undefined,
       arrivalDate: formData.arrivalDate ? new Date(formData.arrivalDate) : null,
+      // Status only on create (AVAILABLE | DEMO). Edit uses detail page / sales flow.
+      ...(isEdit ? {} : { status: createStatus }),
     };
 
     await executeMutation(
@@ -391,27 +399,32 @@ export default function StockFormPage() {
               </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                  สถานะ <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                >
-                  <option value="AVAILABLE">พร้อมขาย</option>
-                  <option value="RESERVED">จองแล้ว</option>
-                  <option value="PREPARING">เตรียมขาย</option>
-                  <option value="DEMO">รถ Demo</option>
-                  <option value="SOLD">ขายแล้ว</option>
-                </select>
+            {!isEdit && (
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                    สถานะ <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={createStatus}
+                    onChange={(e) => setCreateStatus(e.target.value as CreateStockStatusValue)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  >
+                    {CREATE_STOCK_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {STOCK_STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500">
+                    สถานะจอง / เตรียมส่งมอบ / ขายแล้ว จะเปลี่ยนผ่านใบสั่งขายเท่านั้น
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* Cost Information Section */}

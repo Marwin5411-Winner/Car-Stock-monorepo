@@ -1,6 +1,10 @@
 import { db } from '../../lib/db';
 import { CreateStockSchema, UpdateStockSchema, StockFilterSchema } from '@car-stock/shared/schemas';
-import { NUMBER_PREFIXES } from '@car-stock/shared/constants';
+import {
+  NUMBER_PREFIXES,
+  isManualStockStatusTransitionAllowed,
+  type CreateStockStatusValue,
+} from '@car-stock/shared/constants';
 import { authService } from '../auth/auth.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
@@ -520,9 +524,16 @@ export class StockService {
   }
 
   /**
-   * Update stock status
+   * Update stock status (manual only: AVAILABLE ↔ DEMO).
+   * RESERVED / PREPARING / SOLD are driven by the sales module.
+   * Transition policy lives in @car-stock/shared/constants.
    */
-  async updateStockStatus(id: string, status: any, notes: string | undefined, currentUser: any) {
+  async updateStockStatus(
+    id: string,
+    status: CreateStockStatusValue,
+    notes: string | undefined,
+    currentUser: any
+  ) {
     // Check permission
     if (!authService.hasPermission(currentUser.role, 'STOCK_UPDATE')) {
       throw new ForbiddenError();
@@ -536,6 +547,13 @@ export class StockService {
 
     if (!existingStock) {
       throw new NotFoundError('Stock');
+    }
+
+    if (!isManualStockStatusTransitionAllowed(existingStock.status, status)) {
+      throw new BadRequestError(
+        'สามารถเปลี่ยนสถานะมือได้เฉพาะระหว่าง พร้อมขาย (AVAILABLE) กับ รถ Demo (DEMO) เท่านั้น — สถานะจอง/เตรียมส่งมอบ/ขายแล้วต้องเปลี่ยนผ่านใบสั่งขาย',
+        { fromStatus: existingStock.status, toStatus: status }
+      );
     }
 
     // Update status

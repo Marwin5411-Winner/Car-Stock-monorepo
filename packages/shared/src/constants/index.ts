@@ -50,6 +50,47 @@ export const STOCK_STATUS_LABELS = {
   DEMO: 'รถ Demo',
 } as const;
 
+/** Full stock status set (mirrors StockStatusSchema / Prisma enum). */
+export type StockStatusValue = keyof typeof STOCK_STATUS_LABELS;
+
+/**
+ * Statuses allowed when creating stock.
+ * Sales-lifecycle statuses (RESERVED / PREPARING / SOLD) come from the sales flow only.
+ */
+export const CREATE_STOCK_STATUSES = ['AVAILABLE', 'DEMO'] as const;
+export type CreateStockStatusValue = (typeof CREATE_STOCK_STATUSES)[number];
+
+/**
+ * Manual stock status transitions outside the sales flow.
+ * Only AVAILABLE ↔ DEMO; RESERVED / PREPARING / SOLD are owned by sales.
+ */
+export const MANUAL_STOCK_STATUS_TRANSITIONS = {
+  AVAILABLE: ['DEMO'],
+  DEMO: ['AVAILABLE'],
+} as const satisfies Partial<
+  Record<StockStatusValue, readonly CreateStockStatusValue[]>
+>;
+
+/** Targets reachable by a manual status change from `from`, or undefined if none. */
+export function getManualStockStatusTargets(
+  from: StockStatusValue | string
+): readonly CreateStockStatusValue[] | undefined {
+  if (from === 'AVAILABLE' || from === 'DEMO') {
+    return MANUAL_STOCK_STATUS_TRANSITIONS[from];
+  }
+  return undefined;
+}
+
+/** Whether a manual status transition is allowed (same status is a no-op and allowed). */
+export function isManualStockStatusTransitionAllowed(
+  from: StockStatusValue | string,
+  to: StockStatusValue | string
+): boolean {
+  if (from === to) return true;
+  const targets = getManualStockStatusTargets(from);
+  return (targets as readonly string[] | undefined)?.includes(to) ?? false;
+}
+
 export const SALE_STATUS_LABELS = {
   RESERVED: 'จองแล้ว',
   PREPARING: 'เตรียมส่งมอบ',

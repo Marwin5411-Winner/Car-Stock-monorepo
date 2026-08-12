@@ -150,6 +150,9 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
         arrivalDate: t.Optional(t.Union([t.Date(), t.Null()])),
         orderDate: t.Optional(t.Date()),
         parkingSlot: t.Optional(t.String()),
+        status: t.Optional(
+          t.Union([t.Literal('AVAILABLE'), t.Literal('DEMO')])
+        ),
         baseCost: t.Union([t.String(), t.Number()]),
         transportCost: t.Union([t.String(), t.Number()]),
         accessoryCost: t.Union([t.String(), t.Number()]),
@@ -166,7 +169,8 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
       detail: {
         tags: ['Stock'],
         summary: 'Create stock',
-        description: 'Create a new stock item (stock staff only)',
+        description:
+          'Create a new stock item (stock staff only). Status may be AVAILABLE or DEMO only.',
       },
     }
   )
@@ -255,19 +259,15 @@ export const stockRoutes = new Elysia({ prefix: '/stock' })
     {
       beforeHandle: [authMiddleware, requirePermission('STOCK_UPDATE')],
       body: t.Object({
-        status: t.Union([
-          t.Literal('AVAILABLE'),
-          t.Literal('RESERVED'),
-          t.Literal('PREPARING'),
-          t.Literal('SOLD'),
-          t.Literal('DEMO'),
-        ]),
+        // Manual endpoint accepts only AVAILABLE | DEMO; sales lifecycle goes through sales routes.
+        status: t.Union([t.Literal('AVAILABLE'), t.Literal('DEMO')]),
         notes: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Stock'],
         summary: 'Update stock status',
-        description: 'Update stock status (AVAILABLE, RESERVED, PREPARING, SOLD)',
+        description:
+          'Manual status change: AVAILABLE ↔ DEMO only. RESERVED/PREPARING/SOLD go through sales.',
       },
     }
   )
