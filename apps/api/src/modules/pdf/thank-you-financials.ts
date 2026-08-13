@@ -14,7 +14,7 @@
  * - FINANCE/MIXED: เงินดาวน์ − ส่วนลดดาวน์ + ประกัน + พรบ + จดทะเบียน
  */
 export interface ThankYouFinancialsInput {
-  /** ราคาขาย (sale.totalAmount) */
+  /** ราคาขาย = ราคาป้ายรุ่น (vehicleModel.price), ไม่ใช่ sale.totalAmount */
   sellingPrice: number;
   /** ส่วนลด (รถยนต์) — resolveCarDiscount(sale.carDiscount, sale.discountSnapshot) */
   carDiscount: number;
@@ -72,6 +72,23 @@ export function resolveCarDiscount(carDiscount: Decimalish, discountSnapshot: De
   const car = toNum(carDiscount);
   if (car != null) return car;
   return toNum(discountSnapshot) ?? 0;
+}
+
+/**
+ * ราคาขาย on the thank-you letter = vehicle list price (FinanceSheet carPrice),
+ * not Sale.totalAmount. totalAmount is already net of carDiscount
+ * (engine: totalAmount = carPrice − carDiscount). Using it as ราคาขาย then
+ * subtracting carDiscount again double-counts the discount.
+ *
+ * Same fallback as SalesFormPage: model price, else stored totalAmount.
+ */
+export function resolveThankYouSellingPrice(
+  vehicleModelPrice: Decimalish,
+  totalAmount: Decimalish,
+): number {
+  const list = toNum(vehicleModelPrice);
+  if (list != null && list > 0) return list;
+  return toNum(totalAmount) ?? 0;
 }
 
 export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {

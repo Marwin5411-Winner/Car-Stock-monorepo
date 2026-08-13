@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { computeThankYouFinancials, resolveCarDiscount } from '../modules/pdf/thank-you-financials';
+import {
+  computeThankYouFinancials,
+  resolveCarDiscount,
+  resolveThankYouSellingPrice,
+} from '../modules/pdf/thank-you-financials';
 
 // Ground truth computed BY HAND, independent of the implementation, mirroring the
 // customer's .ods "ขอขอบคุณ" sheet formulas:
@@ -170,5 +174,34 @@ describe('resolveCarDiscount — ส่วนลดตัวรถ field precede
     const decimal = (s: string) => ({ toString: () => s });
     expect(resolveCarDiscount(decimal('20000'), decimal('0'))).toBe(20_000);
     expect(resolveCarDiscount(null, decimal('15000.5'))).toBe(15_000.5);
+  });
+});
+
+// Regression: letter used Sale.totalAmount as ราคาขาย. totalAmount is already
+// net of carDiscount (engine autoTotal), so subtracting discount again printed
+// 739,900 / 20,000 / 719,900 instead of the customer's 759,900 / 20,000 / 739,900.
+describe('resolveThankYouSellingPrice — list price, not net totalAmount', () => {
+  test('uses vehicle model list price when present', () => {
+    expect(resolveThankYouSellingPrice(759_900, 739_900)).toBe(759_900);
+  });
+
+  test('falls back to totalAmount when model price is missing', () => {
+    expect(resolveThankYouSellingPrice(null, 759_900)).toBe(759_900);
+    expect(resolveThankYouSellingPrice(0, 759_900)).toBe(759_900);
+  });
+
+  test('customer screenshot: list 759900 + discount 20000 → remaining 739900, not 719900', () => {
+    const sellingPrice = resolveThankYouSellingPrice(759_900, 739_900);
+    const r = computeThankYouFinancials({
+      sellingPrice,
+      carDiscount: 20_000,
+      downPayment: 110_985,
+      interestRatePercentPerYear: 3.29,
+      termMonths: 60,
+      isFinanced: true,
+    });
+    expect(sellingPrice).toBe(759_900);
+    expect(r.remaining).toBe(739_900);
+    expect(r.financeAmount).toBe(628_915);
   });
 });
