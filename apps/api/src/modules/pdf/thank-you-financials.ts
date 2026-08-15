@@ -80,15 +80,20 @@ export function resolveCarDiscount(carDiscount: Decimalish, discountSnapshot: De
  * (engine: totalAmount = carPrice − carDiscount). Using it as ราคาขาย then
  * subtracting carDiscount again double-counts the discount.
  *
- * Same fallback as SalesFormPage: model price, else stored totalAmount.
+ * Prefer a known list price. If it is missing, reconstruct list = net + ส่วนลดรถ
+ * so a sale whose stock/model price was not loaded still prints 759,900 / 20,000
+ * / 739,900 instead of 739,900 / 20,000 / 719,900 (CARSTOCK01-18).
  */
 export function resolveThankYouSellingPrice(
   vehicleModelPrice: Decimalish,
   totalAmount: Decimalish,
+  carDiscount: Decimalish = 0,
 ): number {
   const list = toNum(vehicleModelPrice);
   if (list != null && list > 0) return list;
-  return toNum(totalAmount) ?? 0;
+  const net = toNum(totalAmount) ?? 0;
+  const discount = toNum(carDiscount) ?? 0;
+  return round2(net + Math.max(0, discount));
 }
 
 export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {

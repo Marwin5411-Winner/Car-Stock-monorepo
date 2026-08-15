@@ -339,6 +339,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         where: { id: params.saleId },
         include: {
           customer: true,
+          vehicleModel: true,
           stock: {
             include: {
               vehicleModel: true,
@@ -361,13 +362,16 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       // Recompute คงเหลือ / ยอดจัดไฟแนนซ์ / ค่างวด live from the sale's base inputs
       // (matches the customer's .ods ขอบคุณ sheet + SalesFormPage) so the printed
       // letter never drifts from the formula even if a stored column is stale.
-      const sellingPrice = resolveThankYouSellingPrice(
-        sale.stock?.vehicleModel?.price,
-        sale.totalAmount,
-      );
       // ส่วนลดตัวรถ lives on sale.carDiscount (manual sale-form entry); discountSnapshot
       // is only set on quotation→sale conversion. See resolveCarDiscount for the precedence.
       const carDiscount = resolveCarDiscount(sale.carDiscount, sale.discountSnapshot);
+      // List price: stock unit first, then the sale's preferred model (reservations
+      // without stock). Missing list price reconstructs from net + ส่วนลดรถ.
+      const sellingPrice = resolveThankYouSellingPrice(
+        sale.stock?.vehicleModel?.price ?? sale.vehicleModel?.price,
+        sale.totalAmount,
+        carDiscount,
+      );
       // เงินดาวน์ = sale.downPayment only. เงินจอง = depositAmount (own row).
       // CASH รวมเงินออกรถ = คงเหลือ − เงินจอง; FINANCE = ดาวน์ − ส่วนลดดาวน์ + fees.
       const downPayment = Number(sale.downPayment ?? 0);
@@ -617,6 +621,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         where: { id: params.saleId },
         include: {
           customer: true,
+          vehicleModel: true,
           stock: { include: { vehicleModel: true } },
           createdBy: true,
         },
@@ -638,11 +643,12 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         vehicleName,
         plate: '—',
         pricing: (() => {
-          const sellingPrice = resolveThankYouSellingPrice(
-            sale.stock?.vehicleModel?.price,
-            sale.totalAmount,
-          );
           const carDiscount = Number(sale.carDiscount ?? 0);
+          const sellingPrice = resolveThankYouSellingPrice(
+            sale.stock?.vehicleModel?.price ?? sale.vehicleModel?.price,
+            sale.totalAmount,
+            carDiscount,
+          );
           const deposit = Number(sale.depositAmount ?? 0);
           const downPayment = Number(sale.downPayment ?? sale.depositAmount ?? 0);
           const downPaymentDiscount = Number(sale.downPaymentDiscount ?? 0);

@@ -185,13 +185,36 @@ describe('resolveThankYouSellingPrice — list price, not net totalAmount', () =
     expect(resolveThankYouSellingPrice(759_900, 739_900)).toBe(759_900);
   });
 
-  test('falls back to totalAmount when model price is missing', () => {
+  test('falls back to totalAmount when model price is missing and there is no discount', () => {
     expect(resolveThankYouSellingPrice(null, 759_900)).toBe(759_900);
     expect(resolveThankYouSellingPrice(0, 759_900)).toBe(759_900);
   });
 
+  // CARSTOCK01-18 / นิภาวรรณ: stock/model price was missing so the letter used
+  // sale.totalAmount (already net of carDiscount) as ราคาขาย, then subtracted
+  // the discount again → 739,900 / 20,000 / 719,900.
+  test('reconstructs list price from net totalAmount + carDiscount when model price is missing', () => {
+    expect(resolveThankYouSellingPrice(null, 739_900, 20_000)).toBe(759_900);
+    expect(resolveThankYouSellingPrice(0, 739_900, 20_000)).toBe(759_900);
+  });
+
   test('customer screenshot: list 759900 + discount 20000 → remaining 739900, not 719900', () => {
     const sellingPrice = resolveThankYouSellingPrice(759_900, 739_900);
+    const r = computeThankYouFinancials({
+      sellingPrice,
+      carDiscount: 20_000,
+      downPayment: 110_985,
+      interestRatePercentPerYear: 3.29,
+      termMonths: 60,
+      isFinanced: true,
+    });
+    expect(sellingPrice).toBe(759_900);
+    expect(r.remaining).toBe(739_900);
+    expect(r.financeAmount).toBe(628_915);
+  });
+
+  test('นิภาวรรณ: missing list price, net 739900, discount 20000 → remaining 739900 ยอดจัด 628915', () => {
+    const sellingPrice = resolveThankYouSellingPrice(null, 739_900, 20_000);
     const r = computeThankYouFinancials({
       sellingPrice,
       carDiscount: 20_000,
