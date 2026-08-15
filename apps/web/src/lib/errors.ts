@@ -84,17 +84,43 @@ export const ERROR_MESSAGES: Record<string, string> = {
  * balance, completed sale). Prefer that over the generic "คำขอไม่ถูกต้อง"
  * so users can act on the real problem.
  */
+const GENERIC_FALLBACKS = new Set([
+  'Bad Request',
+  'BAD_REQUEST',
+  'An unexpected error occurred',
+  'Request failed',
+  'INTERNAL_ERROR',
+  'VALIDATION_ERROR',
+]);
+
+function shortenErrorMessage(raw: string): string {
+  const unknownArg = raw.match(/Unknown argument `[^`]+`/);
+  if (unknownArg) return `บันทึกไม่สำเร็จ: ${unknownArg[0]}`;
+  const line = raw
+    .split('\n')
+    .map((s) => s.trim())
+    .find((s) => s.length > 0);
+  const text = line || raw.trim();
+  return text.length > 180 ? `${text.slice(0, 177)}…` : text;
+}
+
 export function getErrorMessage(errorCode: string, fallbackMessage?: string): string {
-  if (
-    errorCode === 'BAD_REQUEST' &&
+  const specific =
     fallbackMessage &&
     fallbackMessage.trim() &&
-    fallbackMessage !== 'Bad Request' &&
-    fallbackMessage !== 'BAD_REQUEST'
+    !GENERIC_FALLBACKS.has(fallbackMessage.trim())
+      ? shortenErrorMessage(fallbackMessage)
+      : undefined;
+
+  if (
+    specific &&
+    (errorCode === 'BAD_REQUEST' ||
+      errorCode === 'INTERNAL_ERROR' ||
+      errorCode === 'VALIDATION_ERROR')
   ) {
-    return fallbackMessage;
+    return specific;
   }
-  return ERROR_MESSAGES[errorCode] || fallbackMessage || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
+  return ERROR_MESSAGES[errorCode] || specific || fallbackMessage || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
 }
 
 /**

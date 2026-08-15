@@ -198,6 +198,20 @@ const app = new Elysia()
       };
     }
 
+    // PrismaClientValidationError has no P2xxx code (so isPrismaError misses it)
+    // and its default message is a full query dump — keep one readable line.
+    if (error instanceof Error && error.name === 'PrismaClientValidationError') {
+      const unknownArg = error.message.match(/Unknown argument `[^`]+`/);
+      set.status = 500;
+      return {
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: unknownArg
+          ? `บันทึกไม่สำเร็จ: ${unknownArg[0]}`
+          : 'ข้อมูลที่ส่งมาไม่ตรงกับฐานข้อมูล',
+      };
+    }
+
     // Handle Zod validation errors
     if (error instanceof Error && error.name === 'ZodError') {
       const zodError = error as import('zod').ZodError;
