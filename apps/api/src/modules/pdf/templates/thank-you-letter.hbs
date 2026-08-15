@@ -1,28 +1,91 @@
 <!-- หนังสือขอบคุณ (Thank You Letter) -->
-<div class="page">
+<style>
+  /* preferCSSPageSize: true with no @page used Letter (shorter than A4) and
+     clipped ฝ่ายตรวจสอบ / the signature. Keep @page margin 0 — .page already
+     pads 10mm; stacking both shrinks the box (same lesson as sales-summary). */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  .page.ty-letter {
+    page-break-after: auto;
+  }
+  @media print {
+    .page.ty-letter {
+      page-break-after: auto;
+    }
+  }
+  .ty-letter .date-display {
+    margin-top: 12px;
+    text-align: right;
+  }
+  .ty-letter .date-display span {
+    font-size: 16px;
+  }
+  .ty-title {
+    text-align: left;
+    margin-top: 8px;
+  }
+  .ty-title h1,
+  .ty-title h2 {
+    font-size: 16px;
+    font-weight: bold;
+  }
+  .ty-title h2 {
+    margin-top: 4px;
+  }
+  .ty-intro {
+    margin-top: 10px;
+    line-height: 1.45;
+  }
+  .ty-table {
+    width: 90%;
+    margin: 8px auto;
+    font-size: 11px;
+  }
+  .ty-table th,
+  .ty-table td {
+    padding: 3px 8px;
+  }
+  .ty-gifts {
+    vertical-align: top;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+  .ty-closing {
+    margin-top: 12px;
+    line-height: 1.45;
+  }
+  .ty-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 16px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .ty-footer .signature-box {
+    width: auto;
+  }
+  .ty-footer .signature-line {
+    width: 200px;
+    margin-top: 28px;
+  }
+</style>
+
+<div class="page ty-letter">
   {{> header}}
-  
-  <div class="date-display" style="margin-top: 30px; text-align: right;">
-    <span style="font-size: 18px;">วันที่ {{thaiDate}}</span>
+
+  <div class="date-display">
+    <span>วันที่ {{thaiDate}}</span>
   </div>
 
-  <div style="text-align: left; margin-top: 10px;">
-    <h1 style="font-size: 18px; font-weight: bold;">เรื่อง ขอขอบคุณท่านผู้มีอุปการะคุณ</h1>
-    <h2 style="font-size: 18px; font-weight: bold; margin-top: 5px;">เรียน {{customerName}}</h2>
+  <div class="ty-title">
+    <h1>เรื่อง ขอขอบคุณท่านผู้มีอุปการะคุณ</h1>
+    <h2>เรียน {{customerName}}</h2>
   </div>
-  
-  <style>
-    .ty-table {
-      width: 90%;
-      margin: 15px auto;
-      font-size: 11px;
-    }
-    .ty-table th, .ty-table td {
-      padding: 4px 8px;
-    }
-  </style>
 
-  <div class="content" style="margin-top: 20px; line-height: 1.5;">
+  <div class="content ty-intro">
     <p class="indent">
       ตามที่ท่านไว้วางใจให้กับ {{header.companyName}} และท่านได้ซื้อรถยนต์ไฟฟ้า 
       ยี่ห้อ <strong>{{carBrand}}</strong> ทะเบียนรถใหม่ป้ายแดง กับ {{header.companyName}} 
@@ -30,7 +93,7 @@
       เพื่อเป็นข้อมูลในการบริการ หลังการขายและยืนยันส่วนลด ต่าง ๆ ที่ท่านได้รับถูกต้องตามนี้หรือไม่
     </p>
   </div>
-  
+
   <table class="ty-table">
     <thead>
       <tr>
@@ -43,7 +106,7 @@
       <tr>
         <td>ราคาขาย</td>
         <td class="text-right">{{formatCurrency detailsTable.sellingPrice false}}</td>
-        <td rowspan="14">
+        <td class="ty-gifts" rowspan="14">
           {{#each detailsTable.gifts}}
           • {{this.name}}<br>
           {{/each}}
@@ -103,23 +166,23 @@
       </tr>
     </tbody>
   </table>
-  
-  <div class="text-right" style="margin-top: 30px; line-height: 1.5;">
+
+  <div class="text-right ty-closing">
     <p>หากจำนวนเงินไม่ถูกต้องตรงตามรายการนี้</p>
     <p>กรุณาติดต่อกับเจ้าหน้าที่ด้านล่าง เพื่อประโยชน์ของตัวท่านเอง</p>
     <p>บริษัท ฯ ใคร่ขอขอบพระคุณที่ท่านให้ความร่วมมือมา ณ โอกาสนี้</p>
   </div>
-  
-  <div style="display: flex; justify-content: space-between; margin-top: 40px; align-items: flex-end;">
+
+  <div class="ty-footer">
     <div class="contact-box">
       <strong>ฝ่ายตรวจสอบ</strong><br>
       {{contactPerson.name}}<br>
       {{contactPerson.phone}}
     </div>
-    
-    <div class="signature-box" style="width: auto;">
+
+    <div class="signature-box">
       <p>ขอแสดงความนับถือ</p>
-      <div class="signature-line" style="width: 200px; margin-top: 50px;"></div>
+      <div class="signature-line"></div>
       <p>( {{header.companyName}} )</p>
     </div>
   </div>
