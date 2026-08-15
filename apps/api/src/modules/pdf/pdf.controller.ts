@@ -12,7 +12,7 @@ import { db } from '../../lib/db';
 import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { projectCampaignClaimForPdf } from '../reports/campaign-claim-pdf';
 import { reportsService } from '../reports/reports.service';
-import { formatThaiDate, numberToThaiText } from './helpers';
+import { formatThaiDate, numberToThaiText, resolveThankYouLetterDate } from './helpers';
 import { pdfService } from './pdf.service';
 import {
   computeThankYouFinancials,
@@ -395,7 +395,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       const data: ThankYouLetterData = {
         header,
-        thaiDate: formatThaiDate(new Date(), 'full'),
+        thaiDate: resolveThankYouLetterDate(sale.deliveryDate, sale.createdAt),
         customerName: sale.customer?.name || '-',
         carBrand: car.brand,
         detailsTable: {

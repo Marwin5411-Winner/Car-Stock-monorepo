@@ -240,6 +240,18 @@ export function getCurrentThaiDate(): string {
 }
 
 /**
+ * Date in the top-right of the thank-you letter (หนังสือขอบคุณ).
+ * Prefer วันที่ลูกค้ารับรถ (sale.deliveryDate); fall back to วันที่สร้างรายการ
+ * (sale.createdAt). Never use the print day — CARSTOCK01-20.
+ */
+export function resolveThankYouLetterDate(
+  deliveryDate: Date | string | null | undefined,
+  createdAt: Date | string | null | undefined,
+): string {
+  return formatThaiDate(deliveryDate || createdAt, 'full');
+}
+
+/**
  * Calculate age from birthdate
  * @param birthdate - Birthdate
  * @returns Age in years
