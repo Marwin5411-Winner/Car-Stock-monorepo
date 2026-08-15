@@ -306,6 +306,39 @@ describe('PdfService — Puppeteer engine', () => {
       expect(html).not.toContain('f-receipt-no'); // overlay-only positioned cell
     });
 
+    it('full-form keeps เลขที่สัญญา when the address is long (does not crush right columns)', async () => {
+      const html = await pdfService.renderHtml(
+        PdfTemplateType.TEMPORARY_RECEIPT,
+        {
+          header: mockHeader,
+          customerCode: 'CUST-2026-0347',
+          receiptNumber: 'RCPT-2608-0017',
+          date: '2026-08-16',
+          contractNumber: 'SL-2026-0077',
+          customer: {
+            name: 'ลูกค้าทดสอบ ที่อยู่ยาว',
+            phone: '081-2345678',
+            address:
+              '99/188 หมู่บ้านภัสสรเพลสวิลเลจ 3 เฟส 2 ซอยประชาอุทิศ 79 แยก 12 แยกย่อย 4 ถนนประชาอุทิศ ใกล้ตลาดสดทุ่งครุ ตรงข้ามโรงเรียนวัดทุ่งครุ',
+            subdistrict: 'แขวงทุ่งครุ',
+            district: 'เขตทุ่งครุ',
+            province: 'กรุงเทพมหานคร',
+            postalCode: '10140',
+          },
+          items: [{ description: 'เงินจอง - CHERY V23 2WD PLUS', amount: '2000' }],
+          paymentAmount: '2000',
+          lateFee: '0',
+          discount: '0',
+          totalAmount: '2000',
+        },
+        options
+      );
+      expect(html).toContain('เลขที่สัญญา');
+      expect(html).toContain('SL-2026-0077');
+      expect(html).toContain('table-layout: fixed');
+      expect(html).toContain('address-cell');
+    });
+
     it('overlay template renders data-only cells (f-receipt-no), no form container', async () => {
       const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, options);
       expect(html).toContain('f-receipt-no');

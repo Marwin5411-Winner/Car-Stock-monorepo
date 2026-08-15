@@ -15,28 +15,35 @@
     <!-- Main Table Wrapper for Rounded Border -->
     <div class="table-wrapper">
         <table class="main-receipt-table">
+            <colgroup>
+                <col class="col-label" />
+                <col class="col-data-a" />
+                <col class="col-data-b" />
+                <col class="col-meta-label" />
+                <col class="col-meta-value" />
+            </colgroup>
             <!-- Row 1: Customer Code, Title, Doc No -->
             <tr>
-                <td class="label-cell" style="width: 15%;">รหัสลูกค้า</td>
-                <td class="data-cell" style="width: 20%;">{{customerCode}}</td>
-                <td class="title-cell" style="width: 30%;">ใบรับเงินชั่วคราว</td>
-                <td class="label-cell label-no-left-border right-align" style="width: 15%;">เลขที่เอกสาร</td>
-                <td class="data-cell" style="width: 20%;">{{receiptNumber}}</td>
+                <td class="label-cell">รหัสลูกค้า</td>
+                <td class="data-cell">{{customerCode}}</td>
+                <td class="title-cell">ใบรับเงินชั่วคราว</td>
+                <td class="label-cell label-no-left-border right-align nowrap-cell">เลขที่เอกสาร</td>
+                <td class="data-cell nowrap-cell">{{receiptNumber}}</td>
             </tr>
             <!-- Row 2: Name, Date -->
             <tr>
                 <td class="label-cell">ชื่อ - นามสกุล</td>
                 <td class="data-cell" colspan="2" style="border-right: none;">{{customer.name}}</td>
-                <td class="label-cell label-no-left-border right-align">วันที่</td>
-                <td class="data-cell">{{formatThaiDate date 'short'}}</td>
+                <td class="label-cell label-no-left-border right-align nowrap-cell">วันที่</td>
+                <td class="data-cell nowrap-cell">{{formatThaiDate date 'short'}}</td>
             </tr>
             <!-- Row 3: Address, Phone, Contract No -->
             <tr>
                 <td class="label-cell">ที่อยู่</td>
-                <td class="data-cell" style="border-right: none;">{{customer.address}} {{customer.subdistrict}} {{customer.district}} {{customer.province}} {{customer.postalCode}}</td>
-                <td class="data-cell label-no-left-border" style="border-right: none;"><strong>เบอร์โทร.</strong> {{customer.phone}}</td>
-                <td class="label-cell label-no-left-border right-align">เลขที่สัญญา</td>
-                <td class="data-cell">{{contractNumber}}</td>
+                <td class="data-cell address-cell" style="border-right: none;">{{customer.address}} {{customer.subdistrict}} {{customer.district}} {{customer.province}} {{customer.postalCode}}</td>
+                <td class="data-cell label-no-left-border nowrap-cell" style="border-right: none;"><strong>เบอร์โทร.</strong> {{customer.phone}}</td>
+                <td class="label-cell label-no-left-border right-align nowrap-cell">เลขที่สัญญา</td>
+                <td class="data-cell nowrap-cell">{{contractNumber}}</td>
             </tr>
             <!-- Items Header Row -->
             <tr class="items-header-row">
@@ -270,9 +277,27 @@
 
     .main-receipt-table {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         font-size: 11px;
-        border-style: hidden; 
+        border-style: hidden;
+    }
+
+    /* Lock 5 columns so a long address cannot crush เลขที่สัญญา off the 9in sheet. */
+    .col-label { width: 15%; }
+    .col-data-a { width: 22%; }
+    .col-data-b { width: 23%; }
+    .col-meta-label { width: 18%; }
+    .col-meta-value { width: 22%; }
+
+    .address-cell {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    .nowrap-cell {
+        white-space: nowrap;
     }
 
     .main-receipt-table td {
