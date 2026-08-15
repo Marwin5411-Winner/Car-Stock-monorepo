@@ -270,6 +270,9 @@ export interface SalesSummaryReportSummary {
   bySalesperson: SalespersonSummary[];
   byStatus: { status: string; label: string; count: number; amount: number }[];
   byPaymentMode: { mode: string; label: string; count: number; amount: number }[];
+  totalCampaignSubsidy?: number;
+  totalNetCarDiscount?: number;
+  totalNetProfit?: number;
 }
 
 export interface SalesSummaryChartData {

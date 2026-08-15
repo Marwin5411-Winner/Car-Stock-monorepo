@@ -12,7 +12,11 @@ import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prism
 import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
 import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
-import { buildCampaignClaimReport, computeLiveClaimTotal } from './campaign-claim.helpers';
+import {
+  buildCampaignClaimReport,
+  computeLiveClaimTotal,
+  pickClaimCampaign,
+} from './campaign-claim.helpers';
 import { buildSalespersonBreakdown, computeSaleMoney } from './sales-summary.helpers';
 
 export { splitVat };
@@ -650,6 +654,27 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     ];
   }
 
+  const campaignCatalog = await db.campaign.findMany({
+    where: {
+      ...(startDate && endDate
+        ? { startDate: { lte: endDate }, endDate: { gte: startDate } }
+        : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      vehicleModels: {
+        select: {
+          vehicleModelId: true,
+          formulas: { orderBy: { sortOrder: 'asc' as const } },
+        },
+      },
+    },
+  });
+
   const sales = await db.sale.findMany({
     where,
     include: {
@@ -757,15 +782,24 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     const salesExpense = toNumber(sale.salesExpense) || 0;
     const discountAmount =
       sale.carDiscount != null ? toNumber(sale.carDiscount) : toNumber(sale.discountSnapshot) || 0;
-    // Live ยอดเบิกต่อคัน (same engine as รายงานเบิกแคมเปญ), not the frozen
-    // sale.campaignSubsidySnapshot — so editing campaign formulas updates this
-    // report without re-saving each sale.
+    // Live ยอดเบิกต่อคัน (same engine as รายงานเบิกแคมเปญ). If the sale was
+    // never tagged, pick a campaign by model + sale date so creating a
+    // campaign applies without re-saving every bill.
+    const claimCampaign = pickClaimCampaign(
+      {
+        campaign: sale.campaign,
+        vehicleModel: sale.vehicleModel,
+        stock: sale.stock ? { vehicleModel: sale.stock.vehicleModel } : null,
+        saleDate: sale.createdAt,
+      },
+      campaignCatalog
+    );
     const { campaignSubsidy, netCarDiscount, netProfit } = computeSaleMoney({
       sellingPrice,
       totalCostWithInterest,
       carDiscount: discountAmount,
       campaignSubsidy: computeLiveClaimTotal({
-        campaign: sale.campaign,
+        campaign: claimCampaign,
         vehicleModel: sale.vehicleModel,
         stock: sale.stock
           ? { baseCost: sale.stock.baseCost, vehicleModel: sale.stock.vehicleModel }
@@ -827,7 +861,7 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       financeReturn: financeCommission, // ค่าตอบไฟแนนซ์
       transportFee:
         (toNumber(sale.registrationFee) || 0) + (toNumber(sale.compulsoryInsuranceFee) || 0), // ทะเบียน/พรบ/ขนส่ง
-      campaignName: sale.campaign?.name || '-', // แคมเปญขาย
+      campaignName: claimCampaign?.name || sale.campaign?.name || '-', // แคมเปญขาย
       salesCommission, // คอมฯ พนักงานขาย
       salesExpense, // ค่าใช้จ่ายในการขาย
       insurancePremium: toNumber(sale.insuranceFee) || 0, // ค่าเบี้ยประกัน

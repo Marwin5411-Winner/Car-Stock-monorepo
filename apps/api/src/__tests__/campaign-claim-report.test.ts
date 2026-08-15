@@ -5,6 +5,7 @@ import {
   buildCampaignClaimReport,
   computeCampaignSubsidies,
   computeLiveClaimTotal,
+  pickClaimCampaign,
 } from '../modules/reports/campaign-claim.helpers';
 
 const model = (id: string, modelName: string, variant: string | null, price: number) => ({
@@ -162,6 +163,75 @@ describe('buildCampaignClaimReport (expense columns)', () => {
         },
       })
     ).toBe(0);
+  });
+
+  test('pickClaimCampaign falls back to catalog by model + sale date', () => {
+    const untagged = { ...saleV, campaign: null };
+    const catalog = [
+      {
+        name: 'CHERY V23 DEMO',
+        status: 'DRAFT',
+        startDate: new Date('2026-07-23'),
+        endDate: new Date('2026-09-19'),
+        vehicleModels: saleV.campaign!.vehicleModels,
+      },
+    ];
+    const picked = pickClaimCampaign(
+      {
+        campaign: null,
+        vehicleModel: untagged.vehicleModel,
+        stock: untagged.stock,
+        saleDate: new Date('2026-08-13'),
+      },
+      catalog
+    );
+    expect(picked?.name).toBe('CHERY V23 DEMO');
+    expect(computeLiveClaimTotal({ ...untagged, campaign: picked })).toBe(30_000);
+  });
+
+  test('pickClaimCampaign prefers the tagged campaign over the catalog', () => {
+    const catalog = [
+      {
+        name: 'OTHER',
+        status: 'ACTIVE',
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+        vehicleModels: saleX.campaign!.vehicleModels,
+      },
+    ];
+    const picked = pickClaimCampaign(
+      {
+        campaign: saleV.campaign,
+        vehicleModel: saleV.vehicleModel,
+        stock: saleV.stock,
+        saleDate: new Date('2026-08-13'),
+      },
+      catalog
+    );
+    expect(computeLiveClaimTotal({ ...saleV, campaign: picked })).toBe(30_000);
+  });
+
+  test('pickClaimCampaign is null when date or model does not match', () => {
+    const catalog = [
+      {
+        name: 'CHERY V23 DEMO',
+        status: 'DRAFT',
+        startDate: new Date('2026-07-23'),
+        endDate: new Date('2026-09-19'),
+        vehicleModels: saleV.campaign!.vehicleModels,
+      },
+    ];
+    expect(
+      pickClaimCampaign(
+        {
+          campaign: null,
+          vehicleModel: saleV.vehicleModel,
+          stock: saleV.stock,
+          saleDate: new Date('2026-01-01'),
+        },
+        catalog
+      )
+    ).toBeNull();
   });
 
   test('live total follows current formulas, not a frozen snapshot', () => {

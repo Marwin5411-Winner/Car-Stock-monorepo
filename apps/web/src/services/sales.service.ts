@@ -41,6 +41,7 @@ export interface Sale {
     motorNumber2?: string;
     orderDate?: string;
     vehicleModel: {
+      id?: string;
       brand: string;
       model: string;
       variant?: string;

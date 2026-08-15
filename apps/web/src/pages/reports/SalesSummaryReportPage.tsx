@@ -348,6 +348,18 @@ export default function SalesSummaryReportPage() {
                 iconColor="text-yellow-600"
                 iconBgColor="bg-yellow-100"
               />
+              <SummaryCard
+                title="เงินสนับสนุน (เบิกแคมเปญ)"
+                value={formatCurrency(data.summary.totalCampaignSubsidy ?? 0)}
+                subtitle={
+                  data.summary.totalNetCarDiscount != null
+                    ? `ส่วนลดสุทธิ ${formatCurrency(data.summary.totalNetCarDiscount)}`
+                    : 'ยอดเบิกจากสูตรแคมเปญ'
+                }
+                icon={FileText}
+                iconColor="text-emerald-600"
+                iconBgColor="bg-emerald-100"
+              />
             </SummaryCardsGrid>
 
             {/* Charts */}

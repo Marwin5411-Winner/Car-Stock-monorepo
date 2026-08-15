@@ -140,6 +140,7 @@ const modelLabel = (vm: ClaimVehicleModel): string =>
 /** Inputs needed to recompute ยอดเบิกต่อคัน from current campaign formulas. */
 export interface LiveClaimInput {
   campaign: {
+    name?: string;
     vehicleModels: Array<{ vehicleModelId: string; formulas: ClaimFormula[] }>;
   } | null;
   vehicleModel: ClaimVehicleModel | null;
@@ -147,6 +148,55 @@ export interface LiveClaimInput {
     baseCost: { toString(): string } | number;
     vehicleModel: ClaimVehicleModel | null;
   } | null;
+}
+
+export interface ClaimCampaignCandidate {
+  id?: string;
+  name?: string;
+  status?: string;
+  startDate: Date;
+  endDate: Date;
+  vehicleModels: Array<{ vehicleModelId: string; formulas: ClaimFormula[] }>;
+}
+
+/**
+ * Campaign used for the sales-report offset.
+ *
+ * Tagged sale.campaign wins when it has formulas for this model.
+ * Otherwise pick a catalog campaign whose date window covers saleDate and
+ * includes the model — so a newly created campaign applies without
+ * re-saving every historical bill. ACTIVE beats DRAFT; latest startDate wins ties.
+ */
+export function pickClaimCampaign(
+  sale: {
+    campaign: LiveClaimInput['campaign'];
+    vehicleModel: ClaimVehicleModel | null;
+    stock: { vehicleModel: ClaimVehicleModel | null } | null;
+    saleDate: Date;
+  },
+  catalog: ClaimCampaignCandidate[]
+): LiveClaimInput['campaign'] {
+  const vmId = (sale.stock?.vehicleModel ?? sale.vehicleModel)?.id ?? null;
+  if (!vmId) return sale.campaign;
+
+  if (sale.campaign?.vehicleModels.some((m) => m.vehicleModelId === vmId)) {
+    return sale.campaign;
+  }
+
+  const t = sale.saleDate.getTime();
+  const matches = catalog.filter(
+    (c) =>
+      c.startDate.getTime() <= t &&
+      c.endDate.getTime() >= t &&
+      c.vehicleModels.some((m) => m.vehicleModelId === vmId)
+  );
+  matches.sort((a, b) => {
+    const rank = (s?: string) => (s === 'ACTIVE' ? 0 : s === 'DRAFT' ? 1 : 2);
+    const byStatus = rank(a.status) - rank(b.status);
+    if (byStatus !== 0) return byStatus;
+    return b.startDate.getTime() - a.startDate.getTime();
+  });
+  return matches[0] ?? sale.campaign;
 }
 
 const resolveModel = (sale: LiveClaimInput): ClaimVehicleModel | null =>
