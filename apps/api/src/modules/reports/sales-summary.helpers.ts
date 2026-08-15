@@ -104,7 +104,7 @@ export interface SaleMoneyInput {
   totalCostWithInterest: number;
   /** Already-resolved car discount (carDiscount ?? discountSnapshot ?? 0). */
   carDiscount: number;
-  /** Per-car campaign subsidy snapshot; null/undefined → 0. */
+  /** Live ยอดเบิกต่อคัน (same as claim report); null/undefined → 0. */
   campaignSubsidy?: number | null;
   financeCommission?: number | null;
   salesCommission?: number | null;

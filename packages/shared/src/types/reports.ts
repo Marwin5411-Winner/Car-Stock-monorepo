@@ -220,7 +220,7 @@ export interface SalesSummaryItem {
   // Money breakdown — always returned by getSalesSummaryReport (reports.service.ts),
   // previously untyped on the web. Mirrors the server PDF columns (sales-summary-report.hbs).
   discountAmount?: number; // ส่วนลดตัวรถ
-  campaignSubsidy?: number; // เงินสนับสนุน (brand rebate)
+  campaignSubsidy?: number; // เงินสนับสนุน = ยอดเบิกสดจากสูตรแคมเปญ (ไม่ใช่ snapshot)
   netCarDiscount?: number; // ส่วนลดตัวรถ สุทธิ (discount − subsidy)
   downPayment?: number; // เงินดาวน์
   downPaymentDiscount?: number; // ส่วนลดดาวน์

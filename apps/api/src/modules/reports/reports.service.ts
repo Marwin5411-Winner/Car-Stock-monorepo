@@ -12,7 +12,7 @@ import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prism
 import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
 import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
-import { buildCampaignClaimReport } from './campaign-claim.helpers';
+import { buildCampaignClaimReport, computeLiveClaimTotal } from './campaign-claim.helpers';
 import { buildSalespersonBreakdown, computeSaleMoney } from './sales-summary.helpers';
 
 export { splitVat };
@@ -654,10 +654,22 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     where,
     include: {
       customer: { select: { name: true, type: true } },
-      campaign: { select: { name: true } },
+      campaign: {
+        select: {
+          name: true,
+          vehicleModels: {
+            select: {
+              vehicleModelId: true,
+              formulas: { orderBy: { sortOrder: 'asc' as const } },
+            },
+          },
+        },
+      },
       stock: {
         include: {
-          vehicleModel: { select: { brand: true, model: true, variant: true, year: true } },
+          vehicleModel: {
+            select: { id: true, brand: true, model: true, variant: true, year: true, price: true },
+          },
           interestPeriods: {
             select: {
               startDate: true,
@@ -669,7 +681,9 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
           },
         },
       },
-      vehicleModel: { select: { brand: true, model: true, variant: true, year: true } },
+      vehicleModel: {
+        select: { id: true, brand: true, model: true, variant: true, year: true, price: true },
+      },
       createdBy: { select: { id: true, firstName: true, lastName: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -743,13 +757,20 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
     const salesExpense = toNumber(sale.salesExpense) || 0;
     const discountAmount =
       sale.carDiscount != null ? toNumber(sale.carDiscount) : toNumber(sale.discountSnapshot) || 0;
-    // Per-car campaign subsidy folds into net profit (brand reimbursement) and
-    // offsets the car discount for display. See computeSaleMoney + B5 spec.
+    // Live ยอดเบิกต่อคัน (same engine as รายงานเบิกแคมเปญ), not the frozen
+    // sale.campaignSubsidySnapshot — so editing campaign formulas updates this
+    // report without re-saving each sale.
     const { campaignSubsidy, netCarDiscount, netProfit } = computeSaleMoney({
       sellingPrice,
       totalCostWithInterest,
       carDiscount: discountAmount,
-      campaignSubsidy: toNumber(sale.campaignSubsidySnapshot),
+      campaignSubsidy: computeLiveClaimTotal({
+        campaign: sale.campaign,
+        vehicleModel: sale.vehicleModel,
+        stock: sale.stock
+          ? { baseCost: sale.stock.baseCost, vehicleModel: sale.stock.vehicleModel }
+          : null,
+      }),
       financeCommission,
       salesCommission,
       salesExpense,

@@ -34,6 +34,21 @@ describe('splitVat', () => {
 });
 
 describe('computeSaleMoney', () => {
+  it('uses the caller-supplied live claim total as campaignSubsidy', () => {
+    const r = computeSaleMoney({
+      sellingPrice: 1_000_000,
+      totalCostWithInterest: 900_000,
+      carDiscount: 30_000,
+      campaignSubsidy: 50_000, // live claim after formula edit (snapshot would have been 20k)
+      financeCommission: 0,
+      salesCommission: 0,
+      salesExpense: 0,
+    });
+    expect(r.campaignSubsidy).toBe(50_000);
+    expect(r.netCarDiscount).toBe(-20_000);
+    expect(r.netProfit).toBe(150_000); // 100,000 + 50,000
+  });
+
   it('folds the subsidy into net profit and nets the car discount', () => {
     const r = computeSaleMoney({
       sellingPrice: 1_000_000,

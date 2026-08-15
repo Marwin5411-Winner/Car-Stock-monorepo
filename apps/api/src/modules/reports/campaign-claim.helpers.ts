@@ -137,8 +137,53 @@ export interface ClaimRow {
 const modelLabel = (vm: ClaimVehicleModel): string =>
   vm.variant ? `${vm.model} ${vm.variant}` : vm.model;
 
-const resolveModel = (sale: ClaimSaleInput): ClaimVehicleModel | null =>
+/** Inputs needed to recompute ยอดเบิกต่อคัน from current campaign formulas. */
+export interface LiveClaimInput {
+  campaign: {
+    vehicleModels: Array<{ vehicleModelId: string; formulas: ClaimFormula[] }>;
+  } | null;
+  vehicleModel: ClaimVehicleModel | null;
+  stock: {
+    baseCost: { toString(): string } | number;
+    vehicleModel: ClaimVehicleModel | null;
+  } | null;
+}
+
+const resolveModel = (sale: LiveClaimInput): ClaimVehicleModel | null =>
   sale.stock?.vehicleModel ?? sale.vehicleModel;
+
+/**
+ * Live per-car claim amounts (same math as รายงานเบิกแคมเปญ).
+ * Recomputes from current formulas — not Sale.campaignSubsidySnapshot.
+ */
+export function computeLiveClaimAmounts(sale: LiveClaimInput): {
+  amounts: Map<string, number>;
+  total: number;
+} {
+  const vm = resolveModel(sale);
+  const vmId = vm?.id ?? null;
+  const cvm = vmId
+    ? sale.campaign?.vehicleModels.find((m) => m.vehicleModelId === vmId)
+    : undefined;
+  const amounts = new Map<string, number>();
+  if (cvm && vm) {
+    const bases = {
+      cost: sale.stock ? toNum(sale.stock.baseCost) : 0,
+      selling: toNum(vm.price),
+    };
+    for (const f of cvm.formulas) {
+      const amt = formulaSubsidyAmount(f.operator, toNum(f.value), f.priceTarget, bases);
+      amounts.set(f.name, round2((amounts.get(f.name) ?? 0) + amt));
+    }
+  }
+  const total = round2([...amounts.values()].reduce((s, a) => s + a, 0));
+  return { amounts, total };
+}
+
+/** ยอดเบิกต่อคัน — live sum of current campaign expense lines. */
+export function computeLiveClaimTotal(sale: LiveClaimInput): number {
+  return computeLiveClaimAmounts(sale).total;
+}
 
 export function buildCampaignClaimReport(sales: ClaimSaleInput[]) {
   const sorted = [...sales].sort((a, b) => {
@@ -153,26 +198,13 @@ export function buildCampaignClaimReport(sales: ClaimSaleInput[]) {
   const seen = new Set<string>();
   const perSale = sorted.map((sale) => {
     const vm = resolveModel(sale);
-    const vmId = vm?.id ?? null;
-    const cvm = vmId
-      ? sale.campaign?.vehicleModels.find((m) => m.vehicleModelId === vmId)
-      : undefined;
-    const amounts = new Map<string, number>();
-    if (cvm && vm) {
-      const bases = {
-        cost: sale.stock ? toNum(sale.stock.baseCost) : 0,
-        selling: toNum(vm.price),
-      };
-      for (const f of cvm.formulas) {
-        const amt = formulaSubsidyAmount(f.operator, toNum(f.value), f.priceTarget, bases);
-        amounts.set(f.name, round2((amounts.get(f.name) ?? 0) + amt));
-        if (!seen.has(f.name)) {
-          seen.add(f.name);
-          expenseColumns.push(f.name);
-        }
+    const { amounts, total } = computeLiveClaimAmounts(sale);
+    for (const name of amounts.keys()) {
+      if (!seen.has(name)) {
+        seen.add(name);
+        expenseColumns.push(name);
       }
     }
-    const total = round2([...amounts.values()].reduce((s, a) => s + a, 0));
     return { sale, vm, amounts, total };
   });
 

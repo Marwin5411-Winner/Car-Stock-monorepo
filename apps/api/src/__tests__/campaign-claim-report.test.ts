@@ -4,6 +4,7 @@ import {
   type ClaimSaleInput,
   buildCampaignClaimReport,
   computeCampaignSubsidies,
+  computeLiveClaimTotal,
 } from '../modules/reports/campaign-claim.helpers';
 
 const model = (id: string, modelName: string, variant: string | null, price: number) => ({
@@ -142,6 +143,49 @@ describe('buildCampaignClaimReport (expense columns)', () => {
     expect(r.expenseColumns).toEqual([]);
     expect(r.rows).toEqual([]);
     expect(r.summary).toEqual({ totalCars: 0, columnTotals: [], grandTotal: 0 });
+  });
+
+  test('computeLiveClaimTotal matches the claim-report row total', () => {
+    expect(computeLiveClaimTotal(saleV)).toBe(30_000);
+    expect(computeLiveClaimTotal(saleX)).toBe(6_500);
+  });
+
+  test('computeLiveClaimTotal is 0 with no campaign / no matching model', () => {
+    expect(computeLiveClaimTotal({ ...saleV, campaign: null })).toBe(0);
+    expect(
+      computeLiveClaimTotal({
+        ...saleV,
+        campaign: {
+          id: 'camp1',
+          name: 'Expense campaign',
+          vehicleModels: [{ vehicleModelId: 'other-model', formulas: [] }],
+        },
+      })
+    ).toBe(0);
+  });
+
+  test('live total follows current formulas, not a frozen snapshot', () => {
+    const edited = saleWith({
+      id: 's1',
+      vmId: 'vm1',
+      modelName: 'V',
+      variant: 'LITE',
+      price: 500_000,
+      baseCost: 450_000,
+      soldDate: new Date('2026-05-10T07:00:00Z'),
+      formulas: [
+        {
+          id: 'b',
+          name: 'Marketing',
+          operator: 'PERCENT',
+          value: 10,
+          priceTarget: 'SELLING_PRICE',
+          sortOrder: 1,
+        },
+      ],
+    });
+    // Old snapshot on the sale would still be 30,000; live claim is 10% of 500,000.
+    expect(computeLiveClaimTotal(edited)).toBe(50_000);
   });
 });
 
