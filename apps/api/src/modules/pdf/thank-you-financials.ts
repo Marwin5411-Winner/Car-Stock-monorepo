@@ -1,3 +1,5 @@
+import { resolveSaleCarPrice } from '@car-stock/shared/finance';
+
 /**
  * Thank-you letter (หนังสือขอบคุณ) financial chain.
  *
@@ -14,7 +16,7 @@
  * - FINANCE/MIXED: เงินดาวน์ − ส่วนลดดาวน์ + ประกัน + พรบ + จดทะเบียน
  */
 export interface ThankYouFinancialsInput {
-  /** ราคาขาย = ราคาป้ายรุ่น (vehicleModel.price), ไม่ใช่ sale.totalAmount */
+  /** ราคาขาย = FinanceSheet carPrice (ราคาที่เลือกจากรุ่นรถหรือ Stock) */
   sellingPrice: number;
   /** ส่วนลด (รถยนต์) — resolveCarDiscount(sale.carDiscount, sale.discountSnapshot) */
   carDiscount: number;
@@ -75,25 +77,29 @@ export function resolveCarDiscount(carDiscount: Decimalish, discountSnapshot: De
 }
 
 /**
- * ราคาขาย on the thank-you letter = vehicle list price (FinanceSheet carPrice),
- * not Sale.totalAmount. totalAmount is already net of carDiscount
- * (engine: totalAmount = carPrice − carDiscount). Using it as ราคาขาย then
- * subtracting carDiscount again double-counts the discount.
+ * ราคาขาย on the thank-you letter = FinanceSheet carPrice (the price the user
+ * picked from model or Stock), not Sale.totalAmount. totalAmount is already
+ * net of carDiscount (engine: totalAmount = carPrice − carDiscount + charges).
+ * Using it as ราคาขาย then subtracting carDiscount again double-counts.
  *
- * Prefer a known list price. If it is missing, reconstruct list = net + ส่วนลดรถ
- * so a sale whose stock/model price was not loaded still prints 759,900 / 20,000
- * / 739,900 instead of 739,900 / 20,000 / 719,900 (CARSTOCK01-18).
+ * Reconstructs list price from saved sale fields so a Stock expectedSalePrice
+ * selection is not overwritten by vehicleModel.price. If list price is missing
+ * (CARSTOCK01-18), same reconstruct: net + ส่วนลดรถ.
  */
 export function resolveThankYouSellingPrice(
   vehicleModelPrice: Decimalish,
   totalAmount: Decimalish,
   carDiscount: Decimalish = 0,
+  customCustomerCharges: Decimalish = 0,
+  expectedSalePrice: Decimalish = 0
 ): number {
-  const list = toNum(vehicleModelPrice);
-  if (list != null && list > 0) return list;
-  const net = toNum(totalAmount) ?? 0;
-  const discount = toNum(carDiscount) ?? 0;
-  return round2(net + Math.max(0, discount));
+  return resolveSaleCarPrice({
+    totalAmount,
+    carDiscount,
+    customCustomerCharges,
+    vehicleModelPrice,
+    expectedSalePrice,
+  });
 }
 
 export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {

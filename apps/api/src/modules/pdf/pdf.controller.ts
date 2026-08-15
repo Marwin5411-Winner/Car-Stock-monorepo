@@ -4,7 +4,7 @@
  */
 
 import { PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from '@car-stock/shared/constants';
-import { computeDeliveryTotal } from '@car-stock/shared/finance';
+import { computeDeliveryTotal, sumCustomCustomerCharges } from '@car-stock/shared/finance';
 import { splitVat } from '@car-stock/shared/formulas';
 import { Elysia, t } from 'elysia';
 import { generateContractNumber, getCurrentContractNumberFormat } from '../../lib/contractNumber';
@@ -346,6 +346,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             },
           },
           payments: true,
+          financeLines: true,
         },
       });
 
@@ -366,11 +367,13 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       // is only set on quotation→sale conversion. See resolveCarDiscount for the precedence.
       const carDiscount = resolveCarDiscount(sale.carDiscount, sale.discountSnapshot);
       // List price: stock unit first, then the sale's preferred model (reservations
-      // without stock). Missing list price reconstructs from net + ส่วนลดรถ.
+      // without stock). Reconstructs chosen Stock price; missing list uses net + ส่วนลดรถ.
       const sellingPrice = resolveThankYouSellingPrice(
         sale.stock?.vehicleModel?.price ?? sale.vehicleModel?.price,
         sale.totalAmount,
         carDiscount,
+        sumCustomCustomerCharges(sale.financeLines),
+        sale.stock?.expectedSalePrice,
       );
       // เงินดาวน์ = sale.downPayment only. เงินจอง = depositAmount (own row).
       // CASH รวมเงินออกรถ = คงเหลือ − เงินจอง; FINANCE = ดาวน์ − ส่วนลดดาวน์ + fees.
@@ -624,6 +627,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           vehicleModel: true,
           stock: { include: { vehicleModel: true } },
           createdBy: true,
+          financeLines: true,
         },
       });
 
@@ -648,6 +652,8 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
             sale.stock?.vehicleModel?.price ?? sale.vehicleModel?.price,
             sale.totalAmount,
             carDiscount,
+            sumCustomCustomerCharges(sale.financeLines),
+            sale.stock?.expectedSalePrice,
           );
           const deposit = Number(sale.depositAmount ?? 0);
           const downPayment = Number(sale.downPayment ?? sale.depositAmount ?? 0);

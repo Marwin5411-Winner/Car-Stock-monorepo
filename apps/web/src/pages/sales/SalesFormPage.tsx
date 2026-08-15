@@ -1,3 +1,4 @@
+import { resolveSaleCarPrice, sumCustomCustomerCharges } from '@car-stock/shared/finance';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FinanceSheet } from '../../components/finance/FinanceSheet';
@@ -417,8 +418,14 @@ export default function SalesFormPage() {
     setSaving(false);
   };
 
-  // Vehicle list price for the finance engine (not sale totalAmount)
-  const carPrice = Number(selectedStock?.vehicleModel?.price) || formData.totalAmount || 0;
+  // Chosen list price (Stock expectedSalePrice or model.price), not net totalAmount
+  const carPrice = resolveSaleCarPrice({
+    totalAmount: formData.totalAmount,
+    carDiscount: formData.carDiscount,
+    customCustomerCharges: sumCustomCustomerCharges(formData.customLines),
+    vehicleModelPrice: selectedStock?.vehicleModel?.price,
+    expectedSalePrice: selectedStock?.expectedSalePrice,
+  });
 
   if (loading) {
     return (

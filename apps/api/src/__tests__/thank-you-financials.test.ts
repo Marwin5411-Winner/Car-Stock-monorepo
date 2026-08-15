@@ -181,8 +181,13 @@ describe('resolveCarDiscount — ส่วนลดตัวรถ field precede
 // net of carDiscount (engine autoTotal), so subtracting discount again printed
 // 739,900 / 20,000 / 719,900 instead of the customer's 759,900 / 20,000 / 739,900.
 describe('resolveThankYouSellingPrice — list price, not net totalAmount', () => {
-  test('uses vehicle model list price when present', () => {
-    expect(resolveThankYouSellingPrice(759_900, 739_900)).toBe(759_900);
+  test('reconstructs model list price from totalAmount + carDiscount', () => {
+    expect(resolveThankYouSellingPrice(759_900, 739_900, 20_000)).toBe(759_900);
+  });
+
+  test('stock expectedSalePrice wins over model list price', () => {
+    expect(resolveThankYouSellingPrice(759_900, 769_900, 0)).toBe(769_900);
+    expect(resolveThankYouSellingPrice(759_900, 749_900, 20_000)).toBe(769_900);
   });
 
   test('falls back to totalAmount when model price is missing and there is no discount', () => {
@@ -198,8 +203,12 @@ describe('resolveThankYouSellingPrice — list price, not net totalAmount', () =
     expect(resolveThankYouSellingPrice(0, 739_900, 20_000)).toBe(759_900);
   });
 
+  test('falls back to expectedSalePrice when model has no price and total is empty', () => {
+    expect(resolveThankYouSellingPrice(null, 0, 0, 0, 769_900)).toBe(769_900);
+  });
+
   test('customer screenshot: list 759900 + discount 20000 → remaining 739900, not 719900', () => {
-    const sellingPrice = resolveThankYouSellingPrice(759_900, 739_900);
+    const sellingPrice = resolveThankYouSellingPrice(759_900, 739_900, 20_000);
     const r = computeThankYouFinancials({
       sellingPrice,
       carDiscount: 20_000,

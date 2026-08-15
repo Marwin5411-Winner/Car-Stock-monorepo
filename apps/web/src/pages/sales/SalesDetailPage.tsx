@@ -1,3 +1,4 @@
+import { resolveSaleCarPrice, sumCustomCustomerCharges } from '@car-stock/shared/finance';
 import {
   AlertCircle,
   ArrowLeft,
@@ -536,6 +537,16 @@ export default function SalesDetailPage() {
     );
   }
 
+  const financeSheetValue =
+    financeEditing && financeDraft ? financeDraft : saleToFinanceSheetValue(sale);
+  const saleCarPrice = resolveSaleCarPrice({
+    totalAmount: financeSheetValue.totalAmount,
+    carDiscount: financeSheetValue.carDiscount,
+    customCustomerCharges: sumCustomCustomerCharges(financeSheetValue.customLines),
+    vehicleModelPrice: sale.stock?.vehicleModel?.price,
+    expectedSalePrice: sale.stock?.expectedSalePrice,
+  });
+
   const renderOverviewTab = () => (
     <div className="space-y-6">
       {/* Stock Assignment Modal */}
@@ -889,8 +900,8 @@ export default function SalesDetailPage() {
                 ? financeDraft.paymentMode
                 : sale.paymentMode
             }
-            carPrice={Number(sale.stock?.vehicleModel?.price ?? 0)}
-            value={financeEditing && financeDraft ? financeDraft : saleToFinanceSheetValue(sale)}
+            carPrice={saleCarPrice}
+            value={financeSheetValue}
             paidAmount={sale.paidAmount}
             remainingAmount={financeEditing ? undefined : sale.remainingAmount}
             canEditDiscounts={canDiscount}

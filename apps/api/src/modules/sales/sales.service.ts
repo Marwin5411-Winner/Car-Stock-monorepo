@@ -87,6 +87,9 @@ function serializeSale(sale: any): any {
           stock: {
             ...sale.stock,
             vehicleModel: serializeVehicleModel(sale.stock.vehicleModel),
+            ...(sale.stock.expectedSalePrice != null && {
+              expectedSalePrice: toNumber(sale.stock.expectedSalePrice),
+            }),
           },
         }
       : {}),

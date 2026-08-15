@@ -49,6 +49,7 @@ export interface Sale {
     };
     exteriorColor?: string;
     interiorColor?: string;
+    expectedSalePrice?: number;
   };
   vehicleModel?: {
     id: string;
