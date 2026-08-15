@@ -39,8 +39,9 @@ model Customer {
   type           CustomerType
   salesType      SalesType    @default(NORMAL_SALES) @map("sales_type")
   name           String
-  taxId          String?      @unique @map("tax_id")
-  houseNumber    String       @map("house_number")
+  taxId           String?      @unique @map("tax_id")
+  passportNumber  String?      @unique @map("passport_number")
+  houseNumber     String       @map("house_number")
   street         String?
   subdistrict    String
   district       String

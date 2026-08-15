@@ -106,7 +106,7 @@ function transformCustomer(customer: any): CustomerInfo {
     province: customer?.province || '-',
     postalCode: customer?.postalCode || '-',
     phone: customer?.phone || '-',
-    taxId: customer?.taxId,
+    taxId: customer?.taxId || customer?.passportNumber,
   };
 }
 

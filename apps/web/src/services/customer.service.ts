@@ -7,6 +7,7 @@ export interface Customer {
   salesType: 'NORMAL_SALES' | 'FLEET_SALES';
   name: string;
   taxId?: string;
+  passportNumber?: string;
   houseNumber: string;
   street?: string;
   subdistrict: string;
@@ -31,6 +32,7 @@ export interface CreateCustomerData {
   salesType: 'NORMAL_SALES' | 'FLEET_SALES';
   name: string;
   taxId?: string;
+  passportNumber?: string | null;
   houseNumber: string;
   street?: string;
   subdistrict: string;
@@ -54,6 +56,7 @@ export interface UpdateCustomerData {
   salesType?: 'NORMAL_SALES' | 'FLEET_SALES';
   name?: string;
   taxId?: string;
+  passportNumber?: string | null;
   houseNumber?: string;
   street?: string;
   subdistrict?: string;

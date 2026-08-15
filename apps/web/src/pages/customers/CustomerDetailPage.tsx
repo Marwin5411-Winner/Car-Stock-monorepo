@@ -145,6 +145,16 @@ export default function CustomerDetailPage() {
                 </div>
               )}
 
+              {customer.passportNumber && (
+                <div className="flex items-start">
+                  <FileText className="h-5 w-5 text-gray-400 mt-1 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-700">เลขพาสปอร์ต</p>
+                    <p className="text-gray-900">{customer.passportNumber}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start">
                 <Calendar className="h-5 w-5 text-gray-400 mt-1 mr-3" />
                 <div>

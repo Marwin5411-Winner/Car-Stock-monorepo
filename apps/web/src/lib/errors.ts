@@ -39,6 +39,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   'VIN_ALREADY_EXISTS': 'เลขตัวถัง (VIN) นี้มีอยู่แล้วในระบบ',
   'ENGINE_NUMBER_ALREADY_EXISTS': 'เลขเครื่องยนต์นี้มีอยู่แล้วในระบบ',
   'TAX_ID_ALREADY_EXISTS': 'เลขประจำตัวผู้เสียภาษีนี้มีอยู่แล้วในระบบ',
+  'PASSPORT_NUMBER_ALREADY_EXISTS': 'เลขพาสปอร์ตนี้มีอยู่แล้วในระบบ',
   'USERNAME_ALREADY_EXISTS': 'ชื่อผู้ใช้งานนี้มีอยู่แล้วในระบบ',
   'EMAIL_ALREADY_EXISTS': 'อีเมลนี้มีอยู่แล้วในระบบ',
   'VEHICLE_MODEL_ALREADY_EXISTS': 'รุ่นรถนี้มีอยู่แล้วในระบบ',

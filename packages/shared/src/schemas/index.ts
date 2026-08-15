@@ -144,6 +144,18 @@ export const UpdateUserSchema = z.object({
 // Customer Schemas
 // ============================================
 
+const optionalPassportNumber = z.preprocess((value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  if (typeof value === 'string') return value.replace(/\s+/g, '');
+  return value;
+}, z
+  .string()
+  .trim()
+  .max(20, 'Passport number is too long')
+  .regex(/^[A-Za-z0-9-]+$/, 'Invalid passport number')
+  .transform((s) => s.toUpperCase())
+  .nullable());
+
 export const CustomerSchema = z.object({
   id: z.string(),
   code: z.string(),
@@ -151,6 +163,7 @@ export const CustomerSchema = z.object({
   salesType: SalesTypeSchema,
   name: z.string(),
   taxId: z.string().nullable(),
+  passportNumber: z.string().nullable(),
 
   // Address (Thai structure)
   houseNumber: z.string(),
@@ -185,6 +198,7 @@ export const CreateCustomerSchema = z.object({
   salesType: SalesTypeSchema.default('NORMAL_SALES'),
   name: z.string().min(1, 'Name is required'),
   taxId: z.string().optional(),
+  passportNumber: optionalPassportNumber,
 
   // Address
   houseNumber: z.string().min(1, 'House number is required'),

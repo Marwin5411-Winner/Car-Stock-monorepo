@@ -61,6 +61,7 @@ export class CustomersService {
         { name: { contains: validated.search, mode: 'insensitive' } },
         { email: { contains: validated.search, mode: 'insensitive' } },
         { phone: { contains: validated.search, mode: 'insensitive' } },
+        { passportNumber: { contains: validated.search, mode: 'insensitive' } },
       ];
     }
 
@@ -82,6 +83,7 @@ export class CustomersService {
           salesType: true,
           name: true,
           taxId: true,
+          passportNumber: true,
           phone: true,
           email: true,
           creditLimit: true,
@@ -174,6 +176,16 @@ export class CustomersService {
       }
     }
 
+    if (validated.passportNumber) {
+      const existingPassport = await db.customer.findUnique({
+        where: { passportNumber: validated.passportNumber },
+      });
+
+      if (existingPassport) {
+        throw new ConflictError('Passport Number');
+      }
+    }
+
     // Generate customer code
     const code = await this.generateCustomerCode();
 
@@ -234,6 +246,16 @@ export class CustomersService {
 
       if (existingTaxId && existingTaxId.id !== id) {
         throw new ConflictError('Tax ID');
+      }
+    }
+
+    if (validated.passportNumber) {
+      const existingPassport = await db.customer.findUnique({
+        where: { passportNumber: validated.passportNumber },
+      });
+
+      if (existingPassport && existingPassport.id !== id) {
+        throw new ConflictError('Passport Number');
       }
     }
 

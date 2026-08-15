@@ -148,6 +148,8 @@ export function handlePrismaError(error: Prisma.PrismaClientKnownRequestError): 
         engineNumber: 'Engine Number',
         tax_id: 'Tax ID',
         taxId: 'Tax ID',
+        passport_number: 'Passport Number',
+        passportNumber: 'Passport Number',
         username: 'Username',
         email: 'Email',
       };

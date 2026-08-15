@@ -107,6 +107,7 @@ export default function CustomersListPage() {
                 อีเมล: c.email || '-',
                 ที่อยู่: [c.houseNumber, c.street, c.subdistrict, c.district, c.province, c.postalCode].filter(Boolean).join(' '),
                 เลขผู้เสียภาษี: c.taxId || '-',
+                เลขพาสปอร์ต: c.passportNumber || '-',
               }))}
               filename="customers-list"
               sheetName="Customers"

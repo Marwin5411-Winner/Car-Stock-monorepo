@@ -29,6 +29,7 @@ export default function CustomerFormPage() {
     phone: '',
     email: '',
     taxId: '',
+    passportNumber: '',
     houseNumber: '',
     street: '',
     subdistrict: '',
@@ -63,6 +64,7 @@ export default function CustomerFormPage() {
           phone: customer.phone,
           email: customer.email || '',
           taxId: customer.taxId || '',
+          passportNumber: customer.passportNumber || '',
           houseNumber: customer.houseNumber,
           street: customer.street || '',
           subdistrict: customer.subdistrict,
@@ -116,6 +118,7 @@ export default function CustomerFormPage() {
       phone: formData.phone,
       email: formData.email || undefined,
       taxId: formData.taxId || undefined,
+      passportNumber: formData.passportNumber.trim() ? formData.passportNumber.trim() : null,
       houseNumber: formData.houseNumber,
       street: formData.street || undefined,
       subdistrict: formData.subdistrict,
@@ -266,6 +269,27 @@ export default function CustomerFormPage() {
             )}
             {fieldErrors.taxid && (
               <p className="text-sm text-red-500 mt-1">{fieldErrors.taxid}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              เลขพาสปอร์ต
+            </label>
+            <input
+              type="text"
+              name="passportNumber"
+              value={formData.passportNumber}
+              onChange={(e) => { handleChange(e); clearFieldErrors(); }}
+              maxLength={20}
+              placeholder="สำหรับลูกค้าต่างชาติ"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+                fieldErrors.passportnumber ? 'border-red-500' : 'border-gray-300'
+              }`}
+            />
+            <p className="mt-1 text-xs text-gray-500">ไม่บังคับ 13 หลัก — ใช้กับลูกค้าต่างชาติ</p>
+            {fieldErrors.passportnumber && (
+              <p className="text-sm text-red-500 mt-1">{fieldErrors.passportnumber}</p>
             )}
           </div>
 
