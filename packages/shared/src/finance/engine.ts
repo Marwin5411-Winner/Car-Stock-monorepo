@@ -64,13 +64,13 @@ export type DeliveryTotalInput = {
 
 /**
  * รวมเงินออกรถ — mode-dependent (customer / sales-record rules).
- * - CASH: totalAmount − deposit (ราคาขายหักส่วนลด แล้วหักจอง)
+ * - CASH: totalAmount − deposit + registration (คงเหลือ − เงินจอง + ค่าจดทะเบียน)
  * - FINANCE/MIXED: down − downDiscount + insurance + act + registration
  */
 export function computeDeliveryTotal(input: DeliveryTotalInput): number {
   const financed = input.paymentMode === 'FINANCE' || input.paymentMode === 'MIXED';
   if (!financed) {
-    return Math.max(0, n(input.totalAmount) - n(input.deposit));
+    return Math.max(0, n(input.totalAmount) - n(input.deposit) + n(input.registrationFee));
   }
   return Math.max(
     0,

@@ -120,7 +120,7 @@ describe('computeFinanceSheet', () => {
     expect(row?.source).toBe('auto');
   });
 
-  test('CASH delivery_total = totalAmount - deposit (ราคาขายหักส่วนลด หักจอง)', () => {
+  test('CASH delivery_total = totalAmount - deposit + registration (คงเหลือ − จอง + จดทะเบียน)', () => {
     const result = computeFinanceSheet({
       paymentMode: 'CASH',
       carPrice: 1_000_000,
@@ -128,10 +128,46 @@ describe('computeFinanceSheet', () => {
       editedKeys: [],
       customLines: [],
     });
-    // total 950_000 − deposit 20_000
+    // total 950_000 − deposit 20_000 + registration 0
     const row = result.rows.find((r) => r.key === 'delivery_total');
     expect(row?.amount).toBe(930_000);
     expect(row?.source).toBe('auto');
+  });
+
+  test('CASH delivery_total adds registrationFee only (not insurance/act)', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 500_000,
+      values: {
+        deposit: 0,
+        insurance_fee: 25_000,
+        compulsory_insurance_fee: 600,
+        registration_fee: 4_000,
+      },
+      editedKeys: [],
+      customLines: [],
+    });
+    const row = result.rows.find((r) => r.key === 'delivery_total');
+    // 500_000 − 0 + 4_000 (insurance/act stay out of CASH delivery)
+    expect(row?.amount).toBe(504_000);
+  });
+
+  test('CASH Maynie: 539900 − 20000 discount − 10000 deposit + 4000 registration = 513900', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 539_900,
+      values: {
+        car_discount: 20_000,
+        deposit: 10_000,
+        insurance_fee: 0,
+        compulsory_insurance_fee: 0,
+        registration_fee: 4_000,
+      },
+      editedKeys: [],
+      customLines: [],
+    });
+    const row = result.rows.find((r) => r.key === 'delivery_total');
+    expect(row?.amount).toBe(513_900);
   });
 
   test('FINANCE delivery_total = down - downDisc + fees', () => {

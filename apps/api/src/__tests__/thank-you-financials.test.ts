@@ -70,7 +70,7 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     expect(r.remaining).toBe(480_000); // still shows price after discount
     expect(r.financeAmount).toBe(0);
     expect(r.monthlyPayment).toBe(0);
-    // CASH: remaining − deposit (0) = 480,000
+    // CASH: remaining − deposit (0) + registration (0) = 480,000
     expect(r.totalDelivery).toBe(480_000);
   });
 
@@ -104,7 +104,7 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     expect(r.totalDelivery).toBe(168_600);
   });
 
-  test('CASH รวมเงินออกรถ = remaining - deposit (ราคาขายหักส่วนลด หักจอง)', () => {
+  test('CASH รวมเงินออกรถ = remaining - deposit + registration (คงเหลือ − จอง + จดทะเบียน)', () => {
     const r = computeThankYouFinancials({
       sellingPrice: 1_000_000,
       carDiscount: 50_000,
@@ -118,19 +118,51 @@ describe('computeThankYouFinancials — ODS ขอบคุณ formulas', () => 
     expect(r.totalDelivery).toBe(930_000);
   });
 
-  test('CASH totalDelivery ignores downPayment/fees when not financed', () => {
+  test('CASH totalDelivery ignores downPayment/insurance/act when not financed', () => {
     const r = computeThankYouFinancials({
       sellingPrice: 500_000,
       carDiscount: 0,
       downPayment: 100_000,
       deposit: 0,
       insurance: 25_000,
+      actInsurance: 600,
       interestRatePercentPerYear: 0,
       termMonths: 0,
       isFinanced: false,
     });
-    // remaining 500k − deposit 0 (not down+fees)
+    // remaining 500k − deposit 0 (not down + insurance/act)
     expect(r.totalDelivery).toBe(500_000);
+  });
+
+  test('CASH totalDelivery adds registrationFee', () => {
+    const r = computeThankYouFinancials({
+      sellingPrice: 500_000,
+      carDiscount: 0,
+      downPayment: 0,
+      deposit: 0,
+      registrationFee: 4_000,
+      interestRatePercentPerYear: 0,
+      termMonths: 0,
+      isFinanced: false,
+    });
+    expect(r.totalDelivery).toBe(504_000);
+  });
+
+  test('CASH Maynie: 539900 − 20000 − 10000 + 4000 = 513900', () => {
+    const r = computeThankYouFinancials({
+      sellingPrice: 539_900,
+      carDiscount: 20_000,
+      downPayment: 0,
+      deposit: 10_000,
+      insurance: 0,
+      actInsurance: 0,
+      registrationFee: 4_000,
+      interestRatePercentPerYear: 0,
+      termMonths: 0,
+      isFinanced: false,
+    });
+    expect(r.remaining).toBe(519_900);
+    expect(r.totalDelivery).toBe(513_900);
   });
 
   test('rounds money fields to 2 decimals (no float drift)', () => {

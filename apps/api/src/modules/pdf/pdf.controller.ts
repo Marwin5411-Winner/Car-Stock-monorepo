@@ -376,7 +376,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
         sale.stock?.expectedSalePrice,
       );
       // เงินดาวน์ = sale.downPayment only. เงินจอง = depositAmount (own row).
-      // CASH รวมเงินออกรถ = คงเหลือ − เงินจอง; FINANCE = ดาวน์ − ส่วนลดดาวน์ + fees.
+      // CASH รวมเงินออกรถ = คงเหลือ − เงินจอง + จดทะเบียน; FINANCE = ดาวน์ − ส่วนลดดาวน์ + fees.
       const downPayment = Number(sale.downPayment ?? 0);
       const deposit = Number(sale.depositAmount ?? 0);
       const financials = computeThankYouFinancials({
@@ -548,7 +548,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
           const registrationFee = Number(sale.registrationFee ?? 0);
           const totalAmount = Number(sale.totalAmount ?? 0);
           const deposit = Number(sale.depositAmount ?? 0);
-          // CASH: total − deposit; FINANCE/MIXED: down − downDisc + fees
+          // CASH: total − deposit + registration; FINANCE/MIXED: down − downDisc + fees
           // (same helper as FinanceSheet delivery_total)
           const totalDelivery = computeDeliveryTotal({
             paymentMode: sale.paymentMode as 'CASH' | 'FINANCE' | 'MIXED',

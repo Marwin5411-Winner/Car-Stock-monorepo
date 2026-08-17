@@ -1,4 +1,4 @@
-import { resolveSaleCarPrice } from '@car-stock/shared/finance';
+import { computeDeliveryTotal, resolveSaleCarPrice } from '@car-stock/shared/finance';
 
 /**
  * Thank-you letter (หนังสือขอบคุณ) financial chain.
@@ -12,7 +12,7 @@ import { resolveSaleCarPrice } from '@car-stock/shared/finance';
  * is the outstanding balance (totalAmount + fees − paid). We must derive it here.
  *
  * NOTE on "รวมเงินออกรถ" (mode-dependent, same as FinanceSheet / sales-record):
- * - CASH: คงเหลือ − เงินจอง (deposit)
+ * - CASH: คงเหลือ − เงินจอง + ค่าจดทะเบียน
  * - FINANCE/MIXED: เงินดาวน์ − ส่วนลดดาวน์ + ประกัน + พรบ + จดทะเบียน
  */
 export interface ThankYouFinancialsInput {
@@ -45,7 +45,7 @@ export interface ThankYouFinancials {
   remaining: number;
   /**
    * รวมเงินออกรถ:
-   * - cash: remaining − deposit
+   * - cash: remaining − deposit + registration
    * - finance: down − downDiscount + insurance + act + registration
    */
   totalDelivery: number;
@@ -105,18 +105,19 @@ export function resolveThankYouSellingPrice(
 export function computeThankYouFinancials(input: ThankYouFinancialsInput): ThankYouFinancials {
   const remaining = round2(input.sellingPrice - input.carDiscount);
 
-  // รวมเงินออกรถ — mode-dependent (align FinanceSheet / sales-record / customer rule)
-  const totalDelivery = input.isFinanced
-    ? // FINANCE/MIXED: เงินดาวน์ − ส่วนลดดาวน์ + fees (ODS delivery column)
-      round2(
-        input.downPayment -
-          (input.downPaymentDiscount ?? 0) +
-          (input.insurance ?? 0) +
-          (input.actInsurance ?? 0) +
-          (input.registrationFee ?? 0)
-      )
-    : // CASH: ราคาขาย − ส่วนลด → คงเหลือ − เงินจอง
-      Math.max(0, round2(remaining - (input.deposit ?? 0)));
+  // รวมเงินออกรถ — same helper as FinanceSheet / sales-record
+  const totalDelivery = round2(
+    computeDeliveryTotal({
+      paymentMode: input.isFinanced ? 'FINANCE' : 'CASH',
+      totalAmount: remaining,
+      deposit: input.deposit ?? 0,
+      downPayment: input.downPayment,
+      downPaymentDiscount: input.downPaymentDiscount ?? 0,
+      insuranceFee: input.insurance ?? 0,
+      compulsoryInsuranceFee: input.actInsurance ?? 0,
+      registrationFee: input.registrationFee ?? 0,
+    })
+  );
 
   const financeAmount = input.isFinanced ? round2(remaining - input.downPayment) : 0;
 
