@@ -28,16 +28,16 @@
         <th style="width: 7%">วันที่เอกสาร</th>
         <th style="width: 7%">เลขที่เอกสาร</th>
         <th style="width: 7%">เลขที่ใบกำกับ</th>
-        <th style="width: 11%">ชื่อลูกค้า</th>
-        <th style="width: 9%">รายละเอียดรายการ</th>
-        <th style="width: 6%" class="text-right">จำนวนเงิน</th>
-        <th style="width: 5%" class="text-right">ภาษีขาย</th>
-        <th style="width: 6%" class="text-right">รวมทั้งสิ้น</th>
+        <th style="width: 9%">ชื่อลูกค้า</th>
+        <th style="width: 8%">รายละเอียดรายการ</th>
+        <th style="width: 7%" class="text-right">จำนวนเงิน</th>
+        <th style="width: 6%" class="text-right">ภาษีขาย</th>
+        <th style="width: 7%" class="text-right">รวมทั้งสิ้น</th>
         <th style="width: 6%" class="text-right">ลูกค้าพ. ที่จ่าย</th>
         <th style="width: 5%" class="text-right">เงินสด</th>
         <th style="width: 5%" class="text-right">เช็ค</th>
         <th style="width: 6%" class="text-right">ค่าธรรมเนียม</th>
-        <th style="width: 5%" class="text-right">เงินโอน</th>
+        <th style="width: 6%" class="text-right">เงินโอน</th>
         <th style="width: 5%" class="text-right">รายได้อื่นๆ</th>
         <th style="width: 6%" class="text-right">ค่าใช้จ่ายอื่นๆ</th>
       </tr>
@@ -50,47 +50,47 @@
         <td>{{receiptNumber}}</td>
         <td>{{customerName}}</td>
         <td>{{itemDetail}}</td>
-        <td class="text-right">{{#if baseAmount}}{{formatCurrency baseAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if vatAmount}}{{formatCurrency vatAmount false}}{{/if}}</td>
-        <td class="text-right">{{formatCurrency amount false}}</td>
-        <td class="text-right">{{#if customerPaidAmount}}{{formatCurrency customerPaidAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if cashAmount}}{{formatCurrency cashAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if chequeAmount}}{{formatCurrency chequeAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if feeAmount}}{{formatCurrency feeAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if transferAmount}}{{formatCurrency transferAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if otherIncomeAmount}}{{formatCurrency otherIncomeAmount false}}{{/if}}</td>
-        <td class="text-right">{{#if otherExpenseAmount}}{{formatCurrency otherExpenseAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if baseAmount}}{{formatCurrency baseAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if vatAmount}}{{formatCurrency vatAmount false}}{{/if}}</td>
+        <td class="num text-right">{{formatCurrency amount false}}</td>
+        <td class="num text-right">{{#if customerPaidAmount}}{{formatCurrency customerPaidAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if cashAmount}}{{formatCurrency cashAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if chequeAmount}}{{formatCurrency chequeAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if feeAmount}}{{formatCurrency feeAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if transferAmount}}{{formatCurrency transferAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if otherIncomeAmount}}{{formatCurrency otherIncomeAmount false}}{{/if}}</td>
+        <td class="num text-right">{{#if otherExpenseAmount}}{{formatCurrency otherExpenseAmount false}}{{/if}}</td>
       </tr>
       {{/each}}
       <tr class="row-daily-total">
         <td colspan="3">รวมประจำวัน</td>
         <td>{{summary.totalCount}} รายการ</td>
         <td></td>
-        <td class="text-right">{{formatCurrency summary.baseAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.vatAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.customerPaidAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.cashAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.chequeAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.feeAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.transferAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.otherIncomeAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.otherExpenseAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.baseAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.vatAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.totalAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.customerPaidAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.cashAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.chequeAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.feeAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.transferAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.otherIncomeAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.otherExpenseAmount false}}</td>
       </tr>
       <tr class="row-grand-total">
         <td colspan="3">รวมทั้งสิ้น</td>
         <td>{{summary.totalCount}} รายการ</td>
         <td></td>
-        <td class="text-right">{{formatCurrency summary.baseAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.vatAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.totalAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.customerPaidAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.cashAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.chequeAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.feeAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.transferAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.otherIncomeAmount false}}</td>
-        <td class="text-right">{{formatCurrency summary.otherExpenseAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.baseAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.vatAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.totalAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.customerPaidAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.cashAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.chequeAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.feeAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.transferAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.otherIncomeAmount false}}</td>
+        <td class="num text-right">{{formatCurrency summary.otherExpenseAmount false}}</td>
       </tr>
     </tbody>
   </table>
@@ -108,5 +108,13 @@
   .daily-payment-table tr:nth-child(even) { background: #f5f5f5; }
   .daily-payment-table .row-daily-total td { font-weight: bold; background: #eee; border-top: 2px solid #333; }
   .daily-payment-table .row-grand-total td { font-weight: bold; background: #dcdcdc; border-top: 1px solid #333; border-bottom: 3px double #000; }
+  .daily-payment-table td.num {
+    font-size: 7px;
+    white-space: nowrap;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    padding: 2px 1px;
+    font-variant-numeric: tabular-nums;
+  }
   .text-right { text-align: right; }
 </style>
