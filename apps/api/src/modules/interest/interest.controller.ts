@@ -51,6 +51,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
             t.Literal('RESERVED'),
             t.Literal('PREPARING'),
             t.Literal('SOLD'),
+            t.Literal('DEMO'),
           ])
         ),
         isCalculating: t.Optional(t.String()),
@@ -89,6 +90,134 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
         tags: ['Interest'],
         summary: 'Get interest statistics',
         description: 'Get overall interest statistics for all stock',
+      },
+    }
+  )
+  .post(
+    '/bulk/stop',
+    async ({ body, set, requester }) => {
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
+        return {
+          success: false,
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
+        };
+      }
+
+      const result = await interestService.bulkStopInterest(
+        {
+          stockIds: body.stockIds,
+          matchFilters: body.matchFilters,
+          excludeStockIds: body.excludeStockIds,
+          notes: body.notes,
+          stopDate: body.stopDate ? new Date(body.stopDate) : undefined,
+        },
+        requester!.id
+      );
+
+      set.status = 200;
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: authMiddleware,
+      body: t.Object({
+        stockIds: t.Optional(t.Array(t.String())),
+        excludeStockIds: t.Optional(t.Array(t.String())),
+        matchFilters: t.Optional(
+          t.Object({
+            search: t.Optional(t.String()),
+            status: t.Optional(
+              t.Union([
+                t.Literal('AVAILABLE'),
+                t.Literal('RESERVED'),
+                t.Literal('PREPARING'),
+                t.Literal('SOLD'),
+                t.Literal('DEMO'),
+              ])
+            ),
+            isCalculating: t.Optional(t.Boolean()),
+          })
+        ),
+        notes: t.Optional(t.String()),
+        stopDate: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['Interest'],
+        summary: 'Bulk stop interest calculation',
+      },
+    }
+  )
+  .post(
+    '/bulk/apply-rate',
+    async ({ body, set, requester }) => {
+      if (!authService.hasPermission(requester!.role, 'INTEREST_UPDATE' as any)) {
+        set.status = 403;
+        return {
+          success: false,
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
+        };
+      }
+
+      const result = await interestService.bulkApplyRate(
+        {
+          stockIds: body.stockIds,
+          matchFilters: body.matchFilters,
+          excludeStockIds: body.excludeStockIds,
+          annualRate: body.annualRate,
+          principalBase: body.principalBase,
+          items: body.items,
+          notes: body.notes,
+          effectiveDate: body.effectiveDate ? new Date(body.effectiveDate) : undefined,
+        },
+        requester!.id
+      );
+
+      set.status = 200;
+      return { success: true, data: result };
+    },
+    {
+      beforeHandle: authMiddleware,
+      body: t.Object({
+        stockIds: t.Optional(t.Array(t.String())),
+        excludeStockIds: t.Optional(t.Array(t.String())),
+        matchFilters: t.Optional(
+          t.Object({
+            search: t.Optional(t.String()),
+            status: t.Optional(
+              t.Union([
+                t.Literal('AVAILABLE'),
+                t.Literal('RESERVED'),
+                t.Literal('PREPARING'),
+                t.Literal('SOLD'),
+                t.Literal('DEMO'),
+              ])
+            ),
+            isCalculating: t.Optional(t.Boolean()),
+          })
+        ),
+        annualRate: t.Optional(t.Number({ minimum: 0, maximum: 100 })),
+        principalBase: t.Optional(
+          t.Union([t.Literal('KEEP'), t.Literal('BASE_COST_ONLY'), t.Literal('TOTAL_COST')])
+        ),
+        items: t.Optional(
+          t.Array(
+            t.Object({
+              stockId: t.String(),
+              annualRate: t.Number({ minimum: 0, maximum: 100 }),
+              principalBase: t.Optional(
+                t.Union([t.Literal('KEEP'), t.Literal('BASE_COST_ONLY'), t.Literal('TOTAL_COST')])
+              ),
+            })
+          )
+        ),
+        notes: t.Optional(t.String()),
+        effectiveDate: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ['Interest'],
+        summary: 'Bulk apply a new interest rate (update or resume)',
       },
     }
   )

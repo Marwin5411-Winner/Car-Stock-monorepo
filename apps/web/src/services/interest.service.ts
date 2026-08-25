@@ -87,8 +87,27 @@ export interface InterestFilters {
   page?: number;
   limit?: number;
   search?: string;
-  status?: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD';
+  status?: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD' | 'DEMO';
   isCalculating?: boolean;
+}
+
+export interface InterestMatchFilters {
+  search?: string;
+  status?: InterestFilters['status'];
+  isCalculating?: boolean;
+}
+
+export interface BulkInterestItemResult {
+  stockId: string;
+  vin?: string;
+  status: 'applied' | 'skipped' | 'error';
+  reason?: string;
+}
+
+export interface BulkInterestResult {
+  applied: BulkInterestItemResult[];
+  skipped: BulkInterestItemResult[];
+  errors: BulkInterestItemResult[];
 }
 
 export interface UpdateInterestRateData {
@@ -303,6 +322,38 @@ class InterestService {
    */
   async resumeCalculation(stockId: string, data: ResumeInterestData): Promise<InterestPeriod> {
     const response = await api.post<ApiResponse<InterestPeriod>>(`/api/interest/${stockId}/resume`, data);
+    return response.data;
+  }
+
+  async bulkStop(data: {
+    stockIds?: string[];
+    matchFilters?: InterestMatchFilters;
+    excludeStockIds?: string[];
+    notes?: string;
+    stopDate?: string;
+  }): Promise<BulkInterestResult> {
+    const response = await api.post<ApiResponse<BulkInterestResult>>('/api/interest/bulk/stop', data);
+    return response.data;
+  }
+
+  async bulkApplyRate(data: {
+    stockIds?: string[];
+    matchFilters?: InterestMatchFilters;
+    excludeStockIds?: string[];
+    annualRate?: number;
+    principalBase?: 'KEEP' | 'BASE_COST_ONLY' | 'TOTAL_COST';
+    items?: {
+      stockId: string;
+      annualRate: number;
+      principalBase?: 'KEEP' | 'BASE_COST_ONLY' | 'TOTAL_COST';
+    }[];
+    notes?: string;
+    effectiveDate?: string;
+  }): Promise<BulkInterestResult> {
+    const response = await api.post<ApiResponse<BulkInterestResult>>(
+      '/api/interest/bulk/apply-rate',
+      data
+    );
     return response.data;
   }
 

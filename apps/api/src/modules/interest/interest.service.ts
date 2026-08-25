@@ -1,8 +1,22 @@
 import { db } from '../../lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
-import { InterestBase, StockStatus, DebtStatus, PaymentMethod } from '@prisma/client';
+import { InterestBase, StockStatus, DebtStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
 import { dayKey, isValidStopDate, isValidResumeStartDate } from './interest.dates';
+import {
+  type BulkInterestResult,
+  type BulkPrincipalChoice,
+  type BulkStockRef,
+  type InterestListFilters,
+  assertBulkStockCount,
+  buildInterestListWhere,
+  classifyForApplyRate,
+  classifyForStop,
+  emptyBulkResult,
+  pushBulkItem,
+  resolveBulkPrincipalBase,
+  resolveBulkRate,
+} from './interest.bulk';
 
 interface InterestSummary {
   stockId: string;
@@ -101,31 +115,11 @@ export class InterestService {
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
-    // Exclude soft-deleted stocks from interest reports.
-    const where: any = { deletedAt: null };
-
-    if (params.search) {
-      where.OR = [
-        { vin: { contains: params.search, mode: 'insensitive' } },
-        { vehicleModel: { brand: { contains: params.search, mode: 'insensitive' } } },
-        { vehicleModel: { model: { contains: params.search, mode: 'insensitive' } } },
-      ];
-    }
-
-    if (params.status) {
-      where.status = params.status;
-    }
-
-    // Filter by isCalculating
-    if (params.isCalculating === true) {
-      where.stopInterestCalc = false;
-      where.debtStatus = { not: 'PAID_OFF' };
-    } else if (params.isCalculating === false) {
-      where.OR = [
-        { stopInterestCalc: true },
-        { debtStatus: 'PAID_OFF' },
-      ];
-    }
+    const where = buildInterestListWhere({
+      search: params.search,
+      status: params.status,
+      isCalculating: params.isCalculating,
+    });
 
     const [stocks, total] = await Promise.all([
       db.stock.findMany({
@@ -156,7 +150,7 @@ export class InterestService {
     const data: InterestSummary[] = stocks.map((stock) => {
       // ใช้ orderDate ถ้ามี ถ้าไม่มีใช้ arrivalDate
       const interestStartDate = stock.orderDate || stock.arrivalDate;
-      const daysCount = this.calculateDays(interestStartDate, today);
+      const daysCount = interestStartDate ? this.calculateDays(interestStartDate, today) : 0;
       
       // Calculate total accumulated interest from all periods
       let totalAccumulatedInterest = 0;
@@ -1435,6 +1429,160 @@ export class InterestService {
       totalRemainingDebt: Number(activeDebtStats._sum.remainingDebt || 0),
       paidOffCount,
     };
+  }
+
+  private async resolveBulkStocks(input: {
+    stockIds?: string[];
+    matchFilters?: InterestListFilters;
+    excludeStockIds?: string[];
+  }): Promise<BulkStockRef[]> {
+    const excluded = input.excludeStockIds ?? [];
+    const excludedSet = new Set(excluded);
+
+    if (input.stockIds?.length) {
+      const ids = input.stockIds.filter((id) => !excludedSet.has(id));
+      assertBulkStockCount(ids.length);
+      const stocks = await db.stock.findMany({
+        where: { id: { in: ids }, deletedAt: null },
+        select: { id: true, vin: true, stopInterestCalc: true, debtStatus: true },
+      });
+      const byId = new Map(stocks.map((s) => [s.id, s]));
+      return ids.map((id) => {
+        const found = byId.get(id);
+        return found ?? { id, vin: '', stopInterestCalc: false, debtStatus: 'NO_DEBT' as DebtStatus };
+      });
+    }
+
+    if (!input.matchFilters) {
+      throw new BadRequestError('เลือกอย่างน้อยหนึ่งคัน หรือใช้ผลลัพธ์ที่กรองอยู่');
+    }
+
+    const baseWhere = buildInterestListWhere(input.matchFilters);
+    const where: Prisma.StockWhereInput = excluded.length
+      ? { AND: [baseWhere, { id: { notIn: excluded } }] }
+      : baseWhere;
+
+    const count = await db.stock.count({ where });
+    assertBulkStockCount(count);
+
+    return db.stock.findMany({
+      where,
+      select: { id: true, vin: true, stopInterestCalc: true, debtStatus: true },
+      orderBy: { arrivalDate: 'desc' },
+    });
+  }
+
+  async bulkStopInterest(
+    input: {
+      stockIds?: string[];
+      matchFilters?: InterestListFilters;
+      excludeStockIds?: string[];
+      notes?: string;
+      stopDate?: Date;
+    },
+    userId: string
+  ): Promise<BulkInterestResult> {
+    const stocks = await this.resolveBulkStocks(input);
+    const result = emptyBulkResult();
+
+    for (const stock of stocks) {
+      if (!stock.vin) {
+        pushBulkItem(result, { stockId: stock.id, status: 'skipped', reason: 'ไม่พบรถ' });
+        continue;
+      }
+      const cls = classifyForStop(stock);
+      if (cls !== 'apply') {
+        pushBulkItem(result, { stockId: stock.id, vin: stock.vin, status: 'skipped', reason: cls });
+        continue;
+      }
+      try {
+        await this.stopInterestCalculation(stock.id, userId, input.notes, input.stopDate);
+        pushBulkItem(result, { stockId: stock.id, vin: stock.vin, status: 'applied' });
+      } catch (err) {
+        pushBulkItem(result, {
+          stockId: stock.id,
+          vin: stock.vin,
+          status: 'error',
+          reason: err instanceof Error ? err.message : 'ไม่สามารถหยุดดอกเบี้ยได้',
+        });
+      }
+    }
+
+    return result;
+  }
+
+  async bulkApplyRate(
+    input: {
+      stockIds?: string[];
+      matchFilters?: InterestListFilters;
+      excludeStockIds?: string[];
+      annualRate?: number;
+      principalBase?: BulkPrincipalChoice;
+      items?: { stockId: string; annualRate: number; principalBase?: BulkPrincipalChoice }[];
+      effectiveDate?: Date;
+      notes?: string;
+    },
+    userId: string
+  ): Promise<BulkInterestResult> {
+    if (input.annualRate == null && !input.items?.length) {
+      throw new BadRequestError('กรุณาระบุอัตราดอกเบี้ย');
+    }
+
+    const stocks = await this.resolveBulkStocks(input);
+    const result = emptyBulkResult();
+
+    for (const stock of stocks) {
+      if (!stock.vin) {
+        pushBulkItem(result, { stockId: stock.id, status: 'skipped', reason: 'ไม่พบรถ' });
+        continue;
+      }
+      const cls = classifyForApplyRate(stock);
+      if (cls !== 'update' && cls !== 'resume') {
+        pushBulkItem(result, { stockId: stock.id, vin: stock.vin, status: 'skipped', reason: cls });
+        continue;
+      }
+      try {
+        const annualRate = resolveBulkRate(stock.id, input.annualRate, input.items);
+        const principalBase = resolveBulkPrincipalBase(
+          stock.id,
+          input.principalBase,
+          input.items
+        );
+        if (cls === 'resume') {
+          await this.resumeInterestCalculation(
+            stock.id,
+            {
+              annualRate,
+              principalBase,
+              notes: input.notes,
+              startDate: input.effectiveDate,
+            },
+            userId
+          );
+        } else {
+          await this.updateInterestRate(
+            stock.id,
+            {
+              annualRate,
+              principalBase,
+              notes: input.notes,
+              effectiveDate: input.effectiveDate,
+            },
+            userId
+          );
+        }
+        pushBulkItem(result, { stockId: stock.id, vin: stock.vin, status: 'applied' });
+      } catch (err) {
+        pushBulkItem(result, {
+          stockId: stock.id,
+          vin: stock.vin,
+          status: 'error',
+          reason: err instanceof Error ? err.message : 'ไม่สามารถตั้งดอกเบี้ยใหม่ได้',
+        });
+      }
+    }
+
+    return result;
   }
 }
 
