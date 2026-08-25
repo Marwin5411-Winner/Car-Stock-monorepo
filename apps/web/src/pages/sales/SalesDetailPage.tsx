@@ -980,46 +980,71 @@ export default function SalesDetailPage() {
           </div>
         )}
 
-        {/* Dates Info */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-            วันที่สำคัญ
-          </h3>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm text-gray-700">วันที่สร้าง</dt>
-              <dd className="text-sm font-medium">{formatDate(sale.createdAt)}</dd>
-            </div>
-            {sale.reservedDate && (
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+              วันที่สำคัญ
+            </h3>
+            <dl className="space-y-3">
               <div>
-                <dt className="text-sm text-gray-700">วันที่จอง</dt>
-                <dd className="text-sm font-medium">{formatDate(sale.reservedDate)}</dd>
+                <dt className="text-sm text-gray-700">วันที่สร้าง</dt>
+                <dd className="text-sm font-medium">{formatDate(sale.createdAt)}</dd>
               </div>
+              {sale.reservedDate && (
+                <div>
+                  <dt className="text-sm text-gray-700">วันที่จอง</dt>
+                  <dd className="text-sm font-medium">{formatDate(sale.reservedDate)}</dd>
+                </div>
+              )}
+              {sale.hasExpiration && sale.expirationDate && (
+                <div>
+                  <dt className="text-sm text-gray-700">วันหมดอายุการจอง</dt>
+                  <dd className="text-sm font-medium text-yellow-600">
+                    {formatDate(sale.expirationDate)}
+                  </dd>
+                </div>
+              )}
+              {sale.deliveryDate && (
+                <div>
+                  <dt className="text-sm text-gray-700">วันที่ส่งมอบ</dt>
+                  <dd className="text-sm font-medium">{formatDate(sale.deliveryDate)}</dd>
+                </div>
+              )}
+              {sale.completedDate && (
+                <div>
+                  <dt className="text-sm text-gray-700">วันที่เสร็จสิ้น</dt>
+                  <dd className="text-sm font-medium text-green-600">
+                    {formatDate(sale.completedDate)}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <User className="h-5 w-5 mr-2 text-blue-600" />
+              ผู้สร้างการขายนี้
+            </h3>
+            {sale.createdBy ? (
+              <dl className="space-y-3">
+                <div>
+                  <dt className="text-sm text-gray-700">ชื่อ</dt>
+                  <dd className="text-sm font-medium">
+                    {[sale.createdBy.firstName, sale.createdBy.lastName].filter(Boolean).join(' ') ||
+                      '-'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-700">ชื่อผู้ใช้</dt>
+                  <dd className="text-sm font-medium">{sale.createdBy.username}</dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="text-sm text-gray-500">ไม่ระบุผู้สร้าง</p>
             )}
-            {sale.hasExpiration && sale.expirationDate && (
-              <div>
-                <dt className="text-sm text-gray-700">วันหมดอายุการจอง</dt>
-                <dd className="text-sm font-medium text-yellow-600">
-                  {formatDate(sale.expirationDate)}
-                </dd>
-              </div>
-            )}
-            {sale.deliveryDate && (
-              <div>
-                <dt className="text-sm text-gray-700">วันที่ส่งมอบ</dt>
-                <dd className="text-sm font-medium">{formatDate(sale.deliveryDate)}</dd>
-              </div>
-            )}
-            {sale.completedDate && (
-              <div>
-                <dt className="text-sm text-gray-700">วันที่เสร็จสิ้น</dt>
-                <dd className="text-sm font-medium text-green-600">
-                  {formatDate(sale.completedDate)}
-                </dd>
-              </div>
-            )}
-          </dl>
+          </div>
         </div>
       </div>
 
@@ -1072,12 +1097,6 @@ export default function SalesDetailPage() {
         </div>
       )}
 
-      {/* Created By */}
-      {sale.createdBy && (
-        <div className="text-sm text-gray-700">
-          สร้างโดย: {sale.createdBy.firstName} {sale.createdBy.lastName} ({sale.createdBy.username})
-        </div>
-      )}
     </div>
   );
 

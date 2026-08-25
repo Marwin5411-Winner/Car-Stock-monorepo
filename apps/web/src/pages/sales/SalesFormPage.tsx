@@ -77,6 +77,11 @@ export default function SalesFormPage() {
   const canDiscount = hasPermission('SALE_DISCOUNT');
   const [saleStatus, setSaleStatus] = useState<string | null>(null);
   const [saleType, setSaleType] = useState<'DIRECT_SALE' | 'RESERVATION_SALE'>('DIRECT_SALE');
+  const [createdBy, setCreatedBy] = useState<{
+    firstName: string;
+    lastName: string;
+    username: string;
+  } | null>(null);
   const isCompletedAsAccountant = isEditing && saleStatus === 'COMPLETED' && user?.role === 'ACCOUNTANT';
 
   const { execute: executeMutation, clearFieldErrors } = useMutationHandler(
@@ -188,6 +193,7 @@ export default function SalesFormPage() {
         if (sale.stock) {
           setSelectedStock(sale.stock as unknown as Stock);
         }
+        setCreatedBy(sale.createdBy ?? null);
       })
     );
     if (!found) navigate('/sales');
@@ -427,6 +433,8 @@ export default function SalesFormPage() {
     expectedSalePrice: selectedStock?.expectedSalePrice,
   });
 
+  const creatorPerson = createdBy ?? (isEditing ? null : user);
+
   if (loading) {
     return (
       <MainLayout>
@@ -619,43 +627,72 @@ export default function SalesFormPage() {
             )}
           </div>
 
-          {/* Dates */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center text-black">
-              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-              วันที่สำคัญ
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  วันที่สร้างรายการ <span className="text-red-500">*</span>
-                </label>
-                <DatePicker
-                  value={formData.createdAt}
-                  onChange={(v) => setFormData(prev => ({ ...prev, createdAt: v }))}
-                  inputClassName="w-full"
-                />
-                {errors.createdAt && (
-                  <p className="text-sm text-red-600 mt-1">{errors.createdAt}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  แสดงในรายการขายและรายงาน — เลือกวันย้อนหลังได้ถ้าคีย์ช้ากว่าวันขายจริง
-                </p>
+          {/* Dates + creator */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center text-black">
+                <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+                วันที่สำคัญ
+              </h2>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">
+                    วันที่สร้างรายการ <span className="text-red-500">*</span>
+                  </label>
+                  <DatePicker
+                    value={formData.createdAt}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, createdAt: v }))}
+                    inputClassName="w-full"
+                  />
+                  {errors.createdAt && (
+                    <p className="text-sm text-red-600 mt-1">{errors.createdAt}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    แสดงในรายการขายและรายงาน — เลือกวันย้อนหลังได้ถ้าคีย์ช้ากว่าวันขายจริง
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">
+                    วันที่ลูกค้ารับรถ
+                  </label>
+                  <DatePicker
+                    value={formData.deliveryDate}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, deliveryDate: v }))}
+                    inputClassName="w-full"
+                    clearable
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    สำหรับใบปล่อยรถและหนังสือยืนยันการซื้อ-ขาย — ถ้าไม่กรอกจะใช้วันที่คีย์ข้อมูล
+                  </p>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  วันที่ลูกค้ารับรถ
-                </label>
-                <DatePicker
-                  value={formData.deliveryDate}
-                  onChange={(v) => setFormData(prev => ({ ...prev, deliveryDate: v }))}
-                  inputClassName="w-full"
-                  clearable
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  สำหรับใบปล่อยรถและหนังสือยืนยันการซื้อ-ขาย — ถ้าไม่กรอกจะใช้วันที่คีย์ข้อมูล
-                </p>
-              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center text-black">
+                <User className="h-5 w-5 mr-2 text-blue-600" />
+                ผู้สร้างการขายนี้
+              </h2>
+              {creatorPerson ? (
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-sm text-gray-700">ชื่อ</dt>
+                    <dd className="text-sm font-medium text-black">
+                      {[creatorPerson.firstName, creatorPerson.lastName].filter(Boolean).join(' ') ||
+                        '-'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-gray-700">ชื่อผู้ใช้</dt>
+                    <dd className="text-sm font-medium text-black">{creatorPerson.username}</dd>
+                  </div>
+                  {!isEditing && (
+                    <p className="text-xs text-gray-500">บันทึกเป็นผู้สร้างเมื่อบันทึกรายการ</p>
+                  )}
+                </dl>
+              ) : (
+                <p className="text-sm text-gray-500">ไม่ระบุผู้สร้าง</p>
+              )}
             </div>
           </div>
 
