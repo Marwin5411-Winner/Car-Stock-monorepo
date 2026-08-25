@@ -106,18 +106,52 @@ describe('computeFinanceSheet', () => {
     expect(installmentRow?.amount).toBe(0);
   });
 
-  test('sales_commission is locked at 9% of car price', () => {
+  test('sales_commission is the entered amount, not 9% of car price', () => {
     const result = computeFinanceSheet({
       paymentMode: 'CASH',
       carPrice: 1_200_000,
-      values: { sales_commission: 1 }, // stale / user attempt — ignored
-      editedKeys: ['sales_commission'],
+      values: { sales_commission: 5_000 },
+      editedKeys: [],
       customLines: [],
     });
-    expect(result.salePatch.salesCommission).toBe(108_000);
+    expect(result.salePatch.salesCommission).toBe(5_000);
     const row = result.rows.find((r) => r.key === 'sales_commission');
-    expect(row?.amount).toBe(108_000);
-    expect(row?.source).toBe('auto');
+    expect(row?.amount).toBe(5_000);
+    expect(row?.source).toBe('manual');
+  });
+
+  test('sales_commission is not overwritten when carPrice changes', () => {
+    const values = { sales_commission: 5_000 };
+    const first = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 1_200_000,
+      values,
+      editedKeys: [],
+      customLines: [],
+    });
+    const second = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 800_000,
+      values,
+      editedKeys: [],
+      customLines: [],
+    });
+    expect(first.salePatch.salesCommission).toBe(5_000);
+    expect(second.salePatch.salesCommission).toBe(5_000);
+  });
+
+  test('sales_commission empty stays unset (not auto 9%)', () => {
+    const result = computeFinanceSheet({
+      paymentMode: 'CASH',
+      carPrice: 1_200_000,
+      values: {},
+      editedKeys: [],
+      customLines: [],
+    });
+    expect(result.salePatch.salesCommission).toBeNull();
+    const row = result.rows.find((r) => r.key === 'sales_commission');
+    expect(row?.amount).toBe(0);
+    expect(row?.source).toBe('manual');
   });
 
   test('CASH delivery_total = totalAmount - deposit + registration (คงเหลือ − จอง + จดทะเบียน)', () => {
