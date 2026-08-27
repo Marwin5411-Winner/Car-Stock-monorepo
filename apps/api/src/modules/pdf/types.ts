@@ -528,6 +528,8 @@ export interface TemporaryReceiptData {
     accountNumber?: string;
     accountName?: string;
   };
+  /** When true, temporary-receipt.hbs uses A4 landscape instead of 9.5×5.5 in. */
+  paperA4?: boolean;
 }
 
 /**

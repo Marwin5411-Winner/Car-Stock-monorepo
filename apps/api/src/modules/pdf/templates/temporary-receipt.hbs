@@ -176,16 +176,24 @@
 <style>
     /* ============================================
        Temporary Receipt - Recreated & Refined
-       Paper: 9in × 5.5in (Dot Matrix continuous form, pre-printed)
+       Continuous: 9.5in × 5.5in pinfeed (0.5in stubs → 8.5in tear-off body)
+       A4: landscape, same table stretched to the page (paperA4)
        ============================================ */
 
-    /* margin MUST stay 0 so the page box is the whole 9×5.5in sheet (same
-       size the driver already uses). Horizontal inset lives on
-       .receipt-container so the table stays inside the 8.5in tear-off. */
+    /* Continuous = physical 9.5in pinfeed sheet so the driver does not scale
+       a 9in box onto 9.5in paper. A4 is a separate page — never fit the
+       tractor-feed box onto office paper. */
+    {{#if paperA4}}
     @page {
-        size: 9in 5.5in;
+        size: A4 landscape;
+        margin: 10mm;
+    }
+    {{else}}
+    @page {
+        size: 9.5in 5.5in;
         margin: 0;
     }
+    {{/if}}
 
     html, body {
         margin: 0;
@@ -201,7 +209,7 @@
        case the controller can emit (2 items + 5-line address); if the receipt
        ever needs more rows, shrink .spacer-row rather than lifting the clamp. */
     .receipt-container {
-        width: 228.6mm;
+        width: 241.3mm; /* 9.5in — matches @page, not the 8.5in tear-off */
         height: 139.7mm;
         overflow: hidden;
         box-sizing: border-box;
@@ -214,6 +222,14 @@
         line-height: 1.2;
         position: relative;
     }
+
+    {{#if paperA4}}
+    .receipt-container {
+        width: 100%;
+        height: 190mm;
+        padding: 0;
+    }
+    {{/if}}
 
     /* Undo the generic table styling getBaseHtml() injects into every template.
        The overlay never hit these because it contains no <table> at all:

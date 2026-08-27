@@ -1381,8 +1381,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
   /**
    * Render Temporary Receipt as standalone HTML (auto-prints in popup window).
-   * Used by frontend `window.print()` flow so the EPSON Dot Matrix driver receives
-   * the 9×5.5 in size from CSS @page directly — no per-machine paper-size setup.
+   * Overlay: 9×5.5 in. withForm: 9.5×5.5 in continuous. withForm+paper=a4: A4 landscape.
    */
   .get(
     '/temporary-receipt/:paymentId/html',
@@ -1392,7 +1391,7 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
       set,
     }: {
       params: { paymentId: string };
-      query: { lateFee?: string; withForm?: string };
+      query: { lateFee?: string; withForm?: string; paper?: string };
       set: any;
     }) => {
       const payment = await db.payment.findUnique({
@@ -1457,21 +1456,26 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
 
       // withForm=true prints the CSS-drawn form too (for blank continuous paper);
       // default remains the data-only overlay for pre-printed SIAMK forms.
-      const templateType =
-        query.withForm === 'true'
-          ? PdfTemplateType.TEMPORARY_RECEIPT
-          : PdfTemplateType.TEMPORARY_RECEIPT_BG;
+      const withForm = query.withForm === 'true';
+      // paper=a4 is ignored on the overlay — that grid is locked to 9×5.5 in.
+      const paperA4 = withForm && query.paper === 'a4';
+      const templateType = withForm
+        ? PdfTemplateType.TEMPORARY_RECEIPT
+        : PdfTemplateType.TEMPORARY_RECEIPT_BG;
 
-      // padding 0 for both templates: the overlay needs its coordinates to map
-      // directly to the paper origin of the PRE-PRINTED form; the full form
-      // draws its own frame and spacing. @page 9×5.5in comes from the template
-      // and is passed straight to the dot-matrix driver (no scaling).
-      const html = await pdfService.renderHtml(templateType, data, {
-        width: '9in',
-        height: '5.5in',
-        padding: '0mm',
-        margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
-      });
+      // padding 0: overlay coordinates map to the pre-printed origin; the full
+      // form draws its own frame. Page box comes from the template @page
+      // (9.5×5.5 in continuous, A4 landscape, or 9×5.5 in overlay).
+      const html = await pdfService.renderHtml(
+        templateType,
+        { ...data, paperA4 },
+        {
+          width: paperA4 ? '297mm' : withForm ? '9.5in' : '9in',
+          height: paperA4 ? '210mm' : '5.5in',
+          padding: '0mm',
+          margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+        }
+      );
 
       set.headers['Content-Type'] = 'text/html; charset=utf-8';
       set.headers['Cache-Control'] = 'no-store';
@@ -1480,12 +1484,16 @@ export const pdfRoutes = new Elysia({ prefix: '/pdf' })
     {
       beforeHandle: [authMiddleware, requirePermission('DOC_GENERAL')],
       params: t.Object({ paymentId: t.String() }),
-      query: t.Object({ lateFee: t.Optional(t.String()), withForm: t.Optional(t.String()) }),
+      query: t.Object({
+        lateFee: t.Optional(t.String()),
+        withForm: t.Optional(t.String()),
+        paper: t.Optional(t.String()),
+      }),
       detail: {
         tags: ['Documents'],
         summary: 'Render Temporary Receipt HTML (auto-print)',
         description:
-          'Returns standalone HTML that auto-prints itself via window.print(). Browser passes 9×5.5 in size to printer driver via CSS @page — no per-machine setup needed. withForm=true renders the full CSS-drawn form (blank paper) instead of the data-only overlay.',
+          'Returns standalone HTML that auto-prints via window.print(). Overlay stays 9×5.5 in. withForm=true draws the CSS form on 9.5×5.5 in continuous paper; withForm=true&paper=a4 uses A4 landscape so the driver does not fit the tractor-feed box onto A4.',
       },
     }
   )

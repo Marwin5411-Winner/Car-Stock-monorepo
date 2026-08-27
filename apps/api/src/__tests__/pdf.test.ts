@@ -292,18 +292,42 @@ describe('PdfService — Puppeteer engine', () => {
       paymentMethod: 'เงินสด',
       receiverName: 'พนักงาน ทดสอบ',
     };
-    // Mirrors the options the /html endpoint passes for both templates.
-    const options = {
+    // Overlay stays 9×5.5 in; with-form continuous is 9.5×5.5 in.
+    const overlayOptions = {
       width: '9in',
+      height: '5.5in',
+      padding: '0mm',
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+    };
+    const formOptions = {
+      width: '9.5in',
       height: '5.5in',
       padding: '0mm',
       margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
     };
 
     it('full-form template renders the CSS-drawn form (receipt-container)', async () => {
-      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT, data, options);
+      const html = await pdfService.renderHtml(
+        PdfTemplateType.TEMPORARY_RECEIPT,
+        data,
+        formOptions
+      );
       expect(html).toContain('receipt-container'); // form's root — form template only
       expect(html).not.toContain('f-receipt-no'); // overlay-only positioned cell
+      expect(html).toMatch(/size:\s*9\.5in\s+5\.5in/);
+      expect(html).not.toMatch(/size:\s*A4 landscape/);
+    });
+
+    it('full-form A4 variant uses A4 landscape, not the tractor-feed page', async () => {
+      const html = await pdfService.renderHtml(
+        PdfTemplateType.TEMPORARY_RECEIPT,
+        { ...data, paperA4: true },
+        { width: '297mm', height: '210mm', padding: '0mm' }
+      );
+      expect(html).toContain('receipt-container');
+      expect(html).toMatch(/size:\s*A4 landscape/);
+      expect(html).toMatch(/width:\s*100%/);
+      expect(html).not.toMatch(/size:\s*9\.5in/);
     });
 
     it('full-form keeps เลขที่สัญญา when the address is long (does not crush right columns)', async () => {
@@ -331,7 +355,7 @@ describe('PdfService — Puppeteer engine', () => {
           discount: '0',
           totalAmount: '2000',
         },
-        options
+        formOptions
       );
       expect(html).toContain('เลขที่สัญญา');
       expect(html).toContain('SL-2026-0077');
@@ -340,7 +364,11 @@ describe('PdfService — Puppeteer engine', () => {
     });
 
     it('overlay template renders data-only cells (f-receipt-no), no form container', async () => {
-      const html = await pdfService.renderHtml(PdfTemplateType.TEMPORARY_RECEIPT_BG, data, options);
+      const html = await pdfService.renderHtml(
+        PdfTemplateType.TEMPORARY_RECEIPT_BG,
+        data,
+        overlayOptions
+      );
       expect(html).toContain('f-receipt-no');
       expect(html).not.toContain('receipt-container');
     });
@@ -385,9 +413,9 @@ describe('PdfService — Puppeteer engine', () => {
 
       const raw = buffer.toString('latin1');
       expect(raw.match(/\/Type\s*\/Page[^s]/g)?.length).toBe(1);
-      // MediaBox must be the real sheet: 9x5.5in = 648x396 pt
+      // MediaBox must be the physical pinfeed sheet: 9.5x5.5in = 684x396 pt
       const box = raw.match(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/);
-      expect(Number(box?.[1])).toBeCloseTo(648, 0);
+      expect(Number(box?.[1])).toBeCloseTo(684, 0);
       expect(Number(box?.[2])).toBeCloseTo(396, 0);
     }, 30000);
   });

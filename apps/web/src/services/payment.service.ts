@@ -252,21 +252,27 @@ class PaymentService {
 
   /**
    * Print temporary receipt directly via browser window.print().
-   * Browser passes the @page size (9×5.5 in) from the HTML to the printer driver,
-   * so the EPSON Dot Matrix needs no per-machine paper-size setup.
+   * Browser passes the HTML @page size to the printer driver.
    *
-   * withForm=true renders the full CSS-drawn form (for blank continuous paper);
-   * default is the data-only overlay for pre-printed forms.
+   * withForm=true renders the full CSS-drawn form (blank continuous 9.5×5.5 in);
+   * paper='a4' (only with withForm) uses A4 landscape instead of tractor-feed.
+   * Default is the data-only overlay for pre-printed 9×5.5 in forms.
    *
    * Popup is opened synchronously inside the user-gesture (button onClick) so
    * it isn't blocked. The fetched HTML is wrapped in a Blob URL and assigned
    * to popup.location — the popup loads it as a real document, executing the
    * embedded auto-print script naturally without document.write.
    */
-  async printReceiptDirect(id: string, lateFee?: number, withForm?: boolean): Promise<void> {
+  async printReceiptDirect(
+    id: string,
+    lateFee?: number,
+    withForm?: boolean,
+    paper?: 'a4'
+  ): Promise<void> {
     const params = new URLSearchParams();
     if (lateFee) params.set('lateFee', String(lateFee));
     if (withForm) params.set('withForm', 'true');
+    if (paper === 'a4') params.set('paper', 'a4');
     const qsStr = params.toString();
     const qs = qsStr ? `?${qsStr}` : '';
     return printHtmlViaPopup(() => api.getBlob(`/api/pdf/temporary-receipt/${id}/html${qs}`));

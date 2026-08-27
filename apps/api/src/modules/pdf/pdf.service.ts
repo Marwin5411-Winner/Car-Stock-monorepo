@@ -848,12 +848,11 @@ export class PdfService {
   }
 
   /**
-   * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว) - Small Format 9x5.5 inch
+   * Generate Temporary Receipt PDF (ใบรับเงินชั่วคราว) — 9.5×5.5 in pinfeed sheet
    */
   public async generateTemporaryReceipt(data: TemporaryReceiptData): Promise<Buffer> {
-    // Use custom small page size (9x5.5 inches)
     return this.generatePdf(PdfTemplateType.TEMPORARY_RECEIPT, data, {
-      width: '9in',
+      width: '9.5in',
       height: '5.5in',
       margin: {
         top: '5mm',

@@ -82,6 +82,7 @@ export default function PaymentDetailPage() {
   const [voiding, setVoiding] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [printingForm, setPrintingForm] = useState(false);
+  const [printingA4, setPrintingA4] = useState(false);
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [lateFee, setLateFee] = useState(0);
@@ -167,6 +168,15 @@ export default function PaymentDetailPage() {
     setPrintingForm(false);
   };
 
+  const handlePrintA4 = async () => {
+    if (!payment) return;
+    setPrintingA4(true);
+    await executeDownload(
+      paymentService.printReceiptDirect(payment.id, lateFee || undefined, true, 'a4')
+    );
+    setPrintingA4(false);
+  };
+
   if (loading) {
     return (
       <MainLayout>
@@ -209,7 +219,7 @@ export default function PaymentDetailPage() {
               <p className="text-gray-500 mt-1">บันทึกเมื่อ {formatDateTime(payment.createdAt)}</p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
               <span
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${STATUS_COLORS[payment.status]}`}
               >
@@ -252,11 +262,20 @@ export default function PaymentDetailPage() {
                   <button
                     onClick={handlePrintForm}
                     disabled={printingForm}
-                    title="สำหรับเครื่อง Dot Matrix + กระดาษต่อเนื่องเปล่า — พิมพ์ฟอร์มพร้อมข้อมูล (9×5.5 นิ้ว)"
+                    title="สำหรับเครื่อง Dot Matrix + กระดาษต่อเนื่องเปล่า — พิมพ์ฟอร์มพร้อมข้อมูล (9.5×5.5 นิ้ว)"
                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
                     <Printer className="h-4 w-4 mr-2" />
                     {printingForm ? 'กำลังโหลด...' : 'ใบเสร็จ Dot Matrix (มีฟอร์ม)'}
+                  </button>
+                  <button
+                    onClick={handlePrintA4}
+                    disabled={printingA4}
+                    title="สำหรับเครื่องพิมพ์ A4 — เลย์อาวต์ A4 แยก ไม่ย่อกล่อง 9.5×5.5 ลงแผ่น A4"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    {printingA4 ? 'กำลังโหลด...' : 'ใบเสร็จ A4 (มีฟอร์ม)'}
                   </button>
                   <button
                     onClick={() => setShowVoidModal(true)}
