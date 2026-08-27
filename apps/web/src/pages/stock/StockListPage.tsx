@@ -283,12 +283,21 @@ export default function StockListPage() {
                             }).format(stock.baseCost)}
                           </TableCell>
                           <TableCell className="text-gray-900">
-                            {(stock.expectedSalePrice || stock.vehicleModel.price)
-                              ? new Intl.NumberFormat('th-TH', {
-                                  style: 'currency',
-                                  currency: 'THB',
-                                }).format(stock.expectedSalePrice || stock.vehicleModel.price || 0)
-                              : '-'}
+                            {(stock.expectedSalePrice || stock.vehicleModel.price) ? (
+                              <div>
+                                <div>
+                                  {new Intl.NumberFormat('th-TH', {
+                                    style: 'currency',
+                                    currency: 'THB',
+                                  }).format(stock.expectedSalePrice || stock.vehicleModel.price || 0)}
+                                </div>
+                                {!stock.expectedSalePrice && (
+                                  <div className="text-xs text-red-600">*เป็นราคาจากรุ่นรถยนต์</div>
+                                )}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
                           </TableCell>
                           <TableCell className="text-gray-900">
                             {new Intl.NumberFormat('th-TH', {
