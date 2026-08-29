@@ -15,8 +15,8 @@ import { operational } from '../modules/system/system.controller';
  * compiled with NODE_ENV baked in as production, so the useful text could never reach the
  * screen on a customer machine.
  *
- * These routes are all behind requireRole('ADMIN') and the strings are written for the
- * operator, so the message must survive.
+ * These routes are behind SYSTEM_VIEW / SYSTEM_UPDATE and the strings are written for
+ * the operator, so the message must survive.
  */
 describe('system route error surfacing', () => {
   it('keeps the reason a plain Error carried', async () => {

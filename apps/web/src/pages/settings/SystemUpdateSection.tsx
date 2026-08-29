@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePermission } from '../../hooks/usePermission';
 import { systemService } from '../../services/system.service';
 import type {
   BackupInfo,
@@ -63,6 +64,9 @@ function formatTimestamp(ts: number) {
 }
 
 export default function SystemUpdateSection() {
+  const { hasPermission } = usePermission();
+  const canUpdate = hasPermission('SYSTEM_UPDATE');
+
   const [version, setVersion] = useState<VersionInfo | null>(null);
   const [updateCheck, setUpdateCheck] = useState<UpdateCheckResult | null>(null);
   // Result of the API's periodic background check, shown until a manual check replaces it.
@@ -88,20 +92,20 @@ export default function SystemUpdateSection() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartRef = useRef<number>(0);
   // Track mount status so the polling interval (which can outlive a navigation
-  // away from /settings during an update) does not call state setters on an
+  // away from /system during an update) does not call state setters on an
   // unmounted component.
   const mountedRef = useRef(true);
 
-  // Fetch version on mount
+  // Fetch version on mount. Cached update availability is ADMIN-only.
   useEffect(() => {
     mountedRef.current = true;
     fetchVersion();
-    fetchCachedAvailability();
+    if (canUpdate) fetchCachedAvailability();
     return () => {
       mountedRef.current = false;
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, []);
+  }, [canUpdate]);
 
   // Show what the API's background check already found, so opening this page reports a
   // known update instead of an empty panel that only fills in after a manual click.
@@ -312,18 +316,20 @@ export default function SystemUpdateSection() {
               )}
             </div>
           </div>
-          <button
-            onClick={handleCheckUpdate}
-            disabled={checking || isProcessing}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
-          >
-            {checking ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            {checking ? 'กำลังตรวจสอบ...' : 'ตรวจสอบอัพเดท'}
-          </button>
+          {canUpdate && (
+            <button
+              onClick={handleCheckUpdate}
+              disabled={checking || isProcessing}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all"
+            >
+              {checking ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              {checking ? 'กำลังตรวจสอบ...' : 'ตรวจสอบอัพเดท'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -339,8 +345,8 @@ export default function SystemUpdateSection() {
       )}
 
       {/* Result of the background check. Hidden once a manual check has run, since that
-          result is newer and renders in full below. */}
-      {!updateCheck && !isProcessing && cachedCheck && (
+          result is newer and renders in full below. ADMIN-only. */}
+      {canUpdate && !updateCheck && !isProcessing && cachedCheck && (
         <div
           className={`rounded-lg p-4 border ${
             cachedCheck.hasUpdate ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'
@@ -377,7 +383,7 @@ export default function SystemUpdateSection() {
       )}
 
       {/* Update Available */}
-      {updateCheck && !isProcessing && (
+      {canUpdate && updateCheck && !isProcessing && (
         <div
           className={`rounded-lg p-4 border ${
             updateCheck.hasUpdate ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'
@@ -499,7 +505,7 @@ export default function SystemUpdateSection() {
       )}
 
       {/* Update Progress */}
-      {(isProcessing || (updateStatus && updateStatus.status !== 'idle')) && (
+      {canUpdate && (isProcessing || (updateStatus && updateStatus.status !== 'idle')) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
           <div className="flex items-center gap-2">
             {updateStatus?.status === 'running' || updateStatus?.status === 'rolling_back' ? (
@@ -596,33 +602,33 @@ export default function SystemUpdateSection() {
 
       {/* Actions Row */}
       <div className="flex flex-wrap items-center gap-3 pt-2">
-        {/* Rollback Button */}
-        {!confirmRollback ? (
-          <button
-            onClick={() => setConfirmRollback(true)}
-            disabled={isProcessing}
-            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all border border-gray-300"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Rollback
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-2">
-            <span className="text-sm text-red-700">ย้อนกลับเวอร์ชันก่อนหน้า?</span>
+        {canUpdate &&
+          (!confirmRollback ? (
             <button
-              onClick={handleRollback}
-              className="bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 text-sm font-medium"
+              onClick={() => setConfirmRollback(true)}
+              disabled={isProcessing}
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all border border-gray-300"
             >
-              ยืนยัน
+              <RotateCcw className="w-4 h-4" />
+              Rollback
             </button>
-            <button
-              onClick={() => setConfirmRollback(false)}
-              className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg hover:bg-gray-300 text-sm font-medium"
-            >
-              ยกเลิก
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-2">
+              <span className="text-sm text-red-700">ย้อนกลับเวอร์ชันก่อนหน้า?</span>
+              <button
+                onClick={handleRollback}
+                className="bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 text-sm font-medium"
+              >
+                ยืนยัน
+              </button>
+              <button
+                onClick={() => setConfirmRollback(false)}
+                className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg hover:bg-gray-300 text-sm font-medium"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          ))}
 
         {/* Backups Toggle */}
         <button

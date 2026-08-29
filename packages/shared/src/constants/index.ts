@@ -407,6 +407,10 @@ export const PERMISSIONS = {
   // Settings
   SETTINGS_VIEW: ['ADMIN'],
 
+  // System update / backup
+  SYSTEM_VIEW: ['ADMIN', 'SALES_MANAGER', 'STOCK_STAFF', 'ACCOUNTANT', 'SALES_STAFF'],
+  SYSTEM_UPDATE: ['ADMIN'],
+
   // Documents
   DOC_CAR_DETAIL_CARD: ['ADMIN', 'STOCK_STAFF', 'ACCOUNTANT'],
   DOC_SALES_RECORD: ['ADMIN', 'ACCOUNTANT'],

@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { AppError, isAppError } from '../../lib/errors';
-import { authMiddleware, requireRole } from '../auth/auth.middleware';
+import { authMiddleware, requirePermission } from '../auth/auth.middleware';
 import { systemService } from './system.service';
 
 /**
@@ -14,8 +14,8 @@ import { systemService } from './system.service';
  * Every system failure therefore reached the admin as the same dead-end string.
  *
  * Re-throwing as AppError lets the message through. Nothing internal is exposed: these
- * strings are written for the operator, and every route below is already behind
- * requireRole('ADMIN').
+ * strings are written for the operator. Version/backup routes are behind SYSTEM_VIEW
+ * (every role); update/rollback/logs stay behind SYSTEM_UPDATE (ADMIN).
  */
 export async function operational<T>(run: () => Promise<T> | T): Promise<T> {
   try {
@@ -40,7 +40,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: version };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_VIEW')],
     }
   )
   // Check for available updates
@@ -51,7 +51,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
     }
   )
   // Cached result of the background check. Unlike /check-update this contacts nothing —
@@ -63,7 +63,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: systemService.getCachedUpdateCheck() };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
     }
   )
   // Trigger update
@@ -75,7 +75,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
     }
   )
   // Get update status (polled by frontend)
@@ -86,7 +86,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: status };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
     }
   )
   // Trigger manual rollback
@@ -100,7 +100,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
       body: t.Optional(
         t.Object({
           commit: t.Optional(t.String()),
@@ -117,7 +117,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_VIEW')],
     }
   )
   // List available backups
@@ -128,7 +128,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_VIEW')],
     }
   )
   // List update/rollback logs
@@ -139,7 +139,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
     }
   )
   // Get specific log file contents
@@ -150,7 +150,7 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
       return { success: true, data: result };
     },
     {
-      beforeHandle: [authMiddleware, requireRole('ADMIN')],
+      beforeHandle: [authMiddleware, requirePermission('SYSTEM_UPDATE')],
       params: t.Object({
         filename: t.String(),
       }),

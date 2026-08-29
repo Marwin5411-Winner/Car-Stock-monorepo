@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { MainLayout } from '../../components/layout';
 import { Save, Upload, Building } from 'lucide-react';
 import { settingsService } from '../../services/settings.service';
-import SystemUpdateSection from './SystemUpdateSection';
 import BankAccountsSection from './BankAccountsSection';
 import { useMutationHandler, useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../components/toast';
@@ -241,11 +240,6 @@ export default function SettingsPage() {
             {/* Bank Accounts Master Data */}
             <div className="max-w-4xl mt-8">
                 <BankAccountsSection />
-            </div>
-
-            {/* System Update Section - Admin Only */}
-            <div className="max-w-4xl mt-8">
-                <SystemUpdateSection />
             </div>
         </MainLayout>
     );

@@ -12,6 +12,7 @@ import {
   Package,
   Percent,
   PieChart,
+  RefreshCw,
   Settings,
   Shield,
   ShoppingCart,
@@ -93,6 +94,12 @@ const navItems: NavItem[] = [
     icon: <Settings className="w-5 h-5" />,
     permission: 'SETTINGS_VIEW',
   },
+  {
+    to: '/system',
+    label: 'อัพเดทระบบ',
+    icon: <RefreshCw className="w-5 h-5" />,
+    permission: 'SYSTEM_VIEW',
+  },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -101,11 +108,11 @@ export const Sidebar: React.FC = () => {
   const { companyName } = useCompany();
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
-  // Only ADMIN can act on an update, and /update-available is ADMIN-only — asking as anyone
-  // else is a guaranteed 403 on every page load. Reads the API's cached background check,
-  // so this contacts no external service and costs nothing to call here.
+  // Only SYSTEM_UPDATE (ADMIN) can act on an update, and /update-available is gated the
+  // same way — asking as anyone else is a guaranteed 403 on every page load. Reads the
+  // API's cached background check, so this contacts no external service.
   useEffect(() => {
-    if (user?.role !== 'ADMIN') {
+    if (!hasPermission('SYSTEM_UPDATE')) {
       setUpdateAvailable(false);
       return;
     }
@@ -183,7 +190,7 @@ export const Sidebar: React.FC = () => {
                     {item.icon}
                     {/* Update indicator. The only signal a site gets that a new version
                         exists — before this, someone had to open Settings and click. */}
-                    {item.to === '/settings' && updateAvailable && (
+                    {item.to === '/system' && updateAvailable && (
                       <span
                         className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 ring-2 ring-slate-900"
                         aria-hidden="true"
@@ -193,7 +200,7 @@ export const Sidebar: React.FC = () => {
                   {!collapsed && (
                     <span className="flex items-center gap-2">
                       {item.label}
-                      {item.to === '/settings' && updateAvailable && (
+                      {item.to === '/system' && updateAvailable && (
                         <span className="text-[10px] font-medium text-blue-300">มีเวอร์ชันใหม่</span>
                       )}
                     </span>

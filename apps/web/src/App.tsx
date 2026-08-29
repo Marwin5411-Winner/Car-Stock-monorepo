@@ -108,6 +108,7 @@ const BankInterestReportPage = React.lazy(() =>
   import('./pages/reports').then((m) => ({ default: m.BankInterestReportPage }))
 );
 const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
+const SystemPage = React.lazy(() => import('./pages/system/SystemPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -377,6 +378,14 @@ function App() {
                       element={
                         <ProtectedRoute allowedRoles={P.SETTINGS_VIEW}>
                           <SettingsPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/system"
+                      element={
+                        <ProtectedRoute allowedRoles={P.SYSTEM_VIEW}>
+                          <SystemPage />
                         </ProtectedRoute>
                       }
                     />

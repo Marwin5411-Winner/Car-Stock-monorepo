@@ -11,6 +11,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@car-stock/shared': path.resolve(__dirname, '../../packages/shared/src'),
     },
+    // Accidental tsc emit next to .ts (index.js) would otherwise win and serve stale constants.
+    extensions: ['.mjs', '.mts', '.ts', '.tsx', '.jsx', '.js', '.json'],
     dedupe: ['react', 'react-dom'],
   },
   optimizeDeps: {
