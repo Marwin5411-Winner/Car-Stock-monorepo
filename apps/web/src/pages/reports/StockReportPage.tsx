@@ -1,5 +1,5 @@
 import type { StockReportItem, StockReportResponse } from '@car-stock/shared/types';
-import { ArrowLeft, Car, CheckCircle, Clock, Download, FileText, Package } from 'lucide-react';
+import { ArrowLeft, Car, Download, FileText, Package } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
@@ -24,7 +24,6 @@ export default function StockReportPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<StockReportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('');
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>('');
 
   // Default dates
@@ -40,7 +39,6 @@ export default function StockReportPage() {
       const result = await reportService.getStockReport({
         startDate,
         endDate,
-        status: statusFilter || undefined,
         vehicleType: vehicleTypeFilter || undefined,
       });
       setData(result);
@@ -122,13 +120,11 @@ export default function StockReportPage() {
         reportService.getStockReport({
           startDate,
           endDate,
-          status: statusFilter || undefined,
           vehicleType: 'SEDAN',
         }),
         reportService.getStockReport({
           startDate,
           endDate,
-          status: statusFilter || undefined,
           vehicleType: 'PICKUP',
         }),
       ]);
@@ -153,7 +149,7 @@ export default function StockReportPage() {
       const blob = await reportService.getStockReportPdf({
         startDate,
         endDate,
-        status: statusFilter || undefined,
+        vehicleType: vehicleTypeFilter || undefined,
       });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -181,7 +177,7 @@ export default function StockReportPage() {
           กลับ
         </button>
         <h1 className="text-2xl font-bold text-gray-900">รายงานสต็อก</h1>
-        <p className="text-gray-600 mt-1">รายงานสถานะรถในสต็อก แยกตามยี่ห้อและสถานะ</p>
+        <p className="text-gray-600 mt-1">แสดงเฉพาะรถพร้อมขายและรถ Demo แยกตามยี่ห้อ</p>
       </div>
 
       {/* Date Filter */}
@@ -196,23 +192,8 @@ export default function StockReportPage() {
         />
       </div>
 
-      {/* Status + VehicleType Filters */}
+      {/* VehicleType Filter */}
       <div className="flex flex-wrap gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">ทั้งหมด</option>
-            <option value="AVAILABLE">พร้อมขาย</option>
-            <option value="RESERVED">จองแล้ว</option>
-            <option value="PREPARING">เตรียมส่งมอบ</option>
-            <option value="SOLD">ขายแล้ว</option>
-            <option value="DEMO">รถ Demo</option>
-          </select>
-        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทรถ</label>
           <select
@@ -257,7 +238,17 @@ export default function StockReportPage() {
           <FileText className="w-4 h-4 mr-2" />
           ส่งออก PDF
         </button>
-        <PrintButton title="รายงานสต็อก" contentId="report-content" />
+        <PrintButton
+          title="รายงานสต็อก"
+          disabled={loading || !data}
+          getPdf={() =>
+            reportService.getStockReportPdf({
+              startDate,
+              endDate,
+              vehicleType: vehicleTypeFilter || undefined,
+            })
+          }
+        />
       </div>
 
       {error && (
@@ -282,26 +273,26 @@ export default function StockReportPage() {
               <SummaryCard
                 title="พร้อมขาย"
                 value={formatNumber(data.summary.availableCount)}
-                subtitle={`${((data.summary.availableCount / data.summary.totalCount) * 100).toFixed(1)}%`}
+                subtitle={
+                  data.summary.totalCount > 0
+                    ? `${((data.summary.availableCount / data.summary.totalCount) * 100).toFixed(1)}%`
+                    : '0%'
+                }
                 icon={Car}
                 iconColor="text-green-600"
                 iconBgColor="bg-green-100"
               />
               <SummaryCard
-                title="จองแล้ว"
-                value={formatNumber(data.summary.reservedCount)}
-                subtitle={`${((data.summary.reservedCount / data.summary.totalCount) * 100).toFixed(1)}%`}
-                icon={Clock}
-                iconColor="text-yellow-600"
-                iconBgColor="bg-yellow-100"
-              />
-              <SummaryCard
-                title="ขายแล้ว"
-                value={formatNumber(data.summary.soldCount)}
-                subtitle={`${((data.summary.soldCount / data.summary.totalCount) * 100).toFixed(1)}%`}
-                icon={CheckCircle}
-                iconColor="text-gray-600"
-                iconBgColor="bg-gray-100"
+                title="รถ Demo"
+                value={formatNumber(data.summary.demoCount)}
+                subtitle={
+                  data.summary.totalCount > 0
+                    ? `${((data.summary.demoCount / data.summary.totalCount) * 100).toFixed(1)}%`
+                    : '0%'
+                }
+                icon={Car}
+                iconColor="text-purple-600"
+                iconBgColor="bg-purple-100"
               />
             </SummaryCardsGrid>
 

@@ -12,6 +12,7 @@ export const COLORS = [
 
 export const STATUS_COLORS: Record<string, string> = {
   AVAILABLE: '#10B981',
+  DEMO: '#8B5CF6',
   RESERVED: '#F59E0B',
   PREPARING: '#3B82F6',
   SOLD: '#6B7280',

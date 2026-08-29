@@ -98,7 +98,7 @@ class ReportService {
     const queryParams = new URLSearchParams();
     if (params?.startDate) queryParams.append('startDate', params.startDate);
     if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.status) queryParams.append('status', params.status);
+    if (params?.vehicleType) queryParams.append('vehicleType', params.vehicleType);
 
     const url = `/api/reports/stock/pdf${queryParams.toString() ? `?${queryParams}` : ''}`;
     return api.getBlob(url);

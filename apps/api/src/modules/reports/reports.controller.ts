@@ -168,7 +168,6 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       }
 
       const result = await reportsService.getStockReport({
-        status: query.status as any,
         vehicleType: query.vehicleType as any,
       });
 
@@ -183,21 +182,12 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       query: t.Object({
         startDate: t.Optional(t.String()),
         endDate: t.Optional(t.String()),
-        status: t.Optional(
-          t.Union([
-            t.Literal('AVAILABLE'),
-            t.Literal('RESERVED'),
-            t.Literal('PREPARING'),
-            t.Literal('SOLD'),
-            t.Literal('DEMO'),
-          ])
-        ),
         vehicleType: t.Optional(t.String()),
       }),
       detail: {
         tags: ['Reports'],
         summary: 'Get stock report',
-        description: 'Get stock inventory report with summary by status and brand',
+        description: 'Stock still on the lot (AVAILABLE + DEMO), summarized by brand',
       },
     }
   )
@@ -209,7 +199,9 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
         return 'Forbidden';
       }
 
-      const result = await reportsService.getStockReport({ status: query.status as any });
+      const result = await reportsService.getStockReport({
+        vehicleType: query.vehicleType as any,
+      });
 
       const dateRange = `ข้อมูล ณ วันที่ ${formatThaiDate(new Date(), 'full')}`;
 
@@ -233,7 +225,7 @@ export const reportRoutes = new Elysia({ prefix: '/reports' })
       query: t.Object({
         startDate: t.Optional(t.String()),
         endDate: t.Optional(t.String()),
-        status: t.Optional(t.String()), // simplifying for pdf endpoint
+        vehicleType: t.Optional(t.String()),
       }),
     }
   )

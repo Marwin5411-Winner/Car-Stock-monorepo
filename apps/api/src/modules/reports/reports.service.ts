@@ -194,19 +194,19 @@ export async function getDailyPaymentReport(params: DailyPaymentParams) {
 interface StockReportParams {
   startDate?: Date;
   endDate?: Date;
-  status?: StockStatus;
   vehicleType?: VehicleType;
 }
 
+/** Inventory still on the lot: ready to sell + demo. Sales-lifecycle statuses stay off this report. */
+const STOCK_REPORT_STATUSES = ['AVAILABLE', 'DEMO'] as StockStatus[];
+
 export async function getStockReport(params: StockReportParams) {
-  const { status, vehicleType } = params;
+  const { vehicleType } = params;
 
   const where: Record<string, unknown> = {
     deletedAt: null,
+    status: { in: STOCK_REPORT_STATUSES },
   };
-  if (status) {
-    where.status = status;
-  }
   if (vehicleType) {
     where.vehicleModel = { type: vehicleType };
   }
@@ -339,12 +339,10 @@ export async function getStockReport(params: StockReportParams) {
   // Summary
   const totalCount = stockItems.length;
   const availableCount = stockItems.filter((s) => s.status === 'AVAILABLE').length;
-  const reservedCount = stockItems.filter((s) => s.status === 'RESERVED').length;
-  const preparingCount = stockItems.filter((s) => s.status === 'PREPARING').length;
-  const soldCount = stockItems.filter((s) => s.status === 'SOLD').length;
+  const demoCount = stockItems.filter((s) => s.status === 'DEMO').length;
   const totalValue = stockItems.reduce((sum, s) => sum + s.totalCost, 0);
 
-  // By status
+  // By status — only statuses this report includes
   const byStatus = [
     {
       status: 'AVAILABLE',
@@ -353,22 +351,10 @@ export async function getStockReport(params: StockReportParams) {
       percentage: totalCount > 0 ? (availableCount / totalCount) * 100 : 0,
     },
     {
-      status: 'RESERVED',
-      label: 'จองแล้ว',
-      count: reservedCount,
-      percentage: totalCount > 0 ? (reservedCount / totalCount) * 100 : 0,
-    },
-    {
-      status: 'PREPARING',
-      label: 'เตรียมส่งมอบ',
-      count: preparingCount,
-      percentage: totalCount > 0 ? (preparingCount / totalCount) * 100 : 0,
-    },
-    {
-      status: 'SOLD',
-      label: 'ขายแล้ว',
-      count: soldCount,
-      percentage: totalCount > 0 ? (soldCount / totalCount) * 100 : 0,
+      status: 'DEMO',
+      label: 'รถ Demo',
+      count: demoCount,
+      percentage: totalCount > 0 ? (demoCount / totalCount) * 100 : 0,
     },
   ];
 
@@ -398,9 +384,10 @@ export async function getStockReport(params: StockReportParams) {
     summary: {
       totalCount,
       availableCount,
-      reservedCount,
-      preparingCount,
-      soldCount,
+      demoCount,
+      reservedCount: 0,
+      preparingCount: 0,
+      soldCount: 0,
       totalValue,
       byStatus,
       byBrand,

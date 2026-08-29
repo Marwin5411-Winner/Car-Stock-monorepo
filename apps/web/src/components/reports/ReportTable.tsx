@@ -125,6 +125,8 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
     switch (status) {
       case 'AVAILABLE':
         return 'bg-green-100 text-green-800';
+      case 'DEMO':
+        return 'bg-purple-100 text-purple-800';
       case 'RESERVED':
         return 'bg-yellow-100 text-yellow-800';
       case 'PREPARING':

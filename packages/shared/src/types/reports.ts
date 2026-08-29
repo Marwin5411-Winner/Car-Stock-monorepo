@@ -106,6 +106,7 @@ export interface StockBrandSummary {
 export interface StockReportSummary {
   totalCount: number;
   availableCount: number;
+  demoCount: number;
   reservedCount: number;
   preparingCount: number;
   soldCount: number;
