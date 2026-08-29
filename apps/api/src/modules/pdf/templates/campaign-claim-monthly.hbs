@@ -36,10 +36,11 @@
       <th>วันที่แจ้งขาย</th>
     </tr>
   </thead>
-  <tbody>
-    {{#each rows}}
-    <tr>
-      <td class="tc">{{no}}</td>
+  {{#if rows.length}}
+  {{#each rows}}
+  <tbody class="claim-item">
+    <tr class="row-data">
+      <td class="tc seq" rowspan="2">{{no}}</td>
       <td>{{customerName}}</td>
       <td>{{modelName}}</td>
       <td class="tc mono">{{vin}}</td>
@@ -48,20 +49,32 @@
       <td class="tr strong">{{#if total}}{{formatCurrency total false}}{{/if}}</td>
       <td class="tc">{{#if notifyDate}}{{formatThaiDate notifyDate 'short'}}{{/if}}</td>
     </tr>
-    {{else}}
-    <tr>
-      <td colspan="12" class="tc muted">ไม่มีรายการเบิกแคมเปญในช่วงเวลานี้</td>
+    <tr class="row-write">
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      {{#each cells}}<td></td>{{/each}}
+      <td></td>
+      <td></td>
     </tr>
-    {{/each}}
-    {{#if rows.length}}
+  </tbody>
+  {{/each}}
+  <tbody>
     <tr class="row-total">
       <td colspan="5" class="tr strong">รวมทั้งสิ้น ({{summary.totalCars}} คัน)</td>
       {{#each summary.columnTotals}}<td class="tr strong">{{formatCurrency this false}}</td>{{/each}}
       <td class="tr strong">{{formatCurrency summary.grandTotal false}}</td>
       <td></td>
     </tr>
-    {{/if}}
   </tbody>
+  {{else}}
+  <tbody>
+    <tr>
+      <td colspan="12" class="tc muted">ไม่มีรายการเบิกแคมเปญในช่วงเวลานี้</td>
+    </tr>
+  </tbody>
+  {{/if}}
 </table>
 
 <div class="claim-footer">
@@ -106,7 +119,13 @@
   .claim-table .strong { font-weight: bold; }
   .claim-table .muted { color: #6b7280; padding: 10px; }
   .claim-table .row-total td { background: #f3f4f6 !important; }
-  .claim-table tbody tr { page-break-inside: avoid; break-inside: avoid; }
+  .claim-table .seq { vertical-align: middle; font-weight: bold; }
+  .claim-table .claim-item { page-break-inside: avoid; break-inside: avoid; }
+  .claim-table .row-write td {
+    height: 18px;
+    padding: 8px 3px;
+    background: #fff !important;
+  }
   .claim-footer {
     display: flex;
     justify-content: space-around;
