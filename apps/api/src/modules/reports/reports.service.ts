@@ -222,17 +222,6 @@ export async function getStockReport(params: StockReportParams) {
           year: true,
         },
       },
-      sale: {
-        select: {
-          customer: {
-            select: {
-              name: true,
-            },
-          },
-          reservedDate: true,
-          createdAt: true,
-        },
-      },
       interestPeriods: {
         select: {
           startDate: true,
@@ -329,10 +318,6 @@ export async function getStockReport(params: StockReportParams) {
       otherCosts,
       accumulatedInterest: Math.round(accumulatedInterest * 100) / 100,
       totalCost: Math.round(totalCost * 100) / 100,
-
-      // Reservation info
-      reservedBy: s.sale?.customer?.name || '-',
-      reservedDate: s.sale?.reservedDate ? s.sale.reservedDate.toISOString() : undefined,
     };
   });
 

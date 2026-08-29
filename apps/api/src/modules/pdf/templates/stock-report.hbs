@@ -79,23 +79,22 @@
   <table style="font-size: 9px;">
     <thead>
       <tr class="header-row">
-        <th rowspan="2" style="width: 3%">No.</th>
-        <th style="width: 15%">รุ่นรถ / สี</th>
-        <th style="width: 15%">เลขถัง / เลขเครื่อง</th>
-        <th rowspan="2" style="width: 5%">ที่จอด</th>
-        <th rowspan="2" style="width: 6%">วันที่รับเข้า</th>
-        <th rowspan="2" style="width: 4%">อายุ<br>(วัน)</th>
+        <th rowspan="2" style="width: 4%">No.</th>
+        <th style="width: 20%">รุ่นรถ / สี</th>
+        <th style="width: 20%">เลขถัง / เลขเครื่อง</th>
+        <th rowspan="2" style="width: 6%">ที่จอด</th>
+        <th rowspan="2" style="width: 8%">วันที่รับเข้า</th>
+        <th rowspan="2" style="width: 5%">อายุ<br>(วัน)</th>
         <th colspan="4">ต้นทุน</th>
         <th rowspan="2" style="width: 8%">สถานะ</th>
-        <th rowspan="2" style="width: 12%">ลูกค้าจอง</th>
       </tr>
       <tr class="header-row">
         <th>ภายนอก / ภายใน</th>
         <th>VIN / Engine No.</th>
-        <th style="width: 6%">ราคารถ</th>
-        <th style="width: 6%">ค่าใช้จ่าย</th>
-        <th style="width: 5%">ดอกเบี้ย</th>
-        <th style="width: 6%">รวม</th>
+        <th style="width: 8%">ราคารถ</th>
+        <th style="width: 7%">ค่าใช้จ่าย</th>
+        <th style="width: 6%">ดอกเบี้ย</th>
+        <th style="width: 8%">รวม</th>
       </tr>
     </thead>
     <tbody>
@@ -120,13 +119,12 @@
         <td class="text-center">
           <span class="badge status-{{toLowerCase status}}">{{statusLabel}}</span>
         </td>
-        <td>{{reservedBy}}</td>
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
         <td colspan="9" class="text-right">มูลค่ารวม</td>
         <td class="text-right">{{formatCurrency summary.totalValue}}</td>
-        <td colspan="2"></td>
+        <td></td>
       </tr>
     </tbody>
   </table>
