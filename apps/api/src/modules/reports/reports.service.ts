@@ -51,7 +51,8 @@ const getMonthKey = (date: Date): string => {
   return `${months[date.getMonth()]} ${date.getFullYear() + 543}`;
 };
 
-const calculateDays = (startDate: Date, endDate: Date): number => {
+const calculateDays = (startDate: Date | null | undefined, endDate: Date | null | undefined): number => {
+  if (!startDate || !endDate) return 0;
   const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
@@ -1075,7 +1076,7 @@ export async function getStockInterestReport(params: StockInterestParams) {
       stock.stopInterestCalc && stock.interestStoppedAt
         ? new Date(Math.min(soldOrToday.getTime(), stock.interestStoppedAt.getTime()))
         : soldOrToday;
-    const daysCount = calculateDays(interestStartDate, endDate);
+    const daysCount = interestStartDate ? calculateDays(interestStartDate, endDate) : 0;
 
     const baseCost = toNumber(stock.baseCost);
     const totalCost =
@@ -1103,7 +1104,7 @@ export async function getStockInterestReport(params: StockInterestParams) {
       const periodDays = calculateDays(activePeriod.startDate, soldOrToday);
       const activeInterest = calculateInterest(principalAmount, currentRate, periodDays);
       totalAccumulatedInterest += activeInterest;
-    } else if (stock.interestPeriods.length === 0 && canAccrueActiveInterest) {
+    } else if (stock.interestPeriods.length === 0 && canAccrueActiveInterest && interestStartDate) {
       // No periods yet, use stock's default rate
       totalAccumulatedInterest = calculateInterest(principalAmount, currentRate, daysCount);
     }
@@ -1148,9 +1149,9 @@ export async function getStockInterestReport(params: StockInterestParams) {
       status: stock.status,
       statusLabel:
         STOCK_STATUS_LABELS[stock.status as keyof typeof STOCK_STATUS_LABELS] || stock.status,
-      arrivalDate: stock.arrivalDate.toISOString(),
+      arrivalDate: stock.arrivalDate?.toISOString() ?? '',
       orderDate: stock.orderDate?.toISOString(),
-      interestStartDate: interestStartDate.toISOString(),
+      interestStartDate: interestStartDate?.toISOString() ?? '',
       daysInStock: daysCount,
       daysCount,
       currentRate,
@@ -1229,7 +1230,9 @@ export async function getStockInterestReport(params: StockInterestParams) {
   // Monthly (based on arrival date)
   const monthlyGroups: Record<string, { interest: number; paidInterest: number }> = {};
   stockItems.forEach((s) => {
+    if (!s.arrivalDate) return;
     const date = new Date(s.arrivalDate);
+    if (Number.isNaN(date.getTime())) return;
     const monthKey = getMonthKey(date);
     if (!monthlyGroups[monthKey]) {
       monthlyGroups[monthKey] = { interest: 0, paidInterest: 0 };
