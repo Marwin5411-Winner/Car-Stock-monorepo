@@ -6,6 +6,11 @@ import { campaignFormulasService } from '../campaigns/campaign-formulas.service'
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../lib/errors';
 import {
+  isNotesOnlySaleUpdate,
+  normalizeSharedNotes,
+  pickSharedNotes,
+} from './sale-notes';
+import {
   initialRemaining,
   recalcRemaining,
   shouldRecalcRemaining,
@@ -391,10 +396,11 @@ export class SalesService {
 
     // Check if stock exists (if provided) — filter soft-deleted.
     // When a unit is linked, stock.vehicleModelId is the only allowed model.
+    let createStockNotes: string | null | undefined;
     if (validated.stockId) {
       const stock = await db.stock.findFirst({
         where: { id: validated.stockId, deletedAt: null },
-        select: { id: true, status: true, vehicleModelId: true },
+        select: { id: true, status: true, vehicleModelId: true, notes: true },
       });
 
       if (!stock) {
@@ -413,6 +419,9 @@ export class SalesService {
           stockVehicleModelId: stock.vehicleModelId,
           preferredVehicleModelId: validated.vehicleModelId,
         }) ?? undefined;
+
+      createStockNotes = pickSharedNotes(validated.notes, stock.notes);
+      validated.notes = createStockNotes ?? undefined;
     }
 
     // Check if vehicle model exists (if provided)
@@ -524,7 +533,10 @@ export class SalesService {
       if (validated.stockId) {
         const reserved = await tx.stock.updateMany({
           where: { id: validated.stockId, status: 'AVAILABLE', deletedAt: null },
-          data: { status: 'RESERVED' },
+          data: {
+            status: 'RESERVED',
+            ...(createStockNotes !== undefined ? { notes: createStockNotes } : {}),
+          },
         });
         if (reserved.count === 0) {
           throw new BadRequestError('Stock is not available');
@@ -566,9 +578,50 @@ export class SalesService {
    * Update sale
    */
   async updateSale(id: string, data: any, currentUser: any) {
-    // Check permission
-    if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE')) {
+    const notesOnly = isNotesOnlySaleUpdate((data ?? {}) as Record<string, unknown>);
+
+    if (notesOnly) {
+      if (!authService.hasPermission(currentUser.role, 'SALE_VIEW')) {
+        throw new ForbiddenError();
+      }
+    } else if (!authService.hasPermission(currentUser.role, 'SALE_UPDATE')) {
       throw new ForbiddenError();
+    }
+
+    if (notesOnly) {
+      const existingSale = await db.sale.findUnique({
+        where: { id },
+        select: { id: true, saleNumber: true, status: true, stockId: true },
+      });
+      if (!existingSale) {
+        throw new NotFoundError('Sale');
+      }
+      if (existingSale.status === 'CANCELLED') {
+        throw new BadRequestError('ไม่สามารถแก้ไขรายการที่ถูกยกเลิกแล้ว');
+      }
+
+      const notes = normalizeSharedNotes(data.notes);
+      await db.$transaction(async (tx) => {
+        await tx.sale.update({ where: { id }, data: { notes } });
+        if (existingSale.stockId) {
+          await tx.stock.update({
+            where: { id: existingSale.stockId },
+            data: { notes },
+          });
+        }
+      });
+
+      await db.activityLog.create({
+        data: {
+          userId: currentUser.id,
+          action: 'UPDATE_SALE',
+          entity: 'SALE',
+          entityId: existingSale.id,
+          details: { saleNumber: existingSale.saleNumber, changes: { notes } },
+        },
+      });
+
+      return this.getSaleById(id, currentUser);
     }
 
     const validated = UpdateSaleSchema.parse(data);
@@ -601,6 +654,10 @@ export class SalesService {
     // Sale type is set at create time; never rewrite it via update payload.
     delete updatePayload.type;
 
+    if (updatePayload.notes !== undefined) {
+      updatePayload.notes = normalizeSharedNotes(updatePayload.notes);
+    }
+
     // Check if sale exists
     const existingSale = await db.sale.findUnique({
       where: { id },
@@ -611,6 +668,7 @@ export class SalesService {
         stockId: true,
         campaignId: true,
         vehicleModelId: true,
+        notes: true,
       },
     });
 
@@ -885,6 +943,33 @@ export class SalesService {
       });
     }
 
+    const linkedStockId =
+      (typeof updatePayload.stockId === 'string' && updatePayload.stockId) ||
+      existingSale.stockId;
+    const notesInPayload = Object.prototype.hasOwnProperty.call(data, 'notes');
+    if (linkedStockId && (notesInPayload || stockChanging)) {
+      let notes: string | null;
+      if (notesInPayload) {
+        notes = normalizeSharedNotes(data.notes);
+      } else {
+        const linkedStock = await db.stock.findFirst({
+          where: { id: linkedStockId, deletedAt: null },
+          select: { notes: true },
+        });
+        notes = pickSharedNotes(sale.notes, linkedStock?.notes);
+        if (notes !== sale.notes) {
+          sale = await db.sale.update({
+            where: { id },
+            data: { notes },
+          });
+        }
+      }
+      await db.stock.update({
+        where: { id: linkedStockId },
+        data: { notes },
+      });
+    }
+
     // Log activity
     await db.activityLog.create({
       data: {
@@ -1151,6 +1236,7 @@ export class SalesService {
         saleNumber: true,
         status: true,
         stockId: true,
+        notes: true,
       },
     });
 
@@ -1171,7 +1257,7 @@ export class SalesService {
     const result = await db.$transaction(async (tx) => {
       const newStock = await tx.stock.findFirst({
         where: { id: stockId, deletedAt: null },
-        select: { id: true, status: true, vehicleModelId: true },
+        select: { id: true, status: true, vehicleModelId: true, notes: true },
       });
 
       if (!newStock) {
@@ -1184,9 +1270,11 @@ export class SalesService {
         throw new BadRequestError('Stock is not available');
       }
 
+      const sharedNotes = pickSharedNotes(existingSale.notes, newStock.notes);
+
       const claimed = await tx.stock.updateMany({
         where: { id: stockId, status: 'AVAILABLE', deletedAt: null },
-        data: { status: stockStatus },
+        data: { status: stockStatus, notes: sharedNotes },
       });
       if (claimed.count === 0) {
         throw new BadRequestError('Stock is not available');
@@ -1203,6 +1291,7 @@ export class SalesService {
         where: { id: saleId },
         data: {
           stockId,
+          notes: sharedNotes,
           vehicleModelId: resolveSaleVehicleModelId({
             stockVehicleModelId: newStock.vehicleModelId,
           }),

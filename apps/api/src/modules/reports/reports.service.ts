@@ -11,6 +11,7 @@ import { splitVat } from '@car-stock/shared/formulas';
 import type { PaymentStatus, SaleStatus, StockStatus, VehicleType } from '@prisma/client';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { db } from '../../lib/db';
+import { resolveReportStockNotes } from '../sales/sale-notes';
 import { type BankInterestStockInput, buildBankInterestRows } from './bank-interest.helpers';
 import {
   buildCampaignClaimReport,
@@ -861,7 +862,8 @@ export async function getSalesSummaryReport(params: SalesSummaryParams) {
       financeReturn: financeCommission, // ค่าตอบไฟแนนซ์
       transportFee:
         (toNumber(sale.registrationFee) || 0) + (toNumber(sale.compulsoryInsuranceFee) || 0), // ทะเบียน/พรบ/ขนส่ง
-      campaignName: claimCampaign?.name || sale.campaign?.name || '-', // แคมเปญขาย
+      campaignName: claimCampaign?.name || sale.campaign?.name || '-',
+      stockNotes: resolveReportStockNotes(sale.stock?.notes, sale.notes), // หมายเหตุ (PDF)
       salesCommission, // คอมฯ พนักงานขาย
       salesExpense, // ค่าใช้จ่ายในการขาย
       insurancePremium: toNumber(sale.insuranceFee) || 0, // ค่าเบี้ยประกัน

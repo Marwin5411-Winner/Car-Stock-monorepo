@@ -229,7 +229,7 @@ export const salesRoutes = new Elysia({ prefix: '/sales' })
       };
     },
     {
-      beforeHandle: [authMiddleware, requirePermission('SALE_UPDATE')],
+      beforeHandle: [authMiddleware, requirePermission('SALE_VIEW')],
       body: t.Object({
         customerId: t.Optional(t.String({ minLength: 1 })),
         stockId: t.Optional(t.String()),

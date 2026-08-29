@@ -53,6 +53,8 @@ export default function StockDetailPage() {
   const [stock, setStock] = useState<Stock | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const { addToast } = useToast();
   const { execute: executeQuery } = useErrorHandler({ showToast: true });
@@ -74,7 +76,11 @@ export default function StockDetailPage() {
     setLoading(true);
     let found = false;
     await executeQuery(
-      stockService.getById(stockId).then((data) => { setStock(data); found = true; })
+      stockService.getById(stockId).then((data) => {
+        setStock(data);
+        setNotesDraft(data.notes || '');
+        found = true;
+      })
     );
     if (!found) navigate('/stock');
     setLoading(false);
@@ -90,6 +96,19 @@ export default function StockDetailPage() {
       })
     );
     setRecalculating(false);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!stock) return;
+    setSavingNotes(true);
+    await executeQuery(
+      stockService.update(stock.id, { notes: notesDraft }).then((updated) => {
+        setStock({ ...stock, notes: updated.notes ?? '' });
+        setNotesDraft(updated.notes || '');
+        addToast('บันทึกหมายเหตุสำเร็จ', 'success');
+      })
+    );
+    setSavingNotes(false);
   };
 
   const handleStatusChange = async (newStatus: CreateStockStatusValue) => {
@@ -476,6 +495,33 @@ export default function StockDetailPage() {
                 พิมพ์การ์ดรถยนต์ลงฟอร์ม
               </button>
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">หมายเหตุ</h2>
+            {canEdit ? (
+              <div className="space-y-3">
+                <textarea
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  rows={4}
+                  placeholder="ข้อมูลเพิ่มเติมเกี่ยวกับรถคันนี้..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes || notesDraft === (stock.notes || '')}
+                  className="w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingNotes ? 'กำลังบันทึก...' : 'บันทึกหมายเหตุ'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {stock.notes?.trim() ? stock.notes : 'ไม่มีหมายเหตุ'}
+              </p>
+            )}
           </div>
 
           {/* Warning if old stock */}

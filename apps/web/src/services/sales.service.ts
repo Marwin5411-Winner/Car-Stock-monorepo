@@ -50,6 +50,7 @@ export interface Sale {
     exteriorColor?: string;
     interiorColor?: string;
     expectedSalePrice?: number;
+    notes?: string | null;
   };
   vehicleModel?: {
     id: string;

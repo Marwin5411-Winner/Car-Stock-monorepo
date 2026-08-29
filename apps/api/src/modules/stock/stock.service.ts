@@ -9,6 +9,12 @@ import { authService } from '../auth/auth.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
 
+/** SOLD rows may only change `notes`; any other PATCH field stays rejected. */
+export function isNotesOnlyStockUpdate(data: Record<string, unknown>): boolean {
+  const keys = Object.keys(data).filter((k) => data[k] !== undefined);
+  return keys.length === 1 && keys[0] === 'notes';
+}
+
 export class StockService {
   /**
    * Cost-related fields to strip for users without STOCK_VIEW_COST permission
@@ -486,8 +492,9 @@ export class StockService {
       throw new NotFoundError('Stock');
     }
 
-    // Cannot update sold stock
-    if (existingStock.status === 'SOLD') {
+    // Sold stock is frozen except for the free-text note (used on the detail
+    // page and the sales-summary หมายเหตุ column).
+    if (existingStock.status === 'SOLD' && !isNotesOnlyStockUpdate(validated as Record<string, unknown>)) {
       throw new BadRequestError('Cannot update sold stock');
     }
 
@@ -498,6 +505,7 @@ export class StockService {
       ...(validated.engineNumber !== undefined && { engineNumber: validated.engineNumber?.trim() || null }),
       ...(validated.motorNumber1 !== undefined && { motorNumber1: validated.motorNumber1?.trim() || null }),
       ...(validated.motorNumber2 !== undefined && { motorNumber2: validated.motorNumber2?.trim() || null }),
+      ...(validated.notes !== undefined && { notes: validated.notes.trim() || null }),
     };
 
     // Update stock
@@ -505,6 +513,13 @@ export class StockService {
       where: { id },
       data: updateData,
     });
+
+    if (validated.notes !== undefined) {
+      await db.sale.updateMany({
+        where: { stockId: id },
+        data: { notes: updateData.notes as string | null },
+      });
+    }
 
     // Log activity
     await db.activityLog.create({

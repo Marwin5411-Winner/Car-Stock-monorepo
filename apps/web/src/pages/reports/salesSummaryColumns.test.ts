@@ -13,7 +13,6 @@ const EXPECTED_HEADERS = [
   'เลขคัซซี',
   'ราคารถ',
   'ส่วนลดตัวรถ',
-  'เงินสนับสนุน',
   'ดอกเบี้ย',
   'เงินดาวน์',
   'ส่วนลดดาวน์',
@@ -30,6 +29,7 @@ const EXPECTED_HEADERS = [
   'ค่าใช้จ่ายขาย',
   'ค่าเบี้ยประกัน',
   'กำไรสุทธิ',
+  'หมายเหตุ',
   'รับจาก',
   'สถานะ',
   'Sale',
@@ -69,6 +69,7 @@ const fullSale = {
   transportFee: 4500,
   totalCost: 620000,
   campaignName: 'แคมเปญ มิ.ย.',
+  stockNotes: 'ลูกค้าขอสีดำ\nรอใบกำกับ',
   salesCommission: 7000,
   salesExpense: 3000,
   insurancePremium: 18000,
@@ -93,8 +94,9 @@ describe('SALES_SUMMARY_COLUMNS', () => {
     expect(row['คอมฯพนักงาน']).toBe(7000);
     expect(row['ค่าใช้จ่ายขาย']).toBe(3000);
     expect(row['ค่าเบี้ยประกัน']).toBe(18000);
-    expect(row['เงินสนับสนุน']).toBe(15000);
+    expect(row['แคมเปญขาย']).toBe(15000);
     expect(row['กำไรสุทธิ']).toBe(93000);
+    expect(row['หมายเหตุ']).toBe('ลูกค้าขอสีดำ\nรอใบกำกับ');
   });
 
   test('กำไรขั้นต้น is computed as ราคารถ − ต้นทุน', () => {
@@ -121,6 +123,7 @@ describe('SALES_SUMMARY_COLUMNS', () => {
       financeReturn: undefined,
       campaignSubsidy: undefined,
       netProfit: undefined,
+      stockNotes: undefined,
     } as SalesSummaryItem;
     const row = buildSalesSummaryExportRow(sparse, 4);
     expect(row['ลำดับ']).toBe(5);
@@ -128,6 +131,8 @@ describe('SALES_SUMMARY_COLUMNS', () => {
     expect(row['ค่าใช้จ่ายขาย']).toBe(0);
     expect(row['ค่าเบี้ยประกัน']).toBe(0);
     expect(row['กำไรสุทธิ']).toBe(0);
+    expect(row['แคมเปญขาย']).toBe(0);
+    expect(row['หมายเหตุ']).toBe('-');
     expect(row['กำไรขั้นต้น']).toBe(700000); // totalCost undefined → 700000 − 0
   });
 });

@@ -183,7 +183,7 @@ export default function SalesFormPage() {
           monthlyInstallment: Number(sale.monthlyInstallment) || 0,
           createdAt: sale.createdAt ? toLocalYmd(new Date(sale.createdAt)) : toLocalYmd(),
           deliveryDate: sale.deliveryDate ? toLocalYmd(new Date(sale.deliveryDate)) : '',
-          notes: sale.notes || '',
+          notes: sale.stock?.notes || sale.notes || '',
           freebiesSnapshot: sale.freebiesSnapshot || '',
           financeEditedKeys: sale.financeEditedKeys ?? [],
           customLines: sale.customLines ?? [],

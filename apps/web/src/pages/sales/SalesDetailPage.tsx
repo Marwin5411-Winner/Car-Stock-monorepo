@@ -46,6 +46,10 @@ function formatVehicleModel(
   return `${vm.brand} ${vm.model}${vm.variant ? ` ${vm.variant}` : ''}`;
 }
 
+function sharedNotesText(sale: Sale): string {
+  return sale.stock?.notes ?? sale.notes ?? '';
+}
+
 const DEMO_STOCK_WARNING = 'รถ Demo ไม่สามารถเลือกขายได้';
 
 // Updated status labels - removed INQUIRY and QUOTED (now handled by Quotation module)
@@ -219,6 +223,8 @@ export default function SalesDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   // Stock assignment modal state
   const [showStockModal, setShowStockModal] = useState(false);
@@ -248,6 +254,7 @@ export default function SalesDetailPage() {
     await executeQuery(
       salesService.getById(saleId).then((data) => {
         setSale(data);
+        setNotesDraft(sharedNotesText(data));
         found = true;
       })
     );
@@ -270,6 +277,18 @@ export default function SalesDetailPage() {
       addToast('เปลี่ยนสถานะสำเร็จ', 'success');
     }
     setUpdatingStatus(false);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!sale) return;
+    setSavingNotes(true);
+    const updated = await executeQuery(salesService.update(sale.id, { notes: notesDraft }));
+    if (updated) {
+      setSale(updated);
+      setNotesDraft(sharedNotesText(updated));
+      addToast('บันทึกหมายเหตุสำเร็จ', 'success');
+    }
+    setSavingNotes(false);
   };
 
   // Stock assignment functions
@@ -1048,8 +1067,7 @@ export default function SalesDetailPage() {
         </div>
       </div>
 
-      {/* Campaign & Notes */}
-      {(sale.campaign || sale.notes || sale.freebiesSnapshot) && (
+      {(sale.campaign || sale.freebiesSnapshot) && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">ข้อมูลเพิ่มเติม</h3>
           {sale.campaign && (
@@ -1075,7 +1093,7 @@ export default function SalesDetailPage() {
             </div>
           )}
           {sale.freebiesSnapshot && (
-            <div className="mb-4">
+            <div className="mb-4 last:mb-0">
               <p className="text-sm text-gray-700">รายการของแถม</p>
               <ul className="text-sm text-blue-600 list-disc list-inside">
                 {sale.freebiesSnapshot
@@ -1088,14 +1106,35 @@ export default function SalesDetailPage() {
               </ul>
             </div>
           )}
-          {sale.notes && (
-            <div>
-              <p className="text-sm text-gray-700">หมายเหตุ</p>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{sale.notes}</p>
-            </div>
-          )}
         </div>
       )}
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">หมายเหตุ</h3>
+        {sale.status !== 'CANCELLED' ? (
+          <div className="space-y-3">
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              rows={4}
+              placeholder="ข้อมูลเพิ่มเติมเกี่ยวกับรายการขายนี้..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleSaveNotes}
+              disabled={savingNotes || notesDraft === sharedNotesText(sale)}
+              className="px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {savingNotes ? 'กำลังบันทึก...' : 'บันทึกหมายเหตุ'}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">
+            {sharedNotesText(sale).trim() ? sharedNotesText(sale) : 'ไม่มีหมายเหตุ'}
+          </p>
+        )}
+      </div>
 
     </div>
   );

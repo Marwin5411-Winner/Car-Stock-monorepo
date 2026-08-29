@@ -220,7 +220,7 @@ export interface SalesSummaryItem {
   // Money breakdown — always returned by getSalesSummaryReport (reports.service.ts),
   // previously untyped on the web. Mirrors the server PDF columns (sales-summary-report.hbs).
   discountAmount?: number; // ส่วนลดตัวรถ
-  campaignSubsidy?: number; // เงินสนับสนุน = ยอดเบิกสดจากสูตรแคมเปญ (ไม่ใช่ snapshot)
+  campaignSubsidy?: number; // ยอดเบิกสดจากสูตรแคมเปญ — PDF column "แคมเปญขาย"
   netCarDiscount?: number; // ส่วนลดตัวรถ สุทธิ (discount − subsidy)
   downPayment?: number; // เงินดาวน์
   downPaymentDiscount?: number; // ส่วนลดดาวน์
@@ -229,7 +229,8 @@ export interface SalesSummaryItem {
   interestCost?: number; // ดอกเบี้ย
   transportFee?: number; // ทะเบียน/พรบ/ขนส่ง (registrationFee + compulsoryInsuranceFee)
   totalCost?: number; // ต้นทุน
-  campaignName?: string; // แคมเปญขาย
+  campaignName?: string; // ชื่อแคมเปญ
+  stockNotes?: string; // หมายเหตุสต็อก — PDF/Excel column "หมายเหตุ"
   salesCommission?: number; // คอมฯ พนักงานขาย
   salesExpense?: number; // ค่าใช้จ่ายในการขาย
   insurancePremium?: number; // ค่าเบี้ยประกัน (= sale.insuranceFee)

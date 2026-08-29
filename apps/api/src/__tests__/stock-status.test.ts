@@ -7,6 +7,7 @@ import {
   percentToInterestRate,
 } from '@car-stock/shared/constants';
 import { CreateStockSchema } from '@car-stock/shared/schemas';
+import { isNotesOnlyStockUpdate } from '../modules/stock/stock.service';
 
 const baseCreate = {
   vin: 'TESTVIN1234567890',
@@ -128,5 +129,18 @@ describe('CreateStockSchema interest and empty optionals', () => {
     });
     expect(result.orderDate).toBeUndefined();
     expect(result.arrivalDate).toBeUndefined();
+  });
+});
+
+describe('isNotesOnlyStockUpdate (SOLD stock may change notes)', () => {
+  test('allows a notes-only payload, including empty string', () => {
+    expect(isNotesOnlyStockUpdate({ notes: 'เบิกแคมเปญแล้ว' })).toBe(true);
+    expect(isNotesOnlyStockUpdate({ notes: '' })).toBe(true);
+  });
+
+  test('rejects other fields, even alongside notes', () => {
+    expect(isNotesOnlyStockUpdate({ baseCost: 1_000_000 })).toBe(false);
+    expect(isNotesOnlyStockUpdate({ notes: 'x', exteriorColor: 'White' })).toBe(false);
+    expect(isNotesOnlyStockUpdate({})).toBe(false);
   });
 });
