@@ -134,13 +134,6 @@ export default function StockDetailPage() {
     );
   };
 
-  const handlePrintVehicleCardTemplate = () => {
-    if (!stock) return;
-    return executeQuery(
-      printHtmlViaPopup(() => api.getBlob(`/api/pdf/vehicle-card-template/${stock.id}?format=html`))
-    );
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('th-TH', {
       style: 'currency',
@@ -485,14 +478,7 @@ export default function StockDetailPage() {
                 className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                พิมพ์การ์ดรถยนต์ (ปกติ)
-              </button>
-              <button
-                onClick={handlePrintVehicleCardTemplate}
-                className="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 flex items-center justify-center"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                พิมพ์การ์ดรถยนต์ลงฟอร์ม
+                พิมพ์การ์ดรถยนต์
               </button>
             </div>
           </div>

@@ -52,42 +52,24 @@ describe('Vehicle card HTML print', () => {
     expect(html).toContain('@page');
     expect(html).toContain('27cm 21cm'); // custom cut stock 27×21
     expect(html).toContain('STK-HTML-001'); // data rendered
-    expect(html).toContain('การ์ดรายละเอียดรถยนต์'); // card title text present
+    expect(html).toContain('Yaris Ativ');
+    expect(html).toContain('500,000');
   });
 
-  it('renderVehicleCardTemplateHtml returns the frameless overlay HTML with @page', async () => {
-    const html = await pdfService.renderVehicleCardTemplateHtml(cardData);
-    expect(html).toContain('@page');
-    expect(html).toContain('26.9cm 20.9cm');
-    expect(html).toContain('STK-HTML-001');
-  });
-
-  it('renders cost values onto the frameless overlay so they land on the pre-printed form', async () => {
-    const html = await pdfService.renderVehicleCardTemplateHtml(cardData);
-    expect(html).toContain('500,000'); // ราคาก่อน VAT
-    expect(html).toContain('35,000'); // VAT 7%
-    expect(html).toContain('535,000'); // รวม
-  });
-
-  it('template overlay has data only — no form title, headings, or row labels', async () => {
-    const html = await pdfService.renderVehicleCardTemplateHtml(cardData);
-    // Values present
+  it('normal card is values-only — no form title, headings, or row labels', async () => {
+    const html = await pdfService.renderVehicleCardHtml(cardData);
     expect(html).toContain('Yaris Ativ');
     expect(html).toContain('ENG-HTML');
     expect(html).toContain('CHS-HTML');
-    // Form chrome absent
+    expect(html).toContain('500,000');
+    expect(html).toContain('35,000');
+    expect(html).toContain('535,000');
     expect(html).not.toContain('การ์ดรายละเอียดรถยนต์');
     expect(html).not.toContain('รายละเอียดต้นทุน');
     expect(html).not.toContain('ราคาขาย');
     expect(html).not.toContain('เงินสด');
-    expect(html).not.toContain('เลขมอเตอร์');
     expect(html).not.toContain('ราคาก่อน VAT');
-  });
-
-  it('normal card still includes the full form title (overlay-only change)', async () => {
-    const html = await pdfService.renderVehicleCardHtml(cardData);
-    expect(html).toContain('การ์ดรายละเอียดรถยนต์');
-    expect(html).toContain('รายละเอียดต้นทุน');
+    expect(html).not.toContain('วันที่สั่งซื้อ');
   });
 
   it('neutralizes the template print padding so the @page margin is the sole gap', async () => {

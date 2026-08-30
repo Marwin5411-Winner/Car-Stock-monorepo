@@ -42,11 +42,13 @@
       overflow: hidden;
     }
     .page .checkbox {
+      display: none;
+    }
+    /* Holds the printed-label slot so the order-date value does not slide left */
+    .page .label-spacer {
       display: inline-block;
-      width: 8px;
-      height: 8px;
-      border: 1px solid #000;
-      margin-right: 2px;
+      width: 2.5cm;
+      height: 1px;
       vertical-align: middle;
     }
     .page .mt-neg {
@@ -60,7 +62,7 @@
       table-layout: fixed;
       border-collapse: collapse;
       border-spacing: 0;
-      border: 1px solid #000;
+      border: none !important;
       margin: 0 !important; /* override wrapHtml base margin: 10px 0 */
     }
     .page table + table {
@@ -68,7 +70,7 @@
     }
     .page th,
     .page td {
-      border: 1px solid #000;
+      border: none !important;
       padding: 0 2px;
       vertical-align: middle;
       line-height: 1.1;
@@ -80,7 +82,7 @@
       not the <table> edge — avoids a double line on the footer.
     */
     .page table.card-main {
-      border-left: 1px solid #000 !important;
+      border-left: none !important;
       border-right: none !important;
     }
     /*
@@ -91,7 +93,7 @@
     */
     .page .card-main > tbody > tr > th:first-child,
     .page .card-main > tbody > tr > td:first-child {
-      border-left: 1px solid #000 !important;
+      border-left: none !important;
     }
 
     /* ── Row heights ────────────────────────────────────────── */
@@ -166,7 +168,7 @@
       white-space: nowrap;
       overflow: hidden;
       border-bottom: none !important;
-      border-right: 1px solid #000 !important;
+      border-right: none !important;
     }
     /* หมายเหตุ — two lines inside one row-h-7 */
     .page td.note-cell {
@@ -194,12 +196,12 @@
       padding: 2px 2px 2px 7mm !important;
       border-top: none !important;
       border-left: none !important;
-      border-right: 1px solid #000 !important;
+      border-right: none !important;
       overflow: hidden;
     }
     /* Empty left footer rows: keep the vertical divider into summary */
     .page .card-main tr.row-h-4-5 > td {
-      border-right: 1px solid #000 !important;
+      border-right: none !important;
     }
 
     /*
@@ -229,7 +231,6 @@
     }
     .page .card-main .inner-table td.dotted-line {
       border: none !important;
-      border-bottom: 1px dotted #000 !important;
     }
 
     /* ── Print ──────────────────────────────────────────────── */
@@ -243,7 +244,7 @@
     }
   </style>
 
-  <h1 class="title">การ์ดรายละเอียดรถยนต์</h1>
+  <h1 class="title"></h1>
 
   {{! ── Top: vehicle header (7 cols = 25.2cm; last col +4mm) ── }}
   <table class="card-top-unified">
@@ -257,13 +258,13 @@
       <col style="width: 2.8cm;">
     </colgroup>
     <tr class="row-h-7">
-      <th>ใบสั่งซื้อเลขที่</th>
-      <th>แบบรุ่นรถยนต์</th>
-      <th>เลขเครื่องยนต์</th>
-      <th>เลขแชสซีร์</th>
-      <th>รหัสสี</th>
-      <th>ใบสั่งขายเลขที่</th>
-      <th>STOCK NO.</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
     </tr>
     <tr class="row-h-7">
       <td></td>
@@ -285,10 +286,10 @@
       <col style="width: 8cm;">
     </colgroup>
     <tr class="row-h-7">
-      <td style="font-weight: bold;">วันที่สั่งซื้อ {{orderDate}}</td>
-      <td class="date-receive" style="font-weight: bold;">วันที่รับรถ</td>
-      <td class="date-sale" style="font-weight: bold;">วันที่ขาย</td>
-      <td style="font-weight: bold;">พนักงานขาย</td>
+      <td style="font-weight: bold;"><span class="label-spacer"></span>{{orderDate}}</td>
+      <td class="date-receive" style="font-weight: bold;"></td>
+      <td class="date-sale" style="font-weight: bold;"></td>
+      <td style="font-weight: bold;"></td>
     </tr>
   </table>
 
@@ -315,71 +316,35 @@
     {{! Column headers }}
     <tr class="row-h-7" style="text-align: center;">
       <th class="cost-num"></th>
-      <th class="cost-desc" style="text-align: center;">รายละเอียดต้นทุน</th>
-      <th colspan="2" style="text-align: center;">จำนวนเงิน+VAT</th>
-      <th style="text-align: center;">ผู้อนุมัติ</th>
-      <th style="text-align: center;">รายละเอียดการขาย</th>
-      <th colspan="2" style="text-align: center;">จำนวนเงิน</th>
-      <th style="text-align: center;">เลขที่ใบรับ</th>
-      <th style="text-align: center;">ผู้ตรวจสอบ</th>
+      <th class="cost-desc" style="text-align: center;"></th>
+      <th colspan="2" style="text-align: center;"></th>
+      <th style="text-align: center;"></th>
+      <th style="text-align: center;"></th>
+      <th colspan="2" style="text-align: center;"></th>
+      <th style="text-align: center;"></th>
+      <th style="text-align: center;"></th>
     </tr>
 
     {{! Cost 1–5 + sale lines }}
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">1</td>
-      <td class="cost-desc">ราคาก่อน VAT</td>
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
       <td style="text-align: right;">{{costs.beforeVatInt}}</td>
       <td style="text-align: center;">{{costs.beforeVatDec}}</td>
       <td></td>
-      <td class="sale-label">ราคาขาย</td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">2</td>
-      <td class="cost-desc">VAT 7%</td>
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
       <td style="text-align: right;">{{costs.vatAmountInt}}</td>
       <td style="text-align: center;">{{costs.vatAmountDec}}</td>
       <td></td>
-      <td>หัก&nbsp;&nbsp;ส่วนลดเงินสด</td>
       <td></td>
-      <td class="satang-cell"></td>
-      <td></td>
-      <td></td>
-    </tr>
-    <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">3</td>
-      <td class="cost-desc"></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td class="sale-label">คงเหลือ</td>
-      <td></td>
-      <td class="satang-cell"></td>
-      <td></td>
-      <td></td>
-    </tr>
-    <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">4</td>
-      <td class="cost-desc"></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td class="sale-label">เงินดาวน์</td>
-      <td></td>
-      <td class="satang-cell"></td>
-      <td></td>
-      <td></td>
-    </tr>
-    <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">5</td>
-      <td class="cost-desc"></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td>หัก&nbsp;&nbsp;ส่วนลดเงินดาวน์</td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
@@ -391,18 +356,54 @@
       <td></td>
       <td></td>
       <td></td>
-      <td class="sale-label">คงเหลือเงินดาวน์</td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td colspan="2" style="text-align: center; font-weight: bold;">รวม</td>
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td class="sale-label"></td>
+      <td></td>
+      <td class="satang-cell"></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr class="row-h-7">
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td class="satang-cell"></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr class="row-h-7">
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td class="sale-label"></td>
+      <td></td>
+      <td class="satang-cell"></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr class="row-h-7">
+      <td colspan="2" style="text-align: center; font-weight: bold;"></td>
       <td style="text-align: right; font-weight: bold;">{{costs.totalWithVatInt}}</td>
       <td style="text-align: center; font-weight: bold;">{{costs.totalWithVatDec}}</td>
       <td></td>
-      <td>บวก&nbsp;&nbsp;ค่าจดทะเบียน</td>
+      <td></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
@@ -411,61 +412,57 @@
 
     {{! Payment terms + fees }}
     <tr class="row-h-7">
-      <td colspan="5" style="text-align: center; font-weight: bold;">เงื่อนไขการชำระเงิน</td>
-      <td class="sale-label">ค่าเบี้ยประกัน</td>
+      <td colspan="5" style="text-align: center; font-weight: bold;"></td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td colspan="5" style="text-align: center;">
-        <span class="checkbox"></span> เงินสด
-        <span style="display: inline-block; width: 24px;"></span>
-        <span class="checkbox"></span> เครดิต................วัน
-      </td>
-      <td class="sale-label">ค่า พรบ.</td>
+      <td colspan="5" style="text-align: center;"></td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td colspan="2" style="text-align: center;">เลขที่ใบสำคัญจ่าย/กำหนดชำระ</td>
-      <td colspan="2" style="text-align: center;">จำนวนเงิน +VAT</td>
-      <td style="text-align: center;">ผู้อนุมัติ</td>
-      <td class="sale-label">ค่าทะเบียน</td>
+      <td colspan="2" style="text-align: center;"></td>
+      <td colspan="2" style="text-align: center;"></td>
+      <td style="text-align: center;"></td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">1</td>
+      <td class="cost-num" style="text-align: center;"></td>
       <td class="cost-desc"></td>
       <td></td>
       <td></td>
       <td></td>
-      <td class="sale-label">ค่าขนส่ง</td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">2</td>
+      <td class="cost-num" style="text-align: center;"></td>
       <td class="cost-desc"></td>
       <td></td>
       <td></td>
       <td></td>
-      <td class="sale-label">อื่นๆ</td>
+      <td class="sale-label"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">3</td>
+      <td class="cost-num" style="text-align: center;"></td>
       <td class="cost-desc"></td>
       <td></td>
       <td></td>
@@ -479,7 +476,7 @@
 
     {{! Other expenses + receipt side }}
     <tr class="row-h-7">
-      <td colspan="5" style="font-weight: bold;">ค่าใช้จ่ายอื่นๆ</td>
+      <td colspan="5" style="font-weight: bold;"></td>
       <td></td>
       <td></td>
       <td class="satang-cell"></td>
@@ -487,24 +484,24 @@
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">1</td>
-      <td class="cost-desc">ค่าขนส่ง</td>
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
       <td></td>
       <td></td>
       <td></td>
-      <td style="text-align: center;">รวมรับ</td>
+      <td style="text-align: center;"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">2</td>
-      <td class="cost-desc">ค่าคอมขาย</td>
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
       <td></td>
       <td></td>
       <td></td>
-      <td style="text-align: center;">ยอดจัดไฟแนนซ์</td>
+      <td style="text-align: center;"></td>
       <td></td>
       <td class="satang-cell"></td>
       <td></td>
@@ -513,24 +510,22 @@
 
     {{! รวมรายรับ: rowspan 3 over left rows 3, 4, รวม }}
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">3</td>
-      <td class="cost-desc">ค่านำพา</td>
+      <td class="cost-num" style="text-align: center;"></td>
+      <td class="cost-desc"></td>
       <td></td>
       <td></td>
       <td></td>
-      <td colspan="5" rowspan="3" class="recv-total">
-        <span style="font-weight: bold;">รวมรายรับทั้งสิ้น(เงินดาวน์+ยอดจัด)</span>..................................บาท
-      </td>
+      <td colspan="5" rowspan="3" class="recv-total"></td>
     </tr>
     <tr class="row-h-7">
-      <td class="cost-num" style="text-align: center;">4</td>
+      <td class="cost-num" style="text-align: center;"></td>
       <td class="cost-desc"></td>
       <td></td>
       <td></td>
       <td></td>
     </tr>
     <tr class="row-h-7">
-      <td colspan="2" style="text-align: center; font-weight: bold;">รวม</td>
+      <td colspan="2" style="text-align: center; font-weight: bold;"></td>
       <td></td>
       <td></td>
       <td></td>
@@ -539,8 +534,8 @@
     {{! Footer: note (left) + สรุป/หัก (right, rowspan 5 = 1×row-h-note + 4×row-h-4-5) }}
     <tr class="row-h-note">
       <td colspan="5" class="note-cell">
-        <div style="font-weight: bold;">รวมรายจ่ายทั้งสิ้น (ต้นทุน+ค่าใช้จ่าย).............................บาท</div>
-        <div style="font-weight: bold;">หมายเหตุ</div>
+        <div style="font-weight: bold;"></div>
+        <div style="font-weight: bold;"></div>
       </td>
       <td colspan="5" rowspan="5" class="summary-span">
         <table class="inner-table">
@@ -551,28 +546,28 @@
             <col style="width: 20%;">
           </colgroup>
           <tr>
-            <td style="font-weight: bold;">สรุป</td>
-            <td>ผลการดำเนินงาน</td>
+            <td style="font-weight: bold;"></td>
+            <td></td>
             <td class="dotted-line"></td>
-            <td>บาท</td>
+            <td></td>
           </tr>
           <tr>
             <td></td>
-            <td>รายได้รวม</td>
+            <td></td>
             <td class="dotted-line"></td>
-            <td>บาท</td>
+            <td></td>
           </tr>
           <tr>
-            <td style="font-weight: bold;">หัก</td>
-            <td>ต้นทุนรวม</td>
+            <td style="font-weight: bold;"></td>
+            <td></td>
             <td class="dotted-line"></td>
-            <td>บาท</td>
+            <td></td>
           </tr>
           <tr>
             <td></td>
-            <td>กำไรขั้นต้น</td>
+            <td></td>
             <td class="dotted-line"></td>
-            <td>บาท</td>
+            <td></td>
           </tr>
         </table>
       </td>

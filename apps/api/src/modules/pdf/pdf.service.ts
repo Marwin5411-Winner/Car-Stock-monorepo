@@ -795,24 +795,6 @@ export class PdfService {
   }
 
   /**
-   * Generate Vehicle Card Template PDF (การ์ดรายละเอียดรถยนต์ - แบบไม่มีกรอบ)
-   */
-  public async generateVehicleCardTemplate(data: VehicleCardData): Promise<Buffer> {
-    // Custom size: 26.85 x 20.71 cm (10.57 x 8.15 in)
-    return this.generatePdf(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
-      width: '26.85cm',
-      height: '20.71cm',
-      padding: '0mm',
-      margin: {
-        top: '5mm',
-        right: '5mm',
-        bottom: '5mm',
-        left: '5mm',
-      },
-    });
-  }
-
-  /**
    * Render Vehicle Card as HTML for browser printing (การ์ดรายละเอียดรถยนต์).
    *
    * Stock paper: 27 × 21 cm. Content width 25.2 cm (right outer edge).
@@ -827,23 +809,6 @@ export class PdfService {
       padding: '0mm',
       // top right bottom left — content band 210−13−6 = 191mm
       htmlPage: { size: '27cm 21cm', margin: '13mm 0mm 6mm 10mm' },
-    });
-  }
-
-  /**
-   * Render the frameless Vehicle Card overlay as HTML for browser printing.
-   * Same paper + grid geometry as renderVehicleCardHtml (see its comment) so
-   * the data-only overlay lands on the pre-printed form's cells.
-   */
-  public async renderVehicleCardTemplateHtml(data: VehicleCardData): Promise<string> {
-    return this.renderHtml(PdfTemplateType.VEHICLE_CARD_TEMPLATE, data, {
-      width: '24.6cm',
-      // height is inert in the HTML path (getBaseHtml ignores it); kept to mirror the PDF methods
-      height: '20.71cm',
-      padding: '0mm',
-      // Calibrated against the customer's pre-printed form 2026-07-04:
-      // top 10mm (was 5, print sat 5mm too high), left 14mm (was 15, 1mm right).
-      htmlPage: { size: '26.9cm 20.9cm', margin: '10mm 9mm 5mm 14mm' },
     });
   }
 
