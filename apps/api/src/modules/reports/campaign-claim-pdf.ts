@@ -1,121 +1,14 @@
 /**
- * PDF-only projection for monthly campaign-claim form.
- * Web / Excel keep the full dynamic column set from buildCampaignClaimReport.
+ * Re-export brand-submission PDF projection from shared so API tests and
+ * pdf.controller keep the existing import path.
  */
-
-import type { ClaimRow } from './campaign-claim.helpers';
-
-/** Fixed expense headers for the brand submission PDF form. */
-export const PDF_CLAIM_EXPENSE_COLUMNS = [
-  'Marketing 1%',
-  'เปิดบูธ',
-  'ค่าขนส่ง',
-  'ทดสอบ',
-  'STOCK 0.5%',
-] as const;
-
-export type PdfClaimExpenseColumn = (typeof PDF_CLAIM_EXPENSE_COLUMNS)[number];
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-/**
- * Map DB / editor formula name → fixed PDF header.
- * Legacy names (MARKETING, STOCK LEVEL*) stay for older DEMO/claim seed data.
- */
-export function resolvePdfClaimExpenseKey(name: string): PdfClaimExpenseColumn | null {
-  const n = name.trim();
-  if (n === 'Marketing 1%' || n === 'MARKETING') return 'Marketing 1%';
-  if (n === 'เปิดบูธ') return 'เปิดบูธ';
-  if (n === 'ค่าขนส่ง') return 'ค่าขนส่ง';
-  if (n === 'ทดสอบ') return 'ทดสอบ';
-  if (n === 'STOCK 0.5%' || n === 'STOCK LEVEL 0.5%' || n === 'STOCK LEVEL') return 'STOCK 0.5%';
-  return null;
-}
-
-/** Minimal input from buildCampaignClaimReport (or any compatible shape). */
-export interface CampaignClaimReportForPdf {
-  expenseColumns: string[];
-  rows: Array<
-    Pick<
-      ClaimRow,
-      'no' | 'customerName' | 'modelName' | 'vin' | 'notifyDate' | 'salePrice' | 'cells' | 'total'
-    >
-  >;
-  summary: { totalCars: number; columnTotals: number[]; grandTotal: number };
-}
-
-export interface CampaignClaimPdfProjection {
-  expenseColumns: PdfClaimExpenseColumn[];
-  rows: Array<{
-    no: number;
-    customerName: string;
-    modelName: string;
-    vin: string;
-    notifyDate: string | null;
-    salePrice: number;
-    cells: Array<number | null>;
-    total: number;
-  }>;
-  summary: {
-    totalCars: number;
-    columnTotals: number[];
-    grandTotal: number;
-  };
-}
-
-/**
- * Project claim report rows onto the fixed PDF expense column set.
- * Always emits all 5 headers; missing formulas → null cells.
- * Totals recompute from projected cells only (unmapped lines excluded).
- */
-export function projectCampaignClaimForPdf(
-  report: CampaignClaimReportForPdf
-): CampaignClaimPdfProjection {
-  const expenseColumns = [...PDF_CLAIM_EXPENSE_COLUMNS];
-
-  const rows = report.rows.map((r) => {
-    const amounts = new Map<string, number>();
-    for (let i = 0; i < report.expenseColumns.length; i++) {
-      const key = resolvePdfClaimExpenseKey(report.expenseColumns[i] ?? '');
-      const val = r.cells[i];
-      if (!key || val == null) continue;
-      amounts.set(key, round2((amounts.get(key) ?? 0) + val));
-    }
-    const cells = expenseColumns.map((col) => {
-      const v = amounts.get(col);
-      return v != null ? v : null;
-    });
-    const total = round2(cells.reduce<number>((s, v) => s + (v ?? 0), 0));
-    const notifyDate =
-      r.notifyDate == null
-        ? null
-        : typeof r.notifyDate === 'string'
-          ? r.notifyDate
-          : r.notifyDate.toISOString();
-    return {
-      no: r.no,
-      customerName: r.customerName,
-      modelName: r.modelName,
-      vin: r.vin,
-      notifyDate,
-      salePrice: r.salePrice,
-      cells,
-      total,
-    };
-  });
-
-  const columnTotals = expenseColumns.map((_, j) =>
-    round2(rows.reduce((s, row) => s + (row.cells[j] ?? 0), 0))
-  );
-  const grandTotal = round2(rows.reduce((s, row) => s + row.total, 0));
-
-  return {
-    expenseColumns,
-    rows,
-    summary: {
-      totalCars: report.summary.totalCars,
-      columnTotals,
-      grandTotal,
-    },
-  };
-}
+export {
+  PDF_CLAIM_EXPENSE_COLUMNS,
+  projectCampaignClaimForPdf,
+  resolvePdfClaimExpenseKey,
+} from '@car-stock/shared/campaign-claim-pdf';
+export type {
+  CampaignClaimPdfProjection,
+  CampaignClaimReportForPdf,
+  PdfClaimExpenseColumn,
+} from '@car-stock/shared/campaign-claim-pdf';

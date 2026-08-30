@@ -10,7 +10,8 @@
     "./types": "./src/types/index.ts",
     "./constants": "./src/constants/index.ts",
     "./formulas": "./src/formulas/index.ts",
-    "./finance": "./src/finance/index.ts"
+    "./finance": "./src/finance/index.ts",
+    "./campaign-claim-pdf": "./src/campaign-claim-pdf.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

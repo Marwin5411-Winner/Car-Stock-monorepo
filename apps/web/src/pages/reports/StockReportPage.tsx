@@ -55,7 +55,16 @@ export default function StockReportPage() {
   }, []);
 
   const columns = [
-    { key: 'vin', label: 'VIN' },
+    {
+      key: 'vin',
+      label: 'เลขถัง / เลขเครื่อง',
+      render: (_: string, row: StockReportItem) => (
+        <div>
+          <div>{row.vin || '-'}</div>
+          <div className="text-gray-500">{row.engineNumber || '-'}</div>
+        </div>
+      ),
+    },
     {
       key: 'brand',
       label: 'ยี่ห้อ/รุ่น',
@@ -63,6 +72,12 @@ export default function StockReportPage() {
     },
     { key: 'year', label: 'ปี', align: 'center' as const },
     { key: 'exteriorColor', label: 'สี' },
+    {
+      key: 'parkingSlot',
+      label: 'ที่จอด',
+      align: 'center' as const,
+      render: (value: string | null | undefined) => value || '-',
+    },
     {
       key: 'statusLabel',
       label: 'สถานะ',
@@ -72,7 +87,7 @@ export default function StockReportPage() {
     },
     {
       key: 'arrivalDate',
-      label: 'วันที่นำเข้า',
+      label: 'วันที่รับเข้า',
       render: (value: string) => formatDate(value),
     },
     {
@@ -82,9 +97,9 @@ export default function StockReportPage() {
     },
     {
       key: 'daysInStock',
-      label: 'วันในสต็อก',
+      label: 'อายุ (วัน)',
       align: 'right' as const,
-      render: (value: number) => `${formatNumber(value)} วัน`,
+      render: (value: number) => formatNumber(value),
     },
     {
       key: 'totalCost',

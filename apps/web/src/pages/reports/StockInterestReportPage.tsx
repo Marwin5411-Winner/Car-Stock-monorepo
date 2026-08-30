@@ -66,7 +66,7 @@ export default function StockInterestReportPage() {
     { key: 'vin', label: 'VIN' },
     {
       key: 'vehicleInfo',
-      label: 'รถ',
+      label: 'รุ่น',
       render: (value: string) => value,
     },
     {
@@ -85,35 +85,35 @@ export default function StockInterestReportPage() {
       },
     },
     {
-      key: 'arrivalDate',
-      label: 'วันนำเข้า',
+      key: 'interestStartDate',
+      label: 'วันที่เริ่มคิด',
       render: (value: string) => formatDate(value),
     },
     {
-      key: 'daysInStock',
-      label: 'วันในสต็อก',
-      align: 'right' as const,
-      render: (value: number) => (
-        <span className={value > 90 ? 'text-red-600 font-medium' : value > 60 ? 'text-yellow-600' : ''}>
-          {formatNumber(value)} วัน
-        </span>
-      ),
-    },
-    {
-      key: 'baseCost',
-      label: 'ต้นทุนรถ',
+      key: 'principalAmount',
+      label: 'ต้นทุน/ฐาน',
       align: 'right' as const,
       render: (value: number) => formatCurrency(value),
     },
     {
       key: 'interestRate',
-      label: 'อัตราดอกเบี้ย',
-      align: 'right' as const,
+      label: 'ดอกเบี้ย %',
+      align: 'center' as const,
       render: (value: number) => `${value.toFixed(2)}%`,
     },
     {
-      key: 'totalInterest',
-      label: 'ดอกเบี้ยรวม',
+      key: 'daysCount',
+      label: 'จำนวนวัน',
+      align: 'center' as const,
+      render: (value: number) => (
+        <span className={value > 90 ? 'text-red-600 font-medium' : value > 60 ? 'text-yellow-600' : ''}>
+          {formatNumber(value)}
+        </span>
+      ),
+    },
+    {
+      key: 'accumulatedInterest',
+      label: 'ดบ. สะสม',
       align: 'right' as const,
       render: (value: number) => (
         <span className="text-red-600">{formatCurrency(value)}</span>
@@ -121,7 +121,7 @@ export default function StockInterestReportPage() {
     },
     {
       key: 'paidInterest',
-      label: 'ชำระแล้ว',
+      label: 'จ่ายแล้ว',
       align: 'right' as const,
       render: (value: number) => (
         <span className="text-green-600">{formatCurrency(value)}</span>
@@ -141,14 +141,14 @@ export default function StockInterestReportPage() {
 
   const exportHeaders = [
     { key: 'vin', label: 'VIN' },
-    { key: 'vehicleInfo', label: 'รถ' },
+    { key: 'vehicleInfo', label: 'รุ่น' },
     { key: 'statusLabel', label: 'สถานะ' },
-    { key: 'arrivalDate', label: 'วันนำเข้า' },
-    { key: 'daysInStock', label: 'วันในสต็อก' },
-    { key: 'baseCost', label: 'ต้นทุนรถ' },
-    { key: 'interestRate', label: 'อัตราดอกเบี้ย (%)' },
-    { key: 'totalInterest', label: 'ดอกเบี้ยรวม' },
-    { key: 'paidInterest', label: 'ชำระแล้ว' },
+    { key: 'interestStartDate', label: 'วันที่เริ่มคิด' },
+    { key: 'principalAmount', label: 'ต้นทุน/ฐาน' },
+    { key: 'interestRate', label: 'ดอกเบี้ย %' },
+    { key: 'daysCount', label: 'จำนวนวัน' },
+    { key: 'accumulatedInterest', label: 'ดบ. สะสม' },
+    { key: 'paidInterest', label: 'จ่ายแล้ว' },
     { key: 'pendingInterest', label: 'ค้างชำระ' },
     { key: 'totalCostWithInterest', label: 'ต้นทุนรวมดอกเบี้ย' },
   ];
@@ -246,7 +246,17 @@ export default function StockInterestReportPage() {
           <FileText className="w-4 h-4 mr-2" />
           ส่งออก PDF
         </button>
-        <PrintButton title="รายงานดอกเบี้ยสต็อก" contentId="report-content" />
+        <PrintButton
+          title="รายงานดอกเบี้ยสต็อก"
+          disabled={loading || !data}
+          getPdf={() =>
+            reportService.getStockInterestReportPdf({
+              startDate,
+              endDate,
+              status: statusFilter || undefined,
+            })
+          }
+        />
       </div>
 
       {error && (
@@ -388,7 +398,7 @@ export default function StockInterestReportPage() {
 
             {/* Table */}
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">รายละเอียดดอกเบี้ยรายคัน</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">รายการดอกเบี้ย</h3>
               <ReportTable
                 columns={columns}
                 data={data.items}

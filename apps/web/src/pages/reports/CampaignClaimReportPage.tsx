@@ -1,3 +1,4 @@
+import { projectCampaignClaimForPdf } from '@car-stock/shared/campaign-claim-pdf';
 import type { CampaignClaimRow } from '@car-stock/shared/types';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -133,7 +134,8 @@ export function CampaignClaimReportPage(): React.ReactElement {
     }
   };
 
-  const expenseColumns = data?.expenseColumns ?? [];
+  const pdfView = useMemo(() => (data ? projectCampaignClaimForPdf(data) : null), [data]);
+  const expenseColumns = pdfView?.expenseColumns ?? [];
 
   return (
     <MainLayout>
@@ -262,12 +264,16 @@ export function CampaignClaimReportPage(): React.ReactElement {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <p className="text-sm text-blue-600 font-medium">จำนวนรถ</p>
-                <p className="text-2xl font-bold text-blue-900">{data.summary.totalCars}</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {pdfView?.summary.totalCars ?? data.summary.totalCars}
+                </p>
               </div>
               <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
                 <p className="text-sm text-emerald-600 font-medium">ยอดเบิกรวมทั้งสิ้น</p>
                 <p className="text-2xl font-bold text-emerald-900">
-                  {data.summary.grandTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                  {(pdfView?.summary.grandTotal ?? data.summary.grandTotal).toLocaleString('th-TH', {
+                    minimumFractionDigits: 2,
+                  })}
                 </p>
               </div>
             </div>
@@ -276,16 +282,7 @@ export function CampaignClaimReportPage(): React.ReactElement {
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    {[
-                      'ลำดับ',
-                      'ชื่อ-สกุล',
-                      'แบบรถ',
-                      'เลขเครื่อง',
-                      'เลขตัวรถ',
-                      'ไฟแนนท์',
-                      'วันที่ขาย',
-                      'ราคาขาย',
-                    ].map((h) => (
+                    {['ลำดับ', 'ชื่อ - สกุล', 'แบบรถ', 'เลขตัวรถ', 'ราคาขาย'].map((h) => (
                       <th key={h} className="px-2 py-2 text-left font-medium whitespace-nowrap">
                         {h}
                       </th>
@@ -300,15 +297,12 @@ export function CampaignClaimReportPage(): React.ReactElement {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {data.rows.map((r) => (
-                    <tr key={r.saleId} className="hover:bg-gray-50">
+                  {(pdfView?.rows ?? []).map((r, i) => (
+                    <tr key={data.rows[i]?.saleId ?? r.no} className="hover:bg-gray-50">
                       <td className="px-2 py-1">{r.no}</td>
                       <td className="px-2 py-1">{r.customerName}</td>
                       <td className="px-2 py-1">{r.modelName}</td>
-                      <td className="px-2 py-1 font-mono">{r.engineNumber}</td>
                       <td className="px-2 py-1 font-mono">{r.vin}</td>
-                      <td className="px-2 py-1">{r.financeProvider}</td>
-                      <td className="px-2 py-1">{fmtDate(r.saleDate)}</td>
                       <td className="px-2 py-1 text-right">{fmt(r.salePrice)}</td>
                       {r.cells.map((c, j) => (
                         <td key={expenseColumns[j]} className="px-2 py-1 text-right">
@@ -320,22 +314,24 @@ export function CampaignClaimReportPage(): React.ReactElement {
                     </tr>
                   ))}
                   <tr className="bg-gray-50 font-semibold">
-                    <td className="px-2 py-2" colSpan={8}>
-                      รวมทั้งสิ้น ({data.summary.totalCars} คัน)
+                    <td className="px-2 py-2" colSpan={5}>
+                      รวมทั้งสิ้น ({pdfView?.summary.totalCars ?? data.summary.totalCars} คัน)
                     </td>
-                    {data.summary.columnTotals.map((t, j) => (
+                    {(pdfView?.summary.columnTotals ?? []).map((t, j) => (
                       <td key={expenseColumns[j]} className="px-2 py-2 text-right">
                         {fmt(t)}
                       </td>
                     ))}
-                    <td className="px-2 py-2 text-right">{fmt(data.summary.grandTotal)}</td>
+                    <td className="px-2 py-2 text-right">
+                      {fmt(pdfView?.summary.grandTotal ?? data.summary.grandTotal)}
+                    </td>
                     <td className="px-2 py-2" />
                   </tr>
                 </tbody>
               </table>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              หมายเหตุ: คอลัมน์ค่าใช้จ่ายมาจากรายการที่ตั้งไว้ในแต่ละรุ่นของแคมเปญ; คันที่รุ่นไม่มีรายการนั้นจะเว้นว่าง
+              หมายเหตุ: หัวตารางชุดเดียวกับ PDF — คอลัมน์ค่าใช้จ่ายคงที่ 5 ช่อง; รายการที่ไม่ตรงชื่อนี้ไม่แสดง
             </p>
           </>
         )}

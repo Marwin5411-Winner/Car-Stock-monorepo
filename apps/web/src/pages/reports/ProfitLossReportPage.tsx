@@ -196,7 +196,11 @@ export default function ProfitLossReportPage() {
           <FileText className="w-4 h-4 mr-2" />
           ส่งออก PDF
         </button>
-        <PrintButton title="รายงานกำไร-ขาดทุน" contentId="report-content" />
+        <PrintButton
+          title="รายงานกำไร-ขาดทุน"
+          disabled={loading || !data}
+          getPdf={() => reportService.getProfitLossReportPdf({ startDate, endDate })}
+        />
       </div>
 
       {error && (
