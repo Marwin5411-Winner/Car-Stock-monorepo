@@ -1,0 +1,131 @@
+# Auto-deploy the Docker stack to the Test Server on every push to main.
+#
+# Flow:
+#   push main → GitHub Actions → SSH → git pull + docker compose up --build → health check
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   TEST_SSH_HOST      e.g. 157.x.x.x
+#   TEST_SSH_USER      e.g. ubuntu / root / deploy
+#   TEST_SSH_KEY       private key (PEM) whose public key is in server authorized_keys
+#   TEST_DEPLOY_PATH   absolute path to the cloned repo on the server
+#                      e.g. /home/ubuntu/Car-Stock-monorepo
+#
+# Optional:
+#   Repository variable TEST_SSH_PORT   SSH port (default 22)
+#   Secret TEST_SSH_PASSPHRASE          if the private key is encrypted
+#   Secret TEST_HEALTH_URL              external health URL polled from the runner
+#                                       e.g. http://157.x.x.x:3001/health
+#
+# Manual run: Actions → Deploy Test Server → Run workflow
+# Full setup: docs/ci-cd-test-deploy.md
+
+name: Deploy Test Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip image rebuild (restart only)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: deploy-test
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: SSH deploy to test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Validate required secrets
+        env:
+          TEST_SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          TEST_SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          TEST_SSH_KEY: ${{ secrets.TEST_SSH_KEY }}
+          TEST_DEPLOY_PATH: ${{ secrets.TEST_DEPLOY_PATH }}
+        run: |
+          missing=0
+          for name in TEST_SSH_HOST TEST_SSH_USER TEST_SSH_KEY TEST_DEPLOY_PATH; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing secret: $name — see docs/ci-cd-test-deploy.md"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Secrets present. Target host=${TEST_SSH_HOST} path=${TEST_DEPLOY_PATH}"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.TEST_SSH_HOST }}
+          username: ${{ secrets.TEST_SSH_USER }}
+          key: ${{ secrets.TEST_SSH_KEY }}
+          passphrase: ${{ secrets.TEST_SSH_PASSPHRASE }}
+          port: ${{ vars.TEST_SSH_PORT || 22 }}
+          script_stop: true
+          command_timeout: 25m
+          script: |
+            set -euo pipefail
+            export DEPLOY_PATH='${{ secrets.TEST_DEPLOY_PATH }}'
+            export DEPLOY_BRANCH=main
+            export ENV_FILE=.env.docker
+
+            SKIP_INPUT='${{ github.event.inputs.skip_build }}'
+            if [ "${SKIP_INPUT:-false}" = "true" ]; then
+              export SKIP_BUILD=1
+            else
+              export SKIP_BUILD=0
+            fi
+
+            cd "$DEPLOY_PATH"
+
+            # Bootstrap: pull latest so deploy-test-remote.sh is available, then run it
+            git fetch origin main
+            git checkout main 2>/dev/null || git checkout -B main origin/main
+            git reset --hard origin/main
+
+            if [ ! -f scripts/deploy-test-remote.sh ]; then
+              echo "ERROR: scripts/deploy-test-remote.sh missing after pull"
+              exit 1
+            fi
+            chmod +x scripts/deploy-test-remote.sh
+            bash scripts/deploy-test-remote.sh
+
+      - name: External health check (optional)
+        env:
+          TEST_HEALTH_URL: ${{ secrets.TEST_HEALTH_URL }}
+        run: |
+          if [ -z "${TEST_HEALTH_URL:-}" ]; then
+            echo "TEST_HEALTH_URL not set — skipping external check"
+            exit 0
+          fi
+          echo "Polling $TEST_HEALTH_URL ..."
+          ok=0
+          for i in $(seq 1 24); do
+            if curl -sf --max-time 10 "$TEST_HEALTH_URL" >/dev/null; then
+              echo "Healthy after attempt $i"
+              ok=1
+              break
+            fi
+            echo "  attempt $i/24 — not ready"
+            sleep 5
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::External health check failed: $TEST_HEALTH_URL"
+            exit 1
+          fi
