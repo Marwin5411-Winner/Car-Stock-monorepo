@@ -3,6 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { InterestBase, StockStatus, DebtStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
 import { dayKey, isValidStopDate, isValidResumeStartDate } from './interest.dates';
+import { resolveStopPeriodSource } from './interest.stop';
 import {
   type BulkInterestResult,
   type BulkPrincipalChoice,
@@ -480,6 +481,7 @@ export class InterestService {
           orderBy: { startDate: 'desc' },
           take: 1,
         },
+        _count: { select: { interestPeriods: true } },
       },
     });
 
@@ -491,14 +493,33 @@ export class InterestService {
     today.setHours(0, 0, 0, 0);
     const effectiveStopDate = stopDate || today;
 
-    // Close active period if exists
     const activePeriod = stock.interestPeriods[0];
+    // Falls back to the implicit period (stock rate since orderDate/arrivalDate)
+    // for stock that was never initialized — see interest.stop.ts.
+    const source = resolveStopPeriodSource({
+      activePeriod: activePeriod
+        ? {
+            id: activePeriod.id,
+            startDate: activePeriod.startDate,
+            annualRate: Number(activePeriod.annualRate),
+            principalBase: activePeriod.principalBase,
+            principalAmount: Number(activePeriod.principalAmount),
+            notes: activePeriod.notes,
+          }
+        : null,
+      periodCount: stock._count.interestPeriods,
+      debtStatus: stock.debtStatus,
+      interestStartDate: stock.orderDate || stock.arrivalDate,
+      stockAnnualRate: Number(stock.interestRate) * 100,
+      stockPrincipalBase: stock.interestPrincipalBase,
+      stockPrincipalAmount: this.getPrincipalAmount(stock, stock.interestPrincipalBase),
+    });
 
     // Validate a caller-supplied back-date: must be within [period start, today].
     if (stopDate) {
       const ok = isValidStopDate(
         dayKey(effectiveStopDate),
-        activePeriod ? dayKey(activePeriod.startDate) : null,
+        source ? dayKey(source.startDate) : null,
         dayKey(today),
       );
       if (!ok) {
@@ -508,23 +529,43 @@ export class InterestService {
       }
     }
 
-    if (activePeriod) {
-      const days = this.calculateDays(activePeriod.startDate, effectiveStopDate);
+    if (source) {
+      const days = this.calculateDays(source.startDate, effectiveStopDate);
       const calculatedInterest = this.calculateInterestForPeriod(
-        Number(activePeriod.principalAmount),
-        Number(activePeriod.annualRate),
+        source.principalAmount,
+        source.annualRate,
         days
       );
+      const stoppedNotes = notes
+        ? `${source.notes || ''}\n[Stopped] ${notes}`.trim()
+        : source.notes;
 
-      await db.interestPeriod.update({
-        where: { id: activePeriod.id },
-        data: {
-          endDate: effectiveStopDate,
-          calculatedInterest: new Decimal(calculatedInterest),
-          daysCount: days,
-          notes: notes ? `${activePeriod.notes || ''}\n[Stopped] ${notes}`.trim() : activePeriod.notes,
-        },
-      });
+      if (source.existingPeriodId) {
+        await db.interestPeriod.update({
+          where: { id: source.existingPeriodId },
+          data: {
+            endDate: effectiveStopDate,
+            calculatedInterest: new Decimal(calculatedInterest),
+            daysCount: days,
+            notes: stoppedNotes,
+          },
+        });
+      } else {
+        await db.interestPeriod.create({
+          data: {
+            stockId,
+            startDate: source.startDate,
+            endDate: effectiveStopDate,
+            annualRate: new Decimal(source.annualRate),
+            principalBase: source.principalBase,
+            principalAmount: new Decimal(source.principalAmount),
+            calculatedInterest: new Decimal(calculatedInterest),
+            daysCount: days,
+            createdById: userId,
+            notes: stoppedNotes,
+          },
+        });
+      }
     }
 
     // Update stock to stop interest calculation

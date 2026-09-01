@@ -697,7 +697,14 @@ export default function InterestDetailPage() {
         isOpen={showStopModal}
         onClose={() => setShowStopModal(false)}
         onSubmit={handleStopCalculation}
-        activePeriodStart={periods.find((p) => !p.endDate)?.startDate ?? null}
+        activePeriodStart={
+          periods.find((p) => !p.endDate)?.startDate ??
+          // No period row yet: interest still accrues from the stock's own start date,
+          // and that is the period the API will close (interest.stop.ts).
+          stock.orderDate ??
+          stock.arrivalDate ??
+          null
+        }
         stockInfo={{ vin: stock.vin, vehicleModel: stock.vehicleModel }}
       />
 
