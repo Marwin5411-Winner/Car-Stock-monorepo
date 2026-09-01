@@ -46,6 +46,18 @@ export function canShowInitialize(state: InterestActionState): boolean {
 /** Reduce an ISO date or datetime string to its yyyy-MM-dd day portion. */
 const toDay = (iso: string | null | undefined): string => (iso ?? '').slice(0, 10);
 
+/** Local calendar yyyy-MM-dd from an ISO date or datetime (avoids UTC slice off-by-one). */
+export function localDayFromIso(iso: string | null | undefined): string {
+  if (!iso) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return toDay(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Today's LOCAL calendar date as yyyy-MM-dd. Uses local date fields (not
  * toISOString, which is UTC) so it agrees with the server's day-key

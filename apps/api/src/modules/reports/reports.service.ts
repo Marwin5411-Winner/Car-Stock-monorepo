@@ -19,6 +19,11 @@ import {
   pickClaimCampaign,
 } from './campaign-claim.helpers';
 import { buildSalespersonBreakdown, computeSaleMoney } from './sales-summary.helpers';
+import {
+  canAccrueWithoutPeriods,
+  daysBetween,
+  implicitAccrualEndDate,
+} from '../interest/interest.dates';
 
 export { splitVat };
 
@@ -1072,11 +1077,13 @@ export async function getStockInterestReport(params: StockInterestParams) {
   const stockItems = stocks.map((stock) => {
     const interestStartDate = stock.orderDate || stock.arrivalDate;
     const soldOrToday = stock.soldDate || today;
-    const endDate =
-      stock.stopInterestCalc && stock.interestStoppedAt
-        ? new Date(Math.min(soldOrToday.getTime(), stock.interestStoppedAt.getTime()))
-        : soldOrToday;
-    const daysCount = interestStartDate ? calculateDays(interestStartDate, endDate) : 0;
+    const endDate = implicitAccrualEndDate({
+      stopInterestCalc: stock.stopInterestCalc,
+      interestStoppedAt: stock.interestStoppedAt,
+      soldDate: stock.soldDate,
+      today,
+    });
+    const daysCount = interestStartDate ? daysBetween(interestStartDate, endDate) : 0;
 
     const baseCost = toNumber(stock.baseCost);
     const totalCost =
@@ -1101,11 +1108,15 @@ export async function getStockInterestReport(params: StockInterestParams) {
       principalAmount = toNumber(activePeriod.principalAmount);
 
       // Calculate interest for active period up to sold date (or today)
-      const periodDays = calculateDays(activePeriod.startDate, soldOrToday);
+      const periodDays = daysBetween(activePeriod.startDate, soldOrToday);
       const activeInterest = calculateInterest(principalAmount, currentRate, periodDays);
       totalAccumulatedInterest += activeInterest;
-    } else if (stock.interestPeriods.length === 0 && canAccrueActiveInterest && interestStartDate) {
-      // No periods yet, use stock's default rate
+    } else if (
+      stock.interestPeriods.length === 0 &&
+      canAccrueWithoutPeriods(stock) &&
+      interestStartDate
+    ) {
+      // No periods yet — still accrue through the stop date when already stopped
       totalAccumulatedInterest = calculateInterest(principalAmount, currentRate, daysCount);
     }
 

@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import { interestService } from './interest.service';
 import { authMiddleware } from '../auth/auth.middleware';
 import { authService } from '../auth/auth.service';
+import { parseOptionalDay } from './interest.dates';
 import '../../types/context.d';
 
 export const interestRoutes = new Elysia({ prefix: '/interest' })
@@ -111,7 +112,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           matchFilters: body.matchFilters,
           excludeStockIds: body.excludeStockIds,
           notes: body.notes,
-          stopDate: body.stopDate ? new Date(body.stopDate) : undefined,
+          stopDate: parseOptionalDay(body.stopDate),
         },
         requester!.id
       );
@@ -169,7 +170,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           principalBase: body.principalBase,
           items: body.items,
           notes: body.notes,
-          effectiveDate: body.effectiveDate ? new Date(body.effectiveDate) : undefined,
+          effectiveDate: parseOptionalDay(body.effectiveDate),
         },
         requester!.id
       );
@@ -273,7 +274,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
         {
           annualRate: body.annualRate,
           principalBase: body.principalBase as any,
-          startDate: body.startDate ? new Date(body.startDate) : undefined,
+          startDate: parseOptionalDay(body.startDate),
           notes: body.notes,
         },
         requester!.id
@@ -323,7 +324,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
         {
           annualRate: body.annualRate,
           principalBase: body.principalBase as any,
-          effectiveDate: body.effectiveDate ? new Date(body.effectiveDate) : undefined,
+          effectiveDate: parseOptionalDay(body.effectiveDate),
           notes: body.notes,
         },
         requester!.id
@@ -372,7 +373,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
         params.stockId,
         requester!.id,
         body?.notes,
-        body?.stopDate ? new Date(body.stopDate) : undefined
+        parseOptionalDay(body?.stopDate)
       );
 
       set.status = 200;
@@ -419,7 +420,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           annualRate: body.annualRate,
           principalBase: body.principalBase as any,
           notes: body.notes,
-          startDate: body.startDate ? new Date(body.startDate) : undefined,
+          startDate: parseOptionalDay(body.startDate),
         },
         requester!.id
       );
@@ -514,7 +515,7 @@ export const interestRoutes = new Elysia({ prefix: '/interest' })
           amount: body.amount,
           paymentMethod: body.paymentMethod as any,
           paymentType: body.paymentType as any,
-          paymentDate: body.paymentDate ? new Date(body.paymentDate) : undefined,
+          paymentDate: parseOptionalDay(body.paymentDate),
           referenceNumber: body.referenceNumber,
           notes: body.notes,
         },

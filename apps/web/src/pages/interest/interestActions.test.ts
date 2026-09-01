@@ -5,6 +5,7 @@ import {
   getInterestHeaderAction,
   isValidResumeStartDate,
   isValidStopDate,
+  localDayFromIso,
   resumeStartsBeforeLastStop,
   todayIso,
 } from './interestActions';
@@ -236,5 +237,16 @@ describe('resumeStartsBeforeLastStop', () => {
     expect(resumeStartsBeforeLastStop('2026-06-09T23:00:00.000Z', '2026-06-10T00:00:00.000Z')).toBe(
       true
     );
+  });
+});
+
+describe('localDayFromIso', () => {
+  it('passes through a date-only string', () => {
+    expect(localDayFromIso('2026-01-20')).toBe('2026-01-20');
+  });
+
+  it('uses the local calendar day of a datetime', () => {
+    const local = new Date(2026, 0, 20, 8, 0, 0);
+    expect(localDayFromIso(local.toISOString())).toBe('2026-01-20');
   });
 });

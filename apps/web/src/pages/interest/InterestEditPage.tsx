@@ -15,7 +15,12 @@ import {
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { DatePicker } from '../../components/ui/date-picker';
 import { useToast } from '../../components/toast';
-import { isValidResumeStartDate, resumeStartsBeforeLastStop, todayIso } from './interestActions';
+import {
+  isValidResumeStartDate,
+  localDayFromIso,
+  resumeStartsBeforeLastStop,
+  todayIso,
+} from './interestActions';
 
 export default function InterestEditPage() {
   const { stockId } = useParams<{ stockId: string }>();
@@ -59,8 +64,11 @@ export default function InterestEditPage() {
       }
       setPrincipalBase(result.stock.interestPrincipalBase);
 
-      // Set effective date to today
-      setEffectiveDate(todayIso());
+      const initializeStart =
+        localDayFromIso(result.stock.orderDate) ||
+        localDayFromIso(result.stock.arrivalDate) ||
+        localDayFromIso(result.stock.interestStartDate);
+      setEffectiveDate(isInitialize && initializeStart ? initializeStart : todayIso());
     }
     setLoading(false);
   };
@@ -291,20 +299,24 @@ export default function InterestEditPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="w-4 h-4 inline mr-1" />
-                {isResume ? 'วันที่เริ่มคิดดอกเบี้ยใหม่' : 'วันที่เริ่มใช้อัตราใหม่'}
+                {isResume
+                  ? 'วันที่เริ่มคิดดอกเบี้ยใหม่'
+                  : isInitialize
+                    ? 'วันที่เริ่มคิดดอกเบี้ย'
+                    : 'วันที่เริ่มใช้อัตราใหม่'}
               </label>
               <DatePicker
                 value={effectiveDate}
                 onChange={setEffectiveDate}
                 inputClassName="w-full"
-                clearable={!isResume}
-                maxDate={isResume ? todayIso() : undefined}
+                clearable={!isResume && !isInitialize}
+                maxDate={isResume || isInitialize ? todayIso() : undefined}
               />
               <p className="mt-1 text-sm text-gray-500">
                 {isResume
                   ? 'เลือกวันที่ต้องการเริ่มคิดดอกเบี้ยใหม่ (ย้อนหลังได้ไม่จำกัด ไม่เกินวันนี้)'
                   : isInitialize
-                    ? 'หากไม่ระบุ จะใช้วันที่เข้าสต็อกเป็นวันเริ่มต้น'
+                    ? 'ค่าเริ่มต้นคือวันที่สั่งซื้อหรือวันที่เข้าสต็อก (ไม่เกินวันนี้)'
                     : 'หากไม่ระบุ จะใช้วันนี้เป็นวันเริ่มต้น'}
               </p>
             </div>

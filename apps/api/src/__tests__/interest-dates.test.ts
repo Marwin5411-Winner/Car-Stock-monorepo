@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  buildImplicitClosedPeriod,
+  canAccrueWithoutPeriods,
+  dayBefore,
   dayKey,
+  daysBetween,
+  implicitAccrualEndDate,
   isValidResumeStartDate,
   isValidStopDate,
+  parseDay,
 } from '../modules/interest/interest.dates';
 
 describe('dayKey', () => {
@@ -52,5 +58,108 @@ describe('isValidResumeStartDate', () => {
   it('rejects before last stop and after today', () => {
     expect(isValidResumeStartDate('2026-06-09', lastStop, today)).toBe(false);
     expect(isValidResumeStartDate('2026-06-17', lastStop, today)).toBe(false);
+  });
+});
+
+describe('parseDay', () => {
+  it('parses YYYY-MM-DD as local midnight, not UTC', () => {
+    const d = parseDay('2026-09-01');
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(8);
+    expect(d.getDate()).toBe(1);
+    expect(d.getHours()).toBe(0);
+  });
+
+  it('strips time from a Date to local midnight', () => {
+    const d = parseDay(new Date(2026, 0, 20, 15, 30, 0));
+    expect(dayKey(d)).toBe('2026-01-20');
+    expect(d.getHours()).toBe(0);
+  });
+});
+
+describe('daysBetween', () => {
+  it('returns 0 for the same calendar day even when UTC midnight is mixed with local midnight', () => {
+    const local = new Date(2026, 8, 1, 0, 0, 0, 0);
+    const utcIso = '2026-09-01T00:00:00.000Z';
+    expect(daysBetween(local, utcIso)).toBe(0);
+  });
+
+  it('counts exclusive calendar days', () => {
+    expect(daysBetween('2026-01-20', '2026-01-20')).toBe(0);
+    expect(daysBetween('2026-01-20', '2026-01-21')).toBe(1);
+    expect(daysBetween('2026-01-01', '2026-01-31')).toBe(30);
+  });
+});
+
+describe('dayBefore', () => {
+  it('returns the previous local calendar day', () => {
+    expect(dayKey(dayBefore('2026-09-01'))).toBe('2026-08-31');
+  });
+});
+
+describe('canAccrueWithoutPeriods', () => {
+  it('accrues while calculating, and after stop when a stop date exists', () => {
+    expect(
+      canAccrueWithoutPeriods({
+        debtStatus: 'ACTIVE',
+        stopInterestCalc: false,
+        interestStoppedAt: null,
+      })
+    ).toBe(true);
+    expect(
+      canAccrueWithoutPeriods({
+        debtStatus: 'ACTIVE',
+        stopInterestCalc: true,
+        interestStoppedAt: new Date(2026, 8, 1),
+      })
+    ).toBe(true);
+  });
+
+  it('does not accrue for paid-off stock without a stop date', () => {
+    expect(
+      canAccrueWithoutPeriods({
+        debtStatus: 'PAID_OFF',
+        stopInterestCalc: false,
+        interestStoppedAt: null,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('implicitAccrualEndDate', () => {
+  it('uses the earlier of sold/today and the stop date', () => {
+    const today = new Date(2026, 8, 1);
+    const stopped = new Date(2026, 5, 10);
+    const end = implicitAccrualEndDate({
+      stopInterestCalc: true,
+      interestStoppedAt: stopped,
+      today,
+    });
+    expect(dayKey(end)).toBe('2026-06-10');
+  });
+});
+
+describe('buildImplicitClosedPeriod', () => {
+  it('closes orderDate → stopDate with calendar days and interest', () => {
+    const period = buildImplicitClosedPeriod({
+      startDate: new Date(2026, 0, 20),
+      endDate: new Date(2026, 0, 30),
+      annualRatePercent: 3,
+      principalAmount: 100_000,
+    });
+    expect(period).not.toBeNull();
+    expect(period!.daysCount).toBe(10);
+    expect(period!.calculatedInterest).toBeCloseTo(100_000 * (3 / 100 / 365) * 10, 6);
+  });
+
+  it('returns null when end is before start', () => {
+    expect(
+      buildImplicitClosedPeriod({
+        startDate: new Date(2026, 0, 20),
+        endDate: new Date(2026, 0, 19),
+        annualRatePercent: 3,
+        principalAmount: 100_000,
+      })
+    ).toBeNull();
   });
 });
