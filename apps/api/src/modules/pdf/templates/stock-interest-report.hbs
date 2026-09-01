@@ -29,10 +29,11 @@
         <th style="width: 5%">No.</th>
         <th style="width: 12%">VIN</th>
         <th style="width: 20%">รุ่น</th>
-        <th style="width: 10%">วันที่เริ่มคิด</th>
-        <th style="width: 10%" class="text-right">ต้นทุน/ฐาน</th>
-        <th style="width: 8%" class="text-center">ดอกเบี้ย %</th>
-        <th style="width: 8%" class="text-center">จำนวนวัน</th>
+        <th style="width: 10%">วันที่เริ่ม/หยุดคิด</th>
+        <th style="width: 8%" class="text-center">สถานะดอกเบี้ย</th>
+        <th style="width: 9%" class="text-right">ต้นทุน/ฐาน</th>
+        <th style="width: 7%" class="text-center">ดอกเบี้ย %</th>
+        <th style="width: 7%" class="text-center">จำนวนวัน</th>
         <th style="width: 9%" class="text-right">ดบ. สะสม</th>
         <th style="width: 9%" class="text-right">จ่ายแล้ว</th>
         <th style="width: 9%" class="text-right">ค้างชำระ</th>
@@ -44,7 +45,8 @@
         <td class="text-center">{{add @index 1}}</td>
         <td>{{vin}}</td>
         <td>{{vehicleInfo}}</td>
-        <td>{{formatThaiDate interestStartDate 'numeric'}}</td>
+        <td>{{formatThaiDate interestActionDate 'numeric'}}</td>
+        <td class="text-center">{{interestStatusLabel}}</td>
         <td class="text-right">{{formatCurrency principalAmount}}</td>
         <td class="text-center">{{interestRate}}%</td>
         <td class="text-center">{{daysCount}}</td>
@@ -54,7 +56,7 @@
       </tr>
       {{/each}}
       <tr style="font-weight: bold; background-color: #eee;">
-        <td colspan="7" class="text-right">รวมทั้งสิ้น</td>
+        <td colspan="8" class="text-right">รวมทั้งสิ้น</td>
         <td class="text-right">{{formatCurrency summary.totalInterest}}</td>
         <td class="text-right">{{formatCurrency summary.paidInterest}}</td>
         <td class="text-right">{{formatCurrency summary.pendingInterest}}</td>

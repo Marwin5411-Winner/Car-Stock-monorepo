@@ -308,6 +308,10 @@ export interface StockInterestItem {
   arrivalDate: string;
   orderDate?: string;
   interestStartDate: string;
+  interestStoppedAt?: string;
+  /** Start date while accruing; stop date when stopped. */
+  interestActionDate: string;
+  interestStatusLabel: string;
   daysInStock: number;
   daysCount: number;
   currentRate: number;
@@ -333,7 +337,9 @@ export interface StockInterestSummary {
   overdueVehicles: number;
   overdueInterest: number;
   calculatingCount: number;
+  calculatingInterest: number;
   stoppedCount: number;
+  stoppedInterest: number;
   totalStockCount: number;
   avgRate: number;
   avgDaysInStock: number;

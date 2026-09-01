@@ -418,7 +418,7 @@ export default function InterestListPage() {
                   )}
                   <TableHead>รถยนต์</TableHead>
                   <TableHead>สถานะ</TableHead>
-                  <TableHead>วันเริ่มคิดดอกเบี้ย</TableHead>
+                  <TableHead>วันที่เริ่ม/หยุดคิด</TableHead>
                   <TableHead className="text-right">จำนวนวัน</TableHead>
                   <TableHead className="text-right">อัตราดอกเบี้ย</TableHead>
                   <TableHead className="text-right">เงินต้น</TableHead>
@@ -470,9 +470,8 @@ export default function InterestListPage() {
                       <TableCell>
                         <div className="flex items-center text-gray-500">
                           <Calendar className="w-4 h-4 mr-1" />
-                          {formatDate(item.interestStartDate)}
+                          {formatDate(item.interestActionDate || item.interestStartDate)}
                         </div>
-                        {item.orderDate && <div className="text-xs text-gray-400 mt-1">(สั่งซื้อ)</div>}
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="font-medium text-gray-900">{item.daysCount}</span>

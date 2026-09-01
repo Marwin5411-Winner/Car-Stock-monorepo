@@ -1,30 +1,64 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { interestService } from '../../services/interest.service';
-import type { InterestDetail, DebtSummary, DebtPayment, PaymentMethod, PaymentType } from '../../services/interest.service';
-import { MainLayout } from '../../components/layout';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Banknote,
+  Calendar,
+  Car,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Edit,
+  History,
+  PauseCircle,
+  PlayCircle,
+  Plus,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import DebtPaymentModal from '../../components/interest/DebtPaymentModal';
 import StopInterestModal from '../../components/interest/StopInterestModal';
-import {
-  ArrowLeft,
-  Edit,
-  PlayCircle,
-  PauseCircle,
-  Calendar,
-  DollarSign,
-  Clock,
-  AlertCircle,
-  TrendingUp,
-  History,
-  Car,
-  Wallet,
-  CheckCircle,
-  Plus,
-  Banknote,
-} from 'lucide-react';
-import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { MainLayout } from '../../components/layout';
 import { useToast } from '../../components/toast';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { interestService } from '../../services/interest.service';
+import type {
+  DebtPayment,
+  DebtSummary,
+  InterestDetail,
+  InterestPeriod,
+  InterestPeriodEndAction,
+  InterestPeriodStartAction,
+  PaymentMethod,
+  PaymentType,
+} from '../../services/interest.service';
 import { canShowInitialize, getInterestHeaderAction } from './interestActions';
+
+const START_ACTION_BADGE: Record<InterestPeriodStartAction, { label: string; className: string }> =
+  {
+    INITIAL: { label: 'เริ่มคิด', className: 'bg-green-100 text-green-800' },
+    RATE_CHANGE: { label: 'เปลี่ยนอัตรา', className: 'bg-blue-100 text-blue-800' },
+    RESUME: { label: 'เริ่มคิดใหม่', className: 'bg-amber-100 text-amber-800' },
+    DEBT_ADJUST: { label: 'ปรับเงินต้น', className: 'bg-purple-100 text-purple-800' },
+  };
+
+const END_ACTION_BADGE: Record<
+  Exclude<InterestPeriodEndAction, 'OPEN'>,
+  { label: string; className: string }
+> = {
+  RATE_CHANGE: { label: 'ปิดเพื่อเปลี่ยนอัตรา', className: 'bg-slate-100 text-slate-700' },
+  STOPPED: { label: 'หยุดคิด', className: 'bg-red-100 text-red-800' },
+  DEBT_ADJUST: { label: 'ปิดเพื่อปรับเงินต้น', className: 'bg-purple-100 text-purple-800' },
+  PAID_OFF: { label: 'ปิดหนี้', className: 'bg-gray-200 text-gray-800' },
+};
+
+function periodRowClass(period: InterestPeriod) {
+  if (!period.endDate) return 'bg-blue-50';
+  if (period.endAction === 'PAID_OFF') return 'bg-gray-50';
+  if (period.endAction === 'DEBT_ADJUST') return 'bg-purple-50';
+  return '';
+}
 
 export default function InterestDetailPage() {
   const { stockId } = useParams<{ stockId: string }>();
@@ -51,9 +85,7 @@ export default function InterestDetailPage() {
   const fetchDetail = async () => {
     setLoading(true);
     setError(null);
-    const result = await executeQuery(
-      interestService.getById(stockId!)
-    );
+    const result = await executeQuery(interestService.getById(stockId!));
     if (result) {
       setDetail(result);
     } else {
@@ -87,9 +119,7 @@ export default function InterestDetailPage() {
     // Route through executeQuery so network/server errors surface as a toast
     // instead of becoming an unhandled promise rejection that silently drops
     // the submit and leaves the user without feedback.
-    const result = await executeQuery(
-      interestService.recordDebtPayment(stockId!, data)
-    );
+    const result = await executeQuery(interestService.recordDebtPayment(stockId!, data));
 
     if (!result) return;
 
@@ -151,7 +181,10 @@ export default function InterestDetailPage() {
       PREPARING: { label: 'เตรียมส่งมอบ', className: 'bg-blue-100 text-blue-800' },
       SOLD: { label: 'ขายแล้ว', className: 'bg-gray-100 text-gray-800' },
     };
-    const config = statusConfig[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
+    const config = statusConfig[status] || {
+      label: status,
+      className: 'bg-gray-100 text-gray-800',
+    };
     return (
       <span className={`px-3 py-1 text-sm font-medium rounded-full ${config.className}`}>
         {config.label}
@@ -174,9 +207,7 @@ export default function InterestDetailPage() {
       <MainLayout>
         <div className="text-center py-12">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            {error || 'ไม่พบข้อมูล'}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{error || 'ไม่พบข้อมูล'}</h2>
           <button
             onClick={() => navigate('/interest')}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -212,9 +243,7 @@ export default function InterestDetailPage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                รายละเอียดดอกเบี้ย
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900">รายละเอียดดอกเบี้ย</h1>
               <p className="text-gray-500">
                 {stock.vehicleModel.brand} {stock.vehicleModel.model} {stock.vehicleModel.variant}
               </p>
@@ -287,12 +316,9 @@ export default function InterestDetailPage() {
               <p className="font-medium">{stock.exteriorColor}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">วันเริ่มคิดดอกเบี้ย</p>
+              <p className="text-sm text-gray-500">วันสั่งซื้อ / วันเข้าสต็อก</p>
               <p className="font-medium">
-                {formatDate(stock.interestStartDate)}
-                {stock.orderDate && (
-                  <span className="ml-1 text-xs text-gray-500">(สั่งซื้อ)</span>
-                )}
+                {formatDate(stock.orderDate || stock.arrivalDate || stock.interestStartDate)}
               </p>
             </div>
             <div>
@@ -358,7 +384,9 @@ export default function InterestDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">อัตราดอกเบี้ยปัจจุบัน</span>
-                <span className="font-medium text-purple-600">{summary.currentRate.toFixed(2)}% ต่อปี</span>
+                <span className="font-medium text-purple-600">
+                  {summary.currentRate.toFixed(2)}% ต่อปี
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">จำนวนวันรวม</span>
@@ -388,7 +416,8 @@ export default function InterestDetailPage() {
                 สถานะหนี้รถในสต็อก
               </h3>
               {/* แสดงปุ่มจ่ายหนี้ถ้ามี financeProvider และยังไม่ปิดหนี้ */}
-              {(debtSummary.debtStatus === 'ACTIVE' || (debtSummary.hasFinanceProvider && debtSummary.debtStatus !== 'PAID_OFF')) && (
+              {(debtSummary.debtStatus === 'ACTIVE' ||
+                (debtSummary.hasFinanceProvider && debtSummary.debtStatus !== 'PAID_OFF')) && (
                 <button
                   onClick={() => setShowDebtPaymentModal(true)}
                   className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -411,7 +440,8 @@ export default function InterestDetailPage() {
                 <div className="flex justify-center mb-4">
                   <span className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    ปิดหนี้แล้ว {debtSummary.debtPaidOffDate && `(${formatDate(debtSummary.debtPaidOffDate)})`}
+                    ปิดหนี้แล้ว{' '}
+                    {debtSummary.debtPaidOffDate && `(${formatDate(debtSummary.debtPaidOffDate)})`}
                   </span>
                 </div>
 
@@ -430,11 +460,15 @@ export default function InterestDetailPage() {
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">หนี้เริ่มต้น</p>
-                    <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.debtAmount)}</p>
+                    <p className="font-semibold text-gray-900">
+                      {formatCurrency(debtSummary.debtAmount)}
+                    </p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">จ่ายไปแล้ว</p>
-                    <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidDebtAmount)}</p>
+                    <p className="font-semibold text-green-600">
+                      {formatCurrency(debtSummary.paidDebtAmount)}
+                    </p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">คงเหลือ</p>
@@ -463,7 +497,9 @@ export default function InterestDetailPage() {
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
                       className="bg-green-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${(debtSummary.paidDebtAmount / debtSummary.debtAmount) * 100}%` }}
+                      style={{
+                        width: `${(debtSummary.paidDebtAmount / debtSummary.debtAmount) * 100}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -472,20 +508,27 @@ export default function InterestDetailPage() {
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">เงินต้นเริ่มต้น</p>
-                    <p className="font-semibold text-gray-900">{formatCurrency(debtSummary.debtAmount)}</p>
+                    <p className="font-semibold text-gray-900">
+                      {formatCurrency(debtSummary.debtAmount)}
+                    </p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">เงินต้นจ่ายแล้ว</p>
-                    <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidDebtAmount)}</p>
+                    <p className="font-semibold text-green-600">
+                      {formatCurrency(debtSummary.paidDebtAmount)}
+                    </p>
                   </div>
                   <div className="p-3 bg-orange-50 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">เงินต้นคงเหลือ</p>
-                    <p className="font-bold text-orange-600">{formatCurrency(debtSummary.remainingDebt)}</p>
+                    <p className="font-bold text-orange-600">
+                      {formatCurrency(debtSummary.remainingDebt)}
+                    </p>
                   </div>
                 </div>
 
                 {/* Interest Details */}
-                {((debtSummary.totalAccruedInterest || 0) > 0 || debtSummary.paidInterestAmount > 0) && (
+                {((debtSummary.totalAccruedInterest || 0) > 0 ||
+                  debtSummary.paidInterestAmount > 0) && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                       <TrendingUp className="w-4 h-4 mr-1 text-orange-500" />
@@ -495,17 +538,23 @@ export default function InterestDetailPage() {
                     <div className="p-3 bg-purple-50 rounded-lg mb-3">
                       <div className="flex justify-between items-center">
                         <p className="text-xs text-gray-500">ดอกเบี้ยสะสมรวม</p>
-                        <p className="font-bold text-purple-600">{formatCurrency(debtSummary.totalAccruedInterest || 0)}</p>
+                        <p className="font-bold text-purple-600">
+                          {formatCurrency(debtSummary.totalAccruedInterest || 0)}
+                        </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-center">
                       <div className="p-3 bg-orange-50 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">ดอกเบี้ยค้างชำระ</p>
-                        <p className="font-bold text-orange-600">{formatCurrency(debtSummary.accruedInterest || 0)}</p>
+                        <p className="font-bold text-orange-600">
+                          {formatCurrency(debtSummary.accruedInterest || 0)}
+                        </p>
                       </div>
                       <div className="p-3 bg-green-50 rounded-lg">
                         <p className="text-xs text-gray-500 mb-1">ดอกเบี้ยจ่ายแล้ว</p>
-                        <p className="font-semibold text-green-600">{formatCurrency(debtSummary.paidInterestAmount || 0)}</p>
+                        <p className="font-semibold text-green-600">
+                          {formatCurrency(debtSummary.paidInterestAmount || 0)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -519,7 +568,9 @@ export default function InterestDetailPage() {
                         <p className="text-sm text-blue-700 font-medium">ยอดปิดหนี้ทั้งหมด</p>
                         <p className="text-xs text-blue-600">(เงินต้น + ดอกเบี้ยค้างชำระ)</p>
                       </div>
-                      <p className="text-xl font-bold text-blue-700">{formatCurrency(debtSummary.totalPayoffAmount || debtSummary.remainingDebt)}</p>
+                      <p className="text-xl font-bold text-blue-700">
+                        {formatCurrency(debtSummary.totalPayoffAmount || debtSummary.remainingDebt)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -537,9 +588,18 @@ export default function InterestDetailPage() {
                                 {debtPayments.length - index}
                               </span>
                               <div>
-                                <p className="font-bold text-gray-900">{formatCurrency(payment.amount)}</p>
+                                <p className="font-bold text-gray-900">
+                                  {formatCurrency(payment.amount)}
+                                </p>
                                 <p className="text-xs text-gray-500">
-                                  {formatDate(payment.paymentDate)} • {payment.paymentMethod === 'CASH' ? 'เงินสด' : payment.paymentMethod === 'BANK_TRANSFER' ? 'โอนเงิน' : payment.paymentMethod === 'CHEQUE' ? 'เช็ค' : 'บัตรเครดิต'}
+                                  {formatDate(payment.paymentDate)} •{' '}
+                                  {payment.paymentMethod === 'CASH'
+                                    ? 'เงินสด'
+                                    : payment.paymentMethod === 'BANK_TRANSFER'
+                                      ? 'โอนเงิน'
+                                      : payment.paymentMethod === 'CHEQUE'
+                                        ? 'เช็ค'
+                                        : 'บัตรเครดิต'}
                                 </p>
                               </div>
                             </div>
@@ -552,11 +612,15 @@ export default function InterestDetailPage() {
                             <div className="flex gap-4 ml-9 pt-2 border-t border-gray-200">
                               <div className="flex items-center gap-1">
                                 <span className="text-xs text-orange-600">ดอกเบี้ย:</span>
-                                <span className="text-xs font-medium text-orange-700">{formatCurrency(payment.interestPaid || 0)}</span>
+                                <span className="text-xs font-medium text-orange-700">
+                                  {formatCurrency(payment.interestPaid || 0)}
+                                </span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <span className="text-xs text-blue-600">เงินต้น:</span>
-                                <span className="text-xs font-medium text-blue-700">{formatCurrency(payment.principalPaid || 0)}</span>
+                                <span className="text-xs font-medium text-blue-700">
+                                  {formatCurrency(payment.principalPaid || 0)}
+                                </span>
                               </div>
                             </div>
                           )}
@@ -607,6 +671,9 @@ export default function InterestDetailPage() {
                       ลำดับ
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      เหตุการณ์
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       ช่วงเวลา
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -630,52 +697,93 @@ export default function InterestDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {periods.map((period, index) => (
-                    <tr key={period.id} className={!period.endDate ? 'bg-blue-50' : ''}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {index + 1}
-                        {!period.endDate && (
-                          <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-                            ปัจจุบัน
+                  {periods.map((period, index) => {
+                    const startBadge = START_ACTION_BADGE[period.startAction ?? 'INITIAL'];
+                    const endBadge =
+                      period.endAction && period.endAction !== 'OPEN'
+                        ? END_ACTION_BADGE[period.endAction]
+                        : null;
+                    const dailyInterest =
+                      (period.principalAmount * (period.annualRate / 100)) / 365;
+                    return (
+                      <tr key={period.id} className={periodRowClass(period)}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {index + 1}
+                          {!period.endDate && (
+                            <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                              ปัจจุบัน
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded-full ${startBadge.className}`}
+                            >
+                              {startBadge.label}
+                            </span>
+                            {endBadge && (
+                              <>
+                                <span className="text-gray-400 text-xs">→</span>
+                                <span
+                                  className={`px-2 py-0.5 text-xs font-medium rounded-full ${endBadge.className}`}
+                                >
+                                  {endBadge.label}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center text-gray-600">
+                            <Calendar className="w-4 h-4 mr-2 shrink-0" />
+                            {formatShortDate(period.startDate)}
+                            <span className="mx-2">→</span>
+                            {period.endDate ? formatShortDate(period.endDate) : 'ปัจจุบัน'}
+                          </div>
+                          {period.createdAt && (
+                            <p className="mt-1 text-xs text-gray-400">
+                              บันทึกเมื่อ {formatShortDate(period.createdAt)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          <span className="font-medium text-purple-600">
+                            {period.annualRate.toFixed(2)}%
                           </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center text-gray-600">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          {formatShortDate(period.startDate)}
-                          <span className="mx-2">→</span>
-                          {period.endDate ? formatShortDate(period.endDate) : 'ปัจจุบัน'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        <span className="font-medium text-purple-600">
-                          {period.annualRate.toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {period.principalBase === 'BASE_COST_ONLY' ? 'ทุนฐาน' : 'ทุนรวม'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                        {formatCurrency(period.principalAmount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                        {period.daysCount} วัน
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        <span className="font-medium text-orange-600">
-                          {formatCurrency(period.calculatedInterest)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                        {period.notes || '-'}
-                      </td>
-                    </tr>
-                  ))}
+                          {period.startAction === 'RATE_CHANGE' && period.previousRate != null && (
+                            <p className="text-xs text-gray-400">
+                              จาก {period.previousRate.toFixed(2)}%
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {period.principalBase === 'BASE_COST_ONLY' ? 'ทุนฐาน' : 'ทุนรวม'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                          {formatCurrency(period.principalAmount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                          {period.daysCount} วัน
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          <span className="font-medium text-orange-600">
+                            {formatCurrency(period.calculatedInterest)}
+                          </span>
+                          <p className="text-xs text-gray-400">
+                            ≈ {formatCurrency(dailyInterest)}/วัน
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs whitespace-pre-wrap">
+                          {period.notes || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 text-right font-semibold text-gray-900">
+                    <td colSpan={6} className="px-6 py-4 text-right font-semibold text-gray-900">
                       รวมทั้งหมด
                     </td>
                     <td className="px-6 py-4 text-right font-semibold text-gray-900">

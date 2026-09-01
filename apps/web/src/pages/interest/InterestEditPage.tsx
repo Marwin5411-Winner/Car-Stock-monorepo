@@ -215,8 +215,10 @@ export default function InterestEditPage() {
               <div className="mt-2 text-sm text-blue-800 space-y-1">
                 <p>VIN: <span className="font-mono">{stock.vin}</span></p>
                 <p>
-                  วันเริ่มคิดดอกเบี้ย: {new Date(stock.interestStartDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  {stock.orderDate && <span className="ml-1 text-blue-600">(สั่งซื้อ)</span>}
+                  วันสั่งซื้อ / วันเข้าสต็อก:{' '}
+                  {new Date(
+                    stock.orderDate || stock.arrivalDate || stock.interestStartDate
+                  ).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
                 <p>ต้นทุนฐาน: {formatCurrency(stock.baseCost)}</p>
                 <p>ต้นทุนรวม: {formatCurrency(stock.totalCost)}</p>

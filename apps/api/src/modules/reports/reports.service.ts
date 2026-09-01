@@ -19,11 +19,7 @@ import {
   pickClaimCampaign,
 } from './campaign-claim.helpers';
 import { buildSalespersonBreakdown, computeSaleMoney } from './sales-summary.helpers';
-import {
-  canAccrueWithoutPeriods,
-  daysBetween,
-  implicitAccrualEndDate,
-} from '../interest/interest.dates';
+import { resolveStockInterestDisplay } from '../interest/stock-interest-display';
 
 export { splitVat };
 
@@ -1075,59 +1071,41 @@ export async function getStockInterestReport(params: StockInterestParams) {
   today.setHours(0, 0, 0, 0);
 
   const stockItems = stocks.map((stock) => {
-    const interestStartDate = stock.orderDate || stock.arrivalDate;
-    const soldOrToday = stock.soldDate || today;
-    const endDate = implicitAccrualEndDate({
-      stopInterestCalc: stock.stopInterestCalc,
-      interestStoppedAt: stock.interestStoppedAt,
-      soldDate: stock.soldDate,
-      today,
-    });
-    const daysCount = interestStartDate ? daysBetween(interestStartDate, endDate) : 0;
-
     const baseCost = toNumber(stock.baseCost);
-    const totalCost =
-      baseCost +
-      toNumber(stock.transportCost) +
-      toNumber(stock.accessoryCost) +
-      toNumber(stock.otherCosts);
+    const display = resolveStockInterestDisplay(
+      {
+        orderDate: stock.orderDate,
+        arrivalDate: stock.arrivalDate,
+        soldDate: stock.soldDate,
+        stopInterestCalc: stock.stopInterestCalc,
+        interestStoppedAt: stock.interestStoppedAt,
+        debtStatus: stock.debtStatus,
+        interestRate: toNumber(stock.interestRate),
+        interestPrincipalBase: stock.interestPrincipalBase,
+        baseCost,
+        transportCost: toNumber(stock.transportCost),
+        accessoryCost: toNumber(stock.accessoryCost),
+        otherCosts: toNumber(stock.otherCosts),
+        interestPeriods: stock.interestPeriods.map((p) => ({
+          startDate: p.startDate,
+          endDate: p.endDate,
+          annualRate: toNumber(p.annualRate),
+          principalBase: p.principalBase,
+          principalAmount: toNumber(p.principalAmount),
+          calculatedInterest: toNumber(p.calculatedInterest),
+          daysCount: p.daysCount,
+        })),
+      },
+      today
+    );
 
-    // Calculate accumulated interest from all periods
-    let totalAccumulatedInterest = 0;
-    let currentRate = toNumber(stock.interestRate) * 100;
-    let principalBase = stock.interestPrincipalBase;
-    let principalAmount = principalBase === 'BASE_COST_ONLY' ? baseCost : totalCost;
-
-    // Get active period
-    const activePeriod = stock.interestPeriods.find((p) => !p.endDate);
-    const canAccrueActiveInterest = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
-
-    if (activePeriod && canAccrueActiveInterest) {
-      currentRate = toNumber(activePeriod.annualRate);
-      principalBase = activePeriod.principalBase;
-      principalAmount = toNumber(activePeriod.principalAmount);
-
-      // Calculate interest for active period up to sold date (or today)
-      const periodDays = daysBetween(activePeriod.startDate, soldOrToday);
-      const activeInterest = calculateInterest(principalAmount, currentRate, periodDays);
-      totalAccumulatedInterest += activeInterest;
-    } else if (
-      stock.interestPeriods.length === 0 &&
-      canAccrueWithoutPeriods(stock) &&
-      interestStartDate
-    ) {
-      // No periods yet — still accrue through the stop date when already stopped
-      totalAccumulatedInterest = calculateInterest(principalAmount, currentRate, daysCount);
-    }
-
-    // Add closed periods' interest
-    stock.interestPeriods
-      .filter((p) => p.endDate)
-      .forEach((p) => {
-        totalAccumulatedInterest += toNumber(p.calculatedInterest);
-      });
-
-    const isCalculatingNow = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
+    const interestStartDate = display.interestStartDate;
+    const daysCount = display.daysCount;
+    const currentRate = display.currentRate;
+    const principalBase = display.principalBase;
+    const principalAmount = display.principalAmount;
+    const totalAccumulatedInterest = display.accumulatedInterest;
+    const isCalculatingNow = display.isCalculating;
     const vehicleInfo =
       `${stock.vehicleModel.brand} ${stock.vehicleModel.model} ${stock.vehicleModel.variant || ''} ${stock.vehicleModel.year}`.trim();
 
@@ -1163,6 +1141,9 @@ export async function getStockInterestReport(params: StockInterestParams) {
       arrivalDate: stock.arrivalDate?.toISOString() ?? '',
       orderDate: stock.orderDate?.toISOString(),
       interestStartDate: interestStartDate?.toISOString() ?? '',
+      interestStoppedAt: display.interestStoppedAt?.toISOString(),
+      interestActionDate: display.interestActionDate?.toISOString() ?? '',
+      interestStatusLabel: isCalculatingNow ? 'กำลังคิด' : 'หยุดแล้ว',
       daysInStock: daysCount,
       daysCount,
       currentRate,
@@ -1188,8 +1169,12 @@ export async function getStockInterestReport(params: StockInterestParams) {
   const totalBaseCost = stockItems.reduce((sum, s) => sum + s.baseCost, 0);
   const paidInterest = stockItems.reduce((sum, s) => sum + s.paidInterest, 0);
   const pendingInterest = stockItems.reduce((sum, s) => sum + s.pendingInterest, 0);
-  const calculatingCount = stockItems.filter((s) => s.isCalculating).length;
-  const stoppedCount = stockItems.filter((s) => !s.isCalculating).length;
+  const calculatingItems = stockItems.filter((s) => s.isCalculating);
+  const stoppedItems = stockItems.filter((s) => !s.isCalculating);
+  const calculatingCount = calculatingItems.length;
+  const stoppedCount = stoppedItems.length;
+  const calculatingInterest = calculatingItems.reduce((sum, s) => sum + s.accumulatedInterest, 0);
+  const stoppedInterest = stoppedItems.reduce((sum, s) => sum + s.accumulatedInterest, 0);
   const totalStockCount = stockItems.length;
   const avgRate =
     totalStockCount > 0
@@ -1272,7 +1257,9 @@ export async function getStockInterestReport(params: StockInterestParams) {
       overdueVehicles,
       overdueInterest: Math.round(overdueInterest * 100) / 100,
       calculatingCount,
+      calculatingInterest: Math.round(calculatingInterest * 100) / 100,
       stoppedCount,
+      stoppedInterest: Math.round(stoppedInterest * 100) / 100,
       totalStockCount,
       avgRate: Math.round(avgRate * 100) / 100,
       avgDaysInStock: Math.round(avgDaysInStock),

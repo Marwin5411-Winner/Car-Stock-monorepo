@@ -13,6 +13,14 @@ import {
   isValidStopDate,
 } from './interest.dates';
 import { resolveStopPeriodSource } from './interest.stop';
+import { resolveStockInterestDisplay } from './stock-interest-display';
+import {
+  classifyInterestPeriodActions,
+  formatPeriodNote,
+  formatRatePercent,
+  type PeriodEndAction,
+  type PeriodStartAction,
+} from './interest-period-action';
 import {
   type BulkInterestResult,
   type BulkPrincipalChoice,
@@ -41,8 +49,9 @@ interface InterestSummary {
   status: StockStatus;
   orderDate: Date | null;
   arrivalDate: Date;
-  interestStartDate: Date; // วันที่เริ่มคิดดอกเบี้ย (orderDate หรือ arrivalDate)
-  daysCount: number; // จำนวนวันที่คิดดอกเบี้ย
+  interestStartDate: Date; // current/last period start, else orderDate/arrivalDate
+  interestActionDate: Date; // start while accruing; stop date when stopped
+  daysCount: number; // days of that period (lifetime interest is totalAccumulatedInterest)
   currentRate: number;
   totalAccumulatedInterest: number;
   isCalculating: boolean;
@@ -62,6 +71,9 @@ interface InterestPeriodDetail {
   notes: string | null;
   createdAt: Date;
   createdById: string | null;
+  startAction?: PeriodStartAction;
+  endAction?: PeriodEndAction;
+  previousRate?: number | null;
 }
 
 interface UpdateInterestRateInput {
@@ -196,69 +208,34 @@ export class InterestService {
     today.setHours(0, 0, 0, 0);
 
     const data: InterestSummary[] = stocks.map((stock) => {
-      // ใช้ orderDate ถ้ามี ถ้าไม่มีใช้ arrivalDate
-      const interestStartDate = stock.orderDate || stock.arrivalDate || today;
-      const accrualEnd = implicitAccrualEndDate({
-        stopInterestCalc: stock.stopInterestCalc,
-        interestStoppedAt: stock.interestStoppedAt,
-        soldDate: stock.soldDate,
-        today,
-      });
-      const daysCount = interestStartDate ? this.calculateDays(interestStartDate, accrualEnd) : 0;
-      
-      // Calculate total accumulated interest from all periods
-      let totalAccumulatedInterest = 0;
-      let currentRate = 0;
-      let principalBase = stock.interestPrincipalBase;
-      let principalAmount = this.getPrincipalAmount(stock, principalBase);
+      const display = resolveStockInterestDisplay(
+        {
+          orderDate: stock.orderDate,
+          arrivalDate: stock.arrivalDate,
+          soldDate: stock.soldDate,
+          stopInterestCalc: stock.stopInterestCalc,
+          interestStoppedAt: stock.interestStoppedAt,
+          debtStatus: stock.debtStatus,
+          interestRate: Number(stock.interestRate),
+          interestPrincipalBase: stock.interestPrincipalBase,
+          baseCost: Number(stock.baseCost),
+          transportCost: Number(stock.transportCost),
+          accessoryCost: Number(stock.accessoryCost),
+          otherCosts: Number(stock.otherCosts),
+          interestPeriods: stock.interestPeriods.map((p) => ({
+            startDate: p.startDate,
+            endDate: p.endDate,
+            annualRate: Number(p.annualRate),
+            principalBase: p.principalBase,
+            principalAmount: Number(p.principalAmount),
+            calculatedInterest: Number(p.calculatedInterest),
+            daysCount: p.daysCount,
+          })),
+        },
+        today
+      );
 
-      // Get the active period (no endDate)
-      const activePeriod = stock.interestPeriods.find(p => !p.endDate);
-      
-      if (activePeriod) {
-        currentRate = Number(activePeriod.annualRate);
-        principalBase = activePeriod.principalBase;
-        principalAmount = Number(activePeriod.principalAmount);
-        
-        // Calculate interest for active period up to today
-        const periodDays = this.calculateDays(activePeriod.startDate, today);
-        const activeInterest = this.calculateInterestForPeriod(
-          principalAmount,
-          currentRate,
-          periodDays
-        );
-        totalAccumulatedInterest += activeInterest;
-      } else if (
-        stock.interestPeriods.length === 0 &&
-        canAccrueWithoutPeriods(stock)
-      ) {
-        // No periods yet, use stock's default rate through stop date when stopped
-        currentRate = Number(stock.interestRate) * 100; // Convert from decimal to percentage
-        principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
-        
-        const interest = this.calculateInterestForPeriod(
-          principalAmount,
-          currentRate,
-          daysCount
-        );
-        totalAccumulatedInterest += interest;
-      } else if (stock.interestPeriods.length > 0) {
-        const latest = stock.interestPeriods[0];
-        currentRate = Number(latest.annualRate);
-        principalBase = latest.principalBase;
-        principalAmount = Number(latest.principalAmount);
-      } else {
-        currentRate = Number(stock.interestRate) * 100;
-      }
-
-      // Add closed periods' interest
-      stock.interestPeriods
-        .filter(p => p.endDate)
-        .forEach(p => {
-          totalAccumulatedInterest += Number(p.calculatedInterest);
-        });
-
-      const isCalculating = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
+      const isCalculating = display.isCalculating;
 
       return {
         stockId: stock.id,
@@ -268,13 +245,14 @@ export class InterestService {
         status: stock.status,
         orderDate: stock.orderDate,
         arrivalDate: stock.arrivalDate ?? today,
-        interestStartDate,
-        daysCount,
-        currentRate,
-        totalAccumulatedInterest: Math.round(totalAccumulatedInterest * 100) / 100,
+        interestStartDate: display.interestStartDate ?? today,
+        interestActionDate: display.interestActionDate ?? display.interestStartDate ?? today,
+        daysCount: display.daysCount,
+        currentRate: display.currentRate,
+        totalAccumulatedInterest: Math.round(display.accumulatedInterest * 100) / 100,
         isCalculating,
-        principalBase,
-        principalAmount,
+        principalBase: display.principalBase as InterestBase,
+        principalAmount: display.principalAmount,
       };
     });
 
@@ -335,12 +313,12 @@ export class InterestService {
     let totalDays = 0;
     let currentRate = Number(stock.interestRate) * 100;
 
-    const periods: InterestPeriodDetail[] = stock.interestPeriods.map((period) => {
+    const rawPeriods: InterestPeriodDetail[] = stock.interestPeriods.map((period) => {
       const endDate = period.endDate || today;
       const days = this.calculateDays(period.startDate, endDate);
-      
+
       let calculatedInterest = Number(period.calculatedInterest);
-      
+
       // If active period, calculate current interest
       if (!period.endDate) {
         calculatedInterest = this.calculateInterestForPeriod(
@@ -350,7 +328,7 @@ export class InterestService {
         );
         currentRate = Number(period.annualRate);
       }
-      
+
       totalAccumulatedInterest += calculatedInterest;
       totalDays += days;
 
@@ -368,6 +346,17 @@ export class InterestService {
         createdById: period.createdById,
       };
     });
+
+    const actions = classifyInterestPeriodActions(rawPeriods, {
+      stopInterestCalc: stock.stopInterestCalc,
+      debtStatus: stock.debtStatus,
+    });
+    const periods: InterestPeriodDetail[] = rawPeriods.map((period, index) => ({
+      ...period,
+      startAction: actions[index].startAction,
+      endAction: actions[index].endAction,
+      previousRate: actions[index].previousRate,
+    }));
 
     // If no periods, calculate from orderDate (or arrivalDate if orderDate is null)
     // including stocks already stopped so history-less rows still show accrued totals.
@@ -394,7 +383,7 @@ export class InterestService {
 
     const isCalculating = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
 
-    // วันที่เริ่มคิดดอกเบี้ย
+    // Vehicle order/arrival date — period starts live in `periods`, not this field.
     const interestStartDate = stock.orderDate || stock.arrivalDate;
 
     return {
@@ -487,6 +476,10 @@ export class InterestService {
             endDate: periodEndDate,
             calculatedInterest: new Decimal(calculatedInterest),
             daysCount: days,
+            notes: formatPeriodNote(
+              `ปิดงวดเพื่อเปลี่ยนอัตราเป็น ${formatRatePercent(input.annualRate)}`,
+              activePeriod.notes
+            ),
           },
         });
       } else if (stock.interestPeriods.length === 0) {
@@ -494,14 +487,16 @@ export class InterestService {
           stock,
           dayBefore(effectiveDate),
           userId,
-          input.notes
-            ? `[Closed implicit period before rate change] ${input.notes}`
-            : 'Closed implicit period before rate change'
+          formatPeriodNote(`ปิดงวดเพื่อเปลี่ยนอัตราเป็น ${formatRatePercent(input.annualRate)}`)
         );
         if (implicit) {
           await tx.interestPeriod.create({ data: implicit });
         }
       }
+
+      const previousRate = activePeriod
+        ? Number(activePeriod.annualRate)
+        : Number(stock.interestRate) * 100;
 
       const created = await tx.interestPeriod.create({
         data: {
@@ -514,7 +509,11 @@ export class InterestService {
           calculatedInterest: new Decimal(0),
           daysCount: 0,
           createdById: userId,
-          notes: input.notes,
+          notes: formatPeriodNote(
+            `เปลี่ยนอัตราจาก ${formatRatePercent(previousRate)} เป็น ${formatRatePercent(input.annualRate)}`,
+            null,
+            input.notes
+          ),
         },
       });
 
@@ -615,9 +614,7 @@ export class InterestService {
           source.annualRate,
           days
         );
-        const stoppedNotes = notes
-          ? `${source.notes || ''}\n[Stopped] ${notes}`.trim()
-          : source.notes;
+        const stoppedNotes = formatPeriodNote('หยุดคิดดอกเบี้ย', source.notes, notes);
 
         if (source.existingPeriodId) {
           await tx.interestPeriod.update({
@@ -710,7 +707,7 @@ export class InterestService {
           stock,
           closeEnd,
           userId,
-          'Closed implicit period before resume'
+          formatPeriodNote('หยุดคิดดอกเบี้ย')
         );
         if (implicit) {
           await tx.interestPeriod.create({ data: implicit });
@@ -728,7 +725,7 @@ export class InterestService {
           calculatedInterest: new Decimal(0),
           daysCount: 0,
           createdById: userId,
-          notes: input.notes,
+          notes: formatPeriodNote('เริ่มคิดดอกเบี้ยใหม่', null, input.notes),
         },
       });
 
@@ -807,7 +804,7 @@ export class InterestService {
         calculatedInterest: new Decimal(0),
         daysCount: 0,
         createdById: userId,
-        notes: input.notes || 'Initial interest period',
+        notes: formatPeriodNote('เริ่มคิดดอกเบี้ย', null, input.notes),
       },
     });
 
@@ -1199,7 +1196,10 @@ export class InterestService {
                 endDate: paymentDate,
                 calculatedInterest: new Decimal(calculatedInterest),
                 daysCount: days,
-                notes: `${activePeriod.notes || ''}\n[Debt Payment] Interest ${interestPaid.toLocaleString()}, Principal ${principalPaid.toLocaleString()} - Remaining ${principalAfter.toLocaleString()}`.trim(),
+                notes: formatPeriodNote(
+                  `ปรับเงินต้นหลังจ่ายหนี้ (ดอกเบี้ย ${interestPaid.toLocaleString('th-TH')} เงินต้น ${principalPaid.toLocaleString('th-TH')} คงเหลือ ${principalAfter.toLocaleString('th-TH')})`,
+                  activePeriod.notes
+                ),
               },
             });
 
@@ -1214,7 +1214,9 @@ export class InterestService {
                 calculatedInterest: new Decimal(0),
                 daysCount: 0,
                 createdById: userId,
-                notes: `Principal adjusted after debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+                notes: formatPeriodNote(
+                  `ปรับเงินต้นหลังจ่ายหนี้ (ดอกเบี้ย ${interestPaid.toLocaleString('th-TH')} เงินต้น ${principalPaid.toLocaleString('th-TH')})`
+                ),
               },
             });
           } else {
@@ -1229,7 +1231,9 @@ export class InterestService {
                 calculatedInterest: new Decimal(0),
                 daysCount: 0,
                 createdById: userId,
-                notes: `Initial period created from debt payment (Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`,
+                notes: formatPeriodNote(
+                  `เริ่มคิดดอกเบี้ยหลังจ่ายหนี้ (ดอกเบี้ย ${interestPaid.toLocaleString('th-TH')} เงินต้น ${principalPaid.toLocaleString('th-TH')})`
+                ),
               },
             });
           }
@@ -1241,7 +1245,9 @@ export class InterestService {
       // If full payment, stop interest calculation inline (mirrors stopInterestCalculation
       // but uses the current tx so the whole sequence stays atomic).
       if (isFullPayment) {
-        const stopNotes = `Debt fully paid off on ${paymentDate.toISOString().split('T')[0]} (Total paid: ${input.amount.toLocaleString()}, Interest: ${interestPaid.toLocaleString()}, Principal: ${principalPaid.toLocaleString()})`;
+        const stopNotes = formatPeriodNote(
+          `หยุดคิดเพราะปิดหนี้ (จ่าย ${input.amount.toLocaleString('th-TH')} ดอกเบี้ย ${interestPaid.toLocaleString('th-TH')} เงินต้น ${principalPaid.toLocaleString('th-TH')})`
+        );
 
         if (activePeriod) {
           const days = this.calculateDays(activePeriod.startDate, paymentDate);
@@ -1257,11 +1263,11 @@ export class InterestService {
               endDate: paymentDate,
               calculatedInterest: new Decimal(calculatedInterest),
               daysCount: days,
-              notes: `${activePeriod.notes || ''}\n[Stopped] ${stopNotes}`.trim(),
+              notes: formatPeriodNote(stopNotes, activePeriod.notes),
             },
           });
         } else if (stock.interestPeriods.length === 0) {
-          const implicit = this.implicitClosedPeriodData(stock, paymentDate, userId, `[Stopped] ${stopNotes}`);
+          const implicit = this.implicitClosedPeriodData(stock, paymentDate, userId, stopNotes);
           if (implicit) {
             await tx.interestPeriod.create({ data: implicit });
           }

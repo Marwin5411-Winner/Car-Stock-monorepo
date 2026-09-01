@@ -14,14 +14,23 @@ export interface InterestSummary {
   status: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD';
   orderDate: string | null;
   arrivalDate: string;
-  interestStartDate: string; // วันที่เริ่มคิดดอกเบี้ย (orderDate หรือ arrivalDate)
-  daysCount: number; // จำนวนวันที่คิดดอกเบี้ย
+  interestStartDate: string; // current/last period start, else orderDate/arrivalDate
+  interestActionDate?: string; // start while accruing; stop date when stopped
+  daysCount: number; // days of that period
   currentRate: number;
   totalAccumulatedInterest: number;
   isCalculating: boolean;
   principalBase: 'BASE_COST_ONLY' | 'TOTAL_COST';
   principalAmount: number;
 }
+
+export type InterestPeriodStartAction = 'INITIAL' | 'RATE_CHANGE' | 'RESUME' | 'DEBT_ADJUST';
+export type InterestPeriodEndAction =
+  | 'OPEN'
+  | 'RATE_CHANGE'
+  | 'STOPPED'
+  | 'DEBT_ADJUST'
+  | 'PAID_OFF';
 
 export interface InterestPeriod {
   id: string;
@@ -35,6 +44,9 @@ export interface InterestPeriod {
   notes: string | null;
   createdAt: string;
   createdById: string | null;
+  startAction?: InterestPeriodStartAction;
+  endAction?: InterestPeriodEndAction;
+  previousRate?: number | null;
 }
 
 export interface InterestDetail {
@@ -53,7 +65,7 @@ export interface InterestDetail {
     interiorColor: string | null;
     orderDate: string | null;
     arrivalDate: string;
-    interestStartDate: string; // วันที่เริ่มคิดดอกเบี้ย
+    interestStartDate: string; // orderDate or arrivalDate (vehicle start, not current period)
     status: 'AVAILABLE' | 'RESERVED' | 'PREPARING' | 'SOLD';
     baseCost: number;
     transportCost: number;

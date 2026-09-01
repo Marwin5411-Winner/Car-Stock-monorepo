@@ -85,9 +85,20 @@ export default function StockInterestReportPage() {
       },
     },
     {
-      key: 'interestStartDate',
-      label: 'วันที่เริ่มคิด',
+      key: 'interestActionDate',
+      label: 'วันที่เริ่ม/หยุดคิด',
       render: (value: string) => formatDate(value),
+    },
+    {
+      key: 'isCalculating',
+      label: 'สถานะดอกเบี้ย',
+      align: 'center' as const,
+      render: (_: boolean, row: StockInterestItem) =>
+        row.isCalculating ? (
+          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">กำลังคิด</span>
+        ) : (
+          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">หยุดแล้ว</span>
+        ),
     },
     {
       key: 'principalAmount',
@@ -143,7 +154,8 @@ export default function StockInterestReportPage() {
     { key: 'vin', label: 'VIN' },
     { key: 'vehicleInfo', label: 'รุ่น' },
     { key: 'statusLabel', label: 'สถานะ' },
-    { key: 'interestStartDate', label: 'วันที่เริ่มคิด' },
+    { key: 'interestActionDate', label: 'วันที่เริ่ม/หยุดคิด' },
+    { key: 'interestStatusLabel', label: 'สถานะดอกเบี้ย' },
     { key: 'principalAmount', label: 'ต้นทุน/ฐาน' },
     { key: 'interestRate', label: 'ดอกเบี้ย %' },
     { key: 'daysCount', label: 'จำนวนวัน' },
@@ -343,6 +355,27 @@ export default function StockInterestReportPage() {
                   height={300}
                   className="border-0 shadow-none p-0"
                 />
+              </div>
+            </div>
+
+            {/* Interest status */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">สถานะดอกเบี้ย</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <p className="text-sm font-medium text-green-800">กำลังคิด</p>
+                  <p className="text-xs text-green-700">{formatNumber(data.summary.calculatingCount)} คัน</p>
+                  <p className="text-sm font-semibold text-green-800 mt-1">
+                    {formatCurrency(data.summary.calculatingInterest)}
+                  </p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <p className="text-sm font-medium text-red-800">หยุดแล้ว</p>
+                  <p className="text-xs text-red-700">{formatNumber(data.summary.stoppedCount)} คัน</p>
+                  <p className="text-sm font-semibold text-red-800 mt-1">
+                    {formatCurrency(data.summary.stoppedInterest)}
+                  </p>
+                </div>
               </div>
             </div>
 
