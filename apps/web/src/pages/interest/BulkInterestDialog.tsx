@@ -92,12 +92,18 @@ export function BulkInterestDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
         <h2 className="text-lg font-semibold text-gray-900 mb-1">
-          {mode === 'stop' ? 'หยุดคิดดอกเบี้ยเป็นชุด' : 'ตั้งดอกเบี้ยใหม่เป็นชุด'}
+          {mode === 'stop' ? 'หยุดคิดดอกเบี้ยเป็นชุด' : 'เริ่ม/ตั้งดอกเบี้ยใหม่เป็นชุด'}
         </h2>
         <p className="text-sm text-gray-600 mb-4">
           จะทำกับ {selectedCount} คัน
           {selectAllMatching ? ' ตามผลลัพธ์ที่กรองอยู่' : ''}
         </p>
+
+        {mode === 'rate' && (
+          <p className="text-sm text-gray-600 -mt-2 mb-4">
+            รถที่หยุดคิดดอกเบี้ยอยู่จะถูกเริ่มคิดใหม่ตามอัตราและวันที่ด้านล่าง
+          </p>
+        )}
 
         {overLimit && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

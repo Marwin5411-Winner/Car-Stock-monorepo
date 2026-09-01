@@ -395,7 +395,7 @@ export default function InterestListPage() {
                 className="inline-flex items-center px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 text-sm font-medium hover:bg-purple-100 disabled:opacity-40"
               >
                 <Percent className="w-4 h-4 mr-1" />
-                ตั้งดอกเบี้ยใหม่
+                เริ่ม/ตั้งดอกเบี้ยใหม่
               </button>
             </div>
           </div>
