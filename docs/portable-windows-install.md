@@ -306,6 +306,9 @@ CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 | แก้ `.env` แล้วยังไม่ต่าง | ไฟล์ถูกเซฟเป็น UTF-8 **with BOM** หรือมี `!` ในรหัสผ่าน (ดูหัวข้อตั้งค่า) |
 | เปิดเว็บแล้วขาว | มี `app\public\index.html` ไหม, `STATIC_DIR=public` |
 | อัปเดตไม่ได้ | `UPDATE_FEED_URL`, เน็ตออกนอก, `pg_dump` อยู่ใน PATH |
+| อัปเดตแล้วหยุดที่ขั้น BackupDB (exit 13) | v1.0.66 ลงไป: `pg_dump` ไม่รับ `?schema=public` ใน `DATABASE_URL` → dump ล้มทุกครั้ง (backup รายวันก็ล้มเงียบ ๆ ด้วย). ใช้ v1.0.67+ หรือชั่วคราวตัด `?schema=public` ออกจาก `config\.env` |
+| `migrate deploy` ฟ้อง P3005 / P3009 หรือ "already exists" | ฐานข้อมูลเคยถูก `db push` / restore มา → รัน `setup.bat` ของ v1.0.67+ ซึ่งจะ reconcile ให้เอง ดู [db-auto-resolve-migrations.md](db-auto-resolve-migrations.md) |
+| ติดตั้งใหม่แล้ว migrate ตายที่ `type "FormulaOperator" does not exist` | v1.0.66 ลงไป migration history ไม่ครบ — ใช้ v1.0.67+ |
 | เปิดเครื่องแล้วไม่ขึ้น | service VBeyondCarStock = Automatic ไหม, Postgres Automatic ไหม |
 
 ### แก้ `.bat` ที่ line ending ผิด (LF → CRLF)

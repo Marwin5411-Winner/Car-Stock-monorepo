@@ -56,7 +56,7 @@ echo "==> Packing ${OUT_NAME}"
 echo "    Bun ${BUN_VERSION} | Prisma engines ${ENGINES_VERSION} | prisma ${PRISMA_PKG_VERSION}"
 
 rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR"/{app/{public,prisma,engines,tools,dist},config,data/{logs/app,logs/updater,backups,status,cache},releases,staging,secrets,updater,tools}
+mkdir -p "$OUT_DIR"/{app/{public,prisma,engines,tools,dist,scripts},config,data/{logs/app,logs/updater,backups,status,cache},releases,staging,secrets,updater,tools}
 mkdir -p "$CACHE_DIR"
 
 download() {
@@ -151,6 +151,10 @@ echo "==> Copy SPA + prisma assets"
 cp -R apps/web/dist/. "$OUT_DIR/app/public/"
 cp apps/api/prisma/schema.prisma "$OUT_DIR/app/prisma/"
 cp -R apps/api/prisma/migrations "$OUT_DIR/app/prisma/"
+# Run by setup.bat and by the updater's Migrate step before `migrate deploy`. Reconciles
+# _prisma_migrations with what is actually in the database so a drifted customer install
+# (db push, restored dump, renamed folder, failed migration) can still deploy.
+cp apps/api/scripts/auto-resolve-migrations.ts "$OUT_DIR/app/scripts/"
 if [ -f apps/api/prisma/seed.ts ]; then
   cp apps/api/prisma/seed.ts "$OUT_DIR/app/prisma/" || true
 fi
@@ -373,6 +377,9 @@ need=(
   "app/engines/schema-engine-windows.exe"
   "app/public/index.html"
   "app/prisma/schema.prisma"
+  # Without it setup.bat and the updater fall back to a bare `migrate deploy`, which is
+  # exactly what fails on a drifted database.
+  "app/scripts/auto-resolve-migrations.ts"
   "app/VERSION"
   "start.bat"
   "setup.bat"

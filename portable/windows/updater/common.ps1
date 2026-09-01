@@ -352,6 +352,33 @@ function Wait-VbHealth {
     return $false
 }
 
+# pg_dump / pg_restore parse DATABASE_URL with libpq, which rejects any query parameter
+# that is not a libpq keyword:
+#     pg_dump: error: invalid URI query parameter: "schema"
+# Prisma's canonical URL ends in ?schema=public - exactly what config\.env.example ships and
+# what docs\portable-windows-install.md tells the operator to paste. So on a default install
+# every dump failed, which meant: no pre-update backup (update aborted at step 5 with exit 13),
+# no nightly backup, and no database restore during rollback. Strip the driver-only parameters
+# here rather than in config\.env, because Prisma itself still needs ?schema=public.
+function ConvertTo-LibpqUri {
+    param([Parameter(Mandatory = $true)][string]$Url)
+    $keep = @(
+        'sslmode', 'connect_timeout', 'application_name', 'options',
+        'sslcert', 'sslkey', 'sslrootcert', 'sslpassword', 'target_session_attrs'
+    )
+    $qIdx = $Url.IndexOf('?')
+    if ($qIdx -lt 0) { return $Url }
+    $base = $Url.Substring(0, $qIdx)
+    $kept = @()
+    foreach ($pair in ($Url.Substring($qIdx + 1) -split '&')) {
+        if (-not $pair) { continue }
+        $name = ($pair -split '=', 2)[0]
+        if ($keep -contains $name.ToLowerInvariant()) { $kept += $pair }
+    }
+    if ($kept.Count -gt 0) { return ($base + '?' + ($kept -join '&')) }
+    return $base
+}
+
 function Invoke-PgDumpBackup {
     param([string]$Suffix = 'pre-update')
     $ts = Get-Date -Format 'yyyy-MM-dd_HHmmss'
@@ -370,9 +397,17 @@ function Invoke-PgDumpBackup {
         throw 'DATABASE_URL not set'
     }
 
-    & $exe --dbname="$($env:DATABASE_URL)" -Fc -f $out
+    # Assign first: PowerShell parses `--dbname=(expr)` as TWO arguments
+    # ("--dbname=" and the value), which hands pg_dump an empty --dbname.
+    $conn = ConvertTo-LibpqUri -Url $env:DATABASE_URL
+    & $exe "--dbname=$conn" -Fc -f $out
     if ($LASTEXITCODE -ne 0) {
         throw "pg_dump failed with exit $LASTEXITCODE"
+    }
+    # pg_dump can exit 0 having written nothing useful (e.g. a killed child). A zero-byte
+    # dump passed as "the backup" would make the rollback path silently useless.
+    if (-not (Test-Path -LiteralPath $out) -or (Get-Item -LiteralPath $out).Length -eq 0) {
+        throw "pg_dump produced an empty backup at $out"
     }
     return $out
 }
@@ -394,7 +429,8 @@ function Invoke-PgRestoreBackup {
     }
 
     Write-UpdaterLog "Restoring database from $DumpPath" 'WARN' | Out-Null
-    & $exe --dbname="$($env:DATABASE_URL)" --clean --if-exists $DumpPath
+    $conn = ConvertTo-LibpqUri -Url $env:DATABASE_URL
+    & $exe "--dbname=$conn" --clean --if-exists $DumpPath
     if ($LASTEXITCODE -ne 0) {
         throw "pg_restore failed with exit $LASTEXITCODE"
     }
@@ -465,6 +501,29 @@ function Invoke-MigrateDeploy {
 
     Push-Location $script:AppDir
     try {
+        # Reconcile _prisma_migrations with the live database before deploying. Customer
+        # databases drift (db push, restored dump, renamed migration folder, a migration
+        # left in the failed state), and `migrate deploy` then refuses with P3005/P3009 -
+        # which used to fail the update at step 8 and roll the whole release back.
+        # Bookkeeping rows only: no DDL, no data change.
+        $resolver = Join-Path $script:AppDir 'scripts\auto-resolve-migrations.ts'
+        if ((Test-Path -LiteralPath $bun) -and (Test-Path -LiteralPath $resolver)) {
+            # --no-backup: step 5 already took the pre-update dump, and a second one on a
+            # dealership-sized database would double the outage for no extra safety.
+            & $bun $resolver --apply --no-backup
+            $resolveRc = $LASTEXITCODE
+            if ($resolveRc -eq 3) {
+                throw ('migrate blocked: some migrations are only partially applied in this ' +
+                    'database. Auto-resolve stopped rather than mark them applied and strand ' +
+                    'the missing objects - see the updater log for the exact list.')
+            }
+            if ($resolveRc -ne 0) {
+                Write-UpdaterLog "auto-resolve-migrations exited $resolveRc; continuing to migrate deploy" 'WARN' | Out-Null
+            }
+        } else {
+            Write-UpdaterLog 'auto-resolve-migrations not present in this package; running a bare migrate deploy' 'WARN' | Out-Null
+        }
+
         if ((Test-Path -LiteralPath $bun) -and (Test-Path -LiteralPath $prismaJs)) {
             & $bun $prismaJs migrate deploy --schema=$schema
         } elseif (Test-Path -LiteralPath $bun) {

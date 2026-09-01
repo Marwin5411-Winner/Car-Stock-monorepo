@@ -36,6 +36,10 @@ yarn-error.log*
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 
+# Database dumps (auto-resolve-migrations writes here when VB_HOME is unset)
+backups/
+*.dump
+
 # Test coverage
 coverage
 

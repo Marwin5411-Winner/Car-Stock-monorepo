@@ -345,6 +345,11 @@ function Invoke-Update {
         Start-Sleep -Seconds 2
 
         Write-UpdateStatus -Step 7 -StepName 'Swap' -Status 'running' -Message 'Swapping app directory'
+        # $current comes from a file (app\VERSION) and is about to be used to build a path
+        # that gets Remove-Item -Recurse -Force'd. Validate it the same way the rollback path
+        # validates a caller-supplied version, so a corrupted VERSION can never point the
+        # delete outside releases\.
+        Assert-SafeReleaseVersion -Version $current
         $prevDir = Join-Path $script:ReleasesDir $current
         if (Test-Path -LiteralPath $prevDir) {
             Remove-Item -LiteralPath $prevDir -Recurse -Force
@@ -414,8 +419,11 @@ function Invoke-Update {
         # Prune old releases
         $keep = 3
         if ($env:KEEP_RELEASES) { [int]$keep = $env:KEEP_RELEASES }
+        # By LastWriteTime, not Name: these folders are named after versions, and a string
+        # sort puts "1.0.7" above "1.0.66" - so the release you would actually roll back to
+        # was the one being pruned. Newest-kept is what "keep the last 3" means anyway.
         Get-ChildItem -LiteralPath $script:ReleasesDir -Directory |
-            Sort-Object Name -Descending |
+            Sort-Object LastWriteTime -Descending |
             Select-Object -Skip $keep |
             ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
 

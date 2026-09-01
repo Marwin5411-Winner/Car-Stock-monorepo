@@ -48,8 +48,37 @@ if not exist "%VB_HOME%\app\prisma\schema.prisma" (
   exit /b 1
 )
 
-echo Running prisma migrate deploy...
 cd /d "%VB_HOME%\app"
+
+REM Reconcile _prisma_migrations with what is actually in this database before deploying.
+REM A database that was built with `db push`, restored from an old dump, or left with a
+REM failed migration makes `migrate deploy` refuse (P3005/P3009) or re-run DDL that is
+REM already there. This writes bookkeeping rows only - no DDL, no data change - and takes
+REM a pg_dump first whenever it has anything to write.
+if exist "bun.exe" if exist "scripts\auto-resolve-migrations.ts" (
+  echo Checking migration history against the database...
+  "bun.exe" "scripts\auto-resolve-migrations.ts" --apply
+  set "RESOLVE_RC=!errorlevel!"
+  if "!RESOLVE_RC!"=="3" (
+    echo.
+    echo ERROR: some migrations are only PARTIALLY applied in this database.
+    echo   Auto-resolve stopped instead of guessing - the missing objects are listed above.
+    echo   Fix them by hand, then run setup.bat again.
+    echo Press any key to close...
+    pause >nul
+    exit /b 1
+  )
+  if "!RESOLVE_RC!"=="4" (
+    echo.
+    echo ERROR: could not back up the database before repairing migration history.
+    echo   Install the PostgreSQL client tools ^(pg_dump^) or copy pg_dump.exe into app\tools\.
+    echo Press any key to close...
+    pause >nul
+    exit /b 1
+  )
+)
+
+echo Running prisma migrate deploy...
 
 if exist "bun.exe" (
   if exist "tools\migrate\node_modules\prisma" (
