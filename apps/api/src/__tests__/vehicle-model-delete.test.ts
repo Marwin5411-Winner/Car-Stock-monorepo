@@ -30,13 +30,20 @@ describe('cannotDeleteVehicleModelError', () => {
 });
 
 describe('isVehicleModelDeleteFkError', () => {
-  it('treats Prisma P2003 / P2014 as a blocked delete', () => {
-    const p2003 = Object.assign(new Error('Foreign key constraint failed'), { code: 'P2003' });
-    const p2014 = Object.assign(new Error('Required relation would be violated'), {
-      code: 'P2014',
-    });
-    expect(isVehicleModelDeleteFkError(p2003)).toBe(true);
-    expect(isVehicleModelDeleteFkError(p2014)).toBe(true);
+  it('treats Prisma P2003 / P2014 / P2017 as a blocked delete', () => {
+    expect(isVehicleModelDeleteFkError({ code: 'P2003' })).toBe(true);
+    expect(isVehicleModelDeleteFkError({ code: 'P2014' })).toBe(true);
+    expect(isVehicleModelDeleteFkError({ code: 'P2017' })).toBe(true);
+  });
+
+  it('treats Prisma required-relation messages as a blocked delete', () => {
+    expect(
+      isVehicleModelDeleteFkError(
+        new Error(
+          'The change you are trying to make would violate the required relation between Quotation and VehicleModel'
+        )
+      )
+    ).toBe(true);
   });
 
   it('treats a raw restrict message as a blocked delete', () => {
@@ -45,6 +52,13 @@ describe('isVehicleModelDeleteFkError', () => {
         new Error('update or delete on table "vehicle_models" violates foreign key constraint')
       )
     ).toBe(true);
+  });
+
+  it('reads the code off error.cause when the outer error is wrapped', () => {
+    const inner = Object.assign(new Error('Foreign key constraint failed'), { code: 'P2003' });
+    const wrapped = new Error('Transaction failed');
+    (wrapped as Error & { cause: unknown }).cause = inner;
+    expect(isVehicleModelDeleteFkError(wrapped)).toBe(true);
   });
 
   it('does not swallow unrelated errors', () => {

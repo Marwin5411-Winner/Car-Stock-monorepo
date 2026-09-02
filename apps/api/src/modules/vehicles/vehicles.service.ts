@@ -1,13 +1,7 @@
 import { CreateVehicleModelSchema, UpdateVehicleModelSchema } from '@car-stock/shared/schemas';
 import type { Prisma } from '@prisma/client';
 import { db } from '../../lib/db';
-import {
-  AppError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-  isPrismaError,
-} from '../../lib/errors';
+import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
 import { authService } from '../auth/auth.service';
 
 export function vehicleModelDeleteBlocked(liveStockCount: number, salesCount: number): boolean {
@@ -22,11 +16,26 @@ export function cannotDeleteVehicleModelError(): AppError {
   );
 }
 
+function prismaErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
+    return error.code;
+  }
+  if (error instanceof Error && error.cause) {
+    return prismaErrorCode(error.cause);
+  }
+  return undefined;
+}
+
 export function isVehicleModelDeleteFkError(error: unknown): boolean {
-  if (isPrismaError(error) && (error.code === 'P2003' || error.code === 'P2014')) {
+  const code = prismaErrorCode(error);
+  if (code === 'P2003' || code === 'P2014' || code === 'P2017') {
     return true;
   }
-  return error instanceof Error && /foreign key|restrict/i.test(error.message);
+  const message =
+    error instanceof Error
+      ? `${error.message} ${error.cause instanceof Error ? error.cause.message : ''}`
+      : '';
+  return /foreign key|restrict|required relation|constraint/i.test(message);
 }
 
 export class VehiclesService {
@@ -275,7 +284,19 @@ export class VehiclesService {
     }
 
     try {
+      // Prisma schema omits onDelete for quotations/sales/stocks, so the client
+      // Restricts even when the DB would SET NULL / CASCADE. Clear dependents first.
       await db.$transaction(async (tx) => {
+        await tx.quotation.updateMany({
+          where: { vehicleModelId: id },
+          data: { vehicleModelId: null },
+        });
+        await tx.campaignModelFormula.deleteMany({ where: { vehicleModelId: id } });
+        await tx.campaignVehicleModel.deleteMany({ where: { vehicleModelId: id } });
+        await tx.sale.updateMany({
+          where: { stock: { vehicleModelId: id, deletedAt: { not: null } } },
+          data: { stockId: null },
+        });
         await tx.stock.deleteMany({
           where: { vehicleModelId: id, deletedAt: { not: null } },
         });
