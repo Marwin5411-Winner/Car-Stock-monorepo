@@ -4,6 +4,7 @@ import { InterestBase, StockStatus, DebtStatus, PaymentMethod, Prisma } from '@p
 import { NotFoundError, BadRequestError } from '../../lib/errors';
 import {
   buildImplicitClosedPeriod,
+  buildImplicitDisplayPeriod,
   canAccrueWithoutPeriods,
   dayBefore,
   dayKey,
@@ -347,6 +348,40 @@ export class InterestService {
       };
     });
 
+    // Accruing with no InterestPeriod row still has an implicit current period
+    // (stock.interestRate since orderDate/arrivalDate). Surface it in history.
+    if (rawPeriods.length === 0) {
+      const principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
+      const implicit = buildImplicitDisplayPeriod({
+        startDate: stock.orderDate || stock.arrivalDate,
+        annualRatePercent: currentRate,
+        principalAmount,
+        debtStatus: stock.debtStatus,
+        stopInterestCalc: stock.stopInterestCalc,
+        interestStoppedAt: stock.interestStoppedAt,
+        soldDate: stock.soldDate,
+        today,
+      });
+      if (implicit) {
+        const calculatedInterest = Math.round(implicit.calculatedInterest * 100) / 100;
+        rawPeriods.push({
+          id: `implicit-${stock.id}`,
+          startDate: implicit.startDate,
+          endDate: implicit.endDate,
+          annualRate: currentRate,
+          principalBase: stock.interestPrincipalBase,
+          principalAmount,
+          calculatedInterest,
+          daysCount: implicit.daysCount,
+          notes: formatPeriodNote('เริ่มคิดดอกเบี้ย'),
+          createdAt: implicit.startDate,
+          createdById: null,
+        });
+        totalAccumulatedInterest = calculatedInterest;
+        totalDays = implicit.daysCount;
+      }
+    }
+
     const actions = classifyInterestPeriodActions(rawPeriods, {
       stopInterestCalc: stock.stopInterestCalc,
       debtStatus: stock.debtStatus,
@@ -357,29 +392,6 @@ export class InterestService {
       endAction: actions[index].endAction,
       previousRate: actions[index].previousRate,
     }));
-
-    // If no periods, calculate from orderDate (or arrivalDate if orderDate is null)
-    // including stocks already stopped so history-less rows still show accrued totals.
-    if (periods.length === 0 && canAccrueWithoutPeriods(stock)) {
-      const interestStartDate = stock.orderDate || stock.arrivalDate;
-      if (interestStartDate) {
-        const endDate = implicitAccrualEndDate({
-          stopInterestCalc: stock.stopInterestCalc,
-          interestStoppedAt: stock.interestStoppedAt,
-          soldDate: stock.soldDate,
-          today,
-        });
-        const daysCount = this.calculateDays(interestStartDate, endDate);
-        const principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
-
-        totalAccumulatedInterest = this.calculateInterestForPeriod(
-          principalAmount,
-          currentRate,
-          daysCount
-        );
-        totalDays = daysCount;
-      }
-    }
 
     const isCalculating = !stock.stopInterestCalc && stock.debtStatus !== 'PAID_OFF';
 

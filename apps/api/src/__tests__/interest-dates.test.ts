@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { classifyInterestPeriodActions } from '../modules/interest/interest-period-action';
 import {
   buildImplicitClosedPeriod,
+  buildImplicitDisplayPeriod,
   canAccrueWithoutPeriods,
   dayBefore,
   dayKey,
@@ -161,5 +163,124 @@ describe('buildImplicitClosedPeriod', () => {
         principalAmount: 100_000,
       })
     ).toBeNull();
+  });
+});
+
+describe('buildImplicitDisplayPeriod', () => {
+  const today = new Date(2026, 8, 2);
+
+  it('returns an open period while still calculating', () => {
+    const period = buildImplicitDisplayPeriod({
+      startDate: new Date(2026, 7, 31),
+      annualRatePercent: 3.35,
+      principalAmount: 714_306,
+      debtStatus: 'ACTIVE',
+      stopInterestCalc: false,
+      interestStoppedAt: null,
+      today,
+    });
+    expect(period).not.toBeNull();
+    expect(period!.endDate).toBeNull();
+    expect(period!.daysCount).toBe(2);
+    expect(period!.calculatedInterest).toBeCloseTo(714_306 * (3.35 / 100 / 365) * 2, 6);
+  });
+
+  it('closes at the stop date when interest was stopped', () => {
+    const period = buildImplicitDisplayPeriod({
+      startDate: new Date(2026, 0, 20),
+      annualRatePercent: 3,
+      principalAmount: 100_000,
+      debtStatus: 'ACTIVE',
+      stopInterestCalc: true,
+      interestStoppedAt: new Date(2026, 0, 30),
+      today,
+    });
+    expect(period).not.toBeNull();
+    expect(dayKey(period!.endDate!)).toBe('2026-01-30');
+    expect(period!.daysCount).toBe(10);
+    expect(period!.calculatedInterest).toBeCloseTo(100_000 * (3 / 100 / 365) * 10, 6);
+  });
+
+  it('returns null without a start date, or for paid-off stock with no stop date', () => {
+    const base = {
+      annualRatePercent: 3,
+      principalAmount: 100_000,
+      today,
+      interestStoppedAt: null as Date | null,
+    };
+    expect(
+      buildImplicitDisplayPeriod({
+        ...base,
+        startDate: null,
+        debtStatus: 'ACTIVE',
+        stopInterestCalc: false,
+      })
+    ).toBeNull();
+    expect(
+      buildImplicitDisplayPeriod({
+        ...base,
+        startDate: new Date(2026, 0, 20),
+        debtStatus: 'PAID_OFF',
+        stopInterestCalc: false,
+      })
+    ).toBeNull();
+  });
+
+  it('classifies the open implicit row as เริ่มคิด / ปัจจุบัน', () => {
+    const implicit = buildImplicitDisplayPeriod({
+      startDate: new Date(2026, 7, 31),
+      annualRatePercent: 3.35,
+      principalAmount: 714_306,
+      debtStatus: 'ACTIVE',
+      stopInterestCalc: false,
+      interestStoppedAt: null,
+      today,
+    });
+    const [row] = classifyInterestPeriodActions(
+      [
+        {
+          startDate: implicit!.startDate,
+          endDate: implicit!.endDate,
+          annualRate: 3.35,
+          principalAmount: 714_306,
+          notes: 'เริ่มคิดดอกเบี้ย',
+        },
+      ],
+      { stopInterestCalc: false, debtStatus: 'ACTIVE' }
+    );
+    expect(row).toEqual({
+      startAction: 'INITIAL',
+      endAction: 'OPEN',
+      previousRate: null,
+    });
+  });
+
+  it('classifies a stopped implicit row as เริ่มคิด / หยุดคิด', () => {
+    const implicit = buildImplicitDisplayPeriod({
+      startDate: new Date(2026, 0, 20),
+      annualRatePercent: 3,
+      principalAmount: 100_000,
+      debtStatus: 'ACTIVE',
+      stopInterestCalc: true,
+      interestStoppedAt: new Date(2026, 0, 30),
+      today,
+    });
+    const [row] = classifyInterestPeriodActions(
+      [
+        {
+          startDate: implicit!.startDate,
+          endDate: implicit!.endDate,
+          annualRate: 3,
+          principalAmount: 100_000,
+          notes: 'เริ่มคิดดอกเบี้ย',
+        },
+      ],
+      { stopInterestCalc: true, debtStatus: 'ACTIVE' }
+    );
+    expect(row).toEqual({
+      startAction: 'INITIAL',
+      endAction: 'STOPPED',
+      previousRate: null,
+    });
   });
 });

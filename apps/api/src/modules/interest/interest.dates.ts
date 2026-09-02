@@ -90,6 +90,64 @@ export function buildImplicitClosedPeriod(input: {
   return { startDate, endDate, daysCount, calculatedInterest };
 }
 
+/**
+ * Display stand-in for a stock that is accruing (or has accrued) without any
+ * InterestPeriod row. Open while still calculating; closed at the stop/sold
+ * cap so the history table can show the implicit current period.
+ */
+export function buildImplicitDisplayPeriod(input: {
+  startDate: Date | null | undefined;
+  annualRatePercent: number;
+  principalAmount: number;
+  debtStatus: string;
+  stopInterestCalc: boolean;
+  interestStoppedAt: Date | null | undefined;
+  soldDate?: Date | null;
+  today: Date;
+}): {
+  startDate: Date;
+  endDate: Date | null;
+  daysCount: number;
+  calculatedInterest: number;
+} | null {
+  if (!canAccrueWithoutPeriods(input) || !input.startDate) return null;
+
+  const accrualEnd = implicitAccrualEndDate({
+    stopInterestCalc: input.stopInterestCalc,
+    interestStoppedAt: input.interestStoppedAt,
+    soldDate: input.soldDate,
+    today: input.today,
+  });
+  const isClosed = !!(input.stopInterestCalc && input.interestStoppedAt);
+
+  if (isClosed) {
+    const closed = buildImplicitClosedPeriod({
+      startDate: input.startDate,
+      endDate: accrualEnd,
+      annualRatePercent: input.annualRatePercent,
+      principalAmount: input.principalAmount,
+    });
+    if (!closed) return null;
+    return {
+      startDate: closed.startDate,
+      endDate: closed.endDate,
+      daysCount: closed.daysCount,
+      calculatedInterest: closed.calculatedInterest,
+    };
+  }
+
+  const startDate = parseDay(input.startDate);
+  const endForCalc = parseDay(accrualEnd);
+  if (dayKey(endForCalc) < dayKey(startDate)) return null;
+  const daysCount = daysBetween(startDate, endForCalc);
+  return {
+    startDate,
+    endDate: null,
+    daysCount,
+    calculatedInterest: input.principalAmount * (input.annualRatePercent / 100 / 365) * daysCount,
+  };
+}
+
 /** Stop date must be within [active period start, today] (empty bound = unbounded). */
 export function isValidStopDate(
   stopDate: string,
