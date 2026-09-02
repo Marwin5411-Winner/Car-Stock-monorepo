@@ -1,8 +1,33 @@
-import { db } from '../../lib/db';
 import { CreateVehicleModelSchema, UpdateVehicleModelSchema } from '@car-stock/shared/schemas';
-import { authService } from '../auth/auth.service';
-import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from '../../lib/errors';
 import type { Prisma } from '@prisma/client';
+import { db } from '../../lib/db';
+import {
+  AppError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  isPrismaError,
+} from '../../lib/errors';
+import { authService } from '../auth/auth.service';
+
+export function vehicleModelDeleteBlocked(liveStockCount: number, salesCount: number): boolean {
+  return liveStockCount > 0 || salesCount > 0;
+}
+
+export function cannotDeleteVehicleModelError(): AppError {
+  return new AppError(
+    'Cannot delete vehicle model with existing stock or sales',
+    400,
+    'CANNOT_DELETE_VEHICLE_WITH_STOCK',
+  );
+}
+
+export function isVehicleModelDeleteFkError(error: unknown): boolean {
+  if (isPrismaError(error) && (error.code === 'P2003' || error.code === 'P2014')) {
+    return true;
+  }
+  return error instanceof Error && /foreign key|restrict/i.test(error.message);
+}
 
 export class VehiclesService {
   /**
@@ -228,15 +253,15 @@ export class VehiclesService {
       throw new ForbiddenError();
     }
 
-    // Check if vehicle has associated stock or sales (exclude soft-deleted stock —
-    // a model whose only stock has been soft-deleted should still be deletable).
-    const [stockCount, salesCount] = await Promise.all([
+    // Live stock / any sale still blocks. Soft-deleted stock is purged below so
+    // the RESTRICT FK on stocks.vehicle_model_id does not 500 the request.
+    const [liveStockCount, salesCount] = await Promise.all([
       db.stock.count({ where: { vehicleModelId: id, deletedAt: null } }),
       db.sale.count({ where: { vehicleModelId: id } }),
     ]);
 
-    if (stockCount > 0 || salesCount > 0) {
-      throw new BadRequestError('Cannot delete vehicle model with existing stock or sales');
+    if (vehicleModelDeleteBlocked(liveStockCount, salesCount)) {
+      throw cannotDeleteVehicleModelError();
     }
 
     // Get vehicle for logging
@@ -249,10 +274,19 @@ export class VehiclesService {
       throw new NotFoundError('Vehicle model');
     }
 
-    // Delete vehicle model
-    await db.vehicleModel.delete({
-      where: { id },
-    });
+    try {
+      await db.$transaction(async (tx) => {
+        await tx.stock.deleteMany({
+          where: { vehicleModelId: id, deletedAt: { not: null } },
+        });
+        await tx.vehicleModel.delete({ where: { id } });
+      });
+    } catch (error) {
+      if (isVehicleModelDeleteFkError(error)) {
+        throw cannotDeleteVehicleModelError();
+      }
+      throw error;
+    }
 
     // Log activity
     await db.activityLog.create({

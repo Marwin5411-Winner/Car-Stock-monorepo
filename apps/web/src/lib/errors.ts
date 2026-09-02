@@ -66,7 +66,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   'CANNOT_UPDATE_SOLD_STOCK': 'ไม่สามารถแก้ไขรถที่ขายแล้ว',
   'CANNOT_DELETE_SOLD_STOCK': 'ไม่สามารถลบรถที่ขายแล้ว',
   'CANNOT_DELETE_CUSTOMER_WITH_SALES': 'ไม่สามารถลบลูกค้าที่มีรายการขาย',
-  'CANNOT_DELETE_VEHICLE_WITH_STOCK': 'ไม่สามารถลบรุ่นรถที่มีสต็อก',
+  'CANNOT_DELETE_VEHICLE_WITH_STOCK': 'ไม่สามารถลบรุ่นรถที่มีสต็อกหรือรายการขาย',
   'CANNOT_VOID_ALREADY_VOIDED_PAYMENT': 'ไม่สามารถยกเลิกรายการที่ยกเลิกแล้ว',
   'STOCK_IS_NOT_AVAILABLE': 'รถไม่พร้อมขาย (ไม่ได้สถานะ AVAILABLE)',
   'CAMPAIGN_IS_NOT_ACTIVE': 'แคมเปญไม่ได้อยู่ในสถานะใช้งาน',
