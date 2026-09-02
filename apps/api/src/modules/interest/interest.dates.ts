@@ -148,6 +148,52 @@ export function buildImplicitDisplayPeriod(input: {
   };
 }
 
+/** Persist an implicit period only when history would otherwise stay empty. */
+export function shouldMaterializeImplicitPeriod(input: {
+  periodCount: number;
+  annualRatePercent: number;
+  startDate: Date | null | undefined;
+  debtStatus: string;
+  stopInterestCalc: boolean;
+  interestStoppedAt: Date | null | undefined;
+}): boolean {
+  if (input.periodCount > 0) return false;
+  if (!(input.annualRatePercent > 0)) return false;
+  if (!input.startDate) return false;
+  return canAccrueWithoutPeriods(input);
+}
+
+/**
+ * Fields to write for a materialized implicit period.
+ * Open periods store 0 interest/days — GET recalculates while the period is active.
+ */
+export function implicitPeriodWriteFields(implicit: {
+  startDate: Date;
+  endDate: Date | null;
+  daysCount: number;
+  calculatedInterest: number;
+}): {
+  startDate: Date;
+  endDate: Date | null;
+  daysCount: number;
+  calculatedInterest: number;
+} {
+  if (implicit.endDate) {
+    return {
+      startDate: implicit.startDate,
+      endDate: implicit.endDate,
+      daysCount: implicit.daysCount,
+      calculatedInterest: implicit.calculatedInterest,
+    };
+  }
+  return {
+    startDate: implicit.startDate,
+    endDate: null,
+    daysCount: 0,
+    calculatedInterest: 0,
+  };
+}
+
 /** Stop date must be within [active period start, today] (empty bound = unbounded). */
 export function isValidStopDate(
   stopDate: string,

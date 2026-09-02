@@ -1,35 +1,44 @@
 /**
- * One-shot: stock stopped before the "close the implicit period" fix has no
- * InterestPeriod row at all, so its history is empty and every report reads 0.
- * Recreates the closed period from the stock's own rate and start date.
+ * One-shot: stock that accrued from stock.interestRate without an InterestPeriod
+ * row has empty history. Recreates the open (still calculating) or closed
+ * (already stopped) period from the stock's own rate and start date.
  *
  * Usage: cd apps/api && bun run scripts/backfill-implicit-interest-periods.ts [--apply]
  * Without --apply it only prints what it would create.
  */
 import { PrismaClient } from '@prisma/client';
+import {
+  buildImplicitDisplayPeriod,
+  implicitPeriodWriteFields,
+  shouldMaterializeImplicitPeriod,
+} from '../src/modules/interest/interest.dates';
 
 const db = new PrismaClient();
 const apply = process.argv.includes('--apply');
 
-function days(start: Date, end: Date): number {
-  return Math.floor(Math.abs(end.getTime() - start.getTime()) / 86_400_000);
-}
-
 async function main() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const stocks = await db.stock.findMany({
     where: {
       deletedAt: null,
-      stopInterestCalc: true,
-      interestStoppedAt: { not: null },
-      debtStatus: { not: 'PAID_OFF' },
+      interestRate: { gt: 0 },
       interestPeriods: { none: {} },
+      OR: [
+        { stopInterestCalc: false, debtStatus: { not: 'PAID_OFF' } },
+        { stopInterestCalc: true, interestStoppedAt: { not: null } },
+      ],
     },
     select: {
       id: true,
       vin: true,
       orderDate: true,
       arrivalDate: true,
+      soldDate: true,
       interestStoppedAt: true,
+      stopInterestCalc: true,
+      debtStatus: true,
       interestRate: true,
       interestPrincipalBase: true,
       baseCost: true,
@@ -40,12 +49,23 @@ async function main() {
   });
 
   let created = 0;
+  let skipped = 0;
 
   for (const s of stocks) {
     const startDate = s.orderDate || s.arrivalDate;
-    const endDate = s.interestStoppedAt;
-    if (!startDate || !endDate || startDate > endDate) {
-      console.log(`SKIP ${s.vin}: no usable start/stop date`);
+    const annualRatePercent = Number(s.interestRate) * 100;
+    if (
+      !shouldMaterializeImplicitPeriod({
+        periodCount: 0,
+        annualRatePercent,
+        startDate,
+        debtStatus: s.debtStatus,
+        stopInterestCalc: s.stopInterestCalc,
+        interestStoppedAt: s.interestStoppedAt,
+      })
+    ) {
+      console.log(`SKIP ${s.vin}: not eligible`);
+      skipped++;
       continue;
     }
 
@@ -56,34 +76,51 @@ async function main() {
           Number(s.transportCost) +
           Number(s.accessoryCost) +
           Number(s.otherCosts);
-    const annualRate = Number(s.interestRate) * 100;
-    const daysCount = days(startDate, endDate);
-    const calculatedInterest = ((principalAmount * annualRate) / 100 / 365) * daysCount;
+
+    const implicit = buildImplicitDisplayPeriod({
+      startDate,
+      annualRatePercent,
+      principalAmount,
+      debtStatus: s.debtStatus,
+      stopInterestCalc: s.stopInterestCalc,
+      interestStoppedAt: s.interestStoppedAt,
+      soldDate: s.soldDate,
+      today,
+    });
+    if (!implicit) {
+      console.log(`SKIP ${s.vin}: no implicit period`);
+      skipped++;
+      continue;
+    }
+
+    const write = implicitPeriodWriteFields(implicit);
+    const endLabel = write.endDate ? write.endDate.toISOString().slice(0, 10) : 'ปัจจุบัน';
+    const displayInterest = write.endDate ? write.calculatedInterest : implicit.calculatedInterest;
 
     console.log(
-      `${apply ? 'CREATE' : 'WOULD CREATE'} ${s.vin}: ${startDate.toISOString().slice(0, 10)} → ` +
-        `${endDate.toISOString().slice(0, 10)} (${daysCount} วัน @ ${annualRate}%) = ${calculatedInterest.toFixed(2)}`
+      `${apply ? 'CREATE' : 'WOULD CREATE'} ${s.vin}: ${write.startDate.toISOString().slice(0, 10)} → ` +
+        `${endLabel} (${implicit.daysCount} วัน @ ${annualRatePercent}%) = ${displayInterest.toFixed(2)}`
     );
 
     if (apply) {
       await db.interestPeriod.create({
         data: {
           stockId: s.id,
-          startDate,
-          endDate,
-          annualRate,
+          startDate: write.startDate,
+          endDate: write.endDate,
+          annualRate: annualRatePercent,
           principalBase: s.interestPrincipalBase,
           principalAmount,
-          calculatedInterest,
-          daysCount,
-          notes: '[Backfill] งวดดอกเบี้ยก่อนหยุดคิด',
+          calculatedInterest: write.calculatedInterest,
+          daysCount: write.daysCount,
+          notes: write.endDate ? '[Backfill] งวดดอกเบี้ยก่อนหยุดคิด' : '[Backfill] เริ่มคิดดอกเบี้ย',
         },
       });
       created++;
     }
   }
 
-  console.log(`\n${stocks.length} คันที่หยุดคิดดอกเบี้ยแล้วแต่ไม่มีประวัติ, สร้างจริง ${created}`);
+  console.log(`\n${stocks.length} คันที่ไม่มีประวัติ, สร้างจริง ${created}, ข้าม ${skipped}`);
   if (!apply && stocks.length) console.log('รันซ้ำด้วย --apply เพื่อบันทึกจริง');
 }
 

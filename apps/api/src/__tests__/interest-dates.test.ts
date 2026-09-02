@@ -8,9 +8,11 @@ import {
   dayKey,
   daysBetween,
   implicitAccrualEndDate,
+  implicitPeriodWriteFields,
   isValidResumeStartDate,
   isValidStopDate,
   parseDay,
+  shouldMaterializeImplicitPeriod,
 } from '../modules/interest/interest.dates';
 
 describe('dayKey', () => {
@@ -282,5 +284,74 @@ describe('buildImplicitDisplayPeriod', () => {
       endAction: 'STOPPED',
       previousRate: null,
     });
+  });
+});
+
+describe('shouldMaterializeImplicitPeriod', () => {
+  const accruing = {
+    periodCount: 0,
+    annualRatePercent: 3.35,
+    startDate: new Date(2026, 7, 31),
+    debtStatus: 'ACTIVE',
+    stopInterestCalc: false,
+    interestStoppedAt: null as Date | null,
+  };
+
+  it('materializes an accruing stock with a rate and no periods', () => {
+    expect(shouldMaterializeImplicitPeriod(accruing)).toBe(true);
+  });
+
+  it('does not materialize when a period already exists, rate is 0, or paid off without a stop', () => {
+    expect(shouldMaterializeImplicitPeriod({ ...accruing, periodCount: 1 })).toBe(false);
+    expect(shouldMaterializeImplicitPeriod({ ...accruing, annualRatePercent: 0 })).toBe(false);
+    expect(shouldMaterializeImplicitPeriod({ ...accruing, startDate: null })).toBe(false);
+    expect(
+      shouldMaterializeImplicitPeriod({
+        ...accruing,
+        debtStatus: 'PAID_OFF',
+        stopInterestCalc: false,
+      })
+    ).toBe(false);
+  });
+
+  it('materializes a stopped stock that still has no history', () => {
+    expect(
+      shouldMaterializeImplicitPeriod({
+        ...accruing,
+        stopInterestCalc: true,
+        interestStoppedAt: new Date(2026, 8, 1),
+      })
+    ).toBe(true);
+  });
+});
+
+describe('implicitPeriodWriteFields', () => {
+  it('stores 0 interest/days for an open period', () => {
+    expect(
+      implicitPeriodWriteFields({
+        startDate: new Date(2026, 7, 31),
+        endDate: null,
+        daysCount: 2,
+        calculatedInterest: 131.12,
+      })
+    ).toEqual({
+      startDate: new Date(2026, 7, 31),
+      endDate: null,
+      daysCount: 0,
+      calculatedInterest: 0,
+    });
+  });
+
+  it('keeps closed-period totals', () => {
+    const startDate = new Date(2026, 0, 20);
+    const endDate = new Date(2026, 0, 30);
+    expect(
+      implicitPeriodWriteFields({
+        startDate,
+        endDate,
+        daysCount: 10,
+        calculatedInterest: 82.19,
+      })
+    ).toEqual({ startDate, endDate, daysCount: 10, calculatedInterest: 82.19 });
   });
 });

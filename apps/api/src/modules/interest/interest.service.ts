@@ -2,6 +2,7 @@ import { db } from '../../lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InterestBase, StockStatus, DebtStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
+import { logger } from '../../lib/logger';
 import {
   buildImplicitClosedPeriod,
   buildImplicitDisplayPeriod,
@@ -10,8 +11,10 @@ import {
   dayKey,
   daysBetween,
   implicitAccrualEndDate,
+  implicitPeriodWriteFields,
   isValidResumeStartDate,
   isValidStopDate,
+  shouldMaterializeImplicitPeriod,
 } from './interest.dates';
 import { resolveStopPeriodSource } from './interest.stop';
 import { resolveStockInterestDisplay } from './stock-interest-display';
@@ -129,6 +132,87 @@ export class InterestService {
       createdById: userId,
       notes: notes ?? null,
     };
+  }
+
+  /**
+   * Persist the implicit current period for a stock that has been accruing
+   * without any InterestPeriod row (rate set on the stock form).
+   */
+  private async materializeImplicitHistoryPeriod(
+    stock: {
+      id: string;
+      orderDate: Date | null;
+      arrivalDate: Date | null;
+      interestRate: Decimal | number;
+      interestPrincipalBase: InterestBase;
+      baseCost: Decimal | number;
+      transportCost: Decimal | number;
+      accessoryCost: Decimal | number;
+      otherCosts: Decimal | number;
+      debtStatus: string;
+      stopInterestCalc: boolean;
+      interestStoppedAt: Date | null;
+      soldDate: Date | null;
+    },
+    today: Date,
+    annualRatePercent: number
+  ) {
+    const startDate = stock.orderDate || stock.arrivalDate;
+    if (
+      !shouldMaterializeImplicitPeriod({
+        periodCount: 0,
+        annualRatePercent,
+        startDate,
+        debtStatus: stock.debtStatus,
+        stopInterestCalc: stock.stopInterestCalc,
+        interestStoppedAt: stock.interestStoppedAt,
+      })
+    ) {
+      return null;
+    }
+
+    const principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
+    const implicit = buildImplicitDisplayPeriod({
+      startDate,
+      annualRatePercent,
+      principalAmount,
+      debtStatus: stock.debtStatus,
+      stopInterestCalc: stock.stopInterestCalc,
+      interestStoppedAt: stock.interestStoppedAt,
+      soldDate: stock.soldDate,
+      today,
+    });
+    if (!implicit) return null;
+
+    const write = implicitPeriodWriteFields(implicit);
+
+    try {
+      return await db.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT id FROM stocks WHERE id = ${stock.id} AND deleted_at IS NULL FOR UPDATE
+        `;
+        const existing = await tx.interestPeriod.findFirst({
+          where: { stockId: stock.id },
+        });
+        if (existing) return existing;
+        return tx.interestPeriod.create({
+          data: {
+            stockId: stock.id,
+            startDate: write.startDate,
+            endDate: write.endDate,
+            annualRate: new Decimal(annualRatePercent),
+            principalBase: stock.interestPrincipalBase,
+            principalAmount: new Decimal(principalAmount),
+            calculatedInterest: new Decimal(write.calculatedInterest),
+            daysCount: write.daysCount,
+            notes: formatPeriodNote('เริ่มคิดดอกเบี้ย'),
+          },
+        });
+      });
+    } catch (err) {
+      logger.warn({ err, stockId: stock.id }, 'Failed to materialize implicit interest period');
+      return null;
+    }
   }
 
   /**
@@ -314,7 +398,13 @@ export class InterestService {
     let totalDays = 0;
     let currentRate = Number(stock.interestRate) * 100;
 
-    const rawPeriods: InterestPeriodDetail[] = stock.interestPeriods.map((period) => {
+    let sourcePeriods = stock.interestPeriods;
+    if (sourcePeriods.length === 0) {
+      const created = await this.materializeImplicitHistoryPeriod(stock, today, currentRate);
+      if (created) sourcePeriods = [created];
+    }
+
+    const rawPeriods: InterestPeriodDetail[] = sourcePeriods.map((period) => {
       const endDate = period.endDate || today;
       const days = this.calculateDays(period.startDate, endDate);
 
@@ -348,8 +438,7 @@ export class InterestService {
       };
     });
 
-    // Accruing with no InterestPeriod row still has an implicit current period
-    // (stock.interestRate since orderDate/arrivalDate). Surface it in history.
+    // Fallback display row if persist failed (history must still render).
     if (rawPeriods.length === 0) {
       const principalAmount = this.getPrincipalAmount(stock, stock.interestPrincipalBase);
       const implicit = buildImplicitDisplayPeriod({
@@ -362,7 +451,7 @@ export class InterestService {
         soldDate: stock.soldDate,
         today,
       });
-      if (implicit) {
+      if (implicit && currentRate > 0) {
         const calculatedInterest = Math.round(implicit.calculatedInterest * 100) / 100;
         rawPeriods.push({
           id: `implicit-${stock.id}`,
