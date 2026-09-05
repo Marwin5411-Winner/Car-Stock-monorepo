@@ -83,6 +83,9 @@ export function FinanceSheet({
   remainingAmount,
 }: FinanceSheetProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // ponytail: keep the raw text of the cell being typed in — a controlled
+  // String(Number(raw)) round-trip eats "3." so decimals were untypeable.
+  const [draft, setDraft] = useState<{ key: string; raw: string } | null>(null);
 
   const engineInput = useMemo(
     () => saleToEngineInput({ ...value, paymentMode }, carPrice),
@@ -327,13 +330,16 @@ export function FinanceSheet({
                         ) : row.isCustom && customIdx !== undefined ? (
                           <Input
                             type="number"
+                            step="any"
                             className="ml-auto h-8 w-32 text-right tabular-nums"
-                            value={row.amount}
-                            onChange={(e) =>
+                            value={draft?.key === row.key ? draft.raw : String(row.amount)}
+                            onChange={(e) => {
+                              setDraft({ key: row.key, raw: e.target.value });
                               handleCustomChange(customIdx, {
                                 amount: e.target.value === '' ? 0 : Number(e.target.value),
-                              })
-                            }
+                              });
+                            }}
+                            onBlur={() => setDraft(null)}
                           />
                         ) : isTextKey(row.key) ? (
                           <Input
@@ -347,12 +353,14 @@ export function FinanceSheet({
                         ) : (
                           <Input
                             type="number"
-                            step={isPercentOrTermsKey(row.key) ? 'any' : '1'}
+                            step="any"
                             className="ml-auto h-8 w-32 text-right tabular-nums"
-                            value={formatDisplay(row)}
-                            onChange={(e) =>
-                              handleSystemAmount(row.key as SystemFinanceKey, e.target.value)
-                            }
+                            value={draft?.key === row.key ? draft.raw : formatDisplay(row)}
+                            onChange={(e) => {
+                              setDraft({ key: row.key, raw: e.target.value });
+                              handleSystemAmount(row.key as SystemFinanceKey, e.target.value);
+                            }}
+                            onBlur={() => setDraft(null)}
                           />
                         )}
                       </td>
